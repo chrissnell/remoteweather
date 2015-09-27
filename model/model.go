@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"strings"
@@ -15,13 +14,95 @@ import (
 	"github.com/chrissnell/gopherwx/util/crc16"
 )
 
-const ACK = "\x06"
-const RESEND = "\x15"
+const (
+	ACK    = "\x06"
+	RESEND = "\x15"
+
+	maxTries = 3
+)
 
 type WeatherStation struct {
 	Name string `json:"name"`
 	C    net.Conn
 	R    *bufio.Reader
+}
+
+type LoopPacket struct {
+	Loop               [3]byte
+	LoopType           int8
+	PacketType         uint8
+	NextRecord         uint16
+	Barometer          uint16
+	InTemp             int16
+	InHumidity         uint8
+	OutTemp            int16
+	WindSpeed          uint8
+	WindSpeed10        uint8
+	WindDir            uint16
+	ExtraTemp1         uint8
+	ExtraTemp2         uint8
+	ExtraTemp3         uint8
+	ExtraTemp4         uint8
+	ExtraTemp5         uint8
+	ExtraTemp6         uint8
+	ExtraTemp7         uint8
+	SoilTemp1          uint8
+	SoilTemp2          uint8
+	SoilTemp3          uint8
+	SoilTemp4          uint8
+	LeafTemp1          uint8
+	LeafTemp2          uint8
+	LeafTemp3          uint8
+	LeafTemp4          uint8
+	OutHumidity        uint8
+	ExtraHumidity1     uint8
+	ExtraHumidity2     uint8
+	ExtraHumidity3     uint8
+	ExtraHumidity4     uint8
+	ExtraHumidity5     uint8
+	ExtraHumidity6     uint8
+	ExtraHumidity7     uint8
+	RainRate           uint16
+	UV                 uint8
+	Radiation          uint16
+	StormRain          uint16
+	StormStart         uint16
+	DayRain            uint16
+	MonthRain          uint16
+	YearRain           uint16
+	DayET              uint16
+	MonthET            uint16
+	YearET             uint16
+	SoilMoisture1      uint8
+	SoilMoisture2      uint8
+	SoilMoisture3      uint8
+	SoilMoisture4      uint8
+	LeafWetness1       uint8
+	LeafWetness2       uint8
+	LeafWetness3       uint8
+	LeafWetness4       uint8
+	InsideAlarm        uint8
+	RainAlarm          uint8
+	OutsideAlarm1      uint8
+	OutsideAlarm2      uint8
+	ExtraAlarm1        uint8
+	ExtraAlarm2        uint8
+	ExtraAlarm3        uint8
+	ExtraAlarm4        uint8
+	ExtraAlarm5        uint8
+	ExtraAlarm6        uint8
+	ExtraAlarm7        uint8
+	ExtraAlarm8        uint8
+	SoilLeafAlarm1     uint8
+	SoilLeafAlarm2     uint8
+	SoilLeafAlarm3     uint8
+	SoilLeafAlarm4     uint8
+	TxBatteryStatus    uint8
+	ConsBatteryVoltage uint16
+	ForecastIcon       uint8
+	ForecastRule       uint8
+	Sunrise            uint16
+	Sunset             uint16
 }
 
 // Model contains the data model with the associated etcd Client
@@ -135,7 +216,7 @@ func (m *Model) sendDataWithCRC16(d []byte) error {
 		return err
 	}
 
-	for i := 0; i <= 3; i++ {
+	for i := 0; i <= maxTries; i++ {
 		_, err := buf.WriteTo(m.WS.C)
 		if err != nil {
 			return err
@@ -165,8 +246,8 @@ func (m *Model) sendCommand(command []byte) (error, []string) {
 	// We'll write to a Buffer and then dump the buffer to the device
 	buf := new(bytes.Buffer)
 
-	// We'll try to send it up to three times before erroring out
-	for i := 0; i <= 3; i++ {
+	// We'll try to send it up to maxTries times before erroring out
+	for i := 0; i <= maxTries; i++ {
 		m.WakeStation()
 
 		// First, write the data
@@ -200,10 +281,8 @@ func (m *Model) sendCommand(command []byte) (error, []string) {
 
 func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) {
 	var err error
-	var checkBytes []byte
 
 	buf := new(bytes.Buffer)
-	outBuf := new(bytes.Buffer)
 
 	if prompt != "" {
 		// We'll write to a Buffer and then dump it to the device
@@ -220,8 +299,8 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 
 	}
 
-	// We're going to try reading data from the device three times...
-	for i := 1; i <= 3; i++ {
+	// We're going to try reading data from the device maxTries times...
+	for i := 1; i <= maxTries; i++ {
 
 		// If it's not our first attempt at reading from the console, we send a RESEND command
 		// to goad the console into responding.
@@ -238,12 +317,9 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 				return nil, err
 			}
 
-			_, err := io.CopyN(outBuf, m.WS.R, numBytes)
-			if err != nil {
-				return nil, err
-			}
+			checkBytes := make([]byte, numBytes)
 
-			_, err = outBuf.Write(checkBytes)
+			_, err := m.WS.R.Read(checkBytes)
 			if err != nil {
 				return nil, err
 			}
@@ -259,5 +335,66 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 	}
 
 	// We failed at reading data from the console
-	return nil, fmt.Errorf("Failed to read any data from the console after 3 attempts.")
+	return nil, fmt.Errorf("Failed to read any data from the console after %v attempts.", maxTries)
+}
+
+func (m *Model) genDavisLoopPackets(n int) ([]*LoopPacket, error) {
+	// Make a slice of loop packet maps, n elements long.
+	var loopPackets []*LoopPacket
+
+	// Wake the console
+	m.WakeStation()
+
+	// Request n packets
+	m.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
+
+	tries := 1
+
+	for l := 1; l <= n; l++ {
+		if tries > maxTries {
+			return nil, fmt.Errorf("Max retries exeeded while getting loop data")
+		}
+
+		// Read up to 99 bytes from the console
+		buf := make([]byte, 99)
+		_, err := m.WS.R.Read(buf)
+		if err != nil {
+			tries++
+			return nil, fmt.Errorf("Error while reading from console, LOOP %v: %v", l, err)
+		}
+
+		if crc16.Crc16(buf) != 0 {
+			return nil, fmt.Errorf("LOOP %v CRC error.  Try #%v", l, tries)
+			tries++
+		}
+
+		unpacked, err := m.unpackLoopPacket(buf)
+		if err != nil {
+			tries++
+			return nil, fmt.Errorf("Error unpacking loop packet: %v.  Try %v", err, tries)
+		}
+
+		loopPackets = append(loopPackets, unpacked)
+	}
+	return loopPackets, nil
+}
+
+func (m *Model) unpackLoopPacket(p []byte) (*LoopPacket, error) {
+	lp := new(LoopPacket)
+	r := bytes.NewReader(p)
+	peek := make([]byte, 1)
+	_, err := r.ReadAt(peek, 3)
+	if err != nil {
+		return nil, err
+	}
+
+	if bytes.Compare(peek, []byte{80}) == 0 {
+
+	}
+
+	err = binary.Read(r, binary.LittleEndian, &lp)
+	if err != nil {
+		return nil, err
+	}
+	return lp, nil
 }
