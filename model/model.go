@@ -344,7 +344,7 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 	return nil, fmt.Errorf("Failed to read any data from the console after %v attempts.", maxTries)
 }
 
-func (m *Model) genDavisLoopPackets(n int) ([]*LoopPacketWithTrend, error) {
+func (m *Model) getDavisLoopPackets(n int) ([]*LoopPacketWithTrend, error) {
 	// Make a slice of loop packet maps, n elements long.
 	var loopPackets []*LoopPacketWithTrend
 
