@@ -105,6 +105,12 @@ type LoopPacket struct {
 	Sunset             uint16
 }
 
+// Alternative loop packet type with 3-hour barometer trend
+type LoopPacketWithTrend struct {
+	LoopPacket
+	Trend int8
+}
+
 // Model contains the data model with the associated etcd Client
 type Model struct {
 	c  config.Config
@@ -338,9 +344,9 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 	return nil, fmt.Errorf("Failed to read any data from the console after %v attempts.", maxTries)
 }
 
-func (m *Model) genDavisLoopPackets(n int) ([]*LoopPacket, error) {
+func (m *Model) genDavisLoopPackets(n int) ([]*LoopPacketWithTrend, error) {
 	// Make a slice of loop packet maps, n elements long.
-	var loopPackets []*LoopPacket
+	var loopPackets []*LoopPacketWithTrend
 
 	// Wake the console
 	m.WakeStation()
@@ -379,22 +385,58 @@ func (m *Model) genDavisLoopPackets(n int) ([]*LoopPacket, error) {
 	return loopPackets, nil
 }
 
-func (m *Model) unpackLoopPacket(p []byte) (*LoopPacket, error) {
+func (m *Model) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
+	var trend int8
+	var isFlavorA bool
+
 	lp := new(LoopPacket)
+	lpwt := new(LoopPacketWithTrend)
+
+	// OK, this is super goofy: the loop packets come in two flavors: A and B.
+	// Flavor A will always have the character 'P' (ASCII 80) as the fourth byte of the packet
+	// Flavor B will have the 3-hour barometer trend in this position instead
+	// So, first we create a new Reader from the packet...
 	r := bytes.NewReader(p)
+
+	// Then we make a 1-byte slice
 	peek := make([]byte, 1)
+
+	// And we skip the first three bytes of the packet and read the fourth byte into peek
 	_, err := r.ReadAt(peek, 3)
 	if err != nil {
 		return nil, err
 	}
 
+	// Now we compare the fourth byte (peek) of the packet to see if it's set to 'P'
 	if bytes.Compare(peek, []byte{80}) == 0 {
-
+		// It's set to 'P', so we set isFlavorA to true.  Following the weewx convention, we'll later set PacketType
+		// to 'A' (ASCII 65) to signify a Flavor-A packet.
+		isFlavorA = true
+	} else {
+		// The fourth byte was not 'P' so we now know that it's our 3-hour barometer trend.   Create a Reader
+		// from this byte, decode it into an int8, then save the byte value to trend for later assignment in
+		// our object.
+		peekr := bytes.NewReader(peek)
+		err = binary.Read(peekr, binary.LittleEndian, &trend)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	// Now we read in the loop packet into our LoopPacket struct
 	err = binary.Read(r, binary.LittleEndian, &lp)
 	if err != nil {
 		return nil, err
 	}
-	return lp, nil
+
+	if isFlavorA {
+		// For Flavor-A packets, we build a LoopPacketWithTrend but set trend to 0 and PacketType to 'A'
+		lp.PacketType = 65
+		lpwt = &LoopPacketWithTrend{*lp, 0}
+	} else {
+		// For Flavor-B packets, we build a LoopPacketWithTrend and set trend to the value we extracted
+		lpwt = &LoopPacketWithTrend{*lp, trend}
+	}
+
+	return lpwt, nil
 }
