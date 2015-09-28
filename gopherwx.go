@@ -43,5 +43,16 @@ func main() {
 
 	s := New(*cfgFile)
 
-	s.model.WakeStation()
+	//s.model.WakeStation()
+
+	for {
+		loops, err := s.model.GetDavisLoopPackets(1)
+		if err != nil {
+			log.Println("Error getting loops:", err)
+		}
+		for _, l := range loops {
+			log.Printf("%+v\n", l)
+		}
+	}
+
 }
