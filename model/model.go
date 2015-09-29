@@ -450,3 +450,88 @@ func (m *Model) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
 
 	return lpwt, nil
 }
+
+// Used to convert LoopPacket.StormStart to a time.Time.  This conversion
+// differes slightly from the conversion used in archive packets.
+func convLoopDate(v uint16) time.Time {
+	y := int((0x007f & v) + 2000)
+	m := int((0xf000 & v) >> 12)
+	d := int((0x0f80 & v) >> 7)
+	return time.Date(y, time.Month(m), d, 0, 0, 0, 0, time.Local)
+}
+
+func convVal100(v uint16) float32 {
+	return float32(v) / 100
+}
+
+func convVal1000(v uint16) float32 {
+	return float32(v) / 1000
+}
+
+func convVal1000Zero(v uint16) float32 {
+	if v == 0 {
+		return 0
+	} else {
+		return float32(v) / 1000
+	}
+}
+
+func convBigVal(v uint16) float32 {
+	if v == 0x7fff {
+		return 0
+	} else {
+		return float32(v)
+	}
+}
+
+func convBigVal10(v int16) float32 {
+	if v == 0x7fff {
+		return 0
+	} else {
+		return float32(v) / 10
+	}
+}
+
+func convBigVal100(v uint16) float32 {
+	if v == 0x7fff {
+		return 0
+	} else {
+		return float32(v) / 100
+	}
+}
+
+func convLittleVal(v uint8) float32 {
+	if v == 0x00ff {
+		return 0
+	} else {
+		return float32(v)
+	}
+}
+
+func convLittleVal10(v uint8) float32 {
+	if v == 0x00ff {
+		return 0
+	} else {
+		return float32(v) / 10
+	}
+}
+
+func convLittleTemp(v uint8) float32 {
+	if v == 0x00ff {
+		return 0
+	} else {
+		return float32(v - 90)
+	}
+}
+
+func convConsBatteryVoltage(v uint16) float32 {
+	return float32((v*300)>>9) / 100.0
+}
+
+// Convert today's sunrise or sunset time into a time.Time
+func convSunTime(v uint16) time.Time {
+	now := time.Now()
+	h := int(v / 100)
+	m := int(v % 100)
+	return time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.Local)
+}
