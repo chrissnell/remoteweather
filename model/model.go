@@ -1,5 +1,8 @@
 package model
 
+// Ported from Tom Keffer's weewx
+// https://github.com/weewx/weewx/blob/master/bin/weewx/drivers/vantage.py
+
 import (
 	"bufio"
 	"bytes"
@@ -8,6 +11,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chrissnell/gopherwx/config"
@@ -22,9 +26,13 @@ const (
 )
 
 type WeatherStation struct {
-	Name string `json:"name"`
-	C    net.Conn
-	RW   *bufio.ReadWriter
+	Name         string `json:"name"`
+	C            net.Conn
+	RW           *bufio.ReadWriter
+	connecting   bool
+	connectingMu sync.RWMutex
+	connected    bool
+	connectedMu  sync.RWMutex
 }
 
 type LoopPacket struct {
@@ -111,6 +119,83 @@ type LoopPacketWithTrend struct {
 	Trend int8
 }
 
+// Reading is a LoopPacketWithTrend that has been converted to human-readable values
+// Administrative elements (e.g. LoopType) not related to weather readings have been
+// left out.
+type Reading struct {
+	Barometer          float32
+	InTemp             float32
+	InHumidity         float32
+	OutTemp            float32
+	WindSpeed          float32
+	WindSpeed10        float32
+	WindDir            float32
+	ExtraTemp1         float32
+	ExtraTemp2         float32
+	ExtraTemp3         float32
+	ExtraTemp4         float32
+	ExtraTemp5         float32
+	ExtraTemp6         float32
+	ExtraTemp7         float32
+	SoilTemp1          float32
+	SoilTemp2          float32
+	SoilTemp3          float32
+	SoilTemp4          float32
+	LeafTemp1          float32
+	LeafTemp2          float32
+	LeafTemp3          float32
+	LeafTemp4          float32
+	OutHumidity        float32
+	ExtraHumidity1     float32
+	ExtraHumidity2     float32
+	ExtraHumidity3     float32
+	ExtraHumidity4     float32
+	ExtraHumidity5     float32
+	ExtraHumidity6     float32
+	ExtraHumidity7     float32
+	RainRate           float32
+	UV                 float32
+	Radiation          float32
+	StormRain          float32
+	StormStart         time.Time
+	DayRain            float32
+	MonthRain          float32
+	YearRain           float32
+	DayET              float32
+	MonthET            float32
+	YearET             float32
+	SoilMoisture1      float32
+	SoilMoisture2      float32
+	SoilMoisture3      float32
+	SoilMoisture4      float32
+	LeafWetness1       float32
+	LeafWetness2       float32
+	LeafWetness3       float32
+	LeafWetness4       float32
+	InsideAlarm        uint8
+	RainAlarm          uint8
+	OutsideAlarm1      uint8
+	OutsideAlarm2      uint8
+	ExtraAlarm1        uint8
+	ExtraAlarm2        uint8
+	ExtraAlarm3        uint8
+	ExtraAlarm4        uint8
+	ExtraAlarm5        uint8
+	ExtraAlarm6        uint8
+	ExtraAlarm7        uint8
+	ExtraAlarm8        uint8
+	SoilLeafAlarm1     uint8
+	SoilLeafAlarm2     uint8
+	SoilLeafAlarm3     uint8
+	SoilLeafAlarm4     uint8
+	TxBatteryStatus    uint8
+	ConsBatteryVoltage float32
+	ForecastIcon       uint8
+	ForecastRule       uint8
+	Sunrise            time.Time
+	Sunset             time.Time
+}
+
 // Model contains the data model with the associated etcd Client
 type Model struct {
 	c  config.Config
@@ -130,58 +215,98 @@ func New(c config.Config) *Model {
 	return m
 }
 
-func (m *Model) Connect(s string) {
+func (l *LoopPacketWithTrend) String() string {
+	return fmt.Sprint("Outside Temp ", convBigVal10(l.OutTemp))
+}
+
+func (m *Model) Connect() {
 	var err error
 
-	if s == "" {
-		log.Fatalln("Must supply a hostname to connect to:", s)
+	console := fmt.Sprint(m.c.Device.Hostname, ":", m.c.Device.Port)
+
+	m.WS.connectingMu.RLock()
+
+	if m.WS.connecting {
+		m.WS.connectingMu.RUnlock()
+		log.Println("Skipping reconnect since a connection attempt is already in progress")
+		return
+	} else {
+		// A connection attempt is not in progress so we'll start a new one
+		m.WS.connectingMu.RUnlock()
+		m.WS.connectingMu.Lock()
+		m.WS.connecting = true
+		m.WS.connectingMu.Unlock()
+
+		log.Println("Connecting to:", console)
+
+		for {
+			m.WS.C, err = net.DialTimeout("tcp", console, 60*time.Second)
+			if err != nil {
+				log.Printf("Could not connect to %v.  Error: %v", console, err)
+				log.Println("Sleeping 5 seconds and trying again.")
+				time.Sleep(5 * time.Second)
+			} else {
+				// We're connected now so we set connected to true and connecting to false
+				m.WS.connectedMu.Lock()
+				defer m.WS.connectedMu.Unlock()
+				m.WS.connected = true
+				m.WS.connectingMu.Lock()
+				defer m.WS.connectingMu.Unlock()
+				m.WS.connecting = false
+
+				// Create a ReadWriter for our connection and set a ReadDeadline
+				writer := bufio.NewWriter(m.WS.C)
+				reader := bufio.NewReader(m.WS.C)
+				m.WS.RW = bufio.NewReadWriter(reader, writer)
+				m.WS.C.SetReadDeadline(time.Now().Add(time.Second * 30))
+				return
+			}
+		}
 	}
+}
 
-	log.Println("Connecting to:", s)
-
-	m.WS.C, err = net.Dial("tcp", "10.50.0.104:22222")
-	if err != nil {
-		log.Fatalf("Could not connect to %v.  Error: %v", s, err)
+func (m *Model) Write(p []byte) (nn int, err error) {
+	for {
+		nn, err = m.WS.RW.Write(p)
+		m.WS.RW.Flush()
+		if err != nil {
+			// We must not be connected
+			log.Println("Error writing to console:", err)
+			log.Println("Attempting to reconnect...")
+			m.Connect()
+		} else {
+			// Write was successful
+			return nn, err
+		}
 	}
-
-	if m.WS.C == nil {
-		log.Fatalln("Conn is nil")
-	}
-
-	m.WS.C.SetReadDeadline(time.Now().Add(time.Second * 15))
-
-	writer := bufio.NewWriter(m.WS.C)
-	reader := bufio.NewReader(m.WS.C)
-
-	m.WS.RW = bufio.NewReadWriter(reader, writer)
 }
 
 func (m *Model) WakeStation() {
-	var timer *time.Timer
 	var alive bool
 
-	envoy := fmt.Sprint(m.c.Device.Hostname, ":", m.c.Device.Port)
+	m.Connect()
 
-	m.Connect(envoy)
+	resp := make([]byte, 1024)
 
 	for alive == false {
-		fmt.Println("Waking up station.")
-		m.WS.RW.Write([]byte("\n\n\n"))
+		// Flush buffers
 		m.WS.RW.Flush()
-		timer = time.NewTimer(time.Millisecond * 500)
-		<-timer.C
-		line, err := m.WS.RW.ReadBytes('\r')
+
+		fmt.Println("Waking up station.")
+		m.WS.RW.Write([]byte("\n"))
+		m.WS.RW.Flush()
+		_, err := m.WS.C.Read(resp)
 		if err != nil {
 			log.Fatalln("Could not read from station:", err)
 		}
-		fmt.Println("This is what we got back:", line)
-		if line[0] == 0x0a && line[1] == 0x0d {
+		fmt.Println("This is what we got back:", resp)
+		if resp[0] == 0x0a && resp[1] == 0x0d {
 			fmt.Println("Station has been awaken.")
 			alive = true
+			return
 		} else {
 			fmt.Println("Sleeping 500ms and trying again...")
-			timer = time.NewTimer(time.Millisecond * 500)
-			<-timer.C
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 
@@ -191,7 +316,7 @@ func (m *Model) sendData(d []byte) error {
 	resp := make([]byte, 1)
 
 	// Write the data
-	m.WS.RW.Write(d)
+	m.Write(d)
 	m.WS.RW.Flush()
 
 	_, err := m.WS.RW.Read(resp)
@@ -200,7 +325,7 @@ func (m *Model) sendData(d []byte) error {
 		return err
 	}
 
-	log.Println("RESP ---->", resp)
+	fmt.Println("sendData RESP:", resp)
 
 	// See if it was ACKed
 	if resp[0] != 0x06 {
@@ -230,11 +355,10 @@ func (m *Model) sendDataWithCRC16(d []byte) error {
 	}
 
 	for i := 0; i <= maxTries; i++ {
-		_, err := buf.WriteTo(m.WS.RW)
+		_, err := buf.WriteTo(m)
 		if err != nil {
 			return err
 		}
-		m.WS.RW.Flush()
 
 		_, err = m.WS.RW.Read(resp)
 		if err != nil {
@@ -268,7 +392,7 @@ func (m *Model) sendCommand(command []byte) (error, []string) {
 		_, err = buf.Write(command)
 
 		// Write the buffer to the device
-		_, err = buf.WriteTo(m.WS.RW)
+		_, err = buf.WriteTo(m)
 		if err != nil {
 			return err, nil
 		}
@@ -307,7 +431,7 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 		}
 
 		// Write the buffer to the device
-		_, err = buf.WriteTo(m.WS.RW)
+		_, err = buf.WriteTo(m)
 		if err != nil {
 			return nil, err
 		}
@@ -354,45 +478,69 @@ func (m *Model) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) 
 	return nil, fmt.Errorf("Failed to read any data from the console after %v attempts.", maxTries)
 }
 
-func (m *Model) GetDavisLoopPackets(n int) ([]*LoopPacketWithTrend, error) {
+func (m *Model) GetDavisLoopPackets(n int, packetChan chan<- *Reading) error {
 	// Make a slice of loop packet maps, n elements long.
-	var loopPackets []*LoopPacketWithTrend
+	//var loopPackets []*LoopPacketWithTrend
 
-	// Wake the console
-	m.WakeStation()
-
+	log.Println("Initiating LOOP -->", n)
 	// Request n packets
 	m.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
+	m.WS.RW.Flush()
+
+	time.Sleep(1 * time.Second)
 
 	tries := 1
 
-	for l := 1; l <= n; l++ {
+	for l := 0; l < n; l++ {
+
+		time.Sleep(1 * time.Second)
+
 		if tries > maxTries {
-			return nil, fmt.Errorf("Max retries exeeded while getting loop data")
+			log.Println("Max retries exeeded while getting loop data")
+			return nil
 		}
 
-		// Read up to 99 bytes from the console
+		err := m.WS.C.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			log.Println("Error setting read deadline:", err)
+		}
+
+		// Read 99 bytes from the console
 		buf := make([]byte, 99)
-		_, err := m.WS.RW.Read(buf)
+		_, err = m.WS.RW.Read(buf)
+		//_, err = io.ReadAtLeast(m.WS.C, buf, 99)
 		if err != nil {
 			tries++
-			return nil, fmt.Errorf("Error while reading from console, LOOP %v: %v", l, err)
+			log.Printf("Error while reading from console, LOOP %v: %v", l, err)
+			return nil
 		}
 
-		if crc16.Crc16(buf) != 0 {
-			return nil, fmt.Errorf("LOOP %v CRC error.  Try #%v", l, tries)
-			tries++
-		}
+		if buf[95] != 0x0A && buf[96] != 0x0D {
+			log.Println("End-of-packet signature not found; rejecting.")
+		} else {
 
-		unpacked, err := m.unpackLoopPacket(buf)
-		if err != nil {
-			tries++
-			return nil, fmt.Errorf("Error unpacking loop packet: %v.  Try %v", err, tries)
-		}
+			if crc16.Crc16(buf) != 0 {
+				log.Printf("LOOP %v CRC error.  Try #%v", l, tries)
+				tries++
+				continue
+			}
 
-		loopPackets = append(loopPackets, unpacked)
+			unpacked, err := m.unpackLoopPacket(buf)
+			if err != nil {
+				tries++
+				log.Printf("Error unpacking loop packet: %v.  Try %v", err, tries)
+				continue
+			}
+
+			tries = 1
+
+			r := convValues(unpacked)
+
+			packetChan <- r
+			//loopPackets = append(loopPackets, unpacked)
+		}
 	}
-	return loopPackets, nil
+	return nil
 }
 
 func (m *Model) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
@@ -449,6 +597,84 @@ func (m *Model) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
 	}
 
 	return lpwt, nil
+}
+
+func convValues(lp *LoopPacketWithTrend) *Reading {
+	r := &Reading{
+		Barometer:          convVal1000Zero(lp.Barometer),
+		InTemp:             convBigVal10(lp.InTemp),
+		InHumidity:         convLittleVal(lp.InHumidity),
+		OutTemp:            convBigVal10(lp.OutTemp),
+		WindSpeed:          convLittleVal(lp.WindSpeed),
+		WindSpeed10:        convLittleVal(lp.WindSpeed10),
+		WindDir:            convBigVal(lp.WindDir),
+		ExtraTemp1:         convLittleTemp(lp.ExtraTemp1),
+		ExtraTemp2:         convLittleTemp(lp.ExtraTemp2),
+		ExtraTemp3:         convLittleTemp(lp.ExtraTemp3),
+		ExtraTemp4:         convLittleTemp(lp.ExtraTemp4),
+		ExtraTemp5:         convLittleTemp(lp.ExtraTemp5),
+		ExtraTemp6:         convLittleTemp(lp.ExtraTemp6),
+		ExtraTemp7:         convLittleTemp(lp.ExtraTemp7),
+		SoilTemp1:          convLittleTemp(lp.SoilTemp1),
+		SoilTemp2:          convLittleTemp(lp.SoilTemp2),
+		SoilTemp3:          convLittleTemp(lp.SoilTemp3),
+		SoilTemp4:          convLittleTemp(lp.SoilTemp4),
+		LeafTemp1:          convLittleTemp(lp.LeafTemp1),
+		LeafTemp2:          convLittleTemp(lp.LeafTemp2),
+		LeafTemp3:          convLittleTemp(lp.LeafTemp3),
+		LeafTemp4:          convLittleTemp(lp.LeafTemp4),
+		OutHumidity:        convLittleVal(lp.OutHumidity),
+		ExtraHumidity1:     convLittleVal(lp.ExtraHumidity1),
+		ExtraHumidity2:     convLittleVal(lp.ExtraHumidity2),
+		ExtraHumidity3:     convLittleVal(lp.ExtraHumidity3),
+		ExtraHumidity4:     convLittleVal(lp.ExtraHumidity4),
+		ExtraHumidity5:     convLittleVal(lp.ExtraHumidity5),
+		ExtraHumidity6:     convLittleVal(lp.ExtraHumidity6),
+		ExtraHumidity7:     convLittleVal(lp.ExtraHumidity7),
+		RainRate:           convBigVal100(lp.RainRate),
+		UV:                 convLittleVal10(lp.UV),
+		Radiation:          convBigVal(lp.Radiation),
+		StormRain:          convVal100(lp.StormRain),
+		StormStart:         convLoopDate(lp.StormStart),
+		DayRain:            convVal100(lp.DayRain),
+		MonthRain:          convVal100(lp.MonthRain),
+		YearRain:           convVal100(lp.YearRain),
+		DayET:              convVal1000(lp.DayET),
+		MonthET:            convVal100(lp.MonthET),
+		YearET:             convVal100(lp.YearET),
+		SoilMoisture1:      convLittleVal(lp.SoilMoisture1),
+		SoilMoisture2:      convLittleVal(lp.SoilMoisture2),
+		SoilMoisture3:      convLittleVal(lp.SoilMoisture3),
+		SoilMoisture4:      convLittleVal(lp.SoilMoisture4),
+		LeafWetness1:       convLittleVal(lp.LeafWetness1),
+		LeafWetness2:       convLittleVal(lp.LeafWetness2),
+		LeafWetness3:       convLittleVal(lp.LeafWetness3),
+		LeafWetness4:       convLittleVal(lp.LeafWetness4),
+		InsideAlarm:        lp.InsideAlarm,
+		RainAlarm:          lp.RainAlarm,
+		OutsideAlarm1:      lp.OutsideAlarm1,
+		OutsideAlarm2:      lp.OutsideAlarm2,
+		ExtraAlarm1:        lp.ExtraAlarm1,
+		ExtraAlarm2:        lp.ExtraAlarm2,
+		ExtraAlarm3:        lp.ExtraAlarm3,
+		ExtraAlarm4:        lp.ExtraAlarm4,
+		ExtraAlarm5:        lp.ExtraAlarm5,
+		ExtraAlarm6:        lp.ExtraAlarm6,
+		ExtraAlarm7:        lp.ExtraAlarm7,
+		ExtraAlarm8:        lp.ExtraAlarm8,
+		SoilLeafAlarm1:     lp.SoilLeafAlarm1,
+		SoilLeafAlarm2:     lp.SoilLeafAlarm2,
+		SoilLeafAlarm3:     lp.SoilLeafAlarm3,
+		SoilLeafAlarm4:     lp.SoilLeafAlarm4,
+		TxBatteryStatus:    lp.TxBatteryStatus,
+		ConsBatteryVoltage: convConsBatteryVoltage(lp.ConsBatteryVoltage),
+		ForecastIcon:       lp.ForecastIcon,
+		ForecastRule:       lp.ForecastRule,
+		Sunrise:            convSunTime(lp.Sunrise),
+		Sunset:             convSunTime(lp.Sunset),
+	}
+
+	return r
 }
 
 // Used to convert LoopPacket.StormStart to a time.Time.  This conversion
