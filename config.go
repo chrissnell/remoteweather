@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"io/ioutil"
@@ -16,7 +16,7 @@ type DeviceConfig struct {
 }
 
 // New creates an new config object from the given filename.
-func New(filename string) (Config, error) {
+func NewConfig(filename string) (Config, error) {
 	cfgFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return Config{}, err

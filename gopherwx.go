@@ -4,17 +4,11 @@ import (
 	"flag"
 	"log"
 	"path/filepath"
-
-	"github.com/chrissnell/gopherwx/config"
-	"github.com/chrissnell/gopherwx/controller"
-	"github.com/chrissnell/gopherwx/model"
 )
 
 // Service contains our configuration and runtime objects
 type Service struct {
-	Config     config.Config
-	controller *controller.Controller
-	model      *model.Model
+	ws *WeatherStation
 }
 
 // New creates a new instance of Service with the given configuration file
@@ -23,16 +17,13 @@ func New(filename string) *Service {
 
 	// Read our server configuration
 	filename, _ = filepath.Abs(filename)
-	cfg, err := config.New(filename)
+	cfg, err := NewConfig(filename)
 	if err != nil {
 		log.Fatalln("Error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
 	}
-	s.Config = cfg
-
-	s.model = model.New(s.Config)
 
 	// Initialize the Controller
-	s.controller = controller.New(s.Config, s.model)
+	s.ws = NewWeatherStation(cfg)
 
 	return s
 }
@@ -43,5 +34,5 @@ func main() {
 
 	s := New(*cfgFile)
 
-	s.controller.StartLoopPolling()
+	s.ws.StartLoopPolling()
 }
