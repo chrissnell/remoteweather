@@ -1,3 +1,13 @@
 device:
+  name: MyDavisWeatherStation
   hostname: 10.50.0.104
   port: 22222
+storage:
+    influxdb:
+        scheme: http
+        host:  10.50.0.35
+        port: 8086
+        protocol: http
+        database: weather
+        username: weather
+        password: someSecretPassword

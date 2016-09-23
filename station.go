@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -19,7 +20,10 @@ import (
 
 const (
 	// Define some constants that are used frequently in the Davis API
-	ACK    = "\x06"
+
+	// ACK - Acknowledge packet
+	ACK = "\x06"
+	// RESEND - Resend packet
 	RESEND = "\x15"
 
 	maxTries = 3
@@ -30,6 +34,7 @@ type WeatherStation struct {
 	Name         string `json:"name"`
 	C            net.Conn
 	Config       Config
+	Storage      *Storage
 	RW           *bufio.ReadWriter
 	connecting   bool
 	connectingMu sync.RWMutex
@@ -126,6 +131,8 @@ type LoopPacketWithTrend struct {
 // Administrative elements (e.g. LoopType) not related to weather readings have been
 // left out.
 type Reading struct {
+	Timestamp          time.Time
+	StationName        string
 	Barometer          float32
 	InTemp             float32
 	InHumidity         float32
@@ -201,7 +208,7 @@ type Reading struct {
 
 // StartLoopPolling launches the station-polling goroutine and process packets as they're received
 func (w *WeatherStation) StartLoopPolling() {
-	packetChan := make(chan *Reading)
+	packetChan := make(chan Reading)
 
 	// Wake the console
 	w.WakeStation()
@@ -211,12 +218,13 @@ func (w *WeatherStation) StartLoopPolling() {
 }
 
 // ProcessLoopPackets processes received LOOP packets
-func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan *Reading) {
+func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
 
 	for {
 		select {
 		case p := <-packetChan:
 			log.Printf("Packet: %+v", p)
+			w.Storage.ReadingDistributor <- p
 		}
 	}
 
@@ -224,18 +232,19 @@ func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan *Reading) {
 
 // GetLoopPackets gets 20 LOOP packets at a time.  The Davis API supports more
 // but tends to be flaky and 20 is a safe bet for each LOOP run
-func (w *WeatherStation) GetLoopPackets(packetChan chan<- *Reading) {
+func (w *WeatherStation) GetLoopPackets(packetChan chan<- Reading) {
 	for {
 		w.GetDavisLoopPackets(20, packetChan)
 	}
 }
 
 // NewWeatherStation creates a new data model with a new DB connection and Kube API client
-func NewWeatherStation(c Config) *WeatherStation {
+func NewWeatherStation(c Config, sto *Storage) *WeatherStation {
 
 	ws := new(WeatherStation)
 
 	ws.Config = c
+	ws.Storage = sto
 
 	return ws
 }
@@ -245,6 +254,7 @@ func (l *LoopPacketWithTrend) String() string {
 	return fmt.Sprint("Outside Temp ", convBigVal10(l.OutTemp))
 }
 
+// Connect connects to a Davis station over TCP/IP
 func (w *WeatherStation) Connect() {
 	var err error
 
@@ -256,39 +266,40 @@ func (w *WeatherStation) Connect() {
 		w.connectingMu.RUnlock()
 		log.Println("Skipping reconnect since a connection attempt is already in progress")
 		return
-	} else {
-		// A connection attempt is not in progress so we'll start a new one
-		w.connectingMu.RUnlock()
-		w.connectingMu.Lock()
-		w.connecting = true
-		w.connectingMu.Unlock()
+	}
 
-		log.Println("Connecting to:", console)
+	// A connection attempt is not in progress so we'll start a new one
+	w.connectingMu.RUnlock()
+	w.connectingMu.Lock()
+	w.connecting = true
+	w.connectingMu.Unlock()
 
-		for {
-			w.C, err = net.DialTimeout("tcp", console, 60*time.Second)
-			if err != nil {
-				log.Printf("Could not connect to %v.  Error: %v", console, err)
-				log.Println("Sleeping 5 seconds and trying again.")
-				time.Sleep(5 * time.Second)
-			} else {
-				// We're connected now so we set connected to true and connecting to false
-				w.connectedMu.Lock()
-				defer w.connectedMu.Unlock()
-				w.connected = true
-				w.connectingMu.Lock()
-				defer w.connectingMu.Unlock()
-				w.connecting = false
+	log.Println("Connecting to:", console)
 
-				// Create a ReadWriter for our connection and set a ReadDeadline
-				writer := bufio.NewWriter(w.C)
-				reader := bufio.NewReader(w.C)
-				w.RW = bufio.NewReadWriter(reader, writer)
-				w.C.SetReadDeadline(time.Now().Add(time.Second * 30))
-				return
-			}
+	for {
+		w.C, err = net.DialTimeout("tcp", console, 60*time.Second)
+		if err != nil {
+			log.Printf("Could not connect to %v.  Error: %v", console, err)
+			log.Println("Sleeping 5 seconds and trying again.")
+			time.Sleep(5 * time.Second)
+		} else {
+			// We're connected now so we set connected to true and connecting to false
+			w.connectedMu.Lock()
+			defer w.connectedMu.Unlock()
+			w.connected = true
+			w.connectingMu.Lock()
+			defer w.connectingMu.Unlock()
+			w.connecting = false
+
+			// Create a ReadWriter for our connection and set a ReadDeadline
+			writer := bufio.NewWriter(w.C)
+			reader := bufio.NewReader(w.C)
+			w.RW = bufio.NewReadWriter(reader, writer)
+			w.C.SetReadDeadline(time.Now().Add(time.Second * 30))
+			return
 		}
 	}
+
 }
 
 func (w *WeatherStation) Write(p []byte) (nn int, err error) {
@@ -504,7 +515,7 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 }
 
 // GetDavisLoopPackets attempts to initiate a LOOP command against the station and retrieve some packets
-func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- *Reading) error {
+func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) error {
 	// Make a slice of loop packet maps, n elements long.
 	//var loopPackets []*LoopPacketWithTrend
 
@@ -561,6 +572,10 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- *Reading) 
 			tries = 1
 
 			r := convValues(unpacked)
+
+			// Set the timestamp on our reading to the current system time
+			r.Timestamp = time.Now()
+			r.StationName = w.Config.Device.Name
 
 			packetChan <- r
 			//loopPackets = append(loopPackets, unpacked)
@@ -625,8 +640,8 @@ func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error
 	return lpwt, nil
 }
 
-func convValues(lp *LoopPacketWithTrend) *Reading {
-	r := &Reading{
+func convValues(lp *LoopPacketWithTrend) Reading {
+	r := Reading{
 		Barometer:          convVal1000Zero(lp.Barometer),
 		InTemp:             convBigVal10(lp.InTemp),
 		InHumidity:         convLittleVal(lp.InHumidity),
@@ -701,6 +716,24 @@ func convValues(lp *LoopPacketWithTrend) *Reading {
 	}
 
 	return r
+}
+
+// ToMap converts a Reading object into a map for later storage
+func (r *Reading) ToMap() map[string]interface{} {
+	m := make(map[string]interface{})
+
+	v := reflect.ValueOf(*r)
+
+	for i := 0; i < v.NumField(); i++ {
+		switch v.Field(i).Kind() {
+		case reflect.Float32:
+			m[v.Type().Field(i).Name] = v.Field(i).Float()
+		case reflect.Uint8:
+			m[v.Type().Field(i).Name] = v.Field(i).Uint()
+		}
+	}
+
+	return m
 }
 
 // Used to convert LoopPacket.StormStart to a time.Time.  This conversion
