@@ -223,7 +223,6 @@ func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
 	for {
 		select {
 		case p := <-packetChan:
-			log.Printf("Packet: %+v", p)
 			w.Storage.ReadingDistributor <- p
 		}
 	}
@@ -247,11 +246,6 @@ func NewWeatherStation(c Config, sto *Storage) *WeatherStation {
 	ws.Storage = sto
 
 	return ws
-}
-
-// Returns a LOOP packet (w/ trend) as a string
-func (l *LoopPacketWithTrend) String() string {
-	return fmt.Sprint("Outside Temp ", convBigVal10(l.OutTemp))
 }
 
 // Connect connects to a Davis station over TCP/IP
@@ -330,20 +324,21 @@ func (w *WeatherStation) WakeStation() {
 		// Flush buffers
 		w.RW.Flush()
 
-		fmt.Println("Waking up station.")
+		log.Println("Waking up station.")
 		w.RW.Write([]byte("\n"))
 		w.RW.Flush()
 		_, err := w.C.Read(resp)
 		if err != nil {
 			log.Fatalln("Could not read from station:", err)
 		}
-		fmt.Println("This is what we got back:", resp)
+		// fmt.Println("This is what we got back:", resp)
+
 		if resp[0] == 0x0a && resp[1] == 0x0d {
-			fmt.Println("Station has been awaken.")
+			log.Println("Station has been awaken.")
 			alive = true
 			return
 		}
-		fmt.Println("Sleeping 500ms and trying again...")
+		log.Println("Sleeping 500ms and trying again...")
 		time.Sleep(500 * time.Millisecond)
 
 	}
@@ -362,8 +357,6 @@ func (w *WeatherStation) sendData(d []byte) error {
 		log.Println("Error reading response:", err)
 		return err
 	}
-
-	fmt.Println("sendData RESP:", resp)
 
 	// See if it was ACKed
 	if resp[0] != 0x06 {
@@ -408,7 +401,6 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 			log.Println("No <ACK> was received from console")
 			return nil
 		}
-		log.Println("Send data to console and recieved ACK.")
 	}
 
 	return fmt.Errorf("I/O error writing data with CRC to device.")
@@ -519,7 +511,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 	// Make a slice of loop packet maps, n elements long.
 	//var loopPackets []*LoopPacketWithTrend
 
-	log.Println("Initiating LOOP -->", n)
+	log.Println("Initiating LOOP mode for", n, "packets.")
 	// Request n packets
 	w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
 	w.RW.Flush()

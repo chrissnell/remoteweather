@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 )
 
 // Storage holds our active storage backends
@@ -90,7 +89,6 @@ func (s *Storage) readingDistributor(ctx context.Context, wg *sync.WaitGroup) er
 		select {
 		case r := <-s.ReadingDistributor:
 			for _, e := range s.Engines {
-				log.Println("Reading Distributor :: Sending reading", r.Timestamp.Format(time.RFC822))
 				e.C <- r
 			}
 		case <-ctx.Done():

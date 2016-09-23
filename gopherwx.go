@@ -58,12 +58,17 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	go func(cancel context.CancelFunc) {
+		// If we get a SIGINT or SIGTERM, cancel the context and unblock 'done'
+		// to trigger a program shutdown
 		<-sigs
 		cancel()
 		close(done)
 	}(cancel)
 
+	// Wait for 'done' to unblock before terminating
 	<-done
+
+	// Also wait for all of our workers to terminate before terminating the program
 	wg.Wait()
 
 }
