@@ -33,4 +33,4 @@ In keeping with a "do one thing and do it well" philosphy, **gopherwx** doesn't 
 
 * A live weather website.  I have provided the source code/HTML for https://mhkweather.com [here](https://github.com/chrissnell/mhkweather.com).
 
-* [`weather-proxy`](https://github.com/chrissnell/weather-proxy) - Acts a gateway between people on the Internet and your InfluxDB database.  Since InfluxDB isn't really suitable for exposing directly to the internet, `weather-proxy` acts as a middleman, handling requests from your website visitors' browsers and querying InfluxDB to pull the requested weather data.  `weather-proxy` is suitable for exposure to the open Internet.
+* [**weather-proxy**](https://github.com/chrissnell/weather-proxy) - Acts a gateway between people on the Internet and your InfluxDB database.  Since InfluxDB isn't really suitable for exposing directly to the internet, `weather-proxy` acts as a middleman, handling requests from your website visitors' browsers and querying InfluxDB to pull the requested weather data.  `weather-proxy` is suitable for exposure to the open Internet.
