@@ -1,0 +1,22 @@
+[Unit]
+Description=Dockerized Gopherwx
+After=docker.service
+BindsTo=docker.service
+ 
+[Service]
+TimeoutStartSec=0
+TimeoutStopSec=30
+Restart=always
+RestartSec=10
+ 
+ExecStartPre=-/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml kill gopherwx 
+ExecStartPre=-/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml rm gopherwx 
+ExecStartPre=-/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml pull gopherwx
+ 
+ExecStart=/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml up --force-recreate
+ 
+ExecStop=/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml stop gopherwx
+ 
+[Install]
+WantedBy=multi-user.target
+
