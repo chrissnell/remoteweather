@@ -9,7 +9,7 @@ You will need a few things to use **gopherwx**:
 2. A Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP.  Note: **gopherwx** does not currently support direct serial connection to a VantagePro console because the author doesn't have a wired Weatherlink device.  However, this could be easily implemented if someone had a WL or a WL clone to loan.
 3. [InfluxDB](https://github.com/influxdata/influxdb) configured on your server.
 
-The easiest and recommended way to use **gopherwx** is to use the ready-made Docker image, `chrissnell/gopherwx`.  I have included an example [Docker Compose file](https://github.com/chrissnell/gopherwx/blob/master/example/docker-compose.yml) and [systemd unit file](https://github.com/chrissnell/gopherwx/blob/master/example/gopherwx.service) to get you started.
+The easiest and recommended way to use **gopherwx** is to use the ready-made Docker image, `chrissnell/gopherwx`.  This image makes use of `gosu` to drop root privileges to `nobody:nobody`. I have included an example [Docker Compose file](https://github.com/chrissnell/gopherwx/blob/master/example/docker-compose.yml) and [systemd unit file](https://github.com/chrissnell/gopherwx/blob/master/example/gopherwx.service) to get you started.
 
 To use Dockerized **gopherwx**, follow these steps:
 
