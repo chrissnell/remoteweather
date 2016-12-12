@@ -31,6 +31,6 @@ To use Dockerized **gopherwx**, follow these steps:
 
 In keeping with a "do one thing and do it well" philosphy, **gopherwx** doesn't currently serve a weather website, it only pulls the weather readings from the Davis device and stores them in the InfluxDB database for you to use as you wish.  To make a website for your data, you will need a couple of additional components:
 
-* A live weather website.  I have provided the source code/HTML for https://mhkweather.com [here](https://github.com/chrissnell/mhkweather.com).
+* A live weather website.  I have provided the source code/HTML for https://mhkweather.com in [this repository](https://github.com/chrissnell/mhkweather.com).
 
 * [**weather-proxy**](https://github.com/chrissnell/weather-proxy) - Acts a gateway between people on the Internet and your InfluxDB database.  Since InfluxDB isn't really suitable for exposing directly to the internet, `weather-proxy` acts as a middleman, handling requests from your website visitors' browsers and querying InfluxDB to pull the requested weather data.  `weather-proxy` is suitable for exposure to the open Internet.
