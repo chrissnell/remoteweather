@@ -27,7 +27,7 @@ To use Dockerized **gopherwx**, follow these steps:
 
 6. Make sure that `gopherwx.service` starts at boot time by running `systemctl enable /etc/gopherwx/user/gopherwx.service`
 
-##Setting up a live weather website
+## Setting up a live weather website
 
 In keeping with a "do one thing and do it well" philosphy, **gopherwx** doesn't currently serve a weather website, it only pulls the weather readings from the Davis device and stores them in the InfluxDB database for you to use as you wish.  To make a website for your data, you will need a couple of additional components:
 
