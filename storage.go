@@ -47,7 +47,14 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 	if c.Storage.InfluxDB.Host != "" {
 		err = s.AddEngine(ctx, wg, "influxdb", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add InfluxDB storage backend: %v\n", err)
+			return &s, fmt.Errorf("Could not add InfluxDB storage backend: %v", err)
+		}
+	}
+
+	if c.Storage.GRPC.Port != 0 {
+		err = s.AddEngine(ctx, wg, "grpc", c)
+		if err != nil {
+			return &s, fmt.Errorf("Could not add gRPC storage backend: %v", err)
 		}
 	}
 
@@ -69,6 +76,15 @@ func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName 
 	case "influxdb":
 		se := StorageEngine{}
 		se.I, err = NewInfluxDBStorage(c)
+		if err != nil {
+			return err
+		}
+		se.C = se.I.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+
+	case "grpc":
+		se := StorageEngine{}
+		se.I, err = NewGRPCStorage(c)
 		if err != nil {
 			return err
 		}

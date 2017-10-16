@@ -23,6 +23,7 @@ type DeviceConfig struct {
 // More than one storage backend can be used simultaneously
 type StorageConfig struct {
 	InfluxDB InfluxDBConfig `yaml:"influxdb,omitempty"`
+	GRPC     GRPCConfig     `yaml:"grpc,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.
