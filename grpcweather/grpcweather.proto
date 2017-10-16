@@ -1,0 +1,20 @@
+syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
+service Weather {
+    rpc GetLiveWeather (Empty) returns (stream WeatherReading) {}
+}
+
+message WeatherReading {
+    google.protobuf.Timestamp lastReading = 1;
+    float outsideTemp = 2;
+    int32 outsideHumidity = 3;
+    float barometer = 4;
+    int32 windSpeed = 5;
+    int32 windDir = 6;
+    float rainfallDay = 7;
+}
+
+message Empty {
+
+}
