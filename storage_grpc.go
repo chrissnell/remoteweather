@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	weather "github.com/chrissnell/gopherwx/grpcweather"
+	weather "github.com/chrissnell/gopherwx/protobuf"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -60,7 +60,7 @@ func (g GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rch
 func (g GRPCStorage) SendReading(r Reading) error {
 	select {
 	case g.RPCReadingChan <- r:
-		//
+	default:
 	}
 
 	return nil
