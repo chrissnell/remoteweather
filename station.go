@@ -403,7 +403,7 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 		}
 	}
 
-	return fmt.Errorf("I/O error writing data with CRC to device.")
+	return fmt.Errorf("i/o error writing data with CRC to device")
 }
 
 func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
@@ -503,7 +503,7 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 	}
 
 	// We failed at reading data from the console
-	return nil, fmt.Errorf("Failed to read any data from the console after %v attempts.", maxTries)
+	return nil, fmt.Errorf("failed to read any data from the console after %v attempts", maxTries)
 }
 
 // GetDavisLoopPackets attempts to initiate a LOOP command against the station and retrieve some packets
