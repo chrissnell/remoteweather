@@ -3,6 +3,9 @@ device:
   hostname: 10.50.0.104
   port: 22222
 storage:
+    grpc:
+        use-tls: false
+        port: 7500
     influxdb:
         scheme: http
         host:  10.50.0.35
