@@ -60,7 +60,7 @@ func (g GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rch
 func (g GRPCStorage) SendReading(r Reading) error {
 	select {
 	case g.RPCReadingChan <- r:
-		//
+	default:
 	}
 
 	return nil
