@@ -7,3 +7,4 @@ services:
     - GOPHERWX_CONFIG=/config/config.yaml
     volumes:
      - /etc/gopherwx:/config
+     - /etc/letsencrypt:/tls
