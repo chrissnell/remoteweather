@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	weather "github.com/chrissnell/gopherwx/grpcweather"
+	weather "github.com/chrissnell/gopherwx/protobuf"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
