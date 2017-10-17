@@ -10,14 +10,16 @@ import (
 	weather "github.com/chrissnell/gopherwx/grpcweather"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
 // GRPCConfig describes the YAML-provided configuration for a gRPC
 // storage backend
 type GRPCConfig struct {
-	TLS  bool `yaml:"use-tls"`
-	Port int  `yaml:"port,omitempty"`
+	Cert string `yaml:"cert,omitempty"`
+	Key  string `yaml:"key,omitempty"`
+	Port int    `yaml:"port,omitempty"`
 }
 
 // GRPCStorage implements a gRPC storage backend
@@ -73,6 +75,17 @@ func NewGRPCStorage(c *Config) (GRPCStorage, error) {
 
 	g.RPCReadingChan = make(chan Reading, 10)
 
+	if c.Storage.GRPC.Cert != "" && c.Storage.GRPC.Key != "" {
+		// Create the TLS credentials
+		creds, err := credentials.NewServerTLSFromFile(c.Storage.GRPC.Cert, c.Storage.GRPC.Key)
+		if err != nil {
+			return GRPCStorage{}, fmt.Errorf("could not create TLS server from keypair: %v", err)
+		}
+		g.GRPCServer = grpc.NewServer(grpc.Creds(creds))
+	} else {
+		g.GRPCServer = grpc.NewServer()
+	}
+
 	listenAddr := fmt.Sprintf(":%v", c.Storage.GRPC.Port)
 
 	g.Listener, err = net.Listen("tcp", listenAddr)
@@ -80,7 +93,6 @@ func NewGRPCStorage(c *Config) (GRPCStorage, error) {
 		return GRPCStorage{}, fmt.Errorf("Could not create gRPC listener: %v", err)
 	}
 
-	g.GRPCServer = grpc.NewServer()
 	weather.RegisterWeatherServer(g.GRPCServer, &g)
 	reflection.Register(g.GRPCServer)
 	go g.GRPCServer.Serve(g.Listener)
