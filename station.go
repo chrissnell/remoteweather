@@ -4,6 +4,7 @@ package main
 // https://github.com/weewx/weewx/blob/master/bin/weewx/drivers/vantage.py
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -574,9 +575,11 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 	tries := 1
 
+	scanner := bufio.NewScanner(w.rwc)
+	scanner.Split(scanPackets)
+
 	for l := 0; l < n; l++ {
 
-		log.Println("LOOP")
 		time.Sleep(1 * time.Second)
 
 		if tries > maxTries {
@@ -593,20 +596,26 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 		}
 
-		// Read 99 bytes from the console
-		buf := make([]byte, 99)
+		scanner.Scan()
+		// if isErr {
+		// 	tries++
+		// 	log.Printf("Error while reading from console, LOOP %v: %v", l, scanner.Err())
+		// 	return nil
+		// }
 
-		_, err = w.rwc.Read(buf)
+		buf := scanner.Bytes()
 
-		//_, err = io.ReadAtLeast(w.C, buf, 99)
-		if err != nil {
-			tries++
-			log.Printf("Error while reading from console, LOOP %v: %v", l, err)
-			return nil
+		if *debug {
+			log.Println("Packet contents")
+			fmt.Println(hex.Dump(buf))
 		}
 
-		log.Println("BUF -->")
-		fmt.Println(hex.Dump(buf))
+		if len(buf) < 99 {
+			log.Println("Packet too short:", len(buf), "...rejecting.")
+			fmt.Println(hex.Dump(buf))
+
+			continue
+		}
 
 		if buf[95] != 0x0A && buf[96] != 0x0D {
 			log.Println("End-of-packet signature not found; rejecting.")
@@ -633,13 +642,31 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			r.Timestamp = time.Now()
 			r.StationName = w.Config.Device.Name
 
-			log.Printf("Packet: %+v", r)
+			if *debug {
+				log.Printf("Packet: %+v", r)
+			}
 
 			packetChan <- r
 			//loopPackets = append(loopPackets, unpacked)
 		}
 	}
 	return nil
+}
+
+func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	for i := 0; i < (len(data) - 1); i++ {
+		if data[i] == 0x0A && data[i+1] == 0x0D {
+			return i + 4, data[:i+4], nil
+		}
+	}
+
+	if atEOF && len(data) > 0 {
+		return len(data), data[0:], nil
+	}
+
+	// Request more data.
+
+	return 0, nil, nil
 }
 
 func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
