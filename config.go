@@ -14,9 +14,10 @@ type Config struct {
 
 // DeviceConfig holds configuration specific to the Davis Instruments device
 type DeviceConfig struct {
-	Name     string `yaml:"name"`
-	Hostname string `yaml:"hostname"`
-	Port     string `yaml:"port"`
+	Name         string `yaml:"name"`
+	Hostname     string `yaml:"hostname,omitempty"`
+	Port         string `yaml:"port,omitempty"`
+	SerialDevice string `yaml:"serialdevice,omitempty"`
 }
 
 // StorageConfig holds the configuration for various storage backends.
