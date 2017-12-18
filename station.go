@@ -613,7 +613,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		if len(buf) < 99 {
 			log.Println("Packet too short:", len(buf), "...rejecting.")
 			fmt.Println(hex.Dump(buf))
-
+			tries++
 			continue
 		}
 
