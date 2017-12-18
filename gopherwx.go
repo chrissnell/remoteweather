@@ -27,10 +27,13 @@ func NewService(cfg *Config, sto *Storage) *Service {
 	return s
 }
 
+var debug *bool
+
 func main() {
 	var wg sync.WaitGroup
 
 	cfgFile := flag.String("config", "config.yaml", "Path to config file (default: ./config.yaml)")
+	debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
 	// Read our server configuration

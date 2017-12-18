@@ -4,7 +4,8 @@ device:
   port: 22222
 storage:
     grpc:
-        use-tls: false
+        cert: /path/to/my/tls.crt
+        key: /path/to/my/tls.key
         port: 7500
     influxdb:
         scheme: http
