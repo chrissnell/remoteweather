@@ -236,7 +236,16 @@ func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
 // but tends to be flaky and 20 is a safe bet for each LOOP run
 func (w *WeatherStation) GetLoopPackets(packetChan chan<- Reading) {
 	for {
-		w.GetDavisLoopPackets(20, packetChan)
+		err := w.GetDavisLoopPackets(20, packetChan)
+		if err != nil {
+			log.Println(err)
+			w.rwc.Close()
+			if len(w.Config.Device.Hostname) > 0 {
+				w.netConn.Close()
+			}
+			log.Println("Attempting to reconnect...")
+			w.Connect()
+		}
 	}
 }
 
@@ -417,6 +426,7 @@ func (w *WeatherStation) sendData(d []byte) error {
 	// See if it was ACKed
 	if resp[0] != 0x06 {
 		log.Println("No <ACK> received from console")
+		return fmt.Errorf("No <ACK> recieved from console")
 	}
 	return nil
 }
@@ -564,12 +574,21 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) error {
 	var err error
 
-	// Make a slice of loop packet maps, n elements long.
-	//var loopPackets []*LoopPacketWithTrend
+	for tries := 1; tries <= maxTries; tries++ {
+		if tries == maxTries {
+			return fmt.Errorf("Tried to initiate LOOP %v times, unsucessfully", tries)
+		}
 
-	log.Println("Initiating LOOP mode for", n, "packets.")
-	// Request n packets
-	w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
+		log.Println("Initiating LOOP mode for", n, "packets.")
+
+		// Send a LOOP request up to (maxTries) times
+		err = w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
+		if err != nil {
+			tries++
+		} else {
+			break
+		}
+	}
 
 	time.Sleep(1 * time.Second)
 
@@ -577,6 +596,9 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 	scanner := bufio.NewScanner(w.rwc)
 	scanner.Split(scanPackets)
+
+	buf := make([]byte, 99)
+	scanner.Buffer(buf, 99)
 
 	for l := 0; l < n; l++ {
 
@@ -597,13 +619,12 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		}
 
 		scanner.Scan()
-		// if isErr {
-		// 	tries++
-		// 	log.Printf("Error while reading from console, LOOP %v: %v", l, scanner.Err())
-		// 	return nil
-		// }
 
-		buf := scanner.Bytes()
+		if err = scanner.Err(); err != nil {
+			return fmt.Errorf("Error while reading from console, LOOP %v: %v", l, err)
+		}
+
+		buf = scanner.Bytes()
 
 		if *debug {
 			log.Println("Packet contents")
@@ -654,14 +675,17 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 }
 
 func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	for i := 0; i < (len(data) - 1); i++ {
+	for i := 0; i < (len(data) - 3); i++ {
+		if *debug {
+			fmt.Printf("i: %v  data: %+v\n", i, data)
+		}
 		if data[i] == 0x0A && data[i+1] == 0x0D {
 			return i + 4, data[:i+4], nil
 		}
 	}
 
 	if atEOF && len(data) > 0 {
-		return len(data), data[0:], nil
+		return len(data), data[0:], io.EOF
 	}
 
 	// Request more data.
