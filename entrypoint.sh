@@ -9,5 +9,4 @@ if [ -z "${GOPHERWX_CONFIG}" ]; then
   exit 1
 fi
 
-# Use gosu to drop privileges
-exec gosu nobody /gopherwx -config=$GOPHERWX_CONFIG
+exec /gopherwx -config=$GOPHERWX_CONFIG
