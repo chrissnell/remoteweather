@@ -9,4 +9,8 @@ if [ -z "${GOPHERWX_CONFIG}" ]; then
   exit 1
 fi
 
-exec /gopherwx -config=$GOPHERWX_CONFIG
+if [ $GOPHERWX_DEBUG = "true" ]; then
+  exec /gopherwx -config=$GOPHERWX_CONFIG -debug
+else
+  exec /gopherwx -config=$GOPHERWX_CONFIG
+fi
