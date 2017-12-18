@@ -34,3 +34,9 @@ In keeping with a "do one thing and do it well" philosphy, **gopherwx** doesn't 
 * A live weather website.  I have provided the source code/HTML for https://mhkweather.com in [this repository](https://github.com/chrissnell/mhkweather.com).
 
 * [**weather-proxy**](https://github.com/chrissnell/weather-proxy) - Acts a gateway between people on the Internet and your InfluxDB database.  Since InfluxDB isn't really suitable for exposing directly to the internet, `weather-proxy` acts as a middleman, handling requests from your website visitors' browsers and querying InfluxDB to pull the requested weather data.  `weather-proxy` is suitable for exposure to the open Internet.
+
+## gRPC Support
+
+gopherwx includes a built-in **gRPC** server that can serve up a stream of live weather readings to compatible clients.  I have written an example client, [weather-bar](https://github.com/chrissnell/weather-bar), that reads live weather from gopherwx over the network and display it within [Polybar](https://github.com/jaagr/polybar), a desktop stats bar for Linux.  
+
+If you would like to build your own client, have a look at the [protobuf spec](https://github.com/chrissnell/gopherwx/blob/master/protobuf/grpcweather.proto).
