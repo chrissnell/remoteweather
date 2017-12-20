@@ -579,7 +579,9 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			return fmt.Errorf("Tried to initiate LOOP %v times, unsucessfully", tries)
 		}
 
-		log.Println("Initiating LOOP mode for", n, "packets.")
+		if *debug {
+			log.Println("Initiating LOOP mode for", n, "packets.")
+		}
 
 		// Send a LOOP request up to (maxTries) times
 		err = w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
