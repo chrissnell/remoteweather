@@ -2,15 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"log"
 	"math"
+	"sync"
 	"time"
 )
 
-// The APRS object holds general configuration related to our APRS/CWOP transmissions
-type APRS struct {
-	callsign string
-	location Point
+// APRSStorage holds general configuration related to our APRS/CWOP transmissions
+type APRSStorage struct {
+	callsign        string
+	location        Point
+	ctx             context.Context
+	APRSReadingChan chan Reading
 }
 
 // Point represents a geographic location of an APRS/CWOP station
@@ -23,6 +28,53 @@ type Point struct {
 	RadioRange     float32
 	MessageCapable bool
 	Time           time.Time
+}
+
+// StartStorageEngine creates a goroutine loop to receive readings and send
+// them off to APRS-IS when needed
+func (a *APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+	log.Println("Starting gRPC storage engine...")
+	a.ctx = ctx
+	readingChan := make(chan Reading)
+	go a.processMetrics(ctx, wg, readingChan)
+	return readingChan
+}
+
+func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+	wg.Add(1)
+	defer wg.Done()
+
+	for {
+		select {
+		case r := <-rchan:
+			err := a.SendReading(r)
+			if err != nil {
+				log.Println(err)
+			}
+		case <-ctx.Done():
+			log.Println("Cancellation request recieved.  Cancelling readings processor.")
+			return
+		}
+	}
+}
+
+// SendReading sends a reading value to our APRS-IS server
+func (a *APRSStorage) SendReading(r Reading) error {
+	select {
+	case a.APRSReadingChan <- r:
+	default:
+	}
+
+	return nil
+}
+
+// NewAPRSStorage sets up a new APRS-IS storage backend
+func NewAPRSStorage(c *Config) (APRSStorage, error) {
+	a := APRSStorage{}
+
+	a.APRSReadingChan = make(chan Reading, 10)
+
+	return a, nil
 }
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
