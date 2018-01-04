@@ -25,6 +25,7 @@ type DeviceConfig struct {
 type StorageConfig struct {
 	InfluxDB InfluxDBConfig `yaml:"influxdb,omitempty"`
 	GRPC     GRPCConfig     `yaml:"grpc,omitempty"`
+	APRS     APRSConfig     `yaml:"aprs,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.
