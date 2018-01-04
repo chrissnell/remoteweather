@@ -23,7 +23,6 @@ type StorageEngine struct {
 // StorageEngineInterface is an interface that provides a few standardized
 // methods for various storage backends
 type StorageEngineInterface interface {
-	SendReading(Reading) error
 	StartStorageEngine(context.Context, *sync.WaitGroup) chan<- Reading
 }
 
@@ -58,12 +57,12 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 		}
 	}
 
-	// if c.Storage.Graphite.Host != "" {
-	// 	err = s.AddEngine(ctx, wg, "graphite", c)
-	// 	if err != nil {
-	// 		return &s, fmt.Errorf("Could not add Graphite storage backend: %v\n", err)
-	// 	}
-	// }
+	if c.Storage.APRS.Callsign != "" {
+		err = s.AddEngine(ctx, wg, "aprs", c)
+		if err != nil {
+			return &s, fmt.Errorf("Could not add APRS storage backend: %v", err)
+		}
+	}
 
 	return &s, nil
 }
@@ -85,6 +84,15 @@ func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName 
 	case "grpc":
 		se := StorageEngine{}
 		se.I, err = NewGRPCStorage(c)
+		if err != nil {
+			return err
+		}
+		se.C = se.I.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+
+	case "aprs":
+		se := StorageEngine{}
+		se.I, err = NewAPRSStorage(c)
 		if err != nil {
 			return err
 		}

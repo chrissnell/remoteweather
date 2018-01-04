@@ -42,7 +42,7 @@ func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup,
 	for {
 		select {
 		case r := <-rchan:
-			err := i.SendReading(r)
+			err := i.StoreReading(r)
 			if err != nil {
 				log.Println(err)
 			}
@@ -53,8 +53,8 @@ func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup,
 	}
 }
 
-// SendReading sends a reading value to InfluxDB
-func (i InfluxDBStorage) SendReading(r Reading) error {
+// StoreReading stores a reading value in InfluxDB
+func (i InfluxDBStorage) StoreReading(r Reading) error {
 
 	fields := r.ToMap()
 
