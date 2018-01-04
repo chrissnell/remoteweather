@@ -10,34 +10,71 @@ import (
 	"time"
 )
 
+// APRSConfig describes the YAML-provided configuration for the APRS storage
+// backend
+type APRSConfig struct {
+	Callsign     string `yaml:"callsign,omitempty"`
+	Passcode     string `yaml:"passcode,omitempty"`
+	APRSISServer string `yaml:"aprs-is-server,omitempty"`
+	Location     Point  `yaml:"location,omitempty"`
+}
+
+// CurrentReading is a Reading + a mutex that maintains the most recent reading from
+// the station for whenever we need to send one to APRS-IS
+type CurrentReading struct {
+	r Reading
+	sync.RWMutex
+}
+
 // APRSStorage holds general configuration related to our APRS/CWOP transmissions
 type APRSStorage struct {
 	callsign        string
 	location        Point
 	ctx             context.Context
 	APRSReadingChan chan Reading
+	currentReading  CurrentReading
 }
 
 // Point represents a geographic location of an APRS/CWOP station
 type Point struct {
-	Lat            float64
-	Lon            float64
-	Altitude       float64
-	Speed          float32
-	Heading        uint16
-	RadioRange     float32
-	MessageCapable bool
-	Time           time.Time
+	Lat float64 `yaml:"latitude,omitempty"`
+	Lon float64 `yaml:"longitude,omitempty"`
 }
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to APRS-IS when needed
-func (a *APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Println("Starting gRPC storage engine...")
+func (a APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+	log.Println("Starting APRS-IS storage engine...")
 	a.ctx = ctx
 	readingChan := make(chan Reading)
+	a.currentReading.r = Reading{}
 	go a.processMetrics(ctx, wg, readingChan)
+	go a.sendReports(ctx, wg)
 	return readingChan
+}
+
+func (a *APRSStorage) sendReports(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+
+	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			a.currentReading.RLock()
+			if a.currentReading.r.Timestamp.Unix() > 0 {
+				//pkt := CreateCompleteWeatherReport()
+				log.Printf("Sending reading to APRS-IS: %+v\n", a.currentReading.r)
+			}
+			a.currentReading.RUnlock()
+		case <-ctx.Done():
+			log.Println("Cancellation request recieved.  Cancelling APRS-IS sender.")
+			return
+		}
+	}
+
 }
 
 func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
@@ -47,7 +84,8 @@ func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 	for {
 		select {
 		case r := <-rchan:
-			err := a.SendReading(r)
+			log.Println("Recieved Reading:", r)
+			err := a.StoreCurrentReading(r)
 			if err != nil {
 				log.Println(err)
 			}
@@ -58,13 +96,11 @@ func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 	}
 }
 
-// SendReading sends a reading value to our APRS-IS server
-func (a *APRSStorage) SendReading(r Reading) error {
-	select {
-	case a.APRSReadingChan <- r:
-	default:
-	}
-
+// StoreCurrentReading stores the latest reading in our object
+func (a *APRSStorage) StoreCurrentReading(r Reading) error {
+	a.currentReading.Lock()
+	a.currentReading.r = r
+	a.currentReading.Unlock()
 	return nil
 }
 
