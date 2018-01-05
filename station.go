@@ -339,7 +339,7 @@ func (w *WeatherStation) connectToNetworkStation() {
 	log.Println("Connecting to:", console)
 
 	for {
-		w.netConn, err = net.DialTimeout("tcp", console, 60*time.Second)
+		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
 		w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
 
 		if err != nil {
