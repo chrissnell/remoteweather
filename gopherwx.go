@@ -7,9 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"syscall"
 )
+
+const version = "1.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
 // Service contains our configuration and runtime objects
 type Service struct {
