@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-const version = "1.0-" + runtime.GOOS + "/" + runtime.GOARCH
+const version = "2.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
 // Service contains our configuration and runtime objects
 type Service struct {
