@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -85,6 +86,10 @@ func (w *WUStorage) sendReading(r Reading) error {
 	resp.Body.Close()
 	if err != nil {
 		return fmt.Errorf("Error reading WU response body: %v", err)
+	}
+
+	if !bytes.Contains(body, []byte("success")) {
+		return (fmt.Errorf("Bad response from WU server: %v", string(body)))
 	}
 
 	return nil
