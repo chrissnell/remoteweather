@@ -64,6 +64,13 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 		}
 	}
 
+	if c.Storage.WU.StationID != "" {
+		err = s.AddEngine(ctx, wg, "wu", c)
+		if err != nil {
+			return &s, fmt.Errorf("Could not at WU storage backend: %v", err)
+		}
+	}
+
 	return &s, nil
 }
 
@@ -93,6 +100,14 @@ func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName 
 	case "aprs":
 		se := StorageEngine{}
 		se.I, err = NewAPRSStorage(c)
+		if err != nil {
+			return err
+		}
+		se.C = se.I.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+	case "wu":
+		se := StorageEngine{}
+		se.I, err = NewWUStorage(c)
 		if err != nil {
 			return err
 		}
