@@ -41,7 +41,7 @@ func (w *WUStorage) sendReports(ctx context.Context, wg *sync.WaitGroup, rchan <
 	for {
 		select {
 		case r := <-rchan:
-			err := w.sendReading(r)
+			err := w.sendReading(ctx, r)
 			if err != nil {
 				log.Println(err)
 			}
@@ -53,7 +53,7 @@ func (w *WUStorage) sendReports(ctx context.Context, wg *sync.WaitGroup, rchan <
 }
 
 // StoreReading stores a reading value in InfluxDB
-func (w *WUStorage) sendReading(r Reading) error {
+func (w *WUStorage) sendReading(ctx context.Context, r Reading) error {
 	v := url.Values{}
 
 	// Add our authentication parameters to our URL
@@ -77,7 +77,17 @@ func (w *WUStorage) sendReading(r Reading) error {
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("softwaretype", fmt.Sprintf("gopherwx %v", version))
 
-	resp, err := http.Get(w.cfg.Storage.WU.Endpoint + "?" + v.Encode())
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", w.cfg.Storage.WU.Endpoint+"?"+v.Encode(), nil)
+	if err != nil {
+		return fmt.Errorf("Error creating WU HTTP request: %v", err)
+	}
+
+	req.WithContext(ctx)
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("Error sending report to WU: %v", err)
 	}
