@@ -41,10 +41,7 @@ func (w *WUStorage) sendReports(ctx context.Context, wg *sync.WaitGroup, rchan <
 	for {
 		select {
 		case r := <-rchan:
-			err := w.sendReading(ctx, r)
-			if err != nil {
-				log.Println(err)
-			}
+			go w.sendReading(ctx, r)
 		case <-ctx.Done():
 			log.Println("Cancellation request recieved.  Cancelling readings processor.")
 			return
@@ -53,7 +50,7 @@ func (w *WUStorage) sendReports(ctx context.Context, wg *sync.WaitGroup, rchan <
 }
 
 // StoreReading stores a reading value in InfluxDB
-func (w *WUStorage) sendReading(ctx context.Context, r Reading) error {
+func (w *WUStorage) sendReading(ctx context.Context, r Reading) {
 	v := url.Values{}
 
 	// Add our authentication parameters to our URL
@@ -83,26 +80,31 @@ func (w *WUStorage) sendReading(ctx context.Context, r Reading) error {
 
 	req, err := http.NewRequest("GET", w.cfg.Storage.WU.Endpoint+"?"+v.Encode(), nil)
 	if err != nil {
-		return fmt.Errorf("Error creating WU HTTP request: %v", err)
+		log.Println("Error creating WU HTTP request:", err)
+                return
 	}
 
 	req.WithContext(ctx)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error sending report to WU: %v", err)
+		log.Println("Error sending report to WU:", err)
+		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return fmt.Errorf("Error reading WU response body: %v", err)
+                log.Println("Error reading WU response body:", err)
+                return
+
 	}
 
 	if !bytes.Contains(body, []byte("success")) {
-		return (fmt.Errorf("Bad response from WU server: %v", string(body)))
+		log.Println("Bad response from WU server:", string(body))
+                return
 	}
 
-	return nil
+	return
 }
 
 // NewWUStorage sets up a new WU storage backend
