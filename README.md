@@ -15,7 +15,7 @@ You will need a few things to use **gopherwx**:
   1.  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [mhkweather.com](https://mhkweather.com).
   2.  A [Weather Underground API account](https://www.wunderground.com/api) for sending live data to WU.   The base account level is free and is sufficient.
   3.  A ham radio license if you want to send live data to APRS-IS
-  4.  A [CWOP](http://wxqa.com/) I if you want to send live data to CWOP
+  4.  A [CWOP](http://wxqa.com/) ID if you want to send live data to CWOP
   5.  [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), if you want to display live weather on your Linux desktop
 
 ### Installation
