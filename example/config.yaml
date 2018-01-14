@@ -1,12 +1,19 @@
 device:
+  # The name of your weather station
   name: MyDavisWeatherStation
+  # If you have a Davis Weather Envoy, use the next two lines
   hostname: 10.50.0.104
   port: 22222
+  # Otherwise, if you're using USB or serial, use this instead:
+  serialdevice: /dev/ttyUSB0
 storage:
+    # If you want a gRPC server, provide a TLS cert+key and uncomment
+    # the next section...
     grpc:
         cert: /path/to/my/tls.crt
         key: /path/to/my/tls.key
         port: 7500
+    # For InfluxDB storage....
     influxdb:
         scheme: http
         host:  10.50.0.35
@@ -15,3 +22,17 @@ storage:
         database: weather
         username: weather
         password: someSecretPassword
+    # For APRS/CWOP support
+    aprs:
+        callsign: YOURCALL-SSID
+        passcode: 2274
+        aprs-is-server: noam.aprs2.net:14580
+        location:
+            # Use your actual lat/lon here...
+            latitude: 39.12345
+            longitude: -96.12345
+    # For WU support
+    wunderground:
+        station-id: YOUR-WU-STATION-ID-HERE
+        password: YOUR-WU-PASSWORD
+
