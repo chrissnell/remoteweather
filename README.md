@@ -1,15 +1,24 @@
 # gopherwx 
 
-**gopherwx** is a service that pulls live weather data from a Davis Instruments Vantage Pro2 station and stores it in an InfluxDB database, where it can be used to make a live display and historical weather graphs.
+**gopherwx** is a service that pulls live weather data from a Davis Instruments Vantage Pro2 station and does stuff with it.  The data can be uploaded to Weather Underground, [APRS/CWOP](https://aprs.fi), served up a stream over [gRPC](https://grpc.io/), or stored in an InfluxDB database, where it can be used to make a live display and historical weather graphs.
 
 ## Quick Start
 You will need a few things to use **gopherwx**:
 
-1. A Davis Instruments VantagePro or [VantagePro 2](http://www.davisnet.com/product/wireless-vantage-pro2-with-standard-radiation-shield/) weather station.
+1. A Davis Instruments VantagePro or [VantagePro 2](http://www.davisnet.com/product/wireless-vantage-pro2-with-standard-radiation-shield/) weather station.  This may work with the Vue.  I'm not certain.
 
-2. A Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP.  Note: **gopherwx** does not currently support direct serial connection to a VantagePro console because the author doesn't have a wired Weatherlink device.  However, this could be easily implemented if someone had a WL or a WL clone to loan.
+2. A way to connect your station to a Linux server.  There are several options for this:
+  1.  A WeatherLink (or clone) serial/USB cable to connect your VantagePro console to your server.
+  2.  -or- a Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP. 
 
-3. [InfluxDB](https://github.com/influxdata/influxdb) configured on your server.
+3. One or more of the following:
+  1.  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [mhkweather.com](https://mhkweather.com).
+  2.  A [Weather Underground API account](https://www.wunderground.com/api) for sending live data to WU.   The base account level is free and is sufficient.
+  3.  A ham radio license if you want to send live data to APRS-IS
+  4.  A [CWOP](http://wxqa.com/) I if you want to send live data to CWOP
+  5.  [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), if you want to display live weather on your Linux desktop
+
+### Installation
 
 The easiest and recommended way to use **gopherwx** is to use the ready-made Docker image, `chrissnell/gopherwx`.  This image makes use of `gosu` to drop root privileges to `nobody:nobody`. I have included an example [Docker Compose file](https://github.com/chrissnell/gopherwx/blob/master/example/docker-compose.yml) and [systemd unit file](https://github.com/chrissnell/gopherwx/blob/master/example/gopherwx.service) to get you started.
 
@@ -29,7 +38,7 @@ To use Dockerized **gopherwx**, follow these steps:
 
 ## Setting up a live weather website
 
-In keeping with a "do one thing and do it well" philosphy, **gopherwx** doesn't currently serve a weather website, it only pulls the weather readings from the Davis device and stores them in the InfluxDB database for you to use as you wish.  To make a website for your data, you will need a couple of additional components:
+**gopherwx** doesn't serve a weather website, it only pulls the weather readings from the Davis device and stores them in the InfluxDB database for you to use as you wish.  To make a website for your data, you will need a couple of additional components:
 
 * A live weather website.  I have provided the source code/HTML for https://mhkweather.com in [this repository](https://github.com/chrissnell/mhkweather.com).
 
