@@ -8,15 +8,15 @@ You will need a few things to use **gopherwx**:
 1. A Davis Instruments VantagePro or [VantagePro 2](http://www.davisnet.com/product/wireless-vantage-pro2-with-standard-radiation-shield/) weather station.  This may work with the Vue.  I'm not certain.
 
 2. A way to connect your station to a Linux server.  There are several options for this:
-  1.  A WeatherLink (or clone) serial/USB cable to connect your VantagePro console to your server.
-  2.  -or- a Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP. 
+  *  A WeatherLink (or clone) serial/USB cable to connect your VantagePro console to your server.
+  *  A Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP. 
 
 3. One or more of the following:
-  1.  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [mhkweather.com](https://mhkweather.com).
-  2.  A [Weather Underground API account](https://www.wunderground.com/api) for sending live data to WU.   The base account level is free and is sufficient.
-  3.  A ham radio license if you want to send live data to APRS-IS
-  4.  A [CWOP](http://wxqa.com/) ID if you want to send live data to CWOP
-  5.  [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), if you want to display live weather on your Linux desktop
+  *  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [mhkweather.com](https://mhkweather.com).
+  *  A [Weather Underground API account](https://www.wunderground.com/api) for sending live data to WU.   The base account level is free and is sufficient.
+  *  A ham radio license if you want to send live data to APRS-IS
+  *  A [CWOP](http://wxqa.com/) ID if you want to send live data to CWOP
+  *  [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), if you want to display live weather on your Linux desktop
 
 ### Installation
 
