@@ -1,6 +1,14 @@
 # gopherwx 
 
-**gopherwx** is a service that pulls live weather data from a Davis Instruments Vantage Pro2 station and does stuff with it.  The data can be uploaded to Weather Underground, [APRS/CWOP](https://aprs.fi), served up a stream over [gRPC](https://grpc.io/), or stored in an InfluxDB database, where it can be used to make a live display and historical weather graphs.
+**gopherwx** is a service that pulls live weather data from a Davis Instruments Vantage Pro2 station and does stuff with it.  
+
+## Features
+* Powers a live weather website with graphs (front-end available in [chrissnell/mhkweather.com repo](https://github.com/chrissnell/mhkweather.com))
+* Stores historical data in InfluxDB for graphing and analysis.
+* Sends live weather data to Weather Underground for use as a WU Personal Weather Station (PWS).  WU API key required.
+* Sends data to APRS/CWOP.  Ham radio license or CWOP station registration required.
+* Streams live data over [gRPC](https://grpc.io).  Roll your own client or [try my Linux client](https://github.com/chrissnell/grpc-weather-bar).
+
 
 ## Quick Start
 You will need a few things to use **gopherwx**:
