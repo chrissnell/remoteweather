@@ -54,6 +54,6 @@ To use Dockerized **gopherwx**, follow these steps:
 
 ## gRPC Support
 
-gopherwx includes a built-in **gRPC** server that can serve up a stream of live weather readings to compatible clients.  I have written an example client, [weather-bar](https://github.com/chrissnell/weather-bar), that reads live weather from gopherwx over the network and display it within [Polybar](https://github.com/jaagr/polybar), a desktop stats bar for Linux.  
+gopherwx includes a built-in **gRPC** server that can serve up a stream of live weather readings to compatible clients.  I have written an example client, [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), that reads live weather from gopherwx over the network and display it within [Polybar](https://github.com/jaagr/polybar), a desktop stats bar for Linux.  
 
 If you would like to build your own client, have a look at the [protobuf spec](https://github.com/chrissnell/gopherwx/blob/master/protobuf/grpcweather.proto).
