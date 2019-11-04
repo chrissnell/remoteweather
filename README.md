@@ -3,7 +3,7 @@
 **gopherwx** is a service that pulls live weather data from a Davis Instruments Vantage Pro2 station and does stuff with it.  
 
 ## Features
-* Powers a [live weather website](https://mhkweather.com) with graphs (front-end code available [here](https://github.com/chrissnell/mhkweather.com))
+* Powers a [live weather website](https://carlisleweather.com) with graphs (front-end code available [here](https://github.com/chrissnell/mhkweather.com))
 * Stores historical data in InfluxDB for graphing and analysis.
 * Sends live weather data to Weather Underground for use as a WU Personal Weather Station (PWS).  WU API key required.
 * Sends data to APRS/CWOP.  Ham radio license or CWOP station registration required.
@@ -20,7 +20,7 @@ You will need a few things to use **gopherwx**:
   *  A Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP. 
 
 3. One or more of the following:
-  *  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [mhkweather.com](https://mhkweather.com).
+  *  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [carlisleweather.com](https://carlisleweather.com).
   *  A [Weather Underground API account](https://www.wunderground.com/api) for sending live data to WU.   The base account level is free and is sufficient.
   *  A ham radio license if you want to send live data to APRS-IS
   *  A [CWOP](http://wxqa.com/) ID if you want to send live data to CWOP
@@ -48,7 +48,7 @@ To use Dockerized **gopherwx**, follow these steps:
 
 **gopherwx** doesn't serve a weather website, it only pulls the weather readings from the Davis device and stores them in the InfluxDB database for you to use as you wish.  To make a website for your data, you will need a couple of additional components:
 
-* A live weather website.  I have provided the source code/HTML for https://mhkweather.com in [this repository](https://github.com/chrissnell/mhkweather.com).
+* A live weather website.  I have provided the source code/HTML for https://carlisleweather.com in [this repository](https://github.com/chrissnell/mhkweather.com).
 
 * [**weather-proxy**](https://github.com/chrissnell/weather-proxy) - Acts a gateway between people on the Internet and your InfluxDB database.  Since InfluxDB isn't really suitable for exposing directly to the internet, `weather-proxy` acts as a middleman, handling requests from your website visitors' browsers and querying InfluxDB to pull the requested weather data.  `weather-proxy` is suitable for exposure to the open Internet.
 
