@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh
 
 if [ -z "${GOPHERWX_CONFIG}" ]; then
   echo The env var GOPHERWX_CONFIG needs to be defined. 
@@ -9,8 +9,8 @@ if [ -z "${GOPHERWX_CONFIG}" ]; then
   exit 1
 fi
 
-if [ $GOPHERWX_DEBUG = "true" ]; then
-  exec /gopherwx -config=$GOPHERWX_CONFIG -debug
+if [ "$GOPHERWX_DEBUG" = "true" ]; then
+  exec gopherwx -config=$GOPHERWX_CONFIG -debug
 else
-  exec /gopherwx -config=$GOPHERWX_CONFIG
+  exec gopherwx -config=$GOPHERWX_CONFIG
 fi
