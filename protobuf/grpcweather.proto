@@ -1,5 +1,6 @@
 syntax = "proto3";
 import "google/protobuf/timestamp.proto";
+option go_package = "github.com/chrissnell/gopherwx/protobuf";
 
 service Weather {
     rpc GetLiveWeather (Empty) returns (stream WeatherReading) {}
