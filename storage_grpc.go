@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	weather "github.com/chrissnell/gopherwx/protobuf"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
+	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
@@ -28,6 +28,7 @@ type GRPCStorage struct {
 	Listener       net.Listener
 	RPCReadingChan chan Reading
 	Ctx            context.Context
+	weather.UnimplementedWeatherServer
 }
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
@@ -111,6 +112,7 @@ func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_Ge
 			return nil
 		default:
 			r := <-g.RPCReadingChan
+			
 			rts, _ := ptypes.TimestampProto(r.Timestamp)
 
 			stream.Send(&weather.WeatherReading{
