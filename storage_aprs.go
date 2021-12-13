@@ -32,8 +32,6 @@ type CurrentReading struct {
 
 // APRSStorage holds general configuration related to our APRS/CWOP transmissions
 type APRSStorage struct {
-	callsign        string
-	location        Point
 	ctx             context.Context
 	cfg             *Config
 	APRSReadingChan chan Reading
@@ -189,15 +187,15 @@ func NewAPRSStorage(c *Config) (APRSStorage, error) {
 	a := APRSStorage{}
 
 	if c.Storage.APRS.Callsign == "" {
-		return a, fmt.Errorf("You must provide a callsign in the configuration file")
+		return a, fmt.Errorf("you must provide a callsign in the configuration file")
 	}
 
 	if c.Storage.APRS.Location.Lat == 0 && c.Storage.APRS.Location.Lon == 0 {
-		return a, fmt.Errorf("You must provide a latitude and longitude for your station in the configuration file")
+		return a, fmt.Errorf("you must provide a latitude and longitude for your station in the configuration file")
 	}
 
 	if c.Storage.APRS.Passcode == "" {
-		return a, fmt.Errorf("You must provide an APRS-IS passcode in the configuration file")
+		return a, fmt.Errorf("you must provide an APRS-IS passcode in the configuration file")
 	}
 
 	if c.Storage.APRS.APRSISServer == "" {
@@ -388,7 +386,7 @@ func EncodeBase91Position(l int) []byte {
 func EncodeBase91Telemetry(l uint16) ([]byte, error) {
 
 	if l > 8280 {
-		return nil, errors.New("Cannot encode telemetry value larger than 8280")
+		return nil, errors.New("cannot encode telemetry value larger than 8280")
 	}
 
 	b91 := make([]byte, 2)
@@ -399,6 +397,7 @@ func EncodeBase91Telemetry(l uint16) ([]byte, error) {
 	return b91, nil
 }
 
+//lint:ignore U1000 For future use
 func mphToKnots(m float64) float64 {
 	return m * 0.8689758
 }

@@ -16,8 +16,7 @@ const version = "2.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
 // Service contains our configuration and runtime objects
 type Service struct {
-	ws  *WeatherStation
-	sto *Storage
+	ws *WeatherStation
 }
 
 // NewService creates a new instance of Service with the given configuration file

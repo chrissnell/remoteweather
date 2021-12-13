@@ -81,10 +81,10 @@ func (w *WUStorage) sendReading(ctx context.Context, r Reading) {
 	req, err := http.NewRequest("GET", w.cfg.Storage.WU.Endpoint+"?"+v.Encode(), nil)
 	if err != nil {
 		log.Println("Error creating WU HTTP request:", err)
-                return
+		return
 	}
 
-	req.WithContext(ctx)
+	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Error sending report to WU:", err)
@@ -94,17 +94,16 @@ func (w *WUStorage) sendReading(ctx context.Context, r Reading) {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-                log.Println("Error reading WU response body:", err)
-                return
+		log.Println("Error reading WU response body:", err)
+		return
 
 	}
 
 	if !bytes.Contains(body, []byte("success")) {
 		log.Println("Bad response from WU server:", string(body))
-                return
+		return
 	}
 
-	return
 }
 
 // NewWUStorage sets up a new WU storage backend
@@ -112,11 +111,11 @@ func NewWUStorage(c *Config) (WUStorage, error) {
 	w := WUStorage{}
 
 	if c.Storage.WU.StationID == "" {
-		return w, fmt.Errorf("You must provide a WU station ID in the configuration file")
+		return w, fmt.Errorf("you must provide a WU station ID in the configuration file")
 	}
 
 	if c.Storage.WU.Password == "" {
-		return w, fmt.Errorf("You must provide a WU password in the configuration file")
+		return w, fmt.Errorf("you must provide a WU password in the configuration file")
 	}
 
 	if c.Storage.WU.Endpoint == "" {
