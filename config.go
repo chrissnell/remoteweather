@@ -23,10 +23,11 @@ type DeviceConfig struct {
 // StorageConfig holds the configuration for various storage backends.
 // More than one storage backend can be used simultaneously
 type StorageConfig struct {
-	InfluxDB InfluxDBConfig `yaml:"influxdb,omitempty"`
-	GRPC     GRPCConfig     `yaml:"grpc,omitempty"`
-	APRS     APRSConfig     `yaml:"aprs,omitempty"`
-	WU       WUConfig       `yaml:"wunderground,omitempty"`
+	InfluxDB    InfluxDBConfig    `yaml:"influxdb,omitempty"`
+	TimescaleDB TimescaleDBConfig `yaml:"timescaledb,omitempty"`
+	GRPC        GRPCConfig        `yaml:"grpc,omitempty"`
+	APRS        APRSConfig        `yaml:"aprs,omitempty"`
+	WU          WUConfig          `yaml:"wunderground,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.
