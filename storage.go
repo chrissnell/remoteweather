@@ -16,8 +16,8 @@ type Storage struct {
 // StorageEngine holds a backend storage engine's interface as well as
 // a channel for passing readings to the engine
 type StorageEngine struct {
-	I StorageEngineInterface
-	C chan<- Reading
+	Engine StorageEngineInterface
+	C      chan<- Reading
 }
 
 // StorageEngineInterface is an interface that provides a few standardized
@@ -46,28 +46,28 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 	if c.Storage.InfluxDB.Host != "" {
 		err = s.AddEngine(ctx, wg, "influxdb", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add InfluxDB storage backend: %v", err)
+			return &s, fmt.Errorf("could not add InfluxDB storage backend: %v", err)
 		}
 	}
 
 	if c.Storage.GRPC.Port != 0 {
 		err = s.AddEngine(ctx, wg, "grpc", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add gRPC storage backend: %v", err)
+			return &s, fmt.Errorf("could not add gRPC storage backend: %v", err)
 		}
 	}
 
 	if c.Storage.APRS.Callsign != "" {
 		err = s.AddEngine(ctx, wg, "aprs", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add APRS storage backend: %v", err)
+			return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
 		}
 	}
 
 	if c.Storage.WU.StationID != "" {
 		err = s.AddEngine(ctx, wg, "wu", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not at WU storage backend: %v", err)
+			return &s, fmt.Errorf("could not at WU storage backend: %v", err)
 		}
 	}
 
@@ -79,39 +79,47 @@ func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName 
 	var err error
 
 	switch engineName {
-	case "influxdb":
+	case "timescaledb":
 		se := StorageEngine{}
-		se.I, err = NewInfluxDBStorage(c)
+		se.Engine, err = NewTimescaleDBStorage(ctx, c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+	case "influxdb":
+		se := StorageEngine{}
+		se.Engine, err = NewInfluxDBStorage(c)
+		if err != nil {
+			return err
+		}
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 
 	case "grpc":
 		se := StorageEngine{}
-		se.I, err = NewGRPCStorage(c)
+		se.Engine, err = NewGRPCStorage(c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 
 	case "aprs":
 		se := StorageEngine{}
-		se.I, err = NewAPRSStorage(c)
+		se.Engine, err = NewAPRSStorage(c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 	case "wu":
 		se := StorageEngine{}
-		se.I, err = NewWUStorage(c)
+		se.Engine, err = NewWUStorage(c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 	}
 
