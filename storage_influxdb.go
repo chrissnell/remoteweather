@@ -66,11 +66,14 @@ func (i InfluxDBStorage) StoreReading(r Reading) error {
 		Database:  i.DBName,
 		Precision: "s",
 	})
+	if err != nil {
+		return fmt.Errorf("could not create a point batch for InfluxDB: %v", err)
+	}
 
 	pt, err := client.NewPoint("wx_reading", tags, fields, r.Timestamp)
 
 	if err != nil {
-		return fmt.Errorf("Could not create data point for InfluxDB: %v", err)
+		return fmt.Errorf("could not create data point for InfluxDB: %v", err)
 	}
 
 	bp.AddPoint(pt)
@@ -78,14 +81,14 @@ func (i InfluxDBStorage) StoreReading(r Reading) error {
 	// Write the batch
 	err = i.InfluxDBConn.Write(bp)
 	if err != nil {
-		return fmt.Errorf("Could not write data point to InfluxDB: %v", err)
+		return fmt.Errorf("could not write data point to InfluxDB: %v", err)
 
 	}
 
 	return nil
 }
 
-// NewInfluxDBStorage sets up a new Graphite storage backend
+// NewInfluxDBStorage sets up a new InfluxDB storage backend
 func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 	var err error
 	i := InfluxDBStorage{}

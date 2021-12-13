@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	weather "github.com/chrissnell/gopherwx/protobuf"
-	"google.golang.org/grpc"
 	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
@@ -91,7 +91,7 @@ func NewGRPCStorage(c *Config) (GRPCStorage, error) {
 
 	g.Listener, err = net.Listen("tcp", listenAddr)
 	if err != nil {
-		return GRPCStorage{}, fmt.Errorf("Could not create gRPC listener: %v", err)
+		return GRPCStorage{}, fmt.Errorf("could not create gRPC listener: %v", err)
 	}
 
 	weather.RegisterWeatherServer(g.GRPCServer, &g)
@@ -112,7 +112,7 @@ func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_Ge
 			return nil
 		default:
 			r := <-g.RPCReadingChan
-			
+
 			rts, _ := ptypes.TimestampProto(r.Timestamp)
 
 			stream.Send(&weather.WeatherReading{

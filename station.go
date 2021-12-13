@@ -135,81 +135,81 @@ type LoopPacketWithTrend struct {
 // Administrative elements (e.g. LoopType) not related to weather readings have been
 // left out.
 type Reading struct {
-	Timestamp          time.Time
-	StationName        string
-	Barometer          float32
-	InTemp             float32
-	InHumidity         float32
-	OutTemp            float32
-	WindSpeed          float32
-	WindSpeed10        float32
-	WindDir            float32
-	Windchill          float32
-	HeatIndex          float32
-	ExtraTemp1         float32
-	ExtraTemp2         float32
-	ExtraTemp3         float32
-	ExtraTemp4         float32
-	ExtraTemp5         float32
-	ExtraTemp6         float32
-	ExtraTemp7         float32
-	SoilTemp1          float32
-	SoilTemp2          float32
-	SoilTemp3          float32
-	SoilTemp4          float32
-	LeafTemp1          float32
-	LeafTemp2          float32
-	LeafTemp3          float32
-	LeafTemp4          float32
-	OutHumidity        float32
-	ExtraHumidity1     float32
-	ExtraHumidity2     float32
-	ExtraHumidity3     float32
-	ExtraHumidity4     float32
-	ExtraHumidity5     float32
-	ExtraHumidity6     float32
-	ExtraHumidity7     float32
-	RainRate           float32
-	UV                 float32
-	Radiation          float32
-	StormRain          float32
-	StormStart         time.Time
-	DayRain            float32
-	MonthRain          float32
-	YearRain           float32
-	DayET              float32
-	MonthET            float32
-	YearET             float32
-	SoilMoisture1      float32
-	SoilMoisture2      float32
-	SoilMoisture3      float32
-	SoilMoisture4      float32
-	LeafWetness1       float32
-	LeafWetness2       float32
-	LeafWetness3       float32
-	LeafWetness4       float32
-	InsideAlarm        uint8
-	RainAlarm          uint8
-	OutsideAlarm1      uint8
-	OutsideAlarm2      uint8
-	ExtraAlarm1        uint8
-	ExtraAlarm2        uint8
-	ExtraAlarm3        uint8
-	ExtraAlarm4        uint8
-	ExtraAlarm5        uint8
-	ExtraAlarm6        uint8
-	ExtraAlarm7        uint8
-	ExtraAlarm8        uint8
-	SoilLeafAlarm1     uint8
-	SoilLeafAlarm2     uint8
-	SoilLeafAlarm3     uint8
-	SoilLeafAlarm4     uint8
-	TxBatteryStatus    uint8
-	ConsBatteryVoltage float32
-	ForecastIcon       uint8
-	ForecastRule       uint8
-	Sunrise            time.Time
-	Sunset             time.Time
+	Timestamp          time.Time `db:"time"`
+	StationName        string    `db:"stationname"`
+	Barometer          float32   `db:"barometer"`
+	InTemp             float32   `db:"inttemp"`
+	InHumidity         float32   `db:"inhumidity"`
+	OutTemp            float32   `db:"outtemp"`
+	WindSpeed          float32   `db:"windspeed"`
+	WindSpeed10        float32   `db:"windspeed10"`
+	WindDir            float32   `db:"winddir"`
+	Windchill          float32   `db:"windchill"`
+	HeatIndex          float32   `db:"heatindex"`
+	ExtraTemp1         float32   `db:"extratemp1"`
+	ExtraTemp2         float32   `db:"extratemp2"`
+	ExtraTemp3         float32   `db:"extratemp3"`
+	ExtraTemp4         float32   `db:"extratemp4"`
+	ExtraTemp5         float32   `db:"extratemp5"`
+	ExtraTemp6         float32   `db:"extratemp6"`
+	ExtraTemp7         float32   `db:"extratemp7"`
+	SoilTemp1          float32   `db:"soiltemp1"`
+	SoilTemp2          float32   `db:"soiltemp2"`
+	SoilTemp3          float32   `db:"soiltemp3"`
+	SoilTemp4          float32   `db:"soiltemp4"`
+	LeafTemp1          float32   `db:"leaftemp1"`
+	LeafTemp2          float32   `db:"leaftemp2"`
+	LeafTemp3          float32   `db:"leaftemp3"`
+	LeafTemp4          float32   `db:"leaftemp4"`
+	OutHumidity        float32   `db:"outhumidity"`
+	ExtraHumidity1     float32   `db:"extrahumidity1"`
+	ExtraHumidity2     float32   `db:"extrahumidity2"`
+	ExtraHumidity3     float32   `db:"extrahumidity3"`
+	ExtraHumidity4     float32   `db:"extrahumidity4"`
+	ExtraHumidity5     float32   `db:"extrahumidity5"`
+	ExtraHumidity6     float32   `db:"extrahumidity6"`
+	ExtraHumidity7     float32   `db:"extrahumidity7"`
+	RainRate           float32   `db:"rainrate"`
+	UV                 float32   `db:"uv"`
+	Radiation          float32   `db:"radiation"`
+	StormRain          float32   `db:"stormrain"`
+	StormStart         time.Time `db:"stormstart"`
+	DayRain            float32   `db:"dayrain"`
+	MonthRain          float32   `db:"monthrain"`
+	YearRain           float32   `db:"yearrain"`
+	DayET              float32   `db:"dayet"`
+	MonthET            float32   `db:"monthet"`
+	YearET             float32   `db:"yearet"`
+	SoilMoisture1      float32   `db:"soilmoisture1"`
+	SoilMoisture2      float32   `db:"soilmoisture2"`
+	SoilMoisture3      float32   `db:"soilmoisture3"`
+	SoilMoisture4      float32   `db:"soilmoisture4"`
+	LeafWetness1       float32   `db:"leafwetness1"`
+	LeafWetness2       float32   `db:"leafwetness2"`
+	LeafWetness3       float32   `db:"leafwetness3"`
+	LeafWetness4       float32   `db:"leafwetness4"`
+	InsideAlarm        uint8     `db:"insidealarm"`
+	RainAlarm          uint8     `db:"rainalarm"`
+	OutsideAlarm1      uint8     `db:"outsidealarm1"`
+	OutsideAlarm2      uint8     `db:"outsidealarm2"`
+	ExtraAlarm1        uint8     `db:"extraalarm1"`
+	ExtraAlarm2        uint8     `db:"extraalarm2"`
+	ExtraAlarm3        uint8     `db:"extraalarm3"`
+	ExtraAlarm4        uint8     `db:"extraalarm4"`
+	ExtraAlarm5        uint8     `db:"extraalarm5"`
+	ExtraAlarm6        uint8     `db:"extraalarm6"`
+	ExtraAlarm7        uint8     `db:"extraalarm7"`
+	ExtraAlarm8        uint8     `db:"extraalarm8"`
+	SoilLeafAlarm1     uint8     `db:"soilleafalarm1"`
+	SoilLeafAlarm2     uint8     `db:"soilleafalarm2"`
+	SoilLeafAlarm3     uint8     `db:"soilleafalarm3"`
+	SoilLeafAlarm4     uint8     `db:"soilleafalarm4"`
+	TxBatteryStatus    uint8     `db:"txbatterystatus"`
+	ConsBatteryVoltage float32   `db:"consbatteryvoltage"`
+	ForecastIcon       uint8     `db:"forecasticon"`
+	ForecastRule       uint8     `db:"forecastrule"`
+	Sunrise            time.Time `db:"sunrise"`
+	Sunset             time.Time `db:"sunset"`
 }
 
 // StartLoopPolling launches the station-polling goroutine and process packets as they're received
@@ -225,12 +225,13 @@ func (w *WeatherStation) StartLoopPolling() {
 
 // ProcessLoopPackets processes received LOOP packets
 func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
+	// for p := range packetChan {
+	// 	w.Storage.ReadingDistributor <- p
+	// }
 
 	for {
-		select {
-		case p := <-packetChan:
-			w.Storage.ReadingDistributor <- p
-		}
+		p := <-packetChan
+		w.Storage.ReadingDistributor <- p
 	}
 
 }
@@ -390,7 +391,7 @@ func (w *WeatherStation) WakeStation() {
 
 	resp := make([]byte, 1024)
 
-	for alive == false {
+	for !alive {
 		log.Println("Waking up station.")
 
 		w.rwc.Write([]byte("\n"))
@@ -429,11 +430,13 @@ func (w *WeatherStation) sendData(d []byte) error {
 	// See if it was ACKed
 	if resp[0] != 0x06 {
 		log.Println("No <ACK> received from console")
-		return fmt.Errorf("No <ACK> recieved from console")
+		return fmt.Errorf("no <ACK> recieved from console")
 	}
 	return nil
 }
 
+// Not currently utilized but can be used to set station clock, among other things
+//lint:ignore U1000 For future use
 func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 	var resp []byte
 
@@ -475,6 +478,7 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 	return fmt.Errorf("i/o error writing data with CRC to device")
 }
 
+//lint:ignore U1000 For future use
 func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 	var err error
 	var resp []byte
@@ -488,6 +492,9 @@ func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 
 		// First, write the data
 		_, err = buf.Write(command)
+		if err != nil {
+			return nil, err
+		}
 
 		// Write the buffer to the device
 		_, err = buf.WriteTo(w.rwc)
@@ -508,12 +515,12 @@ func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 		if parts[0] == "OK" {
 			return parts[1:], nil
 		}
-		return nil, err
 	}
 	log.Println("Tried three times to send command but failed.")
 	return nil, err
 }
 
+//lint:ignore U1000 For future use
 func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) {
 	var err error
 
@@ -579,7 +586,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 	for tries := 1; tries <= maxTries; tries++ {
 		if tries == maxTries {
-			return fmt.Errorf("Tried to initiate LOOP %v times, unsucessfully", tries)
+			return fmt.Errorf("tried to initiate LOOP %v times, unsucessfully", tries)
 		}
 
 		if *debug {
@@ -626,7 +633,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		scanner.Scan()
 
 		if err = scanner.Err(); err != nil {
-			return fmt.Errorf("Error while reading from console, LOOP %v: %v", l, err)
+			return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
 		}
 
 		buf = scanner.Bytes()
@@ -701,13 +708,14 @@ func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error)
 func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
 	var trend int8
 	var isFlavorA bool
+	var lpwt *LoopPacketWithTrend
 
 	lp := new(LoopPacket)
-	lpwt := new(LoopPacketWithTrend)
 
 	// OK, this is super goofy: the loop packets come in two flavors: A and B.
 	// Flavor A will always have the character 'P' (ASCII 80) as the fourth byte of the packet
 	// Flavor B will have the 3-hour barometer trend in this position instead
+
 	// So, first we create a new Reader from the packet...
 	r := bytes.NewReader(p)
 
@@ -721,7 +729,7 @@ func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error
 	}
 
 	// Now we compare the fourth byte (peek) of the packet to see if it's set to 'P'
-	if bytes.Compare(peek, []byte{80}) == 0 {
+	if bytes.Equal(peek, []byte{80}) {
 		// It's set to 'P', so we set isFlavorA to true.  Following the weewx convention, we'll later set PacketType
 		// to 'A' (ASCII 65) to signify a Flavor-A packet.
 		isFlavorA = true
