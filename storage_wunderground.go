@@ -29,6 +29,7 @@ type WUStorage struct {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
 func (w WUStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+	log.Println("Starting Weather Underground storage engine...")
 	readingChan := make(chan Reading, 10)
 	go w.sendReports(ctx, wg, readingChan)
 	return readingChan
