@@ -30,6 +30,7 @@ type InfluxDBStorage struct {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
 func (i InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+	log.Println("Starting InfluxDB storage engine...")
 	readingChan := make(chan Reading, 10)
 	go i.processMetrics(ctx, wg, readingChan)
 	return readingChan

@@ -43,6 +43,13 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 	// Check the configuration file for various supported storage backends
 	// and enable them if found
 
+	if c.Storage.TimescaleDB.ConnectionString != "" {
+		err = s.AddEngine(ctx, wg, "timescaledb", c)
+		if err != nil {
+			return &s, fmt.Errorf("could not add TimescaleDB storage backend: %v", err)
+		}
+	}
+
 	if c.Storage.InfluxDB.Host != "" {
 		err = s.AddEngine(ctx, wg, "influxdb", c)
 		if err != nil {
