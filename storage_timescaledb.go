@@ -56,7 +56,10 @@ func (t TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGro
 
 // StoreReading stores a reading value in TimescaleDB
 func (t TimescaleDBStorage) StoreReading(ctx context.Context, r Reading) {
-	t.TimescaleDBConn.WithContext(ctx).Create(&r)
+	err := t.TimescaleDBConn.WithContext(ctx).Create(&r).Error
+	if err != nil {
+		log.Println("error: could not store reading:", err)
+	}
 }
 
 // NewTimescaleDBStorage sets up a new Graphite storage backend
@@ -74,7 +77,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (TimescaleDBStorage, 
 
 	// Create the database table
 	log.Println("Creating database table...")
-	t.TimescaleDBConn.WithContext(ctx).Exec(createTableSQL)
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createTableSQL).Error
 	if err != nil {
 		log.Println("Warning: could not create table in database")
 		return TimescaleDBStorage{}, err
@@ -82,23 +85,43 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (TimescaleDBStorage, 
 
 	// Create the TimescaleDB extension
 	log.Println("Creating TimescaleDB extension...")
-	t.TimescaleDBConn.WithContext(ctx).Exec(createExtensionSQL)
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createExtensionSQL).Error
+	if err != nil {
+		log.Println("Warning: could not create TimescaleDB extension")
+		return TimescaleDBStorage{}, err
+	}
 
 	// Create the hypertable
 	log.Println("Creating hypertable...")
-	t.TimescaleDBConn.WithContext(ctx).Exec(createHypertableSQL)
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createHypertableSQL).Error
+	if err != nil {
+		log.Println("Warning: could not create hypertable")
+		return TimescaleDBStorage{}, err
+	}
 
 	// Create the 5m view
 	log.Println("Creating 5m view...")
-	t.TimescaleDBConn.WithContext(ctx).Exec(create5mViewSQL)
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(create5mViewSQL).Error
+	if err != nil {
+		log.Println("Warning: could not create 5m view")
+		return TimescaleDBStorage{}, err
+	}
 
 	// Create the 1h view
 	log.Println("Creating 1h view...")
-	t.TimescaleDBConn.WithContext(ctx).Exec(create1hViewSQL)
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1hViewSQL).Error
+	if err != nil {
+		log.Println("Warning: could not create 1h view")
+		return TimescaleDBStorage{}, err
+	}
 
 	// Create the 1d view
 	log.Println("Creating 1d view...")
-	t.TimescaleDBConn.WithContext(ctx).Exec(create1dViewSQL)
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1dViewSQL).Error
+	if err != nil {
+		log.Println("Warning: could not create 1d view")
+		return TimescaleDBStorage{}, err
+	}
 
 	return t, nil
 }
