@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	weather "github.com/chrissnell/gopherwx/protobuf"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // GRPCConfig describes the YAML-provided configuration for a gRPC
@@ -113,7 +113,8 @@ func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_Ge
 		default:
 			r := <-g.RPCReadingChan
 
-			rts, _ := ptypes.TimestampProto(r.Timestamp)
+			//rts, _ := ptypes.TimestampProto(r.Timestamp)
+			rts := timestamppb.New(r.Timestamp)
 
 			stream.Send(&weather.WeatherReading{
 				LastReading:     rts,
