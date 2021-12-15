@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 const version = "2.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
+var zapLogger *zap.Logger
 var log *zap.SugaredLogger
 
 // Service contains our configuration and runtime objects
@@ -23,11 +25,11 @@ type Service struct {
 }
 
 // NewService creates a new instance of Service with the given configuration file
-func NewService(cfg *Config, sto *StorageManager, logger *zap.SugaredLogger) *Service {
+func NewService(cfg *Config, sto *StorageManager) *Service {
 	s := &Service{}
 
 	// Initialize the Controller
-	s.ws = NewWeatherStation(*cfg, sto, logger)
+	s.ws = NewWeatherStation(*cfg, sto)
 
 	return s
 }
@@ -36,24 +38,26 @@ var debug *bool
 
 func main() {
 	var wg sync.WaitGroup
+	var err error
 
 	cfgFile := flag.String("config", "config.yaml", "Path to config file (default: ./config.yaml)")
 	debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
 	// Set up our logger
-	l, err := zap.NewProduction()
+	zapLogger, err = zap.NewProduction()
 	if err != nil {
-		log.Fatalf("can't initialize zap logger: %v", err)
+		fmt.Printf("can't initialize zap logger: %v", err)
+		panic(0)
 	}
-	defer l.Sync()
-	logger := l.Sugar()
+	defer zapLogger.Sync()
+	log = zapLogger.Sugar()
 
 	// Read our server configuration
 	filename, _ := filepath.Abs(*cfgFile)
 	cfg, err := NewConfig(filename)
 	if err != nil {
-		logger.Fatal("Error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
+		log.Fatal("error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
 	}
 
 	sigs := make(chan os.Signal, 1)
@@ -64,10 +68,10 @@ func main() {
 
 	sto, err := NewStorageManager(ctx, &wg, &cfg)
 	if err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
 
-	s := NewService(&cfg, sto, logger)
+	s := NewService(&cfg, sto)
 
 	go s.ws.StartLoopPolling()
 
