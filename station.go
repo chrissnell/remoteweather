@@ -10,7 +10,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net"
 	"reflect"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/chrissnell/gopherwx/util/crc16"
 	serial "github.com/tarm/goserial"
+	"go.uber.org/zap"
 )
 
 const (
@@ -35,15 +35,16 @@ const (
 
 // WeatherStation holds our connection along with some mutexes for operation
 type WeatherStation struct {
-	Name         string `json:"name"`
-	netConn      net.Conn
-	rwc          io.ReadWriteCloser
-	Config       Config
-	Storage      *Storage
-	connecting   bool
-	connectingMu sync.RWMutex
-	connected    bool
-	connectedMu  sync.RWMutex
+	Name           string `json:"name"`
+	netConn        net.Conn
+	rwc            io.ReadWriteCloser
+	Config         Config
+	StorageManager *StorageManager
+	Logger         *zap.SugaredLogger
+	connecting     bool
+	connectingMu   sync.RWMutex
+	connected      bool
+	connectedMu    sync.RWMutex
 }
 
 // LoopPacket is the data returned from the Davis API "LOOP" operation
@@ -212,6 +213,18 @@ type Reading struct {
 	Sunset             time.Time `gorm:"column:sunset"`
 }
 
+// NewWeatherStation creates a new data model with a new DB connection and Kube API client
+func NewWeatherStation(c Config, sto *StorageManager, logger *zap.SugaredLogger) *WeatherStation {
+
+	ws := new(WeatherStation)
+
+	ws.Config = c
+	ws.StorageManager = sto
+	ws.Logger = logger
+
+	return ws
+}
+
 // StartLoopPolling launches the station-polling goroutine and process packets as they're received
 func (w *WeatherStation) StartLoopPolling() {
 	packetChan := make(chan Reading)
@@ -225,15 +238,10 @@ func (w *WeatherStation) StartLoopPolling() {
 
 // ProcessLoopPackets processes received LOOP packets
 func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
-	// for p := range packetChan {
-	// 	w.Storage.ReadingDistributor <- p
-	// }
-
 	for {
 		p := <-packetChan
-		w.Storage.ReadingDistributor <- p
+		w.StorageManager.ReadingDistributor <- p
 	}
-
 }
 
 // GetLoopPackets gets 20 LOOP packets at a time.  The Davis API supports more
@@ -242,26 +250,15 @@ func (w *WeatherStation) GetLoopPackets(packetChan chan<- Reading) {
 	for {
 		err := w.GetDavisLoopPackets(20, packetChan)
 		if err != nil {
-			log.Println(err)
+			w.Logger.Error(err)
 			w.rwc.Close()
 			if len(w.Config.Device.Hostname) > 0 {
 				w.netConn.Close()
 			}
-			log.Println("Attempting to reconnect...")
+			w.Logger.Info("attempting to reconnect...")
 			w.Connect()
 		}
 	}
-}
-
-// NewWeatherStation creates a new data model with a new DB connection and Kube API client
-func NewWeatherStation(c Config, sto *Storage) *WeatherStation {
-
-	ws := new(WeatherStation)
-
-	ws.Config = c
-	ws.Storage = sto
-
-	return ws
 }
 
 // Connect connects to a Davis station over TCP/IP
@@ -271,7 +268,7 @@ func (w *WeatherStation) Connect() {
 	} else if (len(w.Config.Device.Hostname) > 0) && (len(w.Config.Device.Port) > 0) {
 		w.connectToNetworkStation()
 	} else {
-		log.Fatalln("Must provide either network hostname+port or serial device in config")
+		w.Logger.Fatal("must provide either network hostname+port or serial device in config")
 	}
 }
 
@@ -283,7 +280,7 @@ func (w *WeatherStation) connectToSerialStation() {
 
 	if w.connecting {
 		w.connectingMu.RUnlock()
-		log.Println("Skipping reconnect since a connection attempt is already in progress")
+		w.Logger.Info("skipping reconnect since a connection attempt is already in progress")
 		return
 	}
 
@@ -293,7 +290,7 @@ func (w *WeatherStation) connectToSerialStation() {
 	w.connecting = true
 	w.connectingMu.Unlock()
 
-	log.Println("Connecting to:", w.Config.Device.SerialDevice, "...")
+	w.Logger.Infof("connecting to %v ...", w.Config.Device.SerialDevice)
 
 	for {
 		sc := &serial.Config{Name: w.Config.Device.SerialDevice, Baud: 19200}
@@ -303,7 +300,7 @@ func (w *WeatherStation) connectToSerialStation() {
 			// There is a known problem where some shitty USB <-> serial adapters will drop out and Linux
 			// will reattach them under a new device.  This code doesn't handle this situation currently
 			// but it would be a nice enhancement in the future.
-			log.Println("Sleeping 30 seconds and trying again")
+			w.Logger.Error("sleeping 30 seconds and trying again")
 			time.Sleep(30 * time.Second)
 		} else {
 			// We're connected now so we set connected to true and connecting to false
@@ -330,7 +327,7 @@ func (w *WeatherStation) connectToNetworkStation() {
 
 	if w.connecting {
 		w.connectingMu.RUnlock()
-		log.Println("Skipping reconnect since a connection attempt is already in progress")
+		log.Info("skipping reconnect since a connection attempt is already in progress")
 		return
 	}
 
@@ -340,15 +337,15 @@ func (w *WeatherStation) connectToNetworkStation() {
 	w.connecting = true
 	w.connectingMu.Unlock()
 
-	log.Println("Connecting to:", console)
+	log.Info("connecting to:", console)
 
 	for {
 		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
 		w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
 
 		if err != nil {
-			log.Printf("Could not connect to %v.  Error: %v", console, err)
-			log.Println("Sleeping 5 seconds and trying again.")
+			log.Errorf("could not connect to %v: %v", console, err)
+			log.Error("sleeping 5 seconds and trying again.")
 			time.Sleep(5 * time.Second)
 		} else {
 			// We're connected now so we set connected to true and connecting to false
@@ -372,8 +369,8 @@ func (w *WeatherStation) Write(p []byte) (nn int, err error) {
 		nn, err = w.rwc.Write(p)
 		if err != nil {
 			// We must not be connected
-			log.Println("Error writing to console:", err)
-			log.Println("Attempting to reconnect...")
+			log.Info("error writing to console:", err)
+			log.Info("attempting to reconnect...")
 			w.Connect()
 		} else {
 			// Write was successful
@@ -392,23 +389,23 @@ func (w *WeatherStation) WakeStation() {
 	resp := make([]byte, 1024)
 
 	for !alive {
-		log.Println("Waking up station.")
+		log.Info("waking up station.")
 
 		w.rwc.Write([]byte("\n"))
 
 		_, err = w.rwc.Read(resp)
 
 		if err != nil {
-			log.Fatalln("Could not read from station:", err)
+			log.Fatal("could not read from station:", err)
 		}
 		// fmt.Println("This is what we got back:", resp)
 
 		if resp[0] == 0x0a && resp[1] == 0x0d {
-			log.Println("Station has been awaken.")
+			log.Info("station has been awaken.")
 			alive = true
 			return
 		}
-		log.Println("Sleeping 500ms and trying again...")
+		log.Info("sleeping 500ms and trying again...")
 		time.Sleep(500 * time.Millisecond)
 
 	}
@@ -423,13 +420,12 @@ func (w *WeatherStation) sendData(d []byte) error {
 
 	_, err := w.rwc.Read(resp)
 	if err != nil {
-		log.Println("Error reading response:", err)
+		log.Info("error reading response:", err)
 		return err
 	}
 
 	// See if it was ACKed
 	if resp[0] != 0x06 {
-		log.Println("No <ACK> received from console")
 		return fmt.Errorf("no <ACK> recieved from console")
 	}
 	return nil
@@ -465,12 +461,12 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 
 		_, err = w.rwc.Read(resp)
 		if err != nil {
-			log.Println("Error reading response:", err)
+			log.Error("error reading response:", err)
 			return err
 		}
 
 		if resp[0] != ACK[0] {
-			log.Println("No <ACK> was received from console")
+			log.Error("no <ACK> was received from console")
 			return nil
 		}
 	}
@@ -516,7 +512,7 @@ func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 			return parts[1:], nil
 		}
 	}
-	log.Println("Tried three times to send command but failed.")
+	log.Error("tried three times to send command but failed.")
 	return nil, err
 }
 
@@ -549,13 +545,13 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 		if i > 1 {
 			_, err = buf.Write([]byte(RESEND))
 			if err != nil {
-				log.Println("Could not write RESEND command to buffer")
+				log.Error("could not write RESEND command to buffer")
 				return nil, err
 			}
 			// Write the buffer to the console
 			_, err = buf.WriteTo(w.rwc)
 			if err != nil {
-				log.Println("Could not write buffer to console")
+				log.Error("could not write buffer to console")
 				return nil, err
 			}
 
@@ -572,7 +568,7 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 			}
 
 			// We didn't pass the CRC check so we loop again.
-			log.Println("The data read did not pass the CRC16 check")
+			log.Error("the data read did not pass the CRC16 check")
 		}
 	}
 
@@ -590,12 +586,13 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		}
 
 		if *debug {
-			log.Println("Initiating LOOP mode for", n, "packets.")
+			log.Info("initiating LOOP mode for", n, "packets.")
 		}
 
 		// Send a LOOP request up to (maxTries) times
 		err = w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
 		if err != nil {
+			log.Error(err)
 			tries++
 		} else {
 			break
@@ -617,7 +614,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		time.Sleep(1 * time.Second)
 
 		if tries > maxTries {
-			log.Println("Max retries exeeded while getting loop data")
+			log.Error("max retries exeeded while getting loop data")
 			return nil
 		}
 
@@ -625,7 +622,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			err = w.netConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 			if err != nil {
-				log.Println("Error setting read deadline:", err)
+				log.Error("error setting read deadline:", err)
 			}
 
 		}
@@ -638,24 +635,20 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 		buf = scanner.Bytes()
 
-		if *debug {
-			log.Println("Packet contents")
-			fmt.Println(hex.Dump(buf))
-		}
+		log.Debugw("read packet:", "packet_contents", hex.Dump(buf))
 
 		if len(buf) < 99 {
-			log.Println("Packet too short:", len(buf), "...rejecting.")
-			fmt.Println(hex.Dump(buf))
+			log.Infow("packet too short, rejecting", "packet_length", len(buf), "raw_packet", hex.Dump(buf))
 			tries++
 			continue
 		}
 
 		if buf[95] != 0x0A && buf[96] != 0x0D {
-			log.Println("End-of-packet signature not found; rejecting.")
+			log.Error("end-of-packet signature not found; rejecting.")
 		} else {
 
 			if crc16.Crc16(buf) != 0 {
-				log.Printf("LOOP %v CRC error.  Try #%v", l, tries)
+				log.Errorf("LOOP %v CRC error (try #%v)", l, tries)
 				tries++
 				continue
 			}
@@ -663,7 +656,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			unpacked, err := w.unpackLoopPacket(buf)
 			if err != nil {
 				tries++
-				log.Printf("Error unpacking loop packet: %v.  Try %v", err, tries)
+				log.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
 				continue
 			}
 
@@ -675,9 +668,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			r.Timestamp = time.Now()
 			r.StationName = w.Config.Device.Name
 
-			if *debug {
-				log.Printf("Packet: %+v", r)
-			}
+			log.Debugf("packet recieved: %+v", r)
 
 			packetChan <- r
 			//loopPackets = append(loopPackets, unpacked)
@@ -688,9 +679,9 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	for i := 0; i < (len(data) - 3); i++ {
-		if *debug {
-			fmt.Printf("i: %v  data: %+v\n", i, data)
-		}
+
+		log.Debugf("scanPackets byte: %v  data: %+v\n", i, data)
+
 		if data[i] == 0x0A && data[i+1] == 0x0D {
 			return i + 4, data[:i+4], nil
 		}

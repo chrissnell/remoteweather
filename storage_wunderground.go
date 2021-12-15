@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -29,7 +28,7 @@ type WUStorage struct {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
 func (w WUStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Println("Starting Weather Underground storage engine...")
+	log.Info("starting Weather Underground storage engine...")
 	readingChan := make(chan Reading, 10)
 	go w.sendReports(ctx, wg, readingChan)
 	return readingChan
@@ -44,7 +43,7 @@ func (w *WUStorage) sendReports(ctx context.Context, wg *sync.WaitGroup, rchan <
 		case r := <-rchan:
 			go w.sendReading(ctx, r)
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling readings processor.")
+			log.Info("cancellation request recieved.  Cancelling readings processor.")
 			return
 		}
 	}
@@ -81,27 +80,27 @@ func (w *WUStorage) sendReading(ctx context.Context, r Reading) {
 
 	req, err := http.NewRequest("GET", w.cfg.Storage.WU.Endpoint+"?"+v.Encode(), nil)
 	if err != nil {
-		log.Println("Error creating WU HTTP request:", err)
+		log.Error("error creating WU HTTP request:", err)
 		return
 	}
 
 	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error sending report to WU:", err)
+		log.Error("error sending report to WU:", err)
 		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		log.Println("Error reading WU response body:", err)
+		log.Error("error reading WU response body:", err)
 		return
 
 	}
 
 	if !bytes.Contains(body, []byte("success")) {
-		log.Println("Bad response from WU server:", string(body))
+		log.Error("Bad response from WU server:", string(body))
 		return
 	}
 

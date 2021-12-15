@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 )
 
-// Storage holds our active storage backends
-type Storage struct {
+// StorageManager holds our active storage backends
+type StorageManager struct {
 	Engines            []StorageEngine
 	ReadingDistributor chan Reading
 }
@@ -26,12 +25,12 @@ type StorageEngineInterface interface {
 	StartStorageEngine(context.Context, *sync.WaitGroup) chan<- Reading
 }
 
-// NewStorage creats a Storage object, populated with all configured
+// NewStorageManager creats a StorageManager object, populated with all configured
 // StorageEngines
-func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, error) {
+func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*StorageManager, error) {
 	var err error
 
-	s := Storage{}
+	s := StorageManager{}
 
 	// Initialize our channel for passing metrics to the MetricDistributor
 	s.ReadingDistributor = make(chan Reading, 20)
@@ -82,7 +81,7 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 }
 
 // AddEngine adds a new StorageEngine of name engineName to our Storage object
-func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *Config) error {
+func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *Config) error {
 	var err error
 
 	switch engineName {
@@ -135,7 +134,7 @@ func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName 
 
 // readingDistributor receives readings from gatherers and fans them out to the various
 // storage backends
-func (s *Storage) readingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
+func (s *StorageManager) readingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -146,7 +145,7 @@ func (s *Storage) readingDistributor(ctx context.Context, wg *sync.WaitGroup) er
 				e.C <- r
 			}
 		case <-ctx.Done():
-			log.Println("Cancellation request received.  Cancelling reading distributor.")
+			log.Info("cancellation request received.  Cancelling reading distributor.")
 			return nil
 		}
 	}

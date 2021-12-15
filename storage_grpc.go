@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 
@@ -34,7 +33,7 @@ type GRPCStorage struct {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to our gRPC clients
 func (g GRPCStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Println("Starting gRPC storage engine...")
+	log.Info("starting gRPC storage engine...")
 	g.Ctx = ctx
 	readingChan := make(chan Reading)
 	go g.processMetrics(ctx, wg, readingChan)
@@ -50,10 +49,10 @@ func (g GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rch
 		case r := <-rchan:
 			err := g.SendReading(r)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling readings processor.")
+			log.Info("cancellation request recieved.  Cancelling readings processor.")
 			return
 		}
 	}
@@ -103,7 +102,7 @@ func NewGRPCStorage(c *Config) (GRPCStorage, error) {
 
 // GetLiveWeather satisfies the implementation of weather.WeatherServer
 func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_GetLiveWeatherServer) error {
-	log.Println("Starting GetLiveWeather()...")
+	log.Info("starting GetLiveWeather()...")
 	ctx := stream.Context()
 
 	for {
