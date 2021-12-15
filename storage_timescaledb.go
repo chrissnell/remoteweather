@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"sync"
+	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // TimescaleDBConfig describes the YAML-provided configuration for a TimescaleDB
@@ -67,8 +70,19 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (TimescaleDBStorage, 
 	var err error
 	t := TimescaleDBStorage{}
 
+	// Create a logger for gorm
+	dbLogger := logger.New(
+		zap.NewStdLog(zapLogger),
+		logger.Config{
+			SlowThreshold:             time.Second, // Slow SQL threshold
+			LogLevel:                  logger.Warn, // Log level
+			IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
+			Colorful:                  true,        // Disable color
+		},
+	)
+
 	log.Info("connecting to TimescaleDB...")
-	t.TimescaleDBConn, err = gorm.Open(postgres.Open(c.Storage.TimescaleDB.ConnectionString), &gorm.Config{})
+	t.TimescaleDBConn, err = gorm.Open(postgres.Open(c.Storage.TimescaleDB.ConnectionString), &gorm.Config{Logger: dbLogger})
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return TimescaleDBStorage{}, err
@@ -119,6 +133,54 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (TimescaleDBStorage, 
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1dViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create 1d view")
+		return TimescaleDBStorage{}, err
+	}
+
+	// Add the 5m aggregation policy
+	log.Info("Adding 5m aggregation policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy5mSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add 5m aggregation policy")
+		return TimescaleDBStorage{}, err
+	}
+
+	// Add the 1h aggregation policy
+	log.Info("Adding 1h aggregation policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add 1h aggregation policy")
+		return TimescaleDBStorage{}, err
+	}
+
+	// Add the 1d aggregation policy
+	log.Info("Adding 1d aggregation policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1dSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add 1d aggregation policy")
+		return TimescaleDBStorage{}, err
+	}
+
+	// Add the hypertable retention policy
+	log.Info("Adding hypertable retention policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy).Error
+	if err != nil {
+		log.Warn("warning: could not add hypertable retention policy")
+		return TimescaleDBStorage{}, err
+	}
+
+	// Add the 5m continuous aggregate retention policy
+	log.Info("Adding 5m continuous aggregate retention policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy5m).Error
+	if err != nil {
+		log.Warn("warning: could not add 5m continous aggregate retention policy")
+		return TimescaleDBStorage{}, err
+	}
+
+	// Add the 1h continuous aggregate retention policy
+	log.Info("Adding 1h continuous aggregate retention policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1h).Error
+	if err != nil {
+		log.Warn("warning: could not add 1h continous aggregate retention policy")
 		return TimescaleDBStorage{}, err
 	}
 
