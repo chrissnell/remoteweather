@@ -3,16 +3,19 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
+
+	"go.uber.org/zap"
 )
 
 const version = "2.0-" + runtime.GOOS + "/" + runtime.GOARCH
+
+var log *zap.SugaredLogger
 
 // Service contains our configuration and runtime objects
 type Service struct {
@@ -20,11 +23,11 @@ type Service struct {
 }
 
 // NewService creates a new instance of Service with the given configuration file
-func NewService(cfg *Config, sto *Storage) *Service {
+func NewService(cfg *Config, sto *StorageManager, logger *zap.SugaredLogger) *Service {
 	s := &Service{}
 
 	// Initialize the Controller
-	s.ws = NewWeatherStation(*cfg, sto)
+	s.ws = NewWeatherStation(*cfg, sto, logger)
 
 	return s
 }
@@ -38,11 +41,19 @@ func main() {
 	debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
+	// Set up our logger
+	l, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer l.Sync()
+	logger := l.Sugar()
+
 	// Read our server configuration
 	filename, _ := filepath.Abs(*cfgFile)
 	cfg, err := NewConfig(filename)
 	if err != nil {
-		log.Fatalln("Error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
+		logger.Fatal("Error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
 	}
 
 	sigs := make(chan os.Signal, 1)
@@ -51,12 +62,12 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	sto, err := NewStorage(ctx, &wg, &cfg)
+	sto, err := NewStorageManager(ctx, &wg, &cfg)
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal(err)
 	}
 
-	s := NewService(&cfg, sto)
+	s := NewService(&cfg, sto, logger)
 
 	go s.ws.StartLoopPolling()
 
