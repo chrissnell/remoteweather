@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/influxdata/influxdb/client/v2"
@@ -30,7 +29,7 @@ type InfluxDBStorage struct {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
 func (i InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Println("Starting InfluxDB storage engine...")
+	log.Info("starting InfluxDB storage engine...")
 	readingChan := make(chan Reading, 10)
 	go i.processMetrics(ctx, wg, readingChan)
 	return readingChan
@@ -45,10 +44,10 @@ func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup,
 		case r := <-rchan:
 			err := i.StoreReading(r)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling readings processor.")
+			log.Info("cancellation request recieved.  Cancelling readings processor.")
 			return
 		}
 	}
@@ -105,7 +104,7 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 			Password: c.Storage.InfluxDB.Password,
 		})
 		if err != nil {
-			log.Println("Warning: could not create InfluxDB connection!", err)
+			log.Warn("warning: could not create InfluxDB connection!", err)
 			return InfluxDBStorage{}, err
 		}
 	case "udp":
@@ -114,7 +113,7 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 		}
 		i.InfluxDBConn, err = client.NewUDPClient(u)
 		if err != nil {
-			log.Println("Warning: could not create InfluxDB connection.", err)
+			log.Warn("warning: could not create InfluxDB connection.", err)
 			return InfluxDBStorage{}, err
 		}
 	default:
@@ -125,7 +124,7 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 			Password: c.Storage.InfluxDB.Password,
 		})
 		if err != nil {
-			log.Println("Warning: could not create InfluxDB connection!", err)
+			log.Warn("warning: could not create InfluxDB connection!", err)
 			return InfluxDBStorage{}, err
 		}
 	}

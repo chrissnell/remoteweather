@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"sync"
 
 	"gorm.io/driver/postgres"
@@ -33,7 +32,7 @@ func (Reading) TableName() string {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to TimescaleDB
 func (t TimescaleDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Println("Starting TimescaleDB storage engine...")
+	log.Info("starting TimescaleDB storage engine...")
 	readingChan := make(chan Reading, 10)
 	go t.processMetrics(ctx, wg, readingChan)
 	return readingChan
@@ -48,7 +47,7 @@ func (t TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGro
 		case r := <-rchan:
 			t.StoreReading(ctx, r)
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling readings processor.")
+			log.Info("cancellation request recieved.  Cancelling readings processor.")
 			return
 		}
 	}
@@ -58,7 +57,7 @@ func (t TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGro
 func (t TimescaleDBStorage) StoreReading(ctx context.Context, r Reading) {
 	err := t.TimescaleDBConn.WithContext(ctx).Create(&r).Error
 	if err != nil {
-		log.Println("error: could not store reading:", err)
+		log.Error("could not store reading:", err)
 	}
 }
 
@@ -68,58 +67,58 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (TimescaleDBStorage, 
 	var err error
 	t := TimescaleDBStorage{}
 
-	log.Println("Connecting to TimescaleDB...")
+	log.Info("connecting to TimescaleDB...")
 	t.TimescaleDBConn, err = gorm.Open(postgres.Open(c.Storage.TimescaleDB.ConnectionString), &gorm.Config{})
 	if err != nil {
-		log.Println("Warning: unable to create a TimescaleDB connection:", err)
+		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return TimescaleDBStorage{}, err
 	}
 
 	// Create the database table
-	log.Println("Creating database table...")
+	log.Info("creating database table...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createTableSQL).Error
 	if err != nil {
-		log.Println("Warning: could not create table in database")
+		log.Warn("warning: could not create table in database")
 		return TimescaleDBStorage{}, err
 	}
 
 	// Create the TimescaleDB extension
-	log.Println("Creating TimescaleDB extension...")
+	log.Info("creating TimescaleDB extension...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createExtensionSQL).Error
 	if err != nil {
-		log.Println("Warning: could not create TimescaleDB extension")
+		log.Warn("warning: could not create TimescaleDB extension")
 		return TimescaleDBStorage{}, err
 	}
 
 	// Create the hypertable
-	log.Println("Creating hypertable...")
+	log.Info("creating hypertable...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createHypertableSQL).Error
 	if err != nil {
-		log.Println("Warning: could not create hypertable")
+		log.Warn("warning: could not create hypertable")
 		return TimescaleDBStorage{}, err
 	}
 
 	// Create the 5m view
-	log.Println("Creating 5m view...")
+	log.Info("creating 5m view...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create5mViewSQL).Error
 	if err != nil {
-		log.Println("Warning: could not create 5m view")
+		log.Warn("warning: could not create 5m view")
 		return TimescaleDBStorage{}, err
 	}
 
 	// Create the 1h view
-	log.Println("Creating 1h view...")
+	log.Info("creating 1h view...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1hViewSQL).Error
 	if err != nil {
-		log.Println("Warning: could not create 1h view")
+		log.Warn("warning: could not create 1h view")
 		return TimescaleDBStorage{}, err
 	}
 
 	// Create the 1d view
-	log.Println("Creating 1d view...")
+	log.Info("Creating 1d view...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1dViewSQL).Error
 	if err != nil {
-		log.Println("Warning: could not create 1d view")
+		log.Warn("warning: could not create 1d view")
 		return TimescaleDBStorage{}, err
 	}
 
