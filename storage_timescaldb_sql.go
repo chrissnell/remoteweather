@@ -95,19 +95,18 @@ SELECT
     avg(outtemp) as outtemp,
     avg(outhumidity) as outhumidity,
     avg(windspeed) as windspeed,
-    max(windspeed) as maxwindspeed,
+    max(windspeed) as max_windspeed,
     avg(windchill) as windchill,
     avg(heatindex) as heatindex,
     avg(rainrate) as rainrate,
-    max(rainrate) as maxrainrate,
+    max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage
 FROM
     weather
-GROUP BY bucket, stationname
-WITH NO DATA;`
+GROUP BY bucket, stationname;`
 
 const create1hViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1h
 WITH (timescaledb.continuous)
@@ -116,24 +115,33 @@ SELECT
     time_bucket('1 hour', time) as bucket,
     stationname,
     avg(barometer) as barometer,
+	max(barometer) as max_barometer,
+	min(barometer) as min_barometer,
     avg(intemp) as intemp,
+	max(intemp) as max_intemp,
+	min(intemp) as min_intemp,
     avg(inhumidity) as inhumidity,
     avg(outtemp) as outtemp,
+	max(outtemp) as max_outtemp,
+	min(outtemp) as min_outtemp,
     avg(outhumidity) as outhumidity,
+	max(outhumidity) as max_outhumidity,
+	min(outhumidity) as min_outhumidity,
     avg(windspeed) as windspeed,
-    max(windspeed) as maxwindspeed,
+    max(windspeed) as max_windspeed,
     avg(windchill) as windchill,
+	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
+	max(heatindex) as max_heatindex,
     avg(rainrate) as rainrate,
-    max(rainrate) as maxrainrate,
+    max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage
 FROM
     weather
-GROUP BY bucket, stationname
-WITH NO DATA;`
+GROUP BY bucket, stationname;`
 
 const create1dViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1d
 WITH (timescaledb.continuous)
@@ -142,21 +150,38 @@ SELECT
     time_bucket('1 day', time) as bucket,
     stationname,
     avg(barometer) as barometer,
+	max(barometer) as max_barometer,
+	min(barometer) as min_barometer,
     avg(intemp) as intemp,
+	max(intemp) as max_intemp,
+	min(intemp) as min_intemp,
     avg(inhumidity) as inhumidity,
     avg(outtemp) as outtemp,
+	max(outtemp) as max_outtemp,
+	min(outtemp) as min_outtemp,
     avg(outhumidity) as outhumidity,
+	max(outhumidity) as max_outhumidity,
+	min(outhumidity) as min_outhumidity,
     avg(windspeed) as windspeed,
-    max(windspeed) as maxwindspeed,
+    max(windspeed) as max_windspeed,
     avg(windchill) as windchill,
+	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
+	max(heatindex) as max_heatindex,
     avg(rainrate) as rainrate,
-    max(rainrate) as maxrainrate,
+    max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage
 FROM
     weather
-GROUP BY bucket, stationname
-WITH NO DATA;`
+GROUP BY bucket, stationname;`
+
+const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', '2 days', '5 minutes', '5 minutes', if_not_exists => true);`
+const addAggregationPolicy1hSQL = `SELECT add_continuous_aggregate_policy('weather_1h', '2 months', '1 hour', '1 hour', if_not_exists => true);`
+const addAggregationPolicy1dSQL = `SELECT add_continuous_aggregate_policy('weather_1d', '1 year', '1 day', '1 day', if_not_exists => true);`
+
+const addRetentionPolicy = `SELECT add_retention_policy('weather', INTERVAL '7 days', if_not_exists => true);`
+const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL '1 month', if_not_exists => true);`
+const addRetentionPolicy1h = `SELECT add_retention_policy('weather_1h', INTERVAL '2 year', if_not_exists => true);`
