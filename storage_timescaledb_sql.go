@@ -83,6 +83,84 @@ const createExtensionSQL = `CREATE EXTENSION IF NOT EXISTS timescaledb;`
 
 const createHypertableSQL = `SELECT create_hypertable('weather', 'time', if_not_exists => true);`
 
+const createCircAvgStateTypeSQL = `CREATE TYPE circular_avg_state AS (
+    sin_sum real,
+    cos_sum real,
+    accum real
+  );
+  `
+
+const createCircAvgStateFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_state_accumulator(state circular_avg_state, reading real)
+RETURNS circular_avg_state
+STRICT
+IMMUTABLE
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    sin_sum real;
+    cos_sum real;
+BEGIN
+    sin_sum := state.sin_sum + SIND(reading);
+    cos_sum := state.cos_sum + COSD(reading);
+    RETURN ROW(sin_sum, cos_sum, state.accum + 1)::circular_avg_state;
+END;
+$$;
+`
+
+const createCircAvgCombinerFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_state_combiner(state1 circular_avg_state, state2 circular_avg_state)
+RETURNS circular_avg_state
+STRICT
+IMMUTABLE
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    sin_sum real;
+    cos_sum real;
+    accum_sum real;
+BEGIN
+    sin_sum := state1.sin_sum + state2.sin_sum;
+    cos_sum := state1.cos_sum + state2.cos_sum;
+    accum_sum := state1.accum + state2.accum;
+    RETURN ROW(sin_sum, cos_sum, accum_sum)::circular_avg_state;
+END;
+$$;`
+
+const createCircAvgFinalizerFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_final(state circular_avg_state)
+RETURNS real
+STRICT
+IMMUTABLE
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    sin_avg real;
+    cos_avg real;
+    atan2_result real;
+    final_result real;
+BEGIN
+    sin_avg := state.sin_sum / state.accum;
+    cos_avg := state.cos_sum / state.accum;
+    atan2_result := ATAN2D(sin_avg, cos_avg);
+    if atan2_result < 0 THEN
+        final_result := atan2_result + 360;
+    ELSE
+        final_result := atan2_result;
+    END IF;
+
+    RETURN final_result;
+END;
+$$;
+`
+
+const createCircAvgAggregateFunctionSQL = `CREATE OR REPLACE AGGREGATE circular_avg (real)
+(
+    SFUNC = circular_avg_state_accumulator,
+    STYPE = circular_avg_state,
+    COMBINEFUNC = circular_avg_state_combiner,
+    FINALFUNC = circular_avg_final,
+    INITCOND = '(0,0,0)',
+    PARALLEL = SAFE
+);`
+
 const create5mViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_5m
 WITH (timescaledb.continuous)
 AS
@@ -90,14 +168,27 @@ SELECT
     time_bucket('5 minutes', time) as bucket,
     stationname,
     avg(barometer) as barometer,
+	max(barometer) as max_barometer,
+	min(barometer) as min_barometer,
     avg(intemp) as intemp,
+	max(intemp) as max_intemp,
+	min(intemp) as min_intemp,
     avg(inhumidity) as inhumidity,
+	max(inhumidity) as max_inhumidity,
+	min(inhumidity) as min_inhumidity,
     avg(outtemp) as outtemp,
+	max(outtemp) as max_outtemp,
+	min(outtemp) as min_outtemp,
     avg(outhumidity) as outhumidity,
+	max(outhumidity) as max_outhumidity,
+	min(outhumidity) as min_outhumidity,
+    circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
     avg(windchill) as windchill,
+	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
+	max(heatindex) as max_heatindex,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
@@ -121,12 +212,15 @@ SELECT
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
     avg(inhumidity) as inhumidity,
+	max(inhumidity) as max_inhumidity,
+	min(inhumidity) as min_inhumidity,
     avg(outtemp) as outtemp,
 	max(outtemp) as max_outtemp,
 	min(outtemp) as min_outtemp,
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
     avg(windchill) as windchill,
@@ -156,12 +250,15 @@ SELECT
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
     avg(inhumidity) as inhumidity,
+	max(inhumidity) as max_inhumidity,
+	min(inhumidity) as min_inhumidity,
     avg(outtemp) as outtemp,
 	max(outtemp) as max_outtemp,
 	min(outtemp) as min_outtemp,
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
     avg(windchill) as windchill,
