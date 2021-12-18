@@ -27,7 +27,7 @@ type WUStorage struct {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
-func (w WUStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (w *WUStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
 	log.Info("starting Weather Underground storage engine...")
 	readingChan := make(chan Reading, 10)
 	go w.sendReports(ctx, wg, readingChan)
@@ -107,15 +107,15 @@ func (w *WUStorage) sendReading(ctx context.Context, r Reading) {
 }
 
 // NewWUStorage sets up a new WU storage backend
-func NewWUStorage(c *Config) (WUStorage, error) {
+func NewWUStorage(c *Config) (*WUStorage, error) {
 	w := WUStorage{}
 
 	if c.Storage.WU.StationID == "" {
-		return w, fmt.Errorf("you must provide a WU station ID in the configuration file")
+		return &w, fmt.Errorf("you must provide a WU station ID in the configuration file")
 	}
 
 	if c.Storage.WU.Password == "" {
-		return w, fmt.Errorf("you must provide a WU password in the configuration file")
+		return &w, fmt.Errorf("you must provide a WU password in the configuration file")
 	}
 
 	if c.Storage.WU.Endpoint == "" {
@@ -124,5 +124,5 @@ func NewWUStorage(c *Config) (WUStorage, error) {
 
 	w.cfg = c
 
-	return w, nil
+	return &w, nil
 }
