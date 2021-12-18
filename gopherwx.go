@@ -39,13 +39,18 @@ var debug *bool
 func main() {
 	var wg sync.WaitGroup
 	var err error
+	var zapLogger *zap.Logger
 
 	cfgFile := flag.String("config", "config.yaml", "Path to config file (default: ./config.yaml)")
 	debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
 	// Set up our logger
-	zapLogger, err = zap.NewProduction()
+	if *debug {
+		zapLogger, err = zap.NewDevelopment()
+	} else {
+		zapLogger, err = zap.NewProduction()
+	}
 	if err != nil {
 		fmt.Printf("can't initialize zap logger: %v", err)
 		panic(0)
