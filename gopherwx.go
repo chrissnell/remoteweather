@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const version = "2.0-" + runtime.GOOS + "/" + runtime.GOARCH
+const version = "3.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
 var zapLogger *zap.Logger
 var log *zap.SugaredLogger
@@ -25,11 +25,11 @@ type Service struct {
 }
 
 // NewService creates a new instance of Service with the given configuration file
-func NewService(cfg *Config, sto *StorageManager) *Service {
+func NewService(cfg *Config, sto *StorageManager, logger *zap.SugaredLogger) *Service {
 	s := &Service{}
 
 	// Initialize the Controller
-	s.ws = NewWeatherStation(*cfg, sto)
+	s.ws = NewWeatherStation(*cfg, sto, logger)
 
 	return s
 }
@@ -39,7 +39,6 @@ var debug *bool
 func main() {
 	var wg sync.WaitGroup
 	var err error
-	var zapLogger *zap.Logger
 
 	cfgFile := flag.String("config", "config.yaml", "Path to config file (default: ./config.yaml)")
 	debug = flag.Bool("debug", false, "Turn on debugging output")
@@ -76,7 +75,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	s := NewService(&cfg, sto)
+	s := NewService(&cfg, sto, log)
 
 	go s.ws.StartLoopPolling()
 

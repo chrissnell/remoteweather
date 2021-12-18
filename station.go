@@ -214,12 +214,13 @@ type Reading struct {
 }
 
 // NewWeatherStation creates a new data model with a new DB connection and Kube API client
-func NewWeatherStation(c Config, sto *StorageManager) *WeatherStation {
+func NewWeatherStation(c Config, sto *StorageManager, logger *zap.SugaredLogger) *WeatherStation {
 
 	ws := new(WeatherStation)
 
 	ws.Config = c
 	ws.StorageManager = sto
+	ws.Logger = logger
 
 	return ws
 }
