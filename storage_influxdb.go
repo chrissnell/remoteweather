@@ -28,14 +28,14 @@ type InfluxDBStorage struct {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
-func (i InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (i *InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
 	log.Info("starting InfluxDB storage engine...")
 	readingChan := make(chan Reading, 10)
 	go i.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+func (i *InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -54,7 +54,7 @@ func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup,
 }
 
 // StoreReading stores a reading value in InfluxDB
-func (i InfluxDBStorage) StoreReading(r Reading) error {
+func (i *InfluxDBStorage) StoreReading(r Reading) error {
 
 	fields := r.ToMap()
 
@@ -89,7 +89,7 @@ func (i InfluxDBStorage) StoreReading(r Reading) error {
 }
 
 // NewInfluxDBStorage sets up a new InfluxDB storage backend
-func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
+func NewInfluxDBStorage(c *Config) (*InfluxDBStorage, error) {
 	var err error
 	i := InfluxDBStorage{}
 
@@ -105,7 +105,7 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 		})
 		if err != nil {
 			log.Warn("warning: could not create InfluxDB connection!", err)
-			return InfluxDBStorage{}, err
+			return &InfluxDBStorage{}, err
 		}
 	case "udp":
 		u := client.UDPConfig{
@@ -114,7 +114,7 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 		i.InfluxDBConn, err = client.NewUDPClient(u)
 		if err != nil {
 			log.Warn("warning: could not create InfluxDB connection.", err)
-			return InfluxDBStorage{}, err
+			return &InfluxDBStorage{}, err
 		}
 	default:
 		url := fmt.Sprintf("%v://%v:%v", c.Storage.InfluxDB.Scheme, c.Storage.InfluxDB.Host, c.Storage.InfluxDB.Port)
@@ -125,9 +125,9 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 		})
 		if err != nil {
 			log.Warn("warning: could not create InfluxDB connection!", err)
-			return InfluxDBStorage{}, err
+			return &InfluxDBStorage{}, err
 		}
 	}
 
-	return i, nil
+	return &i, nil
 }
