@@ -1,9 +1,22 @@
 syntax = "proto3";
-import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/chrissnell/gopherwx/protobuf";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 service Weather {
     rpc GetLiveWeather (Empty) returns (stream WeatherReading) {}
+    rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {}
+}
+
+message WeatherSpanRequest {
+    google.protobuf.Duration spanSize = 1;
+    google.protobuf.Timestamp spanStart = 2;
+}
+
+message WeatherSpan {
+    repeated WeatherReading reading = 1;
 }
 
 message WeatherReading {
@@ -14,8 +27,10 @@ message WeatherReading {
     int32 windSpeed = 5;
     int32 windDir = 6;
     float rainfallDay = 7;
+    float windChill = 8;
+    float heatIndex = 9;
+    float insideTemp = 10;
+    float insideHumidity = 11;
 }
 
-message Empty {
-
-}
+message Empty {}
