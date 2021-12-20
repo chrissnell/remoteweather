@@ -153,13 +153,19 @@ func (g *GRPCStorage) deregisterClient(i int) {
 	g.ClientChans = g.ClientChans[:len(g.ClientChans)-1]
 }
 
+type BucketReading struct {
+	Bucket time.Time `gorm:"column:bucket"`
+	Reading
+}
+
 func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSpanRequest) (*weather.WeatherSpan, error) {
-	var dbFetchedReadings []Reading
+
+	var dbFetchedReadings []BucketReading
 
 	spanStart := time.Now().Add(-request.SpanDuration.AsDuration())
 
 	if g.DBEnabled {
-		g.DB.Table("weather").Where("time > ?", spanStart).Find(&dbFetchedReadings)
+		g.DB.Table("weather_1m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
 		log.Infof("returned rows: %v", len(dbFetchedReadings))
 
 		span := &weather.WeatherSpan{
@@ -174,12 +180,12 @@ func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.Weath
 	return &weather.WeatherSpan{}, fmt.Errorf("ignoring GetWeatherSpan request: database not configured")
 }
 
-func (g *GRPCStorage) transformReadings(dbReadings *[]Reading) []*weather.WeatherReading {
+func (g *GRPCStorage) transformReadings(dbReadings *[]BucketReading) []*weather.WeatherReading {
 	grpcReadings := make([]*weather.WeatherReading, 0)
 
 	for _, r := range *dbReadings {
 		grpcReadings = append(grpcReadings, &weather.WeatherReading{
-			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Timestamp)),
+			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
 			OutsideTemperature: r.OutTemp,
 			OutsideHumidity:    int32(r.OutHumidity),
 			Barometer:          r.Barometer,
