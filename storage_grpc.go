@@ -207,14 +207,14 @@ func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_Ge
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
 
-	log.Infof("Registering new gRPC client [%v]...", p.Addr)
+	log.Infof("Registering new gRPC streaming client [%v]...", p.Addr)
 	clientChan := make(chan Reading, 10)
 	clientIndex := g.registerClient(clientChan)
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Infof("Deregistering gRPC client [%v:%v]", clientIndex, p.Addr)
+			log.Infof("Deregistering gRPC streaming client [%v:%v]", clientIndex, p.Addr)
 			g.deregisterClient(clientIndex)
 			return nil
 		default:
