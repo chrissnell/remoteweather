@@ -11,26 +11,26 @@ service Weather {
 }
 
 message WeatherSpanRequest {
-    google.protobuf.Duration spanSize = 1;
-    google.protobuf.Timestamp spanStart = 2;
+    google.protobuf.Duration spanDuration = 1;
 }
 
 message WeatherSpan {
-    repeated WeatherReading reading = 1;
+    google.protobuf.Timestamp spanStart = 1;
+    repeated WeatherReading reading = 2;
 }
 
 message WeatherReading {
-    google.protobuf.Timestamp lastReading = 1;
-    float outsideTemp = 2;
+    google.protobuf.Timestamp readingTimestamp = 1;
+    float outsideTemperature = 2;
     int32 outsideHumidity = 3;
     float barometer = 4;
     int32 windSpeed = 5;
-    int32 windDir = 6;
+    int32 windDirection = 6;
     float rainfallDay = 7;
     float windChill = 8;
     float heatIndex = 9;
-    float insideTemp = 10;
-    float insideHumidity = 11;
+    float insideTemperature = 10;
+    int32 insideHumidity = 11;
 }
 
 message Empty {}
