@@ -158,6 +158,14 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
+	// Create the 1m view
+	log.Info("creating 1m view...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1mViewSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create 1m view")
+		return &TimescaleDBStorage{}, err
+	}
+
 	// Create the 5m view
 	log.Info("creating 5m view...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create5mViewSQL).Error
@@ -179,6 +187,14 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1dViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create 1d view")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the 1m aggregation policy
+	log.Info("Adding 1m aggregation policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1mSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add 1m aggregation policy")
 		return &TimescaleDBStorage{}, err
 	}
 
@@ -211,6 +227,14 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy).Error
 	if err != nil {
 		log.Warn("warning: could not add hypertable retention policy")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the 1m continuous aggregate retention policy
+	log.Info("Adding 1m continuous aggregate retention policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1m).Error
+	if err != nil {
+		log.Warn("warning: could not add 1m continous aggregate retention policy")
 		return &TimescaleDBStorage{}, err
 	}
 
