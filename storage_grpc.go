@@ -30,6 +30,7 @@ type GRPCConfig struct {
 	Port                 int    `yaml:"port,omitempty"`
 	EnableRESTServer     bool   `yaml:"enable_rest_server,omitempty"`
 	RESTServerSocketPath string `yaml:"rest_server_socket_path,omitempty"`
+	RESTServerListenPort int    `yaml:"rest_server_listen_port,omitempty"`
 }
 
 // GRPCStorage implements a gRPC storage backend
@@ -101,6 +102,7 @@ func NewGRPCStorage(ctx context.Context, c *Config) (*GRPCStorage, error) {
 	g.SocketServer = grpc.NewServer()
 
 	if c.Storage.GRPC.EnableRESTServer {
+		log.Info("Enabling gRPC REST server...")
 		if c.Storage.GRPC.RESTServerSocketPath == "" {
 			c.Storage.GRPC.RESTServerSocketPath = "/tmp/gopherwx.sock"
 		}
@@ -139,8 +141,6 @@ func NewGRPCStorage(ctx context.Context, c *Config) (*GRPCStorage, error) {
 			return dialer.DialContext(ctx, "unix", addr)
 		}
 
-		// grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial()	}),
-
 		conn, err := grpc.Dial(c.Storage.GRPC.RESTServerSocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(ctxDialer))
 		if err != nil {
 			return &GRPCStorage{}, fmt.Errorf("gRPC storage could not connect to socket server: %v", err)
@@ -151,10 +151,14 @@ func NewGRPCStorage(ctx context.Context, c *Config) (*GRPCStorage, error) {
 			return &GRPCStorage{}, fmt.Errorf("gRPC storage could not create mux for gRPC REST proxy: %v", err)
 		}
 
+		if c.Storage.GRPC.RESTServerListenPort == 0 {
+			return &GRPCStorage{}, fmt.Errorf("REST server listen port must be set if REST server is enabled")
+		}
+
 		if c.Storage.GRPC.Cert != "" && c.Storage.GRPC.Key != "" {
-			go http.ListenAndServeTLS(":8086", c.Storage.GRPC.Cert, c.Storage.GRPC.Key, router)
+			go http.ListenAndServeTLS(fmt.Sprintf(":%v", c.Storage.GRPC.RESTServerListenPort), c.Storage.GRPC.Cert, c.Storage.GRPC.Key, router)
 		} else {
-			go http.ListenAndServe(":8086", router)
+			go http.ListenAndServe(fmt.Sprintf(":%v", c.Storage.GRPC.RESTServerListenPort), router)
 		}
 	}
 
