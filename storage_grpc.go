@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
 	weather "github.com/chrissnell/gopherwx/protobuf"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,9 +25,11 @@ import (
 // GRPCConfig describes the YAML-provided configuration for a gRPC
 // storage backend
 type GRPCConfig struct {
-	Cert string `yaml:"cert,omitempty"`
-	Key  string `yaml:"key,omitempty"`
-	Port int    `yaml:"port,omitempty"`
+	Cert                 string `yaml:"cert,omitempty"`
+	Key                  string `yaml:"key,omitempty"`
+	Port                 int    `yaml:"port,omitempty"`
+	EnableRESTServer     bool   `yaml:"enable_rest_server,omitempty"`
+	RESTServerSocketPath string `yaml:"rest_server_socket_path,omitempty"`
 }
 
 // GRPCStorage implements a gRPC storage backend
@@ -33,6 +38,8 @@ type GRPCStorage struct {
 	ClientChanMutex sync.RWMutex
 	DB              *gorm.DB
 	DBEnabled       bool
+	Server          *grpc.Server
+	SocketServer    *grpc.Server
 
 	weather.UnimplementedWeatherServer
 }
@@ -62,16 +69,18 @@ func (g *GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 			g.ClientChanMutex.RUnlock()
 		case <-ctx.Done():
 			log.Info("cancellation request recieved.  Cancelling readings processor.")
+			g.SocketServer.Stop()
+			g.Server.Stop()
 			return
 		}
 	}
 }
 
 // NewGRPCStorage sets up a new gRPC storage backend
-func NewGRPCStorage(c *Config) (*GRPCStorage, error) {
+func NewGRPCStorage(ctx context.Context, c *Config) (*GRPCStorage, error) {
 	var err error
-	var s *grpc.Server
 	var g GRPCStorage
+	var sockListener net.Listener
 
 	if c.Storage.GRPC.Cert != "" && c.Storage.GRPC.Key != "" {
 		// Create the TLS credentials
@@ -79,14 +88,28 @@ func NewGRPCStorage(c *Config) (*GRPCStorage, error) {
 		if err != nil {
 			return &GRPCStorage{}, fmt.Errorf("could not create TLS server from keypair: %v", err)
 		}
-		s = grpc.NewServer(grpc.Creds(creds))
+		g.Server = grpc.NewServer(grpc.Creds(creds))
 	} else {
-		s = grpc.NewServer()
+		g.Server = grpc.NewServer()
+
 	}
 
 	// Optionally, add gRPC reflection to our servers so that clients can self-discover
 	// our methods.
-	reflection.Register(s)
+	reflection.Register(g.Server)
+
+	g.SocketServer = grpc.NewServer()
+
+	if c.Storage.GRPC.EnableRESTServer {
+		if c.Storage.GRPC.RESTServerSocketPath == "" {
+			c.Storage.GRPC.RESTServerSocketPath = "/tmp/gopherwx.sock"
+		}
+		sockListener, err = net.Listen("unix", c.Storage.GRPC.RESTServerSocketPath)
+		if err != nil {
+			return &GRPCStorage{}, fmt.Errorf("could not create gRPC socket listener at %v: %v", c.Storage.GRPC.RESTServerSocketPath, err)
+		}
+
+	}
 
 	listenAddr := fmt.Sprintf(":%v", c.Storage.GRPC.Port)
 
@@ -105,9 +128,38 @@ func NewGRPCStorage(c *Config) (*GRPCStorage, error) {
 		g.DBEnabled = true
 	}
 
-	weather.RegisterWeatherServer(s, &g)
+	if c.Storage.GRPC.EnableRESTServer {
+		// Register a gRPC WeatherServer on our socket
+		weather.RegisterWeatherServer(g.SocketServer, &g)
+		go g.SocketServer.Serve(sockListener)
 
-	go s.Serve(l)
+		dialer := net.Dialer{}
+		// Now, set up a client to that server, to be used later on by our REST server
+		ctxDialer := func(ctx context.Context, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "unix", addr)
+		}
+
+		// grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial()	}),
+
+		conn, err := grpc.Dial(c.Storage.GRPC.RESTServerSocketPath, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(ctxDialer))
+		if err != nil {
+			return &GRPCStorage{}, fmt.Errorf("gRPC storage could not connect to socket server: %v", err)
+		}
+
+		router := runtime.NewServeMux()
+		if err = weather.RegisterWeatherHandler(ctx, router, conn); err != nil {
+			return &GRPCStorage{}, fmt.Errorf("gRPC storage could not create mux for gRPC REST proxy: %v", err)
+		}
+
+		if c.Storage.GRPC.Cert != "" && c.Storage.GRPC.Key != "" {
+			go http.ListenAndServeTLS(":8086", c.Storage.GRPC.Cert, c.Storage.GRPC.Key, router)
+		} else {
+			go http.ListenAndServe(":8086", router)
+		}
+	}
+
+	weather.RegisterWeatherServer(g.Server, &g)
+	go g.Server.Serve(l)
 
 	return &g, nil
 }
