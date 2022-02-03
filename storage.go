@@ -104,7 +104,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 
 	case "grpc":
 		se := StorageEngine{}
-		se.Engine, err = NewGRPCStorage(c)
+		se.Engine, err = NewGRPCStorage(ctx, c)
 		if err != nil {
 			return err
 		}
