@@ -4,10 +4,15 @@ option go_package = "github.com/chrissnell/gopherwx/protobuf";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/api/annotations.proto";
 
 service Weather {
     rpc GetLiveWeather (Empty) returns (stream WeatherReading) {}
-    rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {}
+    rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {
+        option (google.api.http) = {
+            get:"/v1/getWeatherSpan/{spanDuration}"
+        };
+    }
 }
 
 message WeatherSpanRequest {
