@@ -3,6 +3,7 @@ module github.com/chrissnell/gopherwx
 go 1.17
 
 require (
+	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.3
 	github.com/influxdata/influxdb v1.2.1-0.20170124155056-f126929c3d14
 	github.com/tarm/goserial v0.0.0-20151007205400-b3440c3c6355
