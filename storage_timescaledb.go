@@ -27,6 +27,12 @@ type Tabler interface {
 	TableName() string
 }
 
+// BucketReading holds a reading for a given timestamp
+type BucketReading struct {
+	Bucket time.Time `gorm:"column:bucket"`
+	Reading
+}
+
 // We implement the Tabler interface for the Reading struct
 func (Reading) TableName() string {
 	return "weather"
