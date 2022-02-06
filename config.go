@@ -26,6 +26,7 @@ type StorageConfig struct {
 	InfluxDB    InfluxDBConfig    `yaml:"influxdb,omitempty"`
 	TimescaleDB TimescaleDBConfig `yaml:"timescaledb,omitempty"`
 	GRPC        GRPCConfig        `yaml:"grpc,omitempty"`
+	RESTServer  RESTServerConfig  `yaml:"rest,omitempty"`
 	APRS        APRSConfig        `yaml:"aprs,omitempty"`
 	WU          WUConfig          `yaml:"wunderground,omitempty"`
 }

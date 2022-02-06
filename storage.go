@@ -63,6 +63,13 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Sto
 		}
 	}
 
+	if c.Storage.RESTServer.Port != 0 {
+		err = s.AddEngine(ctx, wg, "rest", c)
+		if err != nil {
+			return &s, fmt.Errorf("could not add REST server storage backend: %v", err)
+		}
+	}
+
 	if c.Storage.APRS.Callsign != "" {
 		err = s.AddEngine(ctx, wg, "aprs", c)
 		if err != nil {
@@ -111,6 +118,14 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 
+	case "rest":
+		se := StorageEngine{}
+		se.Engine, err = NewRESTServerStorage(ctx, c)
+		if err != nil {
+			return err
+		}
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
 	case "aprs":
 		se := StorageEngine{}
 		se.Engine, err = NewAPRSStorage(c)
