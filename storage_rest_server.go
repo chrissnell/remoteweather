@@ -144,25 +144,28 @@ func (r *RESTServerStorage) connectToDatabase(dbURI string) error {
 
 func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
-	var dbFetchedReadings []BucketReading
-
-	vars := mux.Vars(req)
-	span, err := time.ParseDuration(vars["span"])
-	if err != nil {
-		log.Errorf("invalid request: unable to parse duration: %v", vars["span"])
-		http.Error(w, "error: invalid span duration", 400)
-		return
-	}
-
-	spanStart := time.Now().Add(-span)
-
 	if r.DBEnabled {
+		var dbFetchedReadings []BucketReading
+
+		vars := mux.Vars(req)
+		span, err := time.ParseDuration(vars["span"])
+		if err != nil {
+			log.Errorf("invalid request: unable to parse duration: %v", vars["span"])
+			http.Error(w, "error: invalid span duration", 400)
+			return
+		}
+
+		spanStart := time.Now().Add(-span)
+
 		r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
 		log.Infof("returned rows: %v", len(dbFetchedReadings))
 
 		log.Infof("getweatherspan -> spanDuration: %v", span)
 
-		err := json.NewEncoder(w).Encode(r.transformReadings(&dbFetchedReadings))
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		err = json.NewEncoder(w).Encode(r.transformReadings(&dbFetchedReadings))
 		if err != nil {
 			log.Errorf("error marshalling dbFetchedReadings: %v", err)
 			http.Error(w, "error fetching readings from DB", 500)
@@ -192,41 +195,3 @@ func (r *RESTServerStorage) transformReadings(dbReadings *[]BucketReading) []*RE
 
 	return wr
 }
-
-// // GetLiveWeather implements the live weather feed for WeatherServer
-// func (r *RESTServerStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_GetLiveWeatherServer) error {
-// 	ctx := stream.Context()
-// 	p, _ := peer.FromContext(ctx)
-
-// 	log.Infof("Registering new gRPC streaming client [%v]...", p.Addr)
-// 	clientChan := make(chan Reading, 10)
-// 	clientIndex := r.registerClient(clientChan)
-
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			log.Infof("Deregistering gRPC streaming client [%v:%v]", clientIndex, p.Addr)
-// 			r.deregisterClient(clientIndex)
-// 			return nil
-// 		default:
-// 			r := <-clientChan
-// 			log.Debugf("Sending reading to client [%v]", p.Addr)
-
-// 			//rts, _ := ptypes.TimestampProto(r.Timestamp)
-// 			rts := timestamppb.New(r.Timestamp)
-
-// 			stream.Send(&weather.WeatherReading{
-// 				ReadingTimestamp:   rts,
-// 				OutsideTemperature: r.OutTemp,
-// 				InsideTemperature:  r.InTemp,
-// 				OutsideHumidity:    float32(r.OutHumidity),
-// 				InsideHumidity:     float32(r.InHumidity),
-// 				Barometer:          r.Barometer,
-// 				WindSpeed:          float32(r.WindSpeed),
-// 				WindDirection:      float32(r.WindDir),
-// 				RainfallDay:        r.DayRain,
-// 			})
-
-// 		}
-// 	}
-// }
