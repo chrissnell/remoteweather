@@ -37,16 +37,16 @@ type RESTWeatherReading struct {
 	ReadingTimestamp time.Time `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
-	OutsideTemperature *float32 `json:"otemp"`
-	OutsideHumidity    *float32 `json:"ohum"`
-	Barometer          *float32 `json:"bar"`
-	WindSpeed          *float32 `json:"winds"`
-	WindDirection      *float32 `json:"windd"`
-	RainfallDay        *float32 `json:"rainday"`
-	WindChill          *float32 `json:"windch"`
-	HeatIndex          *float32 `json:"heatidx"`
-	InsideTemperature  *float32 `json:"itemp"`
-	InsideHumidity     *float32 `json:"ihum"`
+	OutsideTemperature float32 `json:"otemp"`
+	OutsideHumidity    float32 `json:"ohum"`
+	Barometer          float32 `json:"bar"`
+	WindSpeed          float32 `json:"winds"`
+	WindDirection      float32 `json:"windd"`
+	RainfallDay        float32 `json:"rainday"`
+	WindChill          float32 `json:"windch"`
+	HeatIndex          float32 `json:"heatidx"`
+	InsideTemperature  float32 `json:"itemp"`
+	InsideHumidity     float32 `json:"ihum"`
 }
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
@@ -157,7 +157,7 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 
 		spanStart := time.Now().Add(-span)
 
-		r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
+		r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
 		log.Infof("returned rows: %v", len(dbFetchedReadings))
 
 		log.Infof("getweatherspan -> spanDuration: %v", span)
@@ -165,12 +165,15 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
-		err = json.NewEncoder(w).Encode(r.transformReadings(&dbFetchedReadings))
+		//err = json.NewEncoder(w).Encode(r.transformReadings(&dbFetchedReadings))
+		jsonResponse, err := json.Marshal(r.transformReadings(&dbFetchedReadings))
 		if err != nil {
 			log.Errorf("error marshalling dbFetchedReadings: %v", err)
 			http.Error(w, "error fetching readings from DB", 500)
 			return
 		}
+
+		w.Write(jsonResponse)
 	}
 }
 
@@ -180,16 +183,16 @@ func (r *RESTServerStorage) transformReadings(dbReadings *[]BucketReading) []*RE
 	for _, r := range *dbReadings {
 		wr = append(wr, &RESTWeatherReading{
 			ReadingTimestamp:   r.Bucket,
-			OutsideTemperature: &r.OutTemp,
-			OutsideHumidity:    &r.OutHumidity,
-			Barometer:          &r.Barometer,
-			WindSpeed:          &r.WindSpeed,
-			WindDirection:      &r.WindDir,
-			RainfallDay:        &r.DayRain,
-			WindChill:          &r.Windchill,
-			HeatIndex:          &r.HeatIndex,
-			InsideTemperature:  &r.InTemp,
-			InsideHumidity:     &r.InHumidity,
+			OutsideTemperature: r.OutTemp,
+			OutsideHumidity:    r.OutHumidity,
+			Barometer:          r.Barometer,
+			WindSpeed:          r.WindSpeed,
+			WindDirection:      r.WindDir,
+			RainfallDay:        r.DayRain,
+			WindChill:          r.Windchill,
+			HeatIndex:          r.HeatIndex,
+			InsideTemperature:  r.InTemp,
+			InsideHumidity:     r.InHumidity,
 		})
 	}
 
