@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 )
 
-// Storage holds our active storage backends
-type Storage struct {
+// StorageManager holds our active storage backends
+type StorageManager struct {
 	Engines            []StorageEngine
 	ReadingDistributor chan Reading
 }
@@ -16,8 +15,8 @@ type Storage struct {
 // StorageEngine holds a backend storage engine's interface as well as
 // a channel for passing readings to the engine
 type StorageEngine struct {
-	I StorageEngineInterface
-	C chan<- Reading
+	Engine StorageEngineInterface
+	C      chan<- Reading
 }
 
 // StorageEngineInterface is an interface that provides a few standardized
@@ -26,12 +25,12 @@ type StorageEngineInterface interface {
 	StartStorageEngine(context.Context, *sync.WaitGroup) chan<- Reading
 }
 
-// NewStorage creats a Storage object, populated with all configured
+// NewStorageManager creats a StorageManager object, populated with all configured
 // StorageEngines
-func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, error) {
+func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*StorageManager, error) {
 	var err error
 
-	s := Storage{}
+	s := StorageManager{}
 
 	// Initialize our channel for passing metrics to the MetricDistributor
 	s.ReadingDistributor = make(chan Reading, 20)
@@ -43,31 +42,45 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 	// Check the configuration file for various supported storage backends
 	// and enable them if found
 
+	if c.Storage.TimescaleDB.ConnectionString != "" {
+		err = s.AddEngine(ctx, wg, "timescaledb", c)
+		if err != nil {
+			return &s, fmt.Errorf("could not add TimescaleDB storage backend: %v", err)
+		}
+	}
+
 	if c.Storage.InfluxDB.Host != "" {
 		err = s.AddEngine(ctx, wg, "influxdb", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add InfluxDB storage backend: %v", err)
+			return &s, fmt.Errorf("could not add InfluxDB storage backend: %v", err)
 		}
 	}
 
 	if c.Storage.GRPC.Port != 0 {
 		err = s.AddEngine(ctx, wg, "grpc", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add gRPC storage backend: %v", err)
+			return &s, fmt.Errorf("could not add gRPC storage backend: %v", err)
+		}
+	}
+
+	if c.Storage.RESTServer.Port != 0 {
+		err = s.AddEngine(ctx, wg, "rest", c)
+		if err != nil {
+			return &s, fmt.Errorf("could not add REST server storage backend: %v", err)
 		}
 	}
 
 	if c.Storage.APRS.Callsign != "" {
 		err = s.AddEngine(ctx, wg, "aprs", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not add APRS storage backend: %v", err)
+			return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
 		}
 	}
 
 	if c.Storage.WU.StationID != "" {
 		err = s.AddEngine(ctx, wg, "wu", c)
 		if err != nil {
-			return &s, fmt.Errorf("Could not at WU storage backend: %v", err)
+			return &s, fmt.Errorf("could not at WU storage backend: %v", err)
 		}
 	}
 
@@ -75,43 +88,59 @@ func NewStorage(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Storage, e
 }
 
 // AddEngine adds a new StorageEngine of name engineName to our Storage object
-func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *Config) error {
+func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *Config) error {
 	var err error
 
 	switch engineName {
-	case "influxdb":
+	case "timescaledb":
 		se := StorageEngine{}
-		se.I, err = NewInfluxDBStorage(c)
+		se.Engine, err = NewTimescaleDBStorage(ctx, c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+	case "influxdb":
+		se := StorageEngine{}
+		se.Engine, err = NewInfluxDBStorage(c)
+		if err != nil {
+			return err
+		}
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 
 	case "grpc":
 		se := StorageEngine{}
-		se.I, err = NewGRPCStorage(c)
+		se.Engine, err = NewGRPCStorage(ctx, c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 
-	case "aprs":
+	case "rest":
 		se := StorageEngine{}
-		se.I, err = NewAPRSStorage(c)
+		se.Engine, err = NewRESTServerStorage(ctx, c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+	case "aprs":
+		se := StorageEngine{}
+		se.Engine, err = NewAPRSStorage(c)
+		if err != nil {
+			return err
+		}
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 	case "wu":
 		se := StorageEngine{}
-		se.I, err = NewWUStorage(c)
+		se.Engine, err = NewWUStorage(c)
 		if err != nil {
 			return err
 		}
-		se.C = se.I.StartStorageEngine(ctx, wg)
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 	}
 
@@ -120,7 +149,7 @@ func (s *Storage) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName 
 
 // readingDistributor receives readings from gatherers and fans them out to the various
 // storage backends
-func (s *Storage) readingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
+func (s *StorageManager) readingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -131,7 +160,7 @@ func (s *Storage) readingDistributor(ctx context.Context, wg *sync.WaitGroup) er
 				e.C <- r
 			}
 		case <-ctx.Done():
-			log.Println("Cancellation request received.  Cancelling reading distributor.")
+			log.Info("cancellation request received.  Cancelling reading distributor.")
 			return nil
 		}
 	}
