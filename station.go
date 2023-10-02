@@ -10,7 +10,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net"
 	"reflect"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/chrissnell/gopherwx/util/crc16"
 	serial "github.com/tarm/goserial"
+	"go.uber.org/zap"
 )
 
 const (
@@ -35,15 +35,16 @@ const (
 
 // WeatherStation holds our connection along with some mutexes for operation
 type WeatherStation struct {
-	Name         string `json:"name"`
-	netConn      net.Conn
-	rwc          io.ReadWriteCloser
-	Config       Config
-	Storage      *Storage
-	connecting   bool
-	connectingMu sync.RWMutex
-	connected    bool
-	connectedMu  sync.RWMutex
+	Name           string `json:"name"`
+	netConn        net.Conn
+	rwc            io.ReadWriteCloser
+	Config         Config
+	StorageManager *StorageManager
+	Logger         *zap.SugaredLogger
+	connecting     bool
+	connectingMu   sync.RWMutex
+	connected      bool
+	connectedMu    sync.RWMutex
 }
 
 // LoopPacket is the data returned from the Davis API "LOOP" operation
@@ -135,81 +136,93 @@ type LoopPacketWithTrend struct {
 // Administrative elements (e.g. LoopType) not related to weather readings have been
 // left out.
 type Reading struct {
-	Timestamp          time.Time
-	StationName        string
-	Barometer          float32
-	InTemp             float32
-	InHumidity         float32
-	OutTemp            float32
-	WindSpeed          float32
-	WindSpeed10        float32
-	WindDir            float32
-	Windchill          float32
-	HeatIndex          float32
-	ExtraTemp1         float32
-	ExtraTemp2         float32
-	ExtraTemp3         float32
-	ExtraTemp4         float32
-	ExtraTemp5         float32
-	ExtraTemp6         float32
-	ExtraTemp7         float32
-	SoilTemp1          float32
-	SoilTemp2          float32
-	SoilTemp3          float32
-	SoilTemp4          float32
-	LeafTemp1          float32
-	LeafTemp2          float32
-	LeafTemp3          float32
-	LeafTemp4          float32
-	OutHumidity        float32
-	ExtraHumidity1     float32
-	ExtraHumidity2     float32
-	ExtraHumidity3     float32
-	ExtraHumidity4     float32
-	ExtraHumidity5     float32
-	ExtraHumidity6     float32
-	ExtraHumidity7     float32
-	RainRate           float32
-	UV                 float32
-	Radiation          float32
-	StormRain          float32
-	StormStart         time.Time
-	DayRain            float32
-	MonthRain          float32
-	YearRain           float32
-	DayET              float32
-	MonthET            float32
-	YearET             float32
-	SoilMoisture1      float32
-	SoilMoisture2      float32
-	SoilMoisture3      float32
-	SoilMoisture4      float32
-	LeafWetness1       float32
-	LeafWetness2       float32
-	LeafWetness3       float32
-	LeafWetness4       float32
-	InsideAlarm        uint8
-	RainAlarm          uint8
-	OutsideAlarm1      uint8
-	OutsideAlarm2      uint8
-	ExtraAlarm1        uint8
-	ExtraAlarm2        uint8
-	ExtraAlarm3        uint8
-	ExtraAlarm4        uint8
-	ExtraAlarm5        uint8
-	ExtraAlarm6        uint8
-	ExtraAlarm7        uint8
-	ExtraAlarm8        uint8
-	SoilLeafAlarm1     uint8
-	SoilLeafAlarm2     uint8
-	SoilLeafAlarm3     uint8
-	SoilLeafAlarm4     uint8
-	TxBatteryStatus    uint8
-	ConsBatteryVoltage float32
-	ForecastIcon       uint8
-	ForecastRule       uint8
-	Sunrise            time.Time
-	Sunset             time.Time
+	Timestamp          time.Time `gorm:"column:time"`
+	StationName        string    `gorm:"column:stationname"`
+	Barometer          float32   `gorm:"column:barometer"`
+	InTemp             float32   `gorm:"column:intemp"`
+	InHumidity         float32   `gorm:"column:inhumidity"`
+	OutTemp            float32   `gorm:"column:outtemp"`
+	WindSpeed          float32   `gorm:"column:windspeed"`
+	WindSpeed10        float32   `gorm:"column:windspeed10"`
+	WindDir            float32   `gorm:"column:winddir"`
+	Windchill          float32   `gorm:"column:windchill"`
+	HeatIndex          float32   `gorm:"column:heatindex"`
+	ExtraTemp1         float32   `gorm:"column:extratemp1"`
+	ExtraTemp2         float32   `gorm:"column:extratemp2"`
+	ExtraTemp3         float32   `gorm:"column:extratemp3"`
+	ExtraTemp4         float32   `gorm:"column:extratemp4"`
+	ExtraTemp5         float32   `gorm:"column:extratemp5"`
+	ExtraTemp6         float32   `gorm:"column:extratemp6"`
+	ExtraTemp7         float32   `gorm:"column:extratemp7"`
+	SoilTemp1          float32   `gorm:"column:soiltemp1"`
+	SoilTemp2          float32   `gorm:"column:soiltemp2"`
+	SoilTemp3          float32   `gorm:"column:soiltemp3"`
+	SoilTemp4          float32   `gorm:"column:soiltemp4"`
+	LeafTemp1          float32   `gorm:"column:leaftemp1"`
+	LeafTemp2          float32   `gorm:"column:leaftemp2"`
+	LeafTemp3          float32   `gorm:"column:leaftemp3"`
+	LeafTemp4          float32   `gorm:"column:leaftemp4"`
+	OutHumidity        float32   `gorm:"column:outhumidity"`
+	ExtraHumidity1     float32   `gorm:"column:extrahumidity1"`
+	ExtraHumidity2     float32   `gorm:"column:extrahumidity2"`
+	ExtraHumidity3     float32   `gorm:"column:extrahumidity3"`
+	ExtraHumidity4     float32   `gorm:"column:extrahumidity4"`
+	ExtraHumidity5     float32   `gorm:"column:extrahumidity5"`
+	ExtraHumidity6     float32   `gorm:"column:extrahumidity6"`
+	ExtraHumidity7     float32   `gorm:"column:extrahumidity7"`
+	RainRate           float32   `gorm:"column:rainrate"`
+	UV                 float32   `gorm:"column:uv"`
+	Radiation          float32   `gorm:"column:radiation"`
+	StormRain          float32   `gorm:"column:stormrain"`
+	StormStart         time.Time `gorm:"column:stormstart"`
+	DayRain            float32   `gorm:"column:dayrain"`
+	MonthRain          float32   `gorm:"column:monthrain"`
+	YearRain           float32   `gorm:"column:yearrain"`
+	DayET              float32   `gorm:"column:dayet"`
+	MonthET            float32   `gorm:"column:monthet"`
+	YearET             float32   `gorm:"column:yearet"`
+	SoilMoisture1      float32   `gorm:"column:soilmoisture1"`
+	SoilMoisture2      float32   `gorm:"column:soilmoisture2"`
+	SoilMoisture3      float32   `gorm:"column:soilmoisture3"`
+	SoilMoisture4      float32   `gorm:"column:soilmoisture4"`
+	LeafWetness1       float32   `gorm:"column:leafwetness1"`
+	LeafWetness2       float32   `gorm:"column:leafwetness2"`
+	LeafWetness3       float32   `gorm:"column:leafwetness3"`
+	LeafWetness4       float32   `gorm:"column:leafwetness4"`
+	InsideAlarm        uint8     `gorm:"column:insidealarm"`
+	RainAlarm          uint8     `gorm:"column:rainalarm"`
+	OutsideAlarm1      uint8     `gorm:"column:outsidealarm1"`
+	OutsideAlarm2      uint8     `gorm:"column:outsidealarm2"`
+	ExtraAlarm1        uint8     `gorm:"column:extraalarm1"`
+	ExtraAlarm2        uint8     `gorm:"column:extraalarm2"`
+	ExtraAlarm3        uint8     `gorm:"column:extraalarm3"`
+	ExtraAlarm4        uint8     `gorm:"column:extraalarm4"`
+	ExtraAlarm5        uint8     `gorm:"column:extraalarm5"`
+	ExtraAlarm6        uint8     `gorm:"column:extraalarm6"`
+	ExtraAlarm7        uint8     `gorm:"column:extraalarm7"`
+	ExtraAlarm8        uint8     `gorm:"column:extraalarm8"`
+	SoilLeafAlarm1     uint8     `gorm:"column:soilleafalarm1"`
+	SoilLeafAlarm2     uint8     `gorm:"column:soilleafalarm2"`
+	SoilLeafAlarm3     uint8     `gorm:"column:soilleafalarm3"`
+	SoilLeafAlarm4     uint8     `gorm:"column:soilleafalarm4"`
+	TxBatteryStatus    uint8     `gorm:"column:txbatterystatus"`
+	ConsBatteryVoltage float32   `gorm:"column:consbatteryvoltage"`
+	ForecastIcon       uint8     `gorm:"column:forecasticon"`
+	ForecastRule       uint8     `gorm:"column:forecastrule"`
+	Sunrise            time.Time `gorm:"column:sunrise"`
+	Sunset             time.Time `gorm:"column:sunset"`
+}
+
+// NewWeatherStation creates a new data model with a new DB connection and Kube API client
+func NewWeatherStation(c Config, sto *StorageManager, logger *zap.SugaredLogger) *WeatherStation {
+
+	ws := new(WeatherStation)
+
+	ws.Config = c
+	ws.StorageManager = sto
+	ws.Logger = logger
+
+	return ws
 }
 
 // StartLoopPolling launches the station-polling goroutine and process packets as they're received
@@ -225,14 +238,10 @@ func (w *WeatherStation) StartLoopPolling() {
 
 // ProcessLoopPackets processes received LOOP packets
 func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
-
 	for {
-		select {
-		case p := <-packetChan:
-			w.Storage.ReadingDistributor <- p
-		}
+		p := <-packetChan
+		w.StorageManager.ReadingDistributor <- p
 	}
-
 }
 
 // GetLoopPackets gets 20 LOOP packets at a time.  The Davis API supports more
@@ -241,26 +250,15 @@ func (w *WeatherStation) GetLoopPackets(packetChan chan<- Reading) {
 	for {
 		err := w.GetDavisLoopPackets(20, packetChan)
 		if err != nil {
-			log.Println(err)
+			w.Logger.Error(err)
 			w.rwc.Close()
 			if len(w.Config.Device.Hostname) > 0 {
 				w.netConn.Close()
 			}
-			log.Println("Attempting to reconnect...")
+			w.Logger.Info("attempting to reconnect...")
 			w.Connect()
 		}
 	}
-}
-
-// NewWeatherStation creates a new data model with a new DB connection and Kube API client
-func NewWeatherStation(c Config, sto *Storage) *WeatherStation {
-
-	ws := new(WeatherStation)
-
-	ws.Config = c
-	ws.Storage = sto
-
-	return ws
 }
 
 // Connect connects to a Davis station over TCP/IP
@@ -270,7 +268,7 @@ func (w *WeatherStation) Connect() {
 	} else if (len(w.Config.Device.Hostname) > 0) && (len(w.Config.Device.Port) > 0) {
 		w.connectToNetworkStation()
 	} else {
-		log.Fatalln("Must provide either network hostname+port or serial device in config")
+		w.Logger.Fatal("must provide either network hostname+port or serial device in config")
 	}
 }
 
@@ -282,7 +280,7 @@ func (w *WeatherStation) connectToSerialStation() {
 
 	if w.connecting {
 		w.connectingMu.RUnlock()
-		log.Println("Skipping reconnect since a connection attempt is already in progress")
+		w.Logger.Info("skipping reconnect since a connection attempt is already in progress")
 		return
 	}
 
@@ -292,7 +290,7 @@ func (w *WeatherStation) connectToSerialStation() {
 	w.connecting = true
 	w.connectingMu.Unlock()
 
-	log.Println("Connecting to:", w.Config.Device.SerialDevice, "...")
+	w.Logger.Infof("connecting to %v ...", w.Config.Device.SerialDevice)
 
 	for {
 		sc := &serial.Config{Name: w.Config.Device.SerialDevice, Baud: 19200}
@@ -302,7 +300,7 @@ func (w *WeatherStation) connectToSerialStation() {
 			// There is a known problem where some shitty USB <-> serial adapters will drop out and Linux
 			// will reattach them under a new device.  This code doesn't handle this situation currently
 			// but it would be a nice enhancement in the future.
-			log.Println("Sleeping 30 seconds and trying again")
+			w.Logger.Error("sleeping 30 seconds and trying again")
 			time.Sleep(30 * time.Second)
 		} else {
 			// We're connected now so we set connected to true and connecting to false
@@ -329,7 +327,7 @@ func (w *WeatherStation) connectToNetworkStation() {
 
 	if w.connecting {
 		w.connectingMu.RUnlock()
-		log.Println("Skipping reconnect since a connection attempt is already in progress")
+		log.Info("skipping reconnect since a connection attempt is already in progress")
 		return
 	}
 
@@ -339,15 +337,15 @@ func (w *WeatherStation) connectToNetworkStation() {
 	w.connecting = true
 	w.connectingMu.Unlock()
 
-	log.Println("Connecting to:", console)
+	log.Info("connecting to:", console)
 
 	for {
 		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
 		w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
 
 		if err != nil {
-			log.Printf("Could not connect to %v.  Error: %v", console, err)
-			log.Println("Sleeping 5 seconds and trying again.")
+			log.Errorf("could not connect to %v: %v", console, err)
+			log.Error("sleeping 5 seconds and trying again.")
 			time.Sleep(5 * time.Second)
 		} else {
 			// We're connected now so we set connected to true and connecting to false
@@ -371,8 +369,8 @@ func (w *WeatherStation) Write(p []byte) (nn int, err error) {
 		nn, err = w.rwc.Write(p)
 		if err != nil {
 			// We must not be connected
-			log.Println("Error writing to console:", err)
-			log.Println("Attempting to reconnect...")
+			log.Info("error writing to console:", err)
+			log.Info("attempting to reconnect...")
 			w.Connect()
 		} else {
 			// Write was successful
@@ -390,24 +388,24 @@ func (w *WeatherStation) WakeStation() {
 
 	resp := make([]byte, 1024)
 
-	for alive == false {
-		log.Println("Waking up station.")
+	for !alive {
+		log.Info("waking up station.")
 
 		w.rwc.Write([]byte("\n"))
 
 		_, err = w.rwc.Read(resp)
 
 		if err != nil {
-			log.Fatalln("Could not read from station:", err)
+			log.Fatal("could not read from station:", err)
 		}
 		// fmt.Println("This is what we got back:", resp)
 
 		if resp[0] == 0x0a && resp[1] == 0x0d {
-			log.Println("Station has been awaken.")
+			log.Info("station has been awaken.")
 			alive = true
 			return
 		}
-		log.Println("Sleeping 500ms and trying again...")
+		log.Info("sleeping 500ms and trying again...")
 		time.Sleep(500 * time.Millisecond)
 
 	}
@@ -422,18 +420,19 @@ func (w *WeatherStation) sendData(d []byte) error {
 
 	_, err := w.rwc.Read(resp)
 	if err != nil {
-		log.Println("Error reading response:", err)
+		log.Info("error reading response:", err)
 		return err
 	}
 
 	// See if it was ACKed
 	if resp[0] != 0x06 {
-		log.Println("No <ACK> received from console")
-		return fmt.Errorf("No <ACK> recieved from console")
+		return fmt.Errorf("no <ACK> recieved from console")
 	}
 	return nil
 }
 
+// Not currently utilized but can be used to set station clock, among other things
+//lint:ignore U1000 For future use
 func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 	var resp []byte
 
@@ -462,12 +461,12 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 
 		_, err = w.rwc.Read(resp)
 		if err != nil {
-			log.Println("Error reading response:", err)
+			log.Error("error reading response:", err)
 			return err
 		}
 
 		if resp[0] != ACK[0] {
-			log.Println("No <ACK> was received from console")
+			log.Error("no <ACK> was received from console")
 			return nil
 		}
 	}
@@ -475,6 +474,7 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 	return fmt.Errorf("i/o error writing data with CRC to device")
 }
 
+//lint:ignore U1000 For future use
 func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 	var err error
 	var resp []byte
@@ -488,6 +488,9 @@ func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 
 		// First, write the data
 		_, err = buf.Write(command)
+		if err != nil {
+			return nil, err
+		}
 
 		// Write the buffer to the device
 		_, err = buf.WriteTo(w.rwc)
@@ -508,12 +511,12 @@ func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 		if parts[0] == "OK" {
 			return parts[1:], nil
 		}
-		return nil, err
 	}
-	log.Println("Tried three times to send command but failed.")
+	log.Error("tried three times to send command but failed.")
 	return nil, err
 }
 
+//lint:ignore U1000 For future use
 func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) {
 	var err error
 
@@ -542,13 +545,13 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 		if i > 1 {
 			_, err = buf.Write([]byte(RESEND))
 			if err != nil {
-				log.Println("Could not write RESEND command to buffer")
+				log.Error("could not write RESEND command to buffer")
 				return nil, err
 			}
 			// Write the buffer to the console
 			_, err = buf.WriteTo(w.rwc)
 			if err != nil {
-				log.Println("Could not write buffer to console")
+				log.Error("could not write buffer to console")
 				return nil, err
 			}
 
@@ -565,7 +568,7 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 			}
 
 			// We didn't pass the CRC check so we loop again.
-			log.Println("The data read did not pass the CRC16 check")
+			log.Error("the data read did not pass the CRC16 check")
 		}
 	}
 
@@ -579,16 +582,17 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 	for tries := 1; tries <= maxTries; tries++ {
 		if tries == maxTries {
-			return fmt.Errorf("Tried to initiate LOOP %v times, unsucessfully", tries)
+			return fmt.Errorf("tried to initiate LOOP %v times, unsucessfully", tries)
 		}
 
 		if *debug {
-			log.Println("Initiating LOOP mode for", n, "packets.")
+			log.Info("initiating LOOP mode for", n, "packets.")
 		}
 
 		// Send a LOOP request up to (maxTries) times
 		err = w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
 		if err != nil {
+			log.Error(err)
 			tries++
 		} else {
 			break
@@ -610,7 +614,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		time.Sleep(1 * time.Second)
 
 		if tries > maxTries {
-			log.Println("Max retries exeeded while getting loop data")
+			log.Error("max retries exeeded while getting loop data")
 			return nil
 		}
 
@@ -618,7 +622,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			err = w.netConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 			if err != nil {
-				log.Println("Error setting read deadline:", err)
+				log.Error("error setting read deadline:", err)
 			}
 
 		}
@@ -626,29 +630,25 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 		scanner.Scan()
 
 		if err = scanner.Err(); err != nil {
-			return fmt.Errorf("Error while reading from console, LOOP %v: %v", l, err)
+			return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
 		}
 
 		buf = scanner.Bytes()
 
-		if *debug {
-			log.Println("Packet contents")
-			fmt.Println(hex.Dump(buf))
-		}
+		log.Debugw("read packet:", "packet_contents", hex.Dump(buf))
 
 		if len(buf) < 99 {
-			log.Println("Packet too short:", len(buf), "...rejecting.")
-			fmt.Println(hex.Dump(buf))
+			log.Infow("packet too short, rejecting", "packet_length", len(buf), "raw_packet", hex.Dump(buf))
 			tries++
 			continue
 		}
 
 		if buf[95] != 0x0A && buf[96] != 0x0D {
-			log.Println("End-of-packet signature not found; rejecting.")
+			log.Error("end-of-packet signature not found; rejecting.")
 		} else {
 
 			if crc16.Crc16(buf) != 0 {
-				log.Printf("LOOP %v CRC error.  Try #%v", l, tries)
+				log.Errorf("LOOP %v CRC error (try #%v)", l, tries)
 				tries++
 				continue
 			}
@@ -656,7 +656,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			unpacked, err := w.unpackLoopPacket(buf)
 			if err != nil {
 				tries++
-				log.Printf("Error unpacking loop packet: %v.  Try %v", err, tries)
+				log.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
 				continue
 			}
 
@@ -668,9 +668,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			r.Timestamp = time.Now()
 			r.StationName = w.Config.Device.Name
 
-			if *debug {
-				log.Printf("Packet: %+v", r)
-			}
+			log.Debugf("packet recieved: %+v", r)
 
 			packetChan <- r
 			//loopPackets = append(loopPackets, unpacked)
@@ -681,9 +679,9 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	for i := 0; i < (len(data) - 3); i++ {
-		if *debug {
-			fmt.Printf("i: %v  data: %+v\n", i, data)
-		}
+
+		log.Debugf("scanPackets byte: %v  data: %+v\n", i, data)
+
 		if data[i] == 0x0A && data[i+1] == 0x0D {
 			return i + 4, data[:i+4], nil
 		}
@@ -701,13 +699,14 @@ func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error)
 func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
 	var trend int8
 	var isFlavorA bool
+	var lpwt *LoopPacketWithTrend
 
 	lp := new(LoopPacket)
-	lpwt := new(LoopPacketWithTrend)
 
 	// OK, this is super goofy: the loop packets come in two flavors: A and B.
 	// Flavor A will always have the character 'P' (ASCII 80) as the fourth byte of the packet
 	// Flavor B will have the 3-hour barometer trend in this position instead
+
 	// So, first we create a new Reader from the packet...
 	r := bytes.NewReader(p)
 
@@ -721,7 +720,7 @@ func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error
 	}
 
 	// Now we compare the fourth byte (peek) of the packet to see if it's set to 'P'
-	if bytes.Compare(peek, []byte{80}) == 0 {
+	if bytes.Equal(peek, []byte{80}) {
 		// It's set to 'P', so we set isFlavorA to true.  Following the weewx convention, we'll later set PacketType
 		// to 'A' (ASCII 65) to signify a Flavor-A packet.
 		isFlavorA = true

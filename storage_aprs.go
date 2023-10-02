@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"net"
 	"strings"
@@ -32,8 +31,6 @@ type CurrentReading struct {
 
 // APRSStorage holds general configuration related to our APRS/CWOP transmissions
 type APRSStorage struct {
-	callsign        string
-	location        Point
 	ctx             context.Context
 	cfg             *Config
 	APRSReadingChan chan Reading
@@ -49,7 +46,7 @@ type Point struct {
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to APRS-IS when needed
 func (a APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Println("Starting APRS-IS storage engine...")
+	log.Info("starting APRS-IS storage engine...")
 	a.ctx = ctx
 	readingChan := make(chan Reading)
 
@@ -89,7 +86,7 @@ func (a *APRSStorage) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 			a.currentReading.RUnlock()
 
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling sendReports()")
+			log.Info("cancellation request recieved.  Cancelling sendReports()")
 			return
 		}
 	}
@@ -103,7 +100,7 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 	connectionTimeout := 3 * time.Second
 
 	pkt := a.CreateCompleteWeatherReport('/', '_')
-	log.Printf("Sending reading to APRS-IS: %+v\n", pkt)
+	log.Debugf("sending reading to APRS-IS: %+v", pkt)
 
 	dialer := net.Dialer{
 		Timeout: connectionTimeout,
@@ -111,7 +108,7 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 
 	conn, err := dialer.DialContext(ctx, "tcp", a.cfg.Storage.APRS.APRSISServer)
 	if err != nil {
-		log.Printf("error dialing APRS-IS server %v: %v",
+		log.Error("error dialing APRS-IS server %v: %v",
 			a.cfg.Storage.APRS.APRSISServer, err)
 		return
 	}
@@ -123,12 +120,12 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 
 	resp, err := buffCon.ReadString('\n')
 	if err != nil {
-		log.Println("error writing to APRS-IS server:", err)
+		log.Error("error writing to APRS-IS server:", err)
 		return
 	}
 
 	if resp[0] != '#' {
-		log.Println("error: APRS-IS server did not respond with proper greeting:", string(resp))
+		log.Error("APRS-IS server did not respond with proper greeting:", string(resp))
 		return
 	}
 
@@ -141,17 +138,17 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 
 	resp, err = buffCon.ReadString('\n')
 	if err != nil {
-		log.Println("error writing to APRS-IS server:", err)
+		log.Error("error writing to APRS-IS server:", err)
 		return
 	}
 
 	if resp[0] != '#' {
-		log.Println("error: APRS-IS server did not respond with proper login reply:", string(resp))
+		log.Error("error: APRS-IS server did not respond with proper login reply:", string(resp))
 		return
 	}
 
 	if !strings.Contains(string(resp), "verified") {
-		log.Println("error: unable to log into APRS-IS.  Server response:", string(resp))
+		log.Error("error: unable to log into APRS-IS.  Server response:", string(resp))
 		return
 	}
 
@@ -167,10 +164,10 @@ func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 		case r := <-rchan:
 			err := a.StoreCurrentReading(r)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling processMetrics().")
+			log.Info("cancellation request recieved.  Cancelling processMetrics().")
 			return
 		}
 	}
@@ -189,15 +186,15 @@ func NewAPRSStorage(c *Config) (APRSStorage, error) {
 	a := APRSStorage{}
 
 	if c.Storage.APRS.Callsign == "" {
-		return a, fmt.Errorf("You must provide a callsign in the configuration file")
+		return a, fmt.Errorf("you must provide a callsign in the configuration file")
 	}
 
 	if c.Storage.APRS.Location.Lat == 0 && c.Storage.APRS.Location.Lon == 0 {
-		return a, fmt.Errorf("You must provide a latitude and longitude for your station in the configuration file")
+		return a, fmt.Errorf("you must provide a latitude and longitude for your station in the configuration file")
 	}
 
 	if c.Storage.APRS.Passcode == "" {
-		return a, fmt.Errorf("You must provide an APRS-IS passcode in the configuration file")
+		return a, fmt.Errorf("you must provide an APRS-IS passcode in the configuration file")
 	}
 
 	if c.Storage.APRS.APRSISServer == "" {
@@ -388,7 +385,7 @@ func EncodeBase91Position(l int) []byte {
 func EncodeBase91Telemetry(l uint16) ([]byte, error) {
 
 	if l > 8280 {
-		return nil, errors.New("Cannot encode telemetry value larger than 8280")
+		return nil, errors.New("cannot encode telemetry value larger than 8280")
 	}
 
 	b91 := make([]byte, 2)
@@ -399,6 +396,7 @@ func EncodeBase91Telemetry(l uint16) ([]byte, error) {
 	return b91, nil
 }
 
+//lint:ignore U1000 For future use
 func mphToKnots(m float64) float64 {
 	return m * 0.8689758
 }

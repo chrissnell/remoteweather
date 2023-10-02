@@ -4,7 +4,7 @@
 
 ## Features
 * Powers a [live weather website](https://carlisleweather.com) with graphs (front-end code available [here](https://github.com/chrissnell/mhkweather.com))
-* Stores historical data in InfluxDB for graphing and analysis.
+* Stores historical data in TimescaleDB for graphing and analysis.
 * Sends live weather data to Weather Underground for use as a WU Personal Weather Station (PWS).  WU API key required.
 * Sends data to APRS/CWOP.  Ham radio license or CWOP station registration required.
 * Streams live data over [gRPC](https://grpc.io).  Roll your own client or [try my Linux client](https://github.com/chrissnell/grpc-weather-bar).
@@ -20,7 +20,7 @@ You will need a few things to use **gopherwx**:
   *  A Davis Instruments [Wireless Weather Envoy](http://www.davisnet.com/product/wireless-weather-envoy/).  This device has a 900MHz reciever that decodes the transmissions from the VantagePro station and makes them available over TCP/IP. 
 
 3. One or more of the following:
-  *  [InfluxDB](https://github.com/influxdata/influxdb), if you want to have your own weather website like the one I have at [carlisleweather.com](https://carlisleweather.com).
+  *  [TimescaleDB](https://github.com/timescale/timescaledb), if you want to store data over time and power a live website like the one I have at [carlisleweather.com](https://carlisleweather.com).
   *  A [Weather Underground API account](https://www.wunderground.com/api) for sending live data to WU.   The base account level is free and is sufficient.
   *  A ham radio license if you want to send live data to APRS-IS
   *  A [CWOP](http://wxqa.com/) ID if you want to send live data to CWOP
