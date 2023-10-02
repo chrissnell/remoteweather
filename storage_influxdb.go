@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/influxdata/influxdb/client/v2"
@@ -29,13 +28,14 @@ type InfluxDBStorage struct {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
-func (i InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (i *InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+	log.Info("starting InfluxDB storage engine...")
 	readingChan := make(chan Reading, 10)
 	go i.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+func (i *InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -44,17 +44,17 @@ func (i InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup,
 		case r := <-rchan:
 			err := i.StoreReading(r)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 		case <-ctx.Done():
-			log.Println("Cancellation request recieved.  Cancelling readings processor.")
+			log.Info("cancellation request recieved.  Cancelling readings processor.")
 			return
 		}
 	}
 }
 
 // StoreReading stores a reading value in InfluxDB
-func (i InfluxDBStorage) StoreReading(r Reading) error {
+func (i *InfluxDBStorage) StoreReading(r Reading) error {
 
 	fields := r.ToMap()
 
@@ -66,11 +66,14 @@ func (i InfluxDBStorage) StoreReading(r Reading) error {
 		Database:  i.DBName,
 		Precision: "s",
 	})
+	if err != nil {
+		return fmt.Errorf("could not create a point batch for InfluxDB: %v", err)
+	}
 
 	pt, err := client.NewPoint("wx_reading", tags, fields, r.Timestamp)
 
 	if err != nil {
-		return fmt.Errorf("Could not create data point for InfluxDB: %v", err)
+		return fmt.Errorf("could not create data point for InfluxDB: %v", err)
 	}
 
 	bp.AddPoint(pt)
@@ -78,15 +81,15 @@ func (i InfluxDBStorage) StoreReading(r Reading) error {
 	// Write the batch
 	err = i.InfluxDBConn.Write(bp)
 	if err != nil {
-		return fmt.Errorf("Could not write data point to InfluxDB: %v", err)
+		return fmt.Errorf("could not write data point to InfluxDB: %v", err)
 
 	}
 
 	return nil
 }
 
-// NewInfluxDBStorage sets up a new Graphite storage backend
-func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
+// NewInfluxDBStorage sets up a new InfluxDB storage backend
+func NewInfluxDBStorage(c *Config) (*InfluxDBStorage, error) {
 	var err error
 	i := InfluxDBStorage{}
 
@@ -101,8 +104,8 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 			Password: c.Storage.InfluxDB.Password,
 		})
 		if err != nil {
-			log.Println("Warning: could not create InfluxDB connection!", err)
-			return InfluxDBStorage{}, err
+			log.Warn("warning: could not create InfluxDB connection!", err)
+			return &InfluxDBStorage{}, err
 		}
 	case "udp":
 		u := client.UDPConfig{
@@ -110,8 +113,8 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 		}
 		i.InfluxDBConn, err = client.NewUDPClient(u)
 		if err != nil {
-			log.Println("Warning: could not create InfluxDB connection.", err)
-			return InfluxDBStorage{}, err
+			log.Warn("warning: could not create InfluxDB connection.", err)
+			return &InfluxDBStorage{}, err
 		}
 	default:
 		url := fmt.Sprintf("%v://%v:%v", c.Storage.InfluxDB.Scheme, c.Storage.InfluxDB.Host, c.Storage.InfluxDB.Port)
@@ -121,10 +124,10 @@ func NewInfluxDBStorage(c *Config) (InfluxDBStorage, error) {
 			Password: c.Storage.InfluxDB.Password,
 		})
 		if err != nil {
-			log.Println("Warning: could not create InfluxDB connection!", err)
-			return InfluxDBStorage{}, err
+			log.Warn("warning: could not create InfluxDB connection!", err)
+			return &InfluxDBStorage{}, err
 		}
 	}
 
-	return i, nil
+	return &i, nil
 }

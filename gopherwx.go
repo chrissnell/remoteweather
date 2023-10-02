@@ -3,29 +3,33 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
+
+	"go.uber.org/zap"
 )
 
-const version = "2.0-" + runtime.GOOS + "/" + runtime.GOARCH
+const version = "3.0-" + runtime.GOOS + "/" + runtime.GOARCH
+
+var zapLogger *zap.Logger
+var log *zap.SugaredLogger
 
 // Service contains our configuration and runtime objects
 type Service struct {
-	ws  *WeatherStation
-	sto *Storage
+	ws *WeatherStation
 }
 
 // NewService creates a new instance of Service with the given configuration file
-func NewService(cfg *Config, sto *Storage) *Service {
+func NewService(cfg *Config, sto *StorageManager, logger *zap.SugaredLogger) *Service {
 	s := &Service{}
 
 	// Initialize the Controller
-	s.ws = NewWeatherStation(*cfg, sto)
+	s.ws = NewWeatherStation(*cfg, sto, logger)
 
 	return s
 }
@@ -34,16 +38,30 @@ var debug *bool
 
 func main() {
 	var wg sync.WaitGroup
+	var err error
 
 	cfgFile := flag.String("config", "config.yaml", "Path to config file (default: ./config.yaml)")
 	debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
+	// Set up our logger
+	if *debug {
+		zapLogger, err = zap.NewDevelopment()
+	} else {
+		zapLogger, err = zap.NewProduction()
+	}
+	if err != nil {
+		fmt.Printf("can't initialize zap logger: %v", err)
+		panic(0)
+	}
+	defer zapLogger.Sync()
+	log = zapLogger.Sugar()
+
 	// Read our server configuration
 	filename, _ := filepath.Abs(*cfgFile)
 	cfg, err := NewConfig(filename)
 	if err != nil {
-		log.Fatalln("Error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
+		log.Fatal("error reading config file.  Did you pass the -config flag?  Run with -h for help.\n", err)
 	}
 
 	sigs := make(chan os.Signal, 1)
@@ -52,12 +70,12 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	sto, err := NewStorage(ctx, &wg, &cfg)
+	sto, err := NewStorageManager(ctx, &wg, &cfg)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
-	s := NewService(&cfg, sto)
+	s := NewService(&cfg, sto, log)
 
 	go s.ws.StartLoopPolling()
 
