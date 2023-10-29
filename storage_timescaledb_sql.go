@@ -319,6 +319,6 @@ const addAggregationPolicy1hSQL = `SELECT add_continuous_aggregate_policy('weath
 const addAggregationPolicy1dSQL = `SELECT add_continuous_aggregate_policy('weather_1d', '1 year', '1 day', '1 day', if_not_exists => true);`
 
 const addRetentionPolicy = `SELECT add_retention_policy('weather', INTERVAL '7 days', if_not_exists => true);`
-const addRetentionPolicy1m = `SELECT add_retention_policy('weather_5m', INTERVAL '1 month', if_not_exists => true);`
-const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL '1 month', if_not_exists => true);`
+const addRetentionPolicy1m = `SELECT add_retention_policy('weather_1m', INTERVAL '1 month', if_not_exists => true);`
+const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL '6 month', if_not_exists => true);`
 const addRetentionPolicy1h = `SELECT add_retention_policy('weather_1h', INTERVAL '2 year', if_not_exists => true);`
