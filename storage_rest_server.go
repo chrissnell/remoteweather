@@ -34,7 +34,7 @@ type RESTServerStorage struct {
 }
 
 type RESTWeatherReading struct {
-	ReadingTimestamp time.Time `json:"ts"`
+	ReadingTimestamp int64 `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
 	OutsideTemperature float32 `json:"otemp"`
@@ -48,6 +48,11 @@ type RESTWeatherReading struct {
 	InsideTemperature  float32 `json:"itemp"`
 	InsideHumidity     float32 `json:"ihum"`
 }
+
+const (
+	Day   = 24 * time.Hour
+	Month = Day * 30
+)
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to our gRPC clients
@@ -157,7 +162,22 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 
 		spanStart := time.Now().Add(-span)
 
-		r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
+		// switch {
+		// case span < 2*Day:
+		// 	r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+		// case (span >= 2*Day) && (span <= 2*Month):
+		// 	r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+		// default:
+		// 	r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+		// }
+
+		switch {
+		case span <= 2*Month:
+			r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+		default:
+			r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+		}
+
 		log.Infof("returned rows: %v", len(dbFetchedReadings))
 
 		log.Infof("getweatherspan -> spanDuration: %v", span)
@@ -182,7 +202,7 @@ func (r *RESTServerStorage) transformReadings(dbReadings *[]BucketReading) []*RE
 
 	for _, r := range *dbReadings {
 		wr = append(wr, &RESTWeatherReading{
-			ReadingTimestamp:   r.Bucket,
+			ReadingTimestamp:   r.Bucket.UnixMilli(),
 			OutsideTemperature: r.OutTemp,
 			OutsideHumidity:    r.OutHumidity,
 			Barometer:          r.Barometer,
