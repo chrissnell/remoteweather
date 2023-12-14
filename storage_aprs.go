@@ -43,6 +43,33 @@ type Point struct {
 	Lon float64 `yaml:"longitude,omitempty"`
 }
 
+// NewAPRSStorage sets up a new APRS-IS storage backend
+func NewAPRSStorage(c *Config) (APRSStorage, error) {
+	a := APRSStorage{}
+
+	if c.Storage.APRS.Callsign == "" {
+		return a, fmt.Errorf("you must provide a callsign in the configuration file")
+	}
+
+	if c.Storage.APRS.Location.Lat == 0 && c.Storage.APRS.Location.Lon == 0 {
+		return a, fmt.Errorf("you must provide a latitude and longitude for your station in the configuration file")
+	}
+
+	if c.Storage.APRS.Passcode == "" {
+		return a, fmt.Errorf("you must provide an APRS-IS passcode in the configuration file")
+	}
+
+	if c.Storage.APRS.APRSISServer == "" {
+		c.Storage.APRS.APRSISServer = "noam.aprs2.net:14580"
+	}
+
+	a.cfg = c
+
+	a.APRSReadingChan = make(chan Reading, 10)
+
+	return a, nil
+}
+
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to APRS-IS when needed
 func (a APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
@@ -179,33 +206,6 @@ func (a *APRSStorage) StoreCurrentReading(r Reading) error {
 	a.currentReading.r = r
 	a.currentReading.Unlock()
 	return nil
-}
-
-// NewAPRSStorage sets up a new APRS-IS storage backend
-func NewAPRSStorage(c *Config) (APRSStorage, error) {
-	a := APRSStorage{}
-
-	if c.Storage.APRS.Callsign == "" {
-		return a, fmt.Errorf("you must provide a callsign in the configuration file")
-	}
-
-	if c.Storage.APRS.Location.Lat == 0 && c.Storage.APRS.Location.Lon == 0 {
-		return a, fmt.Errorf("you must provide a latitude and longitude for your station in the configuration file")
-	}
-
-	if c.Storage.APRS.Passcode == "" {
-		return a, fmt.Errorf("you must provide an APRS-IS passcode in the configuration file")
-	}
-
-	if c.Storage.APRS.APRSISServer == "" {
-		c.Storage.APRS.APRSISServer = "noam.aprs2.net:14580"
-	}
-
-	a.cfg = c
-
-	a.APRSReadingChan = make(chan Reading, 10)
-
-	return a, nil
 }
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
