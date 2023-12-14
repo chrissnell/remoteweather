@@ -162,7 +162,7 @@ const createCircAvgAggregateFunctionSQL = `CREATE OR REPLACE AGGREGATE circular_
 );`
 
 const create1mViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1m
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('1 minute', time) as bucket,
@@ -200,7 +200,7 @@ FROM
 GROUP BY bucket, stationname;`
 
 const create5mViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_5m
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('5 minutes', time) as bucket,
@@ -238,7 +238,7 @@ FROM
 GROUP BY bucket, stationname;`
 
 const create1hViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1h
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('1 hour', time) as bucket,
@@ -276,7 +276,7 @@ FROM
 GROUP BY bucket, stationname;`
 
 const create1dViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1d
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('1 day', time) as bucket,
