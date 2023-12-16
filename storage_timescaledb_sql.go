@@ -37,7 +37,10 @@ CREATE TABLE IF NOT EXISTS weather (
     extrahumidity6 float4 NULL,
     extrahumidity7 float4 NULL,
     rainrate float4 NULL,
+    rainincremental float4 NULL,
 	uv float4 NULL,
+    solarjoules float4 NULL,
+    solarwatts float4 NULL,
 	radiation float4 NULL,
     stormrain float4 NULL,
     stormstart timestamp WITHOUT TIME ZONE NULL,
@@ -73,6 +76,7 @@ CREATE TABLE IF NOT EXISTS weather (
     soilleafalarm4 int NULL,
     txbatterystatus int NULL,
     consbatteryvoltage float4 NULL,
+    stationbatteryvoltage float4 NULL,
     forecasticon int NULL,
     forecastrule int NULL,
     sunrise TIMESTAMP WITHOUT TIME ZONE NULL,
@@ -173,6 +177,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -182,6 +189,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -189,12 +198,14 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
@@ -211,6 +222,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -220,6 +234,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -227,12 +243,14 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
@@ -249,6 +267,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -258,6 +279,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -265,12 +288,14 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
@@ -287,6 +312,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -296,6 +324,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -303,12 +333,14 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
