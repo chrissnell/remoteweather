@@ -33,20 +33,22 @@ type RESTServerStorage struct {
 	DBEnabled       bool
 }
 
-type RESTWeatherReading struct {
-	ReadingTimestamp int64 `json:"ts"`
+type WeatherReading struct {
+	StationName      string `json:"stationname"`
+	ReadingTimestamp int64  `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
-	OutsideTemperature float32 `json:"otemp"`
-	OutsideHumidity    float32 `json:"ohum"`
-	Barometer          float32 `json:"bar"`
-	WindSpeed          float32 `json:"winds"`
-	WindDirection      float32 `json:"windd"`
-	RainfallDay        float32 `json:"rainday"`
-	WindChill          float32 `json:"windch"`
-	HeatIndex          float32 `json:"heatidx"`
-	InsideTemperature  float32 `json:"itemp"`
-	InsideHumidity     float32 `json:"ihum"`
+	OutsideTemperature   float32 `json:"otemp"`
+	EnclosureTemperature float32 `json:"enctemp"`
+	OutsideHumidity      float32 `json:"ohum"`
+	Barometer            float32 `json:"bar"`
+	WindSpeed            float32 `json:"winds"`
+	WindDirection        float32 `json:"windd"`
+	RainfallDay          float32 `json:"rainday"`
+	WindChill            float32 `json:"windch"`
+	HeatIndex            float32 `json:"heatidx"`
+	InsideTemperature    float32 `json:"itemp"`
+	InsideHumidity       float32 `json:"ihum"`
 }
 
 const (
@@ -99,6 +101,7 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 
 	router := mux.NewRouter()
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
+	router.HandleFunc("/latest", r.getWeatherLatest)
 
 	r.Server.Addr = fmt.Sprintf("%v:%v", c.Storage.RESTServer.ListenAddr, c.Storage.RESTServer.Port)
 
@@ -107,6 +110,12 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	} else {
 		go r.Server.ListenAndServe()
 	}
+
+	go func() {
+		<-ctx.Done()
+		fmt.Println("Shutting down the HTTP server...")
+		r.Server.Shutdown(ctx)
+	}()
 
 	// Configure our mux router as the handler for our Server
 	r.Server.Handler = router
@@ -152,6 +161,8 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 	if r.DBEnabled {
 		var dbFetchedReadings []BucketReading
 
+		stationName := req.URL.Query().Get("station")
+
 		vars := mux.Vars(req)
 		span, err := time.ParseDuration(vars["span"])
 		if err != nil {
@@ -172,10 +183,24 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		// }
 
 		switch {
-		case span <= 2*Month:
-			r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+		case span < 2*Day:
+			if stationName != "" {
+				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+			} else {
+				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+			}
+		case (span >= 2*Day) && (span <= 2*Month):
+			if stationName != "" {
+				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+			} else {
+				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+			}
 		default:
-			r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+			if stationName != "" {
+				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+			} else {
+				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+			}
 		}
 
 		log.Infof("returned rows: %v", len(dbFetchedReadings))
@@ -185,8 +210,7 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
 
-		//err = json.NewEncoder(w).Encode(r.transformReadings(&dbFetchedReadings))
-		jsonResponse, err := json.Marshal(r.transformReadings(&dbFetchedReadings))
+		jsonResponse, err := json.Marshal(r.transformSpanReadings(&dbFetchedReadings))
 		if err != nil {
 			log.Errorf("error marshalling dbFetchedReadings: %v", err)
 			http.Error(w, "error fetching readings from DB", 500)
@@ -197,12 +221,65 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 	}
 }
 
-func (r *RESTServerStorage) transformReadings(dbReadings *[]BucketReading) []*RESTWeatherReading {
-	wr := make([]*RESTWeatherReading, 0)
+func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Request) {
+
+	if r.DBEnabled {
+		var dbFetchedReadings []BucketReading
+
+		stationName := req.URL.Query().Get("station")
+
+		if stationName != "" {
+			r.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
+		} else {
+			r.DB.Table("weather").Limit(1).Order("time DESC").Find(&dbFetchedReadings)
+		}
+
+		log.Infof("returned rows: %v", len(dbFetchedReadings))
+
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		jsonResponse, err := json.Marshal(r.transformLatestReadings(&dbFetchedReadings))
+		if err != nil {
+			log.Errorf("error marshalling dbFetchedReadings: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+
+		w.Write(jsonResponse)
+	}
+}
+
+func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) []*WeatherReading {
+	wr := make([]*WeatherReading, 0)
 
 	for _, r := range *dbReadings {
-		wr = append(wr, &RESTWeatherReading{
+		wr = append(wr, &WeatherReading{
+			StationName:        r.StationName,
 			ReadingTimestamp:   r.Bucket.UnixMilli(),
+			OutsideTemperature: r.OutTemp,
+			OutsideHumidity:    r.OutHumidity,
+			Barometer:          r.Barometer,
+			WindSpeed:          r.WindSpeed,
+			WindDirection:      r.WindDir,
+			RainfallDay:        r.DayRain,
+			WindChill:          r.Windchill,
+			HeatIndex:          r.HeatIndex,
+			InsideTemperature:  r.InTemp,
+			InsideHumidity:     r.InHumidity,
+		})
+	}
+
+	return wr
+}
+
+func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading) []*WeatherReading {
+	wr := make([]*WeatherReading, 0)
+
+	for _, r := range *dbReadings {
+		wr = append(wr, &WeatherReading{
+			StationName:        r.StationName,
+			ReadingTimestamp:   r.Timestamp.UnixMilli(),
 			OutsideTemperature: r.OutTemp,
 			OutsideHumidity:    r.OutHumidity,
 			Barometer:          r.Barometer,
