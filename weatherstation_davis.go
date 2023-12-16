@@ -135,7 +135,7 @@ type LoopPacketWithTrend struct {
 	Trend int8
 }
 
-func NewDavisWeatherStation(ctx context.Context, wg *sync.WaitGroup, c DeviceConfig, distributor chan Reading, logger *zap.SugaredLogger) (DavisWeatherStation, error) {
+func NewDavisWeatherStation(ctx context.Context, wg *sync.WaitGroup, c DeviceConfig, distributor chan Reading, logger *zap.SugaredLogger) (*DavisWeatherStation, error) {
 	d := DavisWeatherStation{
 		ctx:                ctx,
 		wg:                 wg,
@@ -145,7 +145,7 @@ func NewDavisWeatherStation(ctx context.Context, wg *sync.WaitGroup, c DeviceCon
 	}
 
 	if c.SerialDevice == "" && (c.Hostname == "" || c.Port == "") {
-		return d, fmt.Errorf("must define either a serial device or hostname+port")
+		return &d, fmt.Errorf("must define either a serial device or hostname+port")
 	}
 
 	if c.SerialDevice != "" {
@@ -156,7 +156,11 @@ func NewDavisWeatherStation(ctx context.Context, wg *sync.WaitGroup, c DeviceCon
 		log.Info("Configuring Davis station via TCP/IP")
 	}
 
-	return d, nil
+	return &d, nil
+}
+
+func (w *DavisWeatherStation) StationName() string {
+	return w.Config.Name
 }
 
 // StartWeatherStation wakes the station and launches the station-polling goroutine
@@ -277,7 +281,8 @@ func (w *DavisWeatherStation) connectToNetworkStation() {
 	log.Info("connecting to:", console)
 
 	for {
-		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
+		d := net.Dialer{Timeout: 10 * time.Second}
+		w.netConn, err = d.DialContext(w.ctx, "tcp", console)
 		w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
 
 		if err != nil {
@@ -565,50 +570,56 @@ func (w *DavisWeatherStation) GetDavisLoopPackets(n int) error {
 
 		}
 
-		scanner.Scan()
+		select {
+		case <-w.ctx.Done():
+			log.Info("cancellation request recieved.  Cancelling GetDavisLoopPackets()")
+			return nil
+		default:
+			scanner.Scan()
 
-		if err = scanner.Err(); err != nil {
-			return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
-		}
+			if err = scanner.Err(); err != nil {
+				return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
+			}
 
-		buf = scanner.Bytes()
+			buf = scanner.Bytes()
 
-		log.Debugw("read packet:", "packet_contents", hex.Dump(buf))
+			log.Debugw("read packet:", "packet_contents", hex.Dump(buf))
 
-		if len(buf) < 99 {
-			log.Infow("packet too short, rejecting", "packet_length", len(buf), "raw_packet", hex.Dump(buf))
-			tries++
-			continue
-		}
-
-		if buf[95] != 0x0A && buf[96] != 0x0D {
-			log.Error("end-of-packet signature not found; rejecting.")
-		} else {
-
-			if crc16.Crc16(buf) != 0 {
-				log.Errorf("LOOP %v CRC error (try #%v)", l, tries)
+			if len(buf) < 99 {
+				log.Infow("packet too short, rejecting", "packet_length", len(buf), "raw_packet", hex.Dump(buf))
 				tries++
 				continue
 			}
 
-			unpacked, err := w.unpackLoopPacket(buf)
-			if err != nil {
-				tries++
-				log.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
-				continue
+			if buf[95] != 0x0A && buf[96] != 0x0D {
+				log.Error("end-of-packet signature not found; rejecting.")
+			} else {
+
+				if crc16.Crc16(buf) != 0 {
+					log.Errorf("LOOP %v CRC error (try #%v)", l, tries)
+					tries++
+					continue
+				}
+
+				unpacked, err := w.unpackLoopPacket(buf)
+				if err != nil {
+					tries++
+					log.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
+					continue
+				}
+
+				tries = 1
+
+				r := convValues(unpacked)
+
+				// Set the timestamp on our reading to the current system time
+				r.Timestamp = time.Now()
+				r.StationName = w.Config.Name
+
+				log.Debugf("Packet recieved: %+v", r)
+
+				w.ReadingDistributor <- r
 			}
-
-			tries = 1
-
-			r := convValues(unpacked)
-
-			// Set the timestamp on our reading to the current system time
-			r.Timestamp = time.Now()
-			r.StationName = w.Config.Name
-
-			log.Debugf("Packet recieved: %+v", r)
-
-			w.ReadingDistributor <- r
 		}
 	}
 	return nil
