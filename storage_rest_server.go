@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"io/fs"
 	"net/http"
 	"sync"
 	"time"
@@ -15,22 +18,30 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+type WeatherSiteConfig struct {
+	StationName string `yaml:"station_name,omitempty"`
+	PageTitle   string `yaml:"page_title,omitempty"`
+}
+
 // RESTServerConfig describes the YAML-provided configuration for a REST
 // server storage backend
 type RESTServerConfig struct {
-	Cert       string `yaml:"cert,omitempty"`
-	Key        string `yaml:"key,omitempty"`
-	Port       int    `yaml:"port,omitempty"`
-	ListenAddr string `yaml:"listen_addr,omitempty"`
+	Cert              string            `yaml:"cert,omitempty"`
+	Key               string            `yaml:"key,omitempty"`
+	Port              int               `yaml:"port,omitempty"`
+	ListenAddr        string            `yaml:"listen_addr,omitempty"`
+	WeatherSiteConfig WeatherSiteConfig `yaml:"weather_site,omitempty"`
 }
 
 // RESTServerStorage implements a REST server storage backend
 type RESTServerStorage struct {
-	ClientChans     []chan Reading
-	ClientChanMutex sync.RWMutex
-	Server          http.Server
-	DB              *gorm.DB
-	DBEnabled       bool
+	ClientChans       []chan Reading
+	ClientChanMutex   sync.RWMutex
+	Server            http.Server
+	DB                *gorm.DB
+	DBEnabled         bool
+	FS                *fs.FS
+	WeatherSiteConfig *WeatherSiteConfig
 }
 
 type WeatherReading struct {
@@ -54,6 +65,11 @@ type WeatherReading struct {
 const (
 	Day   = 24 * time.Hour
 	Month = Day * 30
+)
+
+var (
+	//go:embed all:assets
+	content embed.FS
 )
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
@@ -99,9 +115,26 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 		c.Storage.RESTServer.ListenAddr = "0.0.0.0"
 	}
 
+	if c.Storage.RESTServer.WeatherSiteConfig.StationName != "" {
+		r.WeatherSiteConfig = &c.Storage.RESTServer.WeatherSiteConfig
+	}
+
+	fs, _ := fs.Sub(fs.FS(content), "assets")
+	r.FS = &fs
+
 	router := mux.NewRouter()
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
 	router.HandleFunc("/latest", r.getWeatherLatest)
+
+	router.HandleFunc("/", r.serveIndexTemplate)
+	router.HandleFunc("/index.html.tmpl", r.serveIndexTemplate)
+	router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
+	// works
+	// router.NotFoundHandler = http.FileServer(http.FS(*r.FS))
+
+	// works
+	// router.HandleFunc("/", r.serveIndexTemplate)
+	// router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
 
 	r.Server.Addr = fmt.Sprintf("%v:%v", c.Storage.RESTServer.ListenAddr, c.Storage.RESTServer.Port)
 
@@ -131,6 +164,17 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	}
 
 	return r, nil
+}
+
+func (r *RESTServerStorage) serveIndexTemplate(w http.ResponseWriter, req *http.Request) {
+	view := template.Must(template.New("index.html.tmpl").ParseFS(*r.FS, "index.html.tmpl"))
+
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, r.WeatherSiteConfig)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
 }
 
 func (r *RESTServerStorage) connectToDatabase(dbURI string) error {
