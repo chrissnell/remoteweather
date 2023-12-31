@@ -189,7 +189,7 @@ func (g *GRPCStorage) transformReadings(dbReadings *[]BucketReading) []*weather.
 			WindSpeed:          int32(r.WindSpeed),
 			WindDirection:      int32(r.WindDir),
 			RainfallDay:        r.DayRain,
-			WindChill:          r.Windchill,
+			WindChill:          r.WindChill,
 			HeatIndex:          r.HeatIndex,
 			InsideTemperature:  r.InTemp,
 			InsideHumidity:     int32(r.InHumidity),
