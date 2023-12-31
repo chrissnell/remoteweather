@@ -166,16 +166,8 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				RainIncremental:       cp.RainIncremental,
 				WindSpeed:             cp.WindSpeed,
 				WindDir:               float32(cp.WindDir),
-			}
-
-			wc, useWc := calcWindChill(r.OutTemp, r.WindSpeed)
-			if useWc {
-				r.Windchill = wc
-			}
-
-			hi, useHi := calcHeatIndex(r.OutTemp, r.OutHumidity)
-			if useHi {
-				r.HeatIndex = hi
+				WindChill:             calcWindChill(cp.OutTemp, cp.WindSpeed),
+				HeatIndex:             calcHeatIndex(cp.OutTemp, cp.OutHumidity),
 			}
 
 			// Send the reading to the distributor

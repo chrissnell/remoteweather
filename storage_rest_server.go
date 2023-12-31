@@ -49,17 +49,51 @@ type WeatherReading struct {
 	ReadingTimestamp int64  `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
-	OutsideTemperature   float32 `json:"otemp"`
-	EnclosureTemperature float32 `json:"enctemp"`
-	OutsideHumidity      float32 `json:"ohum"`
-	Barometer            float32 `json:"bar"`
-	WindSpeed            float32 `json:"winds"`
-	WindDirection        float32 `json:"windd"`
-	RainfallDay          float32 `json:"rainday"`
-	WindChill            float32 `json:"windch"`
-	HeatIndex            float32 `json:"heatidx"`
-	InsideTemperature    float32 `json:"itemp"`
-	InsideHumidity       float32 `json:"ihum"`
+	OutsideTemperature    float32 `json:"otemp,omitempty"`
+	ExtraTemp1            float32 `json:"extratemp1,omitempty"`
+	ExtraTemp2            float32 `json:"extratemp2,omitempty"`
+	ExtraTemp3            float32 `json:"extratemp3,omitempty"`
+	ExtraTemp4            float32 `json:"extratemp4,omitempty"`
+	ExtraTemp5            float32 `json:"extratemp5,omitempty"`
+	ExtraTemp6            float32 `json:"extratemp6,omitempty"`
+	ExtraTemp7            float32 `json:"extratemp7,omitempty"`
+	SoilTemp1             float32 `json:"soiltemp1,omitempty"`
+	SoilTemp2             float32 `json:"soiltemp2,omitempty"`
+	SoilTemp3             float32 `json:"soiltemp3,omitempty"`
+	SoilTemp4             float32 `json:"soiltemp4,omitempty"`
+	LeafTemp1             float32 `json:"leaftemp1,omitempty"`
+	LeafTemp2             float32 `json:"leaftemp2,omitempty"`
+	LeafTemp3             float32 `json:"leaftemp3,omitempty"`
+	LeafTemp4             float32 `json:"leaftemp4,omitempty"`
+	OutHumidity           float32 `json:"outhumidity,omitempty"`
+	ExtraHumidity1        float32 `json:"extrahumidity1,omitempty"`
+	ExtraHumidity2        float32 `json:"extrahumidity2,omitempty"`
+	ExtraHumidity3        float32 `json:"extrahumidity3,omitempty"`
+	ExtraHumidity4        float32 `json:"extrahumidity4,omitempty"`
+	ExtraHumidity5        float32 `json:"extrahumidity5,omitempty"`
+	ExtraHumidity6        float32 `json:"extrahumidity6,omitempty"`
+	ExtraHumidity7        float32 `json:"extrahumidity7,omitempty"`
+	OutsideHumidity       float32 `json:"ohum,omitempty"`
+	RainRate              float32 `json:"rainrate,omitempty"`
+	RainIncremental       float32 `json:"rainincremental,omitempty"`
+	SolarWatts            float32 `json:"solarwatts,omitempty"`
+	SolarJoules           float32 `json:"solarjoules,omitempty"`
+	UV                    float32 `json:"uv,omitempty"`
+	Radiation             float32 `json:"radiation,omitempty"`
+	StormRain             float32 `json:"stormrain,omitempty"`
+	DayRain               float32 `json:"dayrain,omitempty"`
+	MonthRain             float32 `json:"monthrain,omitempty"`
+	YearRain              float32 `json:"yearrain,omitempty"`
+	Barometer             float32 `json:"bar,omitempty"`
+	WindSpeed             float32 `json:"winds,omitempty"`
+	WindDirection         float32 `json:"windd,omitempty"`
+	RainfallDay           float32 `json:"rainday,omitempty"`
+	WindChill             float32 `json:"windch,omitempty"`
+	HeatIndex             float32 `json:"heatidx,omitempty"`
+	InsideTemperature     float32 `json:"itemp,omitempty"`
+	InsideHumidity        float32 `json:"ihum,omitempty"`
+	ConsBatteryVoltage    float32 `json:"consbatteryvoltage,omitempty"`
+	StationBatteryVoltage float32 `json:"stationbatteryvoltage,omitempty"`
 }
 
 const (
@@ -299,43 +333,116 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 
 	for _, r := range *dbReadings {
 		wr = append(wr, &WeatherReading{
-			StationName:        r.StationName,
-			ReadingTimestamp:   r.Bucket.UnixMilli(),
-			OutsideTemperature: r.OutTemp,
-			OutsideHumidity:    r.OutHumidity,
-			Barometer:          r.Barometer,
-			WindSpeed:          r.WindSpeed,
-			WindDirection:      r.WindDir,
-			RainfallDay:        r.DayRain,
-			WindChill:          r.Windchill,
-			HeatIndex:          r.HeatIndex,
-			InsideTemperature:  r.InTemp,
-			InsideHumidity:     r.InHumidity,
+			StationName:           r.StationName,
+			ReadingTimestamp:      r.Bucket.UnixMilli(),
+			OutsideTemperature:    r.OutTemp,
+			ExtraTemp1:            r.ExtraTemp1,
+			ExtraTemp2:            r.ExtraTemp2,
+			ExtraTemp3:            r.ExtraTemp3,
+			ExtraTemp4:            r.ExtraTemp4,
+			ExtraTemp5:            r.ExtraTemp5,
+			ExtraTemp6:            r.ExtraTemp6,
+			ExtraTemp7:            r.ExtraTemp7,
+			SoilTemp1:             r.SoilTemp1,
+			SoilTemp2:             r.SoilTemp2,
+			SoilTemp3:             r.SoilTemp3,
+			SoilTemp4:             r.SoilTemp4,
+			LeafTemp1:             r.LeafTemp1,
+			LeafTemp2:             r.LeafTemp2,
+			LeafTemp3:             r.LeafTemp3,
+			LeafTemp4:             r.LeafTemp4,
+			OutHumidity:           r.OutHumidity,
+			ExtraHumidity1:        r.ExtraHumidity1,
+			ExtraHumidity2:        r.ExtraHumidity2,
+			ExtraHumidity3:        r.ExtraHumidity3,
+			ExtraHumidity4:        r.ExtraHumidity4,
+			ExtraHumidity5:        r.ExtraHumidity5,
+			ExtraHumidity6:        r.ExtraHumidity6,
+			ExtraHumidity7:        r.ExtraHumidity7,
+			OutsideHumidity:       r.OutHumidity,
+			RainRate:              r.RainRate,
+			RainIncremental:       r.RainIncremental,
+			SolarWatts:            r.SolarWatts,
+			SolarJoules:           r.SolarJoules,
+			UV:                    r.UV,
+			Radiation:             r.Radiation,
+			StormRain:             r.StormRain,
+			DayRain:               r.DayRain,
+			MonthRain:             r.MonthRain,
+			YearRain:              r.YearRain,
+			Barometer:             r.Barometer,
+			WindSpeed:             r.WindSpeed,
+			WindDirection:         r.WindDir,
+			RainfallDay:           r.DayRain,
+			WindChill:             r.WindChill,
+			HeatIndex:             r.HeatIndex,
+			InsideTemperature:     r.InTemp,
+			InsideHumidity:        r.InHumidity,
+			ConsBatteryVoltage:    r.ConsBatteryVoltage,
+			StationBatteryVoltage: r.StationBatteryVoltage,
 		})
 	}
 
 	return wr
 }
 
-func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading) []*WeatherReading {
-	wr := make([]*WeatherReading, 0)
+func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading) *WeatherReading {
+	var latest BucketReading
 
-	for _, r := range *dbReadings {
-		wr = append(wr, &WeatherReading{
-			StationName:        r.StationName,
-			ReadingTimestamp:   r.Timestamp.UnixMilli(),
-			OutsideTemperature: r.OutTemp,
-			OutsideHumidity:    r.OutHumidity,
-			Barometer:          r.Barometer,
-			WindSpeed:          r.WindSpeed,
-			WindDirection:      r.WindDir,
-			RainfallDay:        r.DayRain,
-			WindChill:          r.Windchill,
-			HeatIndex:          r.HeatIndex,
-			InsideTemperature:  r.InTemp,
-			InsideHumidity:     r.InHumidity,
-		})
+	if len(*dbReadings) > 0 {
+		latest = (*dbReadings)[0]
+	} else {
+		return &WeatherReading{}
 	}
-
-	return wr
+	log.Infof("ts: %v", latest.Timestamp.UnixMilli())
+	reading := WeatherReading{
+		StationName:           latest.StationName,
+		ReadingTimestamp:      latest.Timestamp.UnixMilli(),
+		OutsideTemperature:    latest.OutTemp,
+		ExtraTemp1:            latest.ExtraTemp1,
+		ExtraTemp2:            latest.ExtraTemp2,
+		ExtraTemp3:            latest.ExtraTemp3,
+		ExtraTemp4:            latest.ExtraTemp4,
+		ExtraTemp5:            latest.ExtraTemp5,
+		ExtraTemp6:            latest.ExtraTemp6,
+		ExtraTemp7:            latest.ExtraTemp7,
+		SoilTemp1:             latest.SoilTemp1,
+		SoilTemp2:             latest.SoilTemp2,
+		SoilTemp3:             latest.SoilTemp3,
+		SoilTemp4:             latest.SoilTemp4,
+		LeafTemp1:             latest.LeafTemp1,
+		LeafTemp2:             latest.LeafTemp2,
+		LeafTemp3:             latest.LeafTemp3,
+		LeafTemp4:             latest.LeafTemp4,
+		OutHumidity:           latest.OutHumidity,
+		ExtraHumidity1:        latest.ExtraHumidity1,
+		ExtraHumidity2:        latest.ExtraHumidity2,
+		ExtraHumidity3:        latest.ExtraHumidity3,
+		ExtraHumidity4:        latest.ExtraHumidity4,
+		ExtraHumidity5:        latest.ExtraHumidity5,
+		ExtraHumidity6:        latest.ExtraHumidity6,
+		ExtraHumidity7:        latest.ExtraHumidity7,
+		OutsideHumidity:       latest.OutHumidity,
+		RainRate:              latest.RainRate,
+		RainIncremental:       latest.RainIncremental,
+		SolarWatts:            latest.SolarWatts,
+		SolarJoules:           latest.SolarJoules,
+		UV:                    latest.UV,
+		Radiation:             latest.Radiation,
+		StormRain:             latest.StormRain,
+		DayRain:               latest.DayRain,
+		MonthRain:             latest.MonthRain,
+		YearRain:              latest.YearRain,
+		Barometer:             latest.Barometer,
+		WindSpeed:             latest.WindSpeed,
+		WindDirection:         latest.WindDir,
+		RainfallDay:           latest.DayRain,
+		WindChill:             latest.WindChill,
+		HeatIndex:             latest.HeatIndex,
+		InsideTemperature:     latest.InTemp,
+		InsideHumidity:        latest.InHumidity,
+		ConsBatteryVoltage:    latest.ConsBatteryVoltage,
+		StationBatteryVoltage: latest.StationBatteryVoltage,
+	}
+	return &reading
 }
