@@ -49,7 +49,7 @@ func (w *WUStorage) sendReports(ctx context.Context, wg *sync.WaitGroup, rchan <
 	}
 }
 
-// StoreReading stores a reading value in InfluxDB
+// sendReading sends a reading to Weather Underground
 func (w *WUStorage) sendReading(ctx context.Context, r Reading) {
 	v := url.Values{}
 
