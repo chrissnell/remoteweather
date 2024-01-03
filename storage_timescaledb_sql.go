@@ -2,7 +2,7 @@ package main
 
 const createTableSQL = `
 CREATE TABLE IF NOT EXISTS weather (
-    time timestamp WITHOUT TIME ZONE NOT NULL,
+    time timestamp WITH TIME ZONE NOT NULL,
     stationname text NULL,
     barometer float4 NULL,
     intemp float4 NULL,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS weather (
     solarwatts float4 NULL,
 	radiation float4 NULL,
     stormrain float4 NULL,
-    stormstart timestamp WITHOUT TIME ZONE NULL,
+    stormstart timestamp WITH TIME ZONE NULL,
     dayrain float4 NULL,
     monthrain float4 NULL,
     yearrain float4 NULL,
@@ -79,8 +79,8 @@ CREATE TABLE IF NOT EXISTS weather (
     stationbatteryvoltage float4 NULL,
     forecasticon int NULL,
     forecastrule int NULL,
-    sunrise TIMESTAMP WITHOUT TIME ZONE NULL,
-    sunset TIMESTAMP WITHOUT TIME ZONE NULL
+    sunrise TIMESTAMP WITH TIME ZONE NULL,
+    sunset TIMESTAMP WITH TIME ZONE NULL
 );`
 
 const createExtensionSQL = `CREATE EXTENSION IF NOT EXISTS timescaledb;`
