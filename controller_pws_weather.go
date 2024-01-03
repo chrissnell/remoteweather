@@ -12,20 +12,16 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // PWSWeatherController holds our connection along with some mutexes for operation
 type PWSWeatherController struct {
-	ctx           context.Context
-	wg            *sync.WaitGroup
-	config        ControllerConfig
-	storageconfig StorageConfig
-	deviceconfig  []DeviceConfig
-	logger        *zap.SugaredLogger
-	db            *gorm.DB
+	ctx              context.Context
+	wg               *sync.WaitGroup
+	config           *Config
+	controllerConfig *ControllerConfig
+	logger           *zap.SugaredLogger
+	fetcher          *TimescaleDBFetcher
 }
 
 // PWSWeatherconfig holds configuration for this controller
@@ -36,83 +32,39 @@ type PWSWeatherConfig struct {
 	PullFromDevice string `yaml:"pull-from-device,omitempty"`
 }
 
-type FetchedBucketReading struct {
-	Bucket                *time.Time `gorm:"column:bucket"`
-	StationName           string     `gorm:"column:stationname"`
-	Barometer             float32    `gorm:"column:barometer"`
-	MaxBarometer          float32    `gorm:"column:max_barometer"`
-	MinBarometer          float32    `gorm:"column:min_barometer"`
-	InTemp                float32    `gorm:"column:intemp"`
-	MaxInTemp             float32    `gorm:"column:max_intemp"`
-	MinInTemp             float32    `gorm:"column:max_intemp"`
-	ExtraTemp1            float32    `gorm:"column:extratemp1"`
-	MaxExtraTemp1         float32    `gorm:"column:min_extratemp1"`
-	MinExtraTemp1         float32    `gorm:"column:max_extratemp1"`
-	InHumidity            float32    `gorm:"column:inhumidity"`
-	MaxInHumidity         float32    `gorm:"column:max_inhumidity"`
-	MinInHumidity         float32    `gorm:"column:min_inhumidity"`
-	SolarWatts            float32    `gorm:"column:solarwatts"`
-	SolarJoules           float32    `gorm:"column:solarjoules"`
-	OutTemp               float32    `gorm:"column:outtemp"`
-	MaxOutTemp            float32    `gorm:"column:max_outtemp"`
-	MinOutTemp            float32    `gorm:"column:min_outtemp"`
-	OutHumidity           float32    `gorm:"column:outhumidity"`
-	MinOutHumidity        float32    `gorm:"column:min_outhumidity"`
-	MaxOutHumidity        float32    `gorm:"column:max_outhumidity"`
-	WindSpeed             float32    `gorm:"column:windspeed"`
-	MaxWindSpeed          float32    `gorm:"column:max_windspeed"`
-	WindDir               float32    `gorm:"column:winddir"`
-	WindChill             float32    `gorm:"column:windchill"`
-	MinWindChill          float32    `gorm:"column:min_windchill"`
-	HeatIndex             float32    `gorm:"column:heatindex"`
-	MaxHeatIndex          float32    `gorm:"column:max_heatindex"`
-	PeriodRain            float32    `gorm:"column:period_rain"`
-	RainRate              float32    `gorm:"column:rainrate"`
-	MaxRainRate           float32    `gorm:"column:max_rainrate"`
-	DayRain               float32    `gorm:"column:dayrain"`
-	MonthRain             float32    `gorm:"column:monthrain"`
-	YearRain              float32    `gorm:"column:yearrain"`
-	ConsBatteryVoltage    float32    `gorm:"column:consbatteryvoltage"`
-	StationBatteryVoltage float32    `gorm:"column:stationbatteryvoltage"`
-}
-
-// We implement the Tabler interface for the Reading struct
-func (FetchedBucketReading) TableName() string {
-	return "weather_1m"
-}
-
-func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c ControllerConfig, s StorageConfig, d []DeviceConfig, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
+func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config, controllerConfig *ControllerConfig, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
 	pwsc := PWSWeatherController{
-		ctx:           ctx,
-		wg:            wg,
-		config:        c,
-		storageconfig: s,
-		deviceconfig:  d,
-		logger:        logger,
+		ctx:              ctx,
+		wg:               wg,
+		config:           c,
+		controllerConfig: controllerConfig,
+		logger:           logger,
 	}
 
-	if pwsc.config.PWSWeather.StationID == "" {
+	if pwsc.controllerConfig.PWSWeather.StationID == "" {
 		return &PWSWeatherController{}, fmt.Errorf("station ID must be set")
 	}
 
-	if pwsc.config.PWSWeather.APIKey == "" {
+	if pwsc.controllerConfig.PWSWeather.APIKey == "" {
 		return &PWSWeatherController{}, fmt.Errorf("API key must be set")
 	}
 
-	if pwsc.config.PWSWeather.PullFromDevice == "" {
+	if pwsc.controllerConfig.PWSWeather.PullFromDevice == "" {
 		return &PWSWeatherController{}, fmt.Errorf("pull-from-device must be set")
 	}
 
-	if !pwsc.validatePullFromStation() {
-		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.config.PWSWeather.PullFromDevice)
-	}
-
-	if pwsc.config.PWSWeather.UploadInterval == 0 {
+	if pwsc.controllerConfig.PWSWeather.UploadInterval == 0 {
 		// Use a default interval of 60 seconds
-		pwsc.config.PWSWeather.UploadInterval = 60
+		pwsc.controllerConfig.PWSWeather.UploadInterval = 60
 	}
 
-	err := pwsc.connectToTimescaleDB()
+	pwsc.fetcher = NewTimescaleDBFetcher(c, logger)
+
+	if !pwsc.fetcher.validatePullFromStation(pwsc.controllerConfig.PWSWeather.PullFromDevice) {
+		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.controllerConfig.PWSWeather.PullFromDevice)
+	}
+
+	err := pwsc.fetcher.connectToTimescaleDB(c.Storage)
 	if err != nil {
 		return &PWSWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
@@ -126,7 +78,7 @@ func (p *PWSWeatherController) StartController() error {
 }
 
 func (p *PWSWeatherController) sendPeriodicReports() {
-	interval, _ := time.ParseDuration(fmt.Sprintf("%vs", p.config.PWSWeather.UploadInterval))
+	interval, _ := time.ParseDuration(fmt.Sprintf("%vs", p.controllerConfig.PWSWeather.UploadInterval))
 
 	p.wg.Add(1)
 	defer p.wg.Done()
@@ -138,7 +90,7 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 		select {
 		case <-ticker.C:
 			log.Debug("Sending reading to PWS Weather...")
-			br, err := p.getReadingsFromTimescaleDB()
+			br, err := p.fetcher.getReadingsFromTimescaleDB(p.controllerConfig.PWSWeather.PullFromDevice)
 			if err != nil {
 				log.Info("error getting readings from TimescaleDB:", err)
 			}
@@ -153,52 +105,12 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 	}
 }
 
-func (p *PWSWeatherController) connectToTimescaleDB() error {
-
-	var err error
-
-	// Create a logger for gorm
-	dbLogger := logger.New(
-		zap.NewStdLog(zapLogger),
-		logger.Config{
-			SlowThreshold:             time.Second, // Slow SQL threshold
-			LogLevel:                  logger.Warn, // Log level
-			IgnoreRecordNotFoundError: false,       // Ignore ErrRecordNotFound error for logger
-			Colorful:                  true,        // Use colors
-		},
-	)
-
-	config := &gorm.Config{
-		Logger: dbLogger,
-	}
-
-	log.Info("connecting to TimescaleDB...")
-	p.db, err = gorm.Open(postgres.Open(p.storageconfig.TimescaleDB.ConnectionString), config)
-	if err != nil {
-		log.Warn("warning: unable to create a TimescaleDB connection:", err)
-		return err
-	}
-	log.Info("TimescaleDB connection successful")
-
-	return nil
-}
-
-func (p *PWSWeatherController) getReadingsFromTimescaleDB() (FetchedBucketReading, error) {
-	var br FetchedBucketReading
-
-	if err := p.db.Table("weather_1m").Where("stationname=? AND bucket > NOW() - INTERVAL '2 minutes'", p.config.PWSWeather.PullFromDevice).Limit(1).Find(&br).Error; err != nil {
-		return FetchedBucketReading{}, fmt.Errorf("error querying database for latest readings: %+v", err)
-	}
-
-	return br, nil
-}
-
 func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading) error {
 	v := url.Values{}
 
 	// Add our authentication parameters to our URL
-	v.Set("ID", p.config.PWSWeather.StationID)
-	v.Set("PASSWORD", p.config.PWSWeather.APIKey)
+	v.Set("ID", p.controllerConfig.PWSWeather.StationID)
+	v.Set("PASSWORD", p.controllerConfig.PWSWeather.APIKey)
 
 	now := time.Now().In(time.UTC)
 	v.Set("dateutc", now.Format("2006-01-02 15:04:05"))
@@ -241,15 +153,4 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading)
 	}
 
 	return nil
-}
-
-func (p *PWSWeatherController) validatePullFromStation() bool {
-	if len(p.deviceconfig) > 0 {
-		for _, station := range p.deviceconfig {
-			if station.Name == p.config.PWSWeather.PullFromDevice {
-				return true
-			}
-		}
-	}
-	return false
 }

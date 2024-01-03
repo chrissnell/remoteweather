@@ -30,14 +30,14 @@ type StorageConfig struct {
 	GRPC        GRPCConfig        `yaml:"grpc,omitempty"`
 	RESTServer  RESTServerConfig  `yaml:"rest,omitempty"`
 	APRS        APRSConfig        `yaml:"aprs,omitempty"`
-	WU          WUConfig          `yaml:"wunderground,omitempty"`
 }
 
 // ControllerConfig holds the configuration for various controller backends.
 // More than one controller backend can be used simultaneously.
 type ControllerConfig struct {
-	Type       string           `yaml:"type,omitempty"`
-	PWSWeather PWSWeatherConfig `yaml:"pwsweather,omitempty"`
+	Type               string                   `yaml:"type,omitempty"`
+	PWSWeather         PWSWeatherConfig         `yaml:"pwsweather,omitempty"`
+	WeatherUnderground WeatherUndergroundConfig `yaml:"weatherunderground,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.
