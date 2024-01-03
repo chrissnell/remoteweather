@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -27,9 +28,28 @@ type Controller interface {
 // controllers
 func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, c *Config, logger *zap.SugaredLogger) (*ControllerManager, error) {
 	cm := ControllerManager{}
-	// for _, c := range c.Controllers {
-
-	// }
+	for _, con := range c.Controllers {
+		switch con.Type {
+		case "pwsweather":
+			log.Info("PWS Controller selected!")
+			controller, err := NewPWSWeatherController(ctx, wg, con, c.Storage, c.Devices, logger)
+			if err != nil {
+				return &ControllerManager{}, fmt.Errorf("error creating new PWS Weather controller: %v", err)
+			}
+			cm.Controllers = append(cm.Controllers, controller)
+		}
+	}
 
 	return &cm, nil
+}
+
+func (cm *ControllerManager) StartControllers() error {
+	for _, c := range cm.Controllers {
+		err := c.StartController()
+		if err != nil {
+			return fmt.Errorf("error starting controller: %v", err)
+		}
+	}
+
+	return nil
 }
