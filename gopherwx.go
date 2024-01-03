@@ -55,17 +55,28 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
+	// Initialize the storage manager
 	distributor, err := NewStorageManager(ctx, &wg, &cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Initialize the Controller
+	// Initialize the weather station manager
 	wsm, err := NewWeatherStationManager(ctx, &wg, &cfg, distributor.ReadingDistributor, log)
 	if err != nil {
-		log.Fatalf("could not creat weather station manager: %v", err)
+		log.Fatalf("could not create weather station manager: %v", err)
 	}
 	go wsm.StartWeatherStations()
+
+	// Initialize the controller manager
+	cm, err := NewControllerManager(ctx, &wg, &cfg, log)
+	if err != nil {
+		log.Fatalf("could not create controller manager: %v", err)
+	}
+	err = cm.StartControllers()
+	if err != nil {
+		log.Fatalf("could not start controllers: %v", err)
+	}
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
