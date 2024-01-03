@@ -36,9 +36,8 @@ type StorageConfig struct {
 // ControllerConfig holds the configuration for various controller backends.
 // More than one controller backend can be used simultaneously.
 type ControllerConfig struct {
-	PWSWeatherStationNAme string `yaml:"pws-weather-station-name"`
-	PWSWeatherStationID   string `yaml:"pws-weather-station-id,omitempty"`
-	PWSWeatherAPIKey      string `yaml:"pws-weather-api-key,omitempty"`
+	Type       string           `yaml:"type,omitempty"`
+	PWSWeather PWSWeatherConfig `yaml:"pwsweather,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.
