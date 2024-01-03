@@ -36,8 +36,8 @@ type CampbellPacket struct {
 	OutHumidity           float32 `json:"rh,omitempty"`
 	Barometer             float32 `json:"baro,omitempty"`
 	ExtraTemp1            float32 `json:"baro_temp_f,omitempty"`
-	SolarWatts            float32 `json:"solar_w,omitempty"`
-	SolarJoules           float32 `json:"solar_j,omitempty"`
+	SolarWatts            float32 `json:"slr_w,omitempty"`
+	SolarJoules           float32 `json:"slr_mj,omitempty"`
 	RainIncremental       float32 `json:"rain_in,omitempty"`
 	WindSpeed             float32 `json:"wind_s,omitempty"`
 	WindDir               uint16  `json:"wind_d,omitempty"`
