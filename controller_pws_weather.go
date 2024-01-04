@@ -41,6 +41,10 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config,
 		logger:           logger,
 	}
 
+	if pwsc.config.Storage.TimescaleDB.ConnectionString == "" {
+		return &PWSWeatherController{}, fmt.Errorf("TimescaleDB storage must be configured for the PWS Weather controller to function")
+	}
+
 	if pwsc.PWSWeatherConfig.StationID == "" {
 		return &PWSWeatherController{}, fmt.Errorf("station ID must be set")
 	}
@@ -111,6 +115,10 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading) error {
 	v := url.Values{}
 
+	if r.Barometer == 0 && r.OutTemp == 0 {
+		return fmt.Errorf("rejecting likely faulty reading (temp %v, barometer %v)", r.OutTemp, r.Barometer)
+	}
+
 	// Add our authentication parameters to our URL
 	v.Set("ID", p.PWSWeatherConfig.StationID)
 	v.Set("PASSWORD", p.PWSWeatherConfig.APIKey)
@@ -138,7 +146,7 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading)
 		return fmt.Errorf("error creating PWS Weather HTTP request: %v", err)
 	}
 
-	log.Infof("Making request to PWS weather: https://pwsupdate.pwsweather.com/api/v1/submitwx?%v", v.Encode())
+	log.Debugf("Making request to PWS weather: https://pwsupdate.pwsweather.com/api/v1/submitwx?%v", v.Encode())
 	req = req.WithContext(p.ctx)
 	resp, err := client.Do(req)
 	if err != nil {
