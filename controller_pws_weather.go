@@ -19,49 +19,49 @@ type PWSWeatherController struct {
 	ctx              context.Context
 	wg               *sync.WaitGroup
 	config           *Config
-	controllerConfig *ControllerConfig
+	PWSWeatherConfig PWSWeatherConfig
 	logger           *zap.SugaredLogger
 	fetcher          *TimescaleDBFetcher
 }
 
-// PWSWeatherconfig holds configuration for this controller
+// PWSWeatherConfig holds configuration for this controller
 type PWSWeatherConfig struct {
 	StationID      string `yaml:"station-id,omitempty"`
 	APIKey         string `yaml:"api-key,omitempty"`
-	UploadInterval int16  `yaml:"upload-interval,omitempty"`
+	UploadInterval string `yaml:"upload-interval,omitempty"`
 	PullFromDevice string `yaml:"pull-from-device,omitempty"`
 }
 
-func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config, controllerConfig *ControllerConfig, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
+func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config, p PWSWeatherConfig, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
 	pwsc := PWSWeatherController{
 		ctx:              ctx,
 		wg:               wg,
 		config:           c,
-		controllerConfig: controllerConfig,
+		PWSWeatherConfig: p,
 		logger:           logger,
 	}
 
-	if pwsc.controllerConfig.PWSWeather.StationID == "" {
+	if pwsc.PWSWeatherConfig.StationID == "" {
 		return &PWSWeatherController{}, fmt.Errorf("station ID must be set")
 	}
 
-	if pwsc.controllerConfig.PWSWeather.APIKey == "" {
+	if pwsc.PWSWeatherConfig.APIKey == "" {
 		return &PWSWeatherController{}, fmt.Errorf("API key must be set")
 	}
 
-	if pwsc.controllerConfig.PWSWeather.PullFromDevice == "" {
+	if pwsc.PWSWeatherConfig.PullFromDevice == "" {
 		return &PWSWeatherController{}, fmt.Errorf("pull-from-device must be set")
 	}
 
-	if pwsc.controllerConfig.PWSWeather.UploadInterval == 0 {
+	if pwsc.PWSWeatherConfig.UploadInterval == "" {
 		// Use a default interval of 60 seconds
-		pwsc.controllerConfig.PWSWeather.UploadInterval = 60
+		pwsc.PWSWeatherConfig.UploadInterval = "60"
 	}
 
 	pwsc.fetcher = NewTimescaleDBFetcher(c, logger)
 
-	if !pwsc.fetcher.validatePullFromStation(pwsc.controllerConfig.PWSWeather.PullFromDevice) {
-		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.controllerConfig.PWSWeather.PullFromDevice)
+	if !pwsc.fetcher.validatePullFromStation(pwsc.PWSWeatherConfig.PullFromDevice) {
+		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.PWSWeatherConfig.PullFromDevice)
 	}
 
 	err := pwsc.fetcher.connectToTimescaleDB(c.Storage)
@@ -78,19 +78,22 @@ func (p *PWSWeatherController) StartController() error {
 }
 
 func (p *PWSWeatherController) sendPeriodicReports() {
-	interval, _ := time.ParseDuration(fmt.Sprintf("%vs", p.controllerConfig.PWSWeather.UploadInterval))
-
 	p.wg.Add(1)
 	defer p.wg.Done()
 
-	ticker := time.NewTicker(interval)
+	submitInterval, err := time.ParseDuration(fmt.Sprintf("%vs", p.PWSWeatherConfig.UploadInterval))
+	if err != nil {
+		log.Errorf("error parsing duration: %v", err)
+	}
+
+	ticker := time.NewTicker(submitInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
 			log.Debug("Sending reading to PWS Weather...")
-			br, err := p.fetcher.getReadingsFromTimescaleDB(p.controllerConfig.PWSWeather.PullFromDevice)
+			br, err := p.fetcher.getReadingsFromTimescaleDB(p.PWSWeatherConfig.PullFromDevice)
 			if err != nil {
 				log.Info("error getting readings from TimescaleDB:", err)
 			}
@@ -109,8 +112,8 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading)
 	v := url.Values{}
 
 	// Add our authentication parameters to our URL
-	v.Set("ID", p.controllerConfig.PWSWeather.StationID)
-	v.Set("PASSWORD", p.controllerConfig.PWSWeather.APIKey)
+	v.Set("ID", p.PWSWeatherConfig.StationID)
+	v.Set("PASSWORD", p.PWSWeatherConfig.APIKey)
 
 	now := time.Now().In(time.UTC)
 	v.Set("dateutc", now.Format("2006-01-02 15:04:05"))
