@@ -42,6 +42,10 @@ func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c 
 		logger:   logger,
 	}
 
+	if wuc.config.Storage.TimescaleDB.ConnectionString == "" {
+		return &WeatherUndergroundController{}, fmt.Errorf("TimescaleDB storage must be configured for the Weather Underground controller to function")
+	}
+
 	if wuc.wuconfig.StationID == "" {
 		return &WeatherUndergroundController{}, fmt.Errorf("station ID must be set")
 	}
@@ -146,7 +150,7 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *Fetch
 		return fmt.Errorf("error creating PWS Weather HTTP request: %v", err)
 	}
 
-	log.Infof("Making request to PWS weather: %v?%v", p.wuconfig.APIEndpoint, v.Encode())
+	log.Debugf("Making request to Weather Underground: %v?%v", p.wuconfig.APIEndpoint, v.Encode())
 	req = req.WithContext(p.ctx)
 	resp, err := client.Do(req)
 	if err != nil {
