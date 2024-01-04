@@ -32,14 +32,14 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, c *Config, lo
 		switch con.Type {
 		case "pwsweather":
 			log.Info("Creating PWS Weather controller...")
-			controller, err := NewPWSWeatherController(ctx, wg, c, &con, logger)
+			controller, err := NewPWSWeatherController(ctx, wg, c, con.PWSWeather, logger)
 			if err != nil {
 				return &ControllerManager{}, fmt.Errorf("error creating new PWS Weather controller: %v", err)
 			}
 			cm.Controllers = append(cm.Controllers, controller)
 		case "weatherunderground":
 			log.Info("Creating Weather Underground controller...")
-			controller, err := NewWeatherUndergroundController(ctx, wg, c, &con, logger)
+			controller, err := NewWeatherUndergroundController(ctx, wg, c, con.WeatherUnderground, logger)
 			if err != nil {
 				return &ControllerManager{}, fmt.Errorf("error creating new PWS Weather controller: %v", err)
 			}
