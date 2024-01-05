@@ -49,51 +49,52 @@ type WeatherReading struct {
 	ReadingTimestamp int64  `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
-	OutsideTemperature    float32 `json:"otemp,omitempty"`
-	ExtraTemp1            float32 `json:"extratemp1,omitempty"`
-	ExtraTemp2            float32 `json:"extratemp2,omitempty"`
-	ExtraTemp3            float32 `json:"extratemp3,omitempty"`
-	ExtraTemp4            float32 `json:"extratemp4,omitempty"`
-	ExtraTemp5            float32 `json:"extratemp5,omitempty"`
-	ExtraTemp6            float32 `json:"extratemp6,omitempty"`
-	ExtraTemp7            float32 `json:"extratemp7,omitempty"`
-	SoilTemp1             float32 `json:"soiltemp1,omitempty"`
-	SoilTemp2             float32 `json:"soiltemp2,omitempty"`
-	SoilTemp3             float32 `json:"soiltemp3,omitempty"`
-	SoilTemp4             float32 `json:"soiltemp4,omitempty"`
-	LeafTemp1             float32 `json:"leaftemp1,omitempty"`
-	LeafTemp2             float32 `json:"leaftemp2,omitempty"`
-	LeafTemp3             float32 `json:"leaftemp3,omitempty"`
-	LeafTemp4             float32 `json:"leaftemp4,omitempty"`
-	OutHumidity           float32 `json:"outhumidity,omitempty"`
-	ExtraHumidity1        float32 `json:"extrahumidity1,omitempty"`
-	ExtraHumidity2        float32 `json:"extrahumidity2,omitempty"`
-	ExtraHumidity3        float32 `json:"extrahumidity3,omitempty"`
-	ExtraHumidity4        float32 `json:"extrahumidity4,omitempty"`
-	ExtraHumidity5        float32 `json:"extrahumidity5,omitempty"`
-	ExtraHumidity6        float32 `json:"extrahumidity6,omitempty"`
-	ExtraHumidity7        float32 `json:"extrahumidity7,omitempty"`
-	OutsideHumidity       float32 `json:"ohum,omitempty"`
-	RainRate              float32 `json:"rainrate,omitempty"`
-	RainIncremental       float32 `json:"rainincremental,omitempty"`
-	SolarWatts            float32 `json:"solarwatts,omitempty"`
-	SolarJoules           float32 `json:"solarjoules,omitempty"`
-	UV                    float32 `json:"uv,omitempty"`
-	Radiation             float32 `json:"radiation,omitempty"`
-	StormRain             float32 `json:"stormrain,omitempty"`
-	DayRain               float32 `json:"dayrain,omitempty"`
-	MonthRain             float32 `json:"monthrain,omitempty"`
-	YearRain              float32 `json:"yearrain,omitempty"`
-	Barometer             float32 `json:"bar,omitempty"`
-	WindSpeed             float32 `json:"winds,omitempty"`
-	WindDirection         float32 `json:"windd,omitempty"`
-	RainfallDay           float32 `json:"rainday,omitempty"`
-	WindChill             float32 `json:"windch,omitempty"`
-	HeatIndex             float32 `json:"heatidx,omitempty"`
-	InsideTemperature     float32 `json:"itemp,omitempty"`
-	InsideHumidity        float32 `json:"ihum,omitempty"`
-	ConsBatteryVoltage    float32 `json:"consbatteryvoltage,omitempty"`
-	StationBatteryVoltage float32 `json:"stationbatteryvoltage,omitempty"`
+	OutsideTemperature    json.Number `json:"otemp,omitempty"`
+	ExtraTemp1            json.Number `json:"extratemp1,omitempty"`
+	ExtraTemp2            json.Number `json:"extratemp2,omitempty"`
+	ExtraTemp3            json.Number `json:"extratemp3,omitempty"`
+	ExtraTemp4            json.Number `json:"extratemp4,omitempty"`
+	ExtraTemp5            json.Number `json:"extratemp5,omitempty"`
+	ExtraTemp6            json.Number `json:"extratemp6,omitempty"`
+	ExtraTemp7            json.Number `json:"extratemp7,omitempty"`
+	SoilTemp1             json.Number `json:"soiltemp1,omitempty"`
+	SoilTemp2             json.Number `json:"soiltemp2,omitempty"`
+	SoilTemp3             json.Number `json:"soiltemp3,omitempty"`
+	SoilTemp4             json.Number `json:"soiltemp4,omitempty"`
+	LeafTemp1             json.Number `json:"leaftemp1,omitempty"`
+	LeafTemp2             json.Number `json:"leaftemp2,omitempty"`
+	LeafTemp3             json.Number `json:"leaftemp3,omitempty"`
+	LeafTemp4             json.Number `json:"leaftemp4,omitempty"`
+	OutHumidity           json.Number `json:"outhumidity,omitempty"`
+	ExtraHumidity1        json.Number `json:"extrahumidity1,omitempty"`
+	ExtraHumidity2        json.Number `json:"extrahumidity2,omitempty"`
+	ExtraHumidity3        json.Number `json:"extrahumidity3,omitempty"`
+	ExtraHumidity4        json.Number `json:"extrahumidity4,omitempty"`
+	ExtraHumidity5        json.Number `json:"extrahumidity5,omitempty"`
+	ExtraHumidity6        json.Number `json:"extrahumidity6,omitempty"`
+	ExtraHumidity7        json.Number `json:"extrahumidity7,omitempty"`
+	OutsideHumidity       json.Number `json:"ohum,omitempty"`
+	RainRate              json.Number `json:"rainrate,omitempty"`
+	RainIncremental       json.Number `json:"rainincremental,omitempty"`
+	SolarWatts            json.Number `json:"solarwatts,omitempty"`
+	SolarJoules           json.Number `json:"solarjoules,omitempty"`
+	UV                    json.Number `json:"uv,omitempty"`
+	Radiation             json.Number `json:"radiation,omitempty"`
+	StormRain             json.Number `json:"stormrain,omitempty"`
+	DayRain               json.Number `json:"dayrain,omitempty"`
+	MonthRain             json.Number `json:"monthrain,omitempty"`
+	YearRain              json.Number `json:"yearrain,omitempty"`
+	Barometer             json.Number `json:"bar,omitempty"`
+	WindSpeed             json.Number `json:"winds,omitempty"`
+	WindDirection         json.Number `json:"windd,omitempty"`
+	CardinalDirection     string      `json:"windcard,omitempty"`
+	RainfallDay           json.Number `json:"rainday,omitempty"`
+	WindChill             json.Number `json:"windch,omitempty"`
+	HeatIndex             json.Number `json:"heatidx,omitempty"`
+	InsideTemperature     json.Number `json:"itemp,omitempty"`
+	InsideHumidity        json.Number `json:"ihum,omitempty"`
+	ConsBatteryVoltage    json.Number `json:"consbatteryvoltage,omitempty"`
+	StationBatteryVoltage json.Number `json:"stationbatteryvoltage,omitempty"`
 }
 
 const (
@@ -261,13 +262,13 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		// }
 
 		switch {
-		case span < 2*Day:
+		case span < 1*Day:
 			if stationName != "" {
 				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
 			} else {
 				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
 			}
-		case (span >= 2*Day) && (span <= 2*Month):
+		case (span >= 1*Day) && (span <= 2*Month):
 			if stationName != "" {
 				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
 			} else {
@@ -335,51 +336,52 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 		wr = append(wr, &WeatherReading{
 			StationName:           r.StationName,
 			ReadingTimestamp:      r.Bucket.UnixMilli(),
-			OutsideTemperature:    r.OutTemp,
-			ExtraTemp1:            r.ExtraTemp1,
-			ExtraTemp2:            r.ExtraTemp2,
-			ExtraTemp3:            r.ExtraTemp3,
-			ExtraTemp4:            r.ExtraTemp4,
-			ExtraTemp5:            r.ExtraTemp5,
-			ExtraTemp6:            r.ExtraTemp6,
-			ExtraTemp7:            r.ExtraTemp7,
-			SoilTemp1:             r.SoilTemp1,
-			SoilTemp2:             r.SoilTemp2,
-			SoilTemp3:             r.SoilTemp3,
-			SoilTemp4:             r.SoilTemp4,
-			LeafTemp1:             r.LeafTemp1,
-			LeafTemp2:             r.LeafTemp2,
-			LeafTemp3:             r.LeafTemp3,
-			LeafTemp4:             r.LeafTemp4,
-			OutHumidity:           r.OutHumidity,
-			ExtraHumidity1:        r.ExtraHumidity1,
-			ExtraHumidity2:        r.ExtraHumidity2,
-			ExtraHumidity3:        r.ExtraHumidity3,
-			ExtraHumidity4:        r.ExtraHumidity4,
-			ExtraHumidity5:        r.ExtraHumidity5,
-			ExtraHumidity6:        r.ExtraHumidity6,
-			ExtraHumidity7:        r.ExtraHumidity7,
-			OutsideHumidity:       r.OutHumidity,
-			RainRate:              r.RainRate,
-			RainIncremental:       r.RainIncremental,
-			SolarWatts:            r.SolarWatts,
-			SolarJoules:           r.SolarJoules,
-			UV:                    r.UV,
-			Radiation:             r.Radiation,
-			StormRain:             r.StormRain,
-			DayRain:               r.DayRain,
-			MonthRain:             r.MonthRain,
-			YearRain:              r.YearRain,
-			Barometer:             r.Barometer,
-			WindSpeed:             r.WindSpeed,
-			WindDirection:         r.WindDir,
-			RainfallDay:           r.DayRain,
-			WindChill:             r.WindChill,
-			HeatIndex:             r.HeatIndex,
-			InsideTemperature:     r.InTemp,
-			InsideHumidity:        r.InHumidity,
-			ConsBatteryVoltage:    r.ConsBatteryVoltage,
-			StationBatteryVoltage: r.StationBatteryVoltage,
+			OutsideTemperature:    float32ToJSONNumber(r.OutTemp),
+			ExtraTemp1:            float32ToJSONNumber(r.ExtraTemp1),
+			ExtraTemp2:            float32ToJSONNumber(r.ExtraTemp2),
+			ExtraTemp3:            float32ToJSONNumber(r.ExtraTemp3),
+			ExtraTemp4:            float32ToJSONNumber(r.ExtraTemp4),
+			ExtraTemp5:            float32ToJSONNumber(r.ExtraTemp5),
+			ExtraTemp6:            float32ToJSONNumber(r.ExtraTemp6),
+			ExtraTemp7:            float32ToJSONNumber(r.ExtraTemp7),
+			SoilTemp1:             float32ToJSONNumber(r.SoilTemp1),
+			SoilTemp2:             float32ToJSONNumber(r.SoilTemp2),
+			SoilTemp3:             float32ToJSONNumber(r.SoilTemp3),
+			SoilTemp4:             float32ToJSONNumber(r.SoilTemp4),
+			LeafTemp1:             float32ToJSONNumber(r.LeafTemp1),
+			LeafTemp2:             float32ToJSONNumber(r.LeafTemp2),
+			LeafTemp3:             float32ToJSONNumber(r.LeafTemp3),
+			LeafTemp4:             float32ToJSONNumber(r.LeafTemp4),
+			OutHumidity:           float32ToJSONNumber(r.OutHumidity),
+			ExtraHumidity1:        float32ToJSONNumber(r.ExtraHumidity1),
+			ExtraHumidity2:        float32ToJSONNumber(r.ExtraHumidity2),
+			ExtraHumidity3:        float32ToJSONNumber(r.ExtraHumidity3),
+			ExtraHumidity4:        float32ToJSONNumber(r.ExtraHumidity4),
+			ExtraHumidity5:        float32ToJSONNumber(r.ExtraHumidity5),
+			ExtraHumidity6:        float32ToJSONNumber(r.ExtraHumidity6),
+			ExtraHumidity7:        float32ToJSONNumber(r.ExtraHumidity7),
+			OutsideHumidity:       float32ToJSONNumber(r.OutHumidity),
+			RainRate:              float32ToJSONNumber(r.RainRate),
+			RainIncremental:       float32ToJSONNumber(r.RainIncremental),
+			SolarWatts:            float32ToJSONNumber(r.SolarWatts),
+			SolarJoules:           float32ToJSONNumber(r.SolarJoules),
+			UV:                    float32ToJSONNumber(r.UV),
+			Radiation:             float32ToJSONNumber(r.Radiation),
+			StormRain:             float32ToJSONNumber(r.StormRain),
+			DayRain:               float32ToJSONNumber(r.DayRain),
+			MonthRain:             float32ToJSONNumber(r.MonthRain),
+			YearRain:              float32ToJSONNumber(r.YearRain),
+			Barometer:             float32ToJSONNumber(r.Barometer),
+			WindSpeed:             float32ToJSONNumber(r.WindSpeed),
+			WindDirection:         float32ToJSONNumber(r.WindDir),
+			CardinalDirection:     headingToCardinalDirection(r.WindDir),
+			RainfallDay:           float32ToJSONNumber(r.DayRain),
+			WindChill:             float32ToJSONNumber(r.WindChill),
+			HeatIndex:             float32ToJSONNumber(r.HeatIndex),
+			InsideTemperature:     float32ToJSONNumber(r.InTemp),
+			InsideHumidity:        float32ToJSONNumber(r.InHumidity),
+			ConsBatteryVoltage:    float32ToJSONNumber(r.ConsBatteryVoltage),
+			StationBatteryVoltage: float32ToJSONNumber(r.StationBatteryVoltage),
 		})
 	}
 
@@ -398,51 +400,72 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 	reading := WeatherReading{
 		StationName:           latest.StationName,
 		ReadingTimestamp:      latest.Timestamp.UnixMilli(),
-		OutsideTemperature:    latest.OutTemp,
-		ExtraTemp1:            latest.ExtraTemp1,
-		ExtraTemp2:            latest.ExtraTemp2,
-		ExtraTemp3:            latest.ExtraTemp3,
-		ExtraTemp4:            latest.ExtraTemp4,
-		ExtraTemp5:            latest.ExtraTemp5,
-		ExtraTemp6:            latest.ExtraTemp6,
-		ExtraTemp7:            latest.ExtraTemp7,
-		SoilTemp1:             latest.SoilTemp1,
-		SoilTemp2:             latest.SoilTemp2,
-		SoilTemp3:             latest.SoilTemp3,
-		SoilTemp4:             latest.SoilTemp4,
-		LeafTemp1:             latest.LeafTemp1,
-		LeafTemp2:             latest.LeafTemp2,
-		LeafTemp3:             latest.LeafTemp3,
-		LeafTemp4:             latest.LeafTemp4,
-		OutHumidity:           latest.OutHumidity,
-		ExtraHumidity1:        latest.ExtraHumidity1,
-		ExtraHumidity2:        latest.ExtraHumidity2,
-		ExtraHumidity3:        latest.ExtraHumidity3,
-		ExtraHumidity4:        latest.ExtraHumidity4,
-		ExtraHumidity5:        latest.ExtraHumidity5,
-		ExtraHumidity6:        latest.ExtraHumidity6,
-		ExtraHumidity7:        latest.ExtraHumidity7,
-		OutsideHumidity:       latest.OutHumidity,
-		RainRate:              latest.RainRate,
-		RainIncremental:       latest.RainIncremental,
-		SolarWatts:            latest.SolarWatts,
-		SolarJoules:           latest.SolarJoules,
-		UV:                    latest.UV,
-		Radiation:             latest.Radiation,
-		StormRain:             latest.StormRain,
-		DayRain:               latest.DayRain,
-		MonthRain:             latest.MonthRain,
-		YearRain:              latest.YearRain,
-		Barometer:             latest.Barometer,
-		WindSpeed:             latest.WindSpeed,
-		WindDirection:         latest.WindDir,
-		RainfallDay:           latest.DayRain,
-		WindChill:             latest.WindChill,
-		HeatIndex:             latest.HeatIndex,
-		InsideTemperature:     latest.InTemp,
-		InsideHumidity:        latest.InHumidity,
-		ConsBatteryVoltage:    latest.ConsBatteryVoltage,
-		StationBatteryVoltage: latest.StationBatteryVoltage,
+		OutsideTemperature:    float32ToJSONNumber(latest.OutTemp),
+		ExtraTemp1:            float32ToJSONNumber(latest.ExtraTemp1),
+		ExtraTemp2:            float32ToJSONNumber(latest.ExtraTemp2),
+		ExtraTemp3:            float32ToJSONNumber(latest.ExtraTemp3),
+		ExtraTemp4:            float32ToJSONNumber(latest.ExtraTemp4),
+		ExtraTemp5:            float32ToJSONNumber(latest.ExtraTemp5),
+		ExtraTemp6:            float32ToJSONNumber(latest.ExtraTemp6),
+		ExtraTemp7:            float32ToJSONNumber(latest.ExtraTemp7),
+		SoilTemp1:             float32ToJSONNumber(latest.SoilTemp1),
+		SoilTemp2:             float32ToJSONNumber(latest.SoilTemp2),
+		SoilTemp3:             float32ToJSONNumber(latest.SoilTemp3),
+		SoilTemp4:             float32ToJSONNumber(latest.SoilTemp4),
+		LeafTemp1:             float32ToJSONNumber(latest.LeafTemp1),
+		LeafTemp2:             float32ToJSONNumber(latest.LeafTemp2),
+		LeafTemp3:             float32ToJSONNumber(latest.LeafTemp3),
+		LeafTemp4:             float32ToJSONNumber(latest.LeafTemp4),
+		OutHumidity:           float32ToJSONNumber(latest.OutHumidity),
+		ExtraHumidity1:        float32ToJSONNumber(latest.ExtraHumidity1),
+		ExtraHumidity2:        float32ToJSONNumber(latest.ExtraHumidity2),
+		ExtraHumidity3:        float32ToJSONNumber(latest.ExtraHumidity3),
+		ExtraHumidity4:        float32ToJSONNumber(latest.ExtraHumidity4),
+		ExtraHumidity5:        float32ToJSONNumber(latest.ExtraHumidity5),
+		ExtraHumidity6:        float32ToJSONNumber(latest.ExtraHumidity6),
+		ExtraHumidity7:        float32ToJSONNumber(latest.ExtraHumidity7),
+		OutsideHumidity:       float32ToJSONNumber(latest.OutHumidity),
+		RainRate:              float32ToJSONNumber(latest.RainRate),
+		RainIncremental:       float32ToJSONNumber(latest.RainIncremental),
+		SolarWatts:            float32ToJSONNumber(latest.SolarWatts),
+		SolarJoules:           float32ToJSONNumber(latest.SolarJoules),
+		UV:                    float32ToJSONNumber(latest.UV),
+		Radiation:             float32ToJSONNumber(latest.Radiation),
+		StormRain:             float32ToJSONNumber(latest.StormRain),
+		DayRain:               float32ToJSONNumber(latest.DayRain),
+		MonthRain:             float32ToJSONNumber(latest.MonthRain),
+		YearRain:              float32ToJSONNumber(latest.YearRain),
+		Barometer:             float32ToJSONNumber(latest.Barometer),
+		WindSpeed:             float32ToJSONNumber(latest.WindSpeed),
+		WindDirection:         float32ToJSONNumber(latest.WindDir),
+		CardinalDirection:     headingToCardinalDirection(latest.WindDir),
+		RainfallDay:           float32ToJSONNumber(latest.DayRain),
+		WindChill:             float32ToJSONNumber(latest.WindChill),
+		HeatIndex:             float32ToJSONNumber(latest.HeatIndex),
+		InsideTemperature:     float32ToJSONNumber(latest.InTemp),
+		InsideHumidity:        float32ToJSONNumber(latest.InHumidity),
+		ConsBatteryVoltage:    float32ToJSONNumber(latest.ConsBatteryVoltage),
+		StationBatteryVoltage: float32ToJSONNumber(latest.StationBatteryVoltage),
 	}
 	return &reading
+}
+
+func float32ToJSONNumber(f float32) json.Number {
+	var s string
+	if f == float32(int32(f)) {
+		s = fmt.Sprintf("%.1f", f) // 1 decimal if integer
+	} else {
+		s = fmt.Sprint(f)
+	}
+	return json.Number(s)
+}
+
+func headingToCardinalDirection(f float32) string {
+	cardDirections := []string{"N", "NNE", "NE", "ENE",
+		"E", "ESE", "SE", "SSE",
+		"S", "SSW", "SW", "WSW",
+		"W", "WNW", "NW", "NNW"}
+
+	cardIndex := int((float32(f) + float32(11.25)) / float32(22.5))
+	return cardDirections[cardIndex%16]
 }
