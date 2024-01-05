@@ -28,6 +28,7 @@ type PWSWeatherController struct {
 type PWSWeatherConfig struct {
 	StationID      string `yaml:"station-id,omitempty"`
 	APIKey         string `yaml:"api-key,omitempty"`
+	APIEndpoint    string `yaml:"api-endpoint,omitempty"`
 	UploadInterval string `yaml:"upload-interval,omitempty"`
 	PullFromDevice string `yaml:"pull-from-device,omitempty"`
 }
@@ -55,6 +56,10 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config,
 
 	if pwsc.PWSWeatherConfig.PullFromDevice == "" {
 		return &PWSWeatherController{}, fmt.Errorf("pull-from-device must be set")
+	}
+
+	if pwsc.PWSWeatherConfig.APIEndpoint == "" {
+		pwsc.PWSWeatherConfig.APIEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
 	}
 
 	if pwsc.PWSWeatherConfig.UploadInterval == "" {
@@ -141,12 +146,12 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading)
 		Timeout: 5 * time.Second,
 	}
 
-	req, err := http.NewRequest("GET", fmt.Sprint("https://pwsupdate.pwsweather.com/api/v1/submitwx?"+v.Encode()), nil)
+	req, err := http.NewRequest("GET", fmt.Sprint(p.PWSWeatherConfig.APIEndpoint+"?"+v.Encode()), nil)
 	if err != nil {
 		return fmt.Errorf("error creating PWS Weather HTTP request: %v", err)
 	}
 
-	log.Debugf("Making request to PWS weather: https://pwsupdate.pwsweather.com/api/v1/submitwx?%v", v.Encode())
+	log.Debugf("Making request to PWS weather: %v?%v", p.PWSWeatherConfig.APIEndpoint, v.Encode())
 	req = req.WithContext(p.ctx)
 	resp, err := client.Do(req)
 	if err != nil {
