@@ -14,7 +14,7 @@ import (
 // TimescaleDBConfig describes the YAML-provided configuration for a TimescaleDB
 // storage backend
 type TimescaleDBConfig struct {
-	ConnectionString string `yaml:"connection_string"`
+	ConnectionString string `yaml:"connection-string"`
 }
 
 // TimescaleDBStorage holds the configuration for a TimescaleDB storage backend

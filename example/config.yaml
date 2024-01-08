@@ -1,38 +1,49 @@
-device:
-  # The name of your weather station
-  name: MyDavisWeatherStation
-  # If you have a Davis Weather Envoy, use the next two lines
-  hostname: 10.50.0.104
-  port: 22222
-  # Otherwise, if you're using USB or serial, use this instead:
-  serialdevice: /dev/ttyUSB0
+devices:
+  - name: DavisVantagePro2
+    type: davis
+    hostname: 192.168.0.20
+    port: 22222
+  - name: CSI
+    type: campbellscientific
+    serialdevice: /dev/ttyACM0
+controllers:
+  - type: pwsweather
+    pwsweather:
+      station-id: MYSTATION
+      api-key: your-api-key-goes-here
+      upload-interval: 60
+      pull-from-device: CSI
+  - type: weatherunderground
+    weatherunderground:
+      station-id: MYSTATION
+      api-key: your-api-key-goes-here
+      upload-interval: 60
+      pull-from-device: DavisVantagePro2
 storage:
-    # If you want a gRPC server, provide a TLS cert+key and uncomment
-    # the next section...
     grpc:
-        cert: /path/to/my/tls.crt
-        key: /path/to/my/tls.key
+        cert: /tls/live/mysite.com/fullchain.pem
+        key: /tls/live/mysite.com/privkey.pem
         port: 7500
-    # For InfluxDB storage....
-    influxdb:
-        scheme: http
-        host:  10.50.0.35
-        port: 8086
-        protocol: http
-        database: weather
-        username: weather
-        password: someSecretPassword
-    # For APRS/CWOP support
+    rest:
+        cert: /tls/live/mysite.com/fullchain.pem
+        key: /tls/live/mysite.com/privkey.pem
+        listen-addr: 0.0.0.0
+        port: 7501
+        weather-site:
+          station-name: My Weather Station
+          pull-from-device: CSI
+          page-title: Hometown Weather
+          about-station-html: |
+            <h2>About This Station</h2>
+            <p>
+            This is my weather station.  There are many like it, but this one is mine.
+    timescaledb:
+        connection-string: host=localhost port=5432 dbname=weather user=weather password=PASSWORD TimeZone=US/Mountain
+        timezone: US/Mountain
     aprs:
-        callsign: YOURCALL-SSID
-        passcode: 2274
-        aprs-is-server: noam.aprs2.net:14580
+        callsign: YOURCALL
+        passcode: 1234
+        aprs-is-server: rotate.aprs2.net:14580
         location:
-            # Use your actual lat/lon here...
-            latitude: 39.12345
-            longitude: -96.12345
-    # For WU support
-    wunderground:
-        station-id: YOUR-WU-STATION-ID-HERE
-        password: YOUR-WU-PASSWORD
-
+            latitude: 40.475819
+            longitude: -111.845340

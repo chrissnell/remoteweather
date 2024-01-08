@@ -1,16 +1,16 @@
 package main
 
-// Ported from Tom Keffer's weewx
+// Device-specific code was ported to Go from Tom Keffer's weewx by Chris Snell
 // https://github.com/weewx/weewx/blob/master/bin/weewx/drivers/vantage.py
 
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"reflect"
 	"strings"
@@ -33,18 +33,20 @@ const (
 	maxTries = 3
 )
 
-// WeatherStation holds our connection along with some mutexes for operation
-type WeatherStation struct {
-	Name           string `json:"name"`
-	netConn        net.Conn
-	rwc            io.ReadWriteCloser
-	Config         Config
-	StorageManager *StorageManager
-	Logger         *zap.SugaredLogger
-	connecting     bool
-	connectingMu   sync.RWMutex
-	connected      bool
-	connectedMu    sync.RWMutex
+// DavisWeatherStation holds our connection along with some mutexes for operation
+type DavisWeatherStation struct {
+	ctx                context.Context
+	wg                 *sync.WaitGroup
+	Name               string `json:"name"`
+	netConn            net.Conn
+	rwc                io.ReadWriteCloser
+	Config             DeviceConfig
+	ReadingDistributor chan Reading
+	Logger             *zap.SugaredLogger
+	connecting         bool
+	connectingMu       sync.RWMutex
+	connected          bool
+	connectedMu        sync.RWMutex
 }
 
 // LoopPacket is the data returned from the Davis API "LOOP" operation
@@ -132,140 +134,78 @@ type LoopPacketWithTrend struct {
 	Trend int8
 }
 
-// Reading is a LoopPacketWithTrend that has been converted to human-readable values
-// Administrative elements (e.g. LoopType) not related to weather readings have been
-// left out.
-type Reading struct {
-	Timestamp          time.Time `gorm:"column:time"`
-	StationName        string    `gorm:"column:stationname"`
-	Barometer          float32   `gorm:"column:barometer"`
-	InTemp             float32   `gorm:"column:intemp"`
-	InHumidity         float32   `gorm:"column:inhumidity"`
-	OutTemp            float32   `gorm:"column:outtemp"`
-	WindSpeed          float32   `gorm:"column:windspeed"`
-	WindSpeed10        float32   `gorm:"column:windspeed10"`
-	WindDir            float32   `gorm:"column:winddir"`
-	Windchill          float32   `gorm:"column:windchill"`
-	HeatIndex          float32   `gorm:"column:heatindex"`
-	ExtraTemp1         float32   `gorm:"column:extratemp1"`
-	ExtraTemp2         float32   `gorm:"column:extratemp2"`
-	ExtraTemp3         float32   `gorm:"column:extratemp3"`
-	ExtraTemp4         float32   `gorm:"column:extratemp4"`
-	ExtraTemp5         float32   `gorm:"column:extratemp5"`
-	ExtraTemp6         float32   `gorm:"column:extratemp6"`
-	ExtraTemp7         float32   `gorm:"column:extratemp7"`
-	SoilTemp1          float32   `gorm:"column:soiltemp1"`
-	SoilTemp2          float32   `gorm:"column:soiltemp2"`
-	SoilTemp3          float32   `gorm:"column:soiltemp3"`
-	SoilTemp4          float32   `gorm:"column:soiltemp4"`
-	LeafTemp1          float32   `gorm:"column:leaftemp1"`
-	LeafTemp2          float32   `gorm:"column:leaftemp2"`
-	LeafTemp3          float32   `gorm:"column:leaftemp3"`
-	LeafTemp4          float32   `gorm:"column:leaftemp4"`
-	OutHumidity        float32   `gorm:"column:outhumidity"`
-	ExtraHumidity1     float32   `gorm:"column:extrahumidity1"`
-	ExtraHumidity2     float32   `gorm:"column:extrahumidity2"`
-	ExtraHumidity3     float32   `gorm:"column:extrahumidity3"`
-	ExtraHumidity4     float32   `gorm:"column:extrahumidity4"`
-	ExtraHumidity5     float32   `gorm:"column:extrahumidity5"`
-	ExtraHumidity6     float32   `gorm:"column:extrahumidity6"`
-	ExtraHumidity7     float32   `gorm:"column:extrahumidity7"`
-	RainRate           float32   `gorm:"column:rainrate"`
-	UV                 float32   `gorm:"column:uv"`
-	Radiation          float32   `gorm:"column:radiation"`
-	StormRain          float32   `gorm:"column:stormrain"`
-	StormStart         time.Time `gorm:"column:stormstart"`
-	DayRain            float32   `gorm:"column:dayrain"`
-	MonthRain          float32   `gorm:"column:monthrain"`
-	YearRain           float32   `gorm:"column:yearrain"`
-	DayET              float32   `gorm:"column:dayet"`
-	MonthET            float32   `gorm:"column:monthet"`
-	YearET             float32   `gorm:"column:yearet"`
-	SoilMoisture1      float32   `gorm:"column:soilmoisture1"`
-	SoilMoisture2      float32   `gorm:"column:soilmoisture2"`
-	SoilMoisture3      float32   `gorm:"column:soilmoisture3"`
-	SoilMoisture4      float32   `gorm:"column:soilmoisture4"`
-	LeafWetness1       float32   `gorm:"column:leafwetness1"`
-	LeafWetness2       float32   `gorm:"column:leafwetness2"`
-	LeafWetness3       float32   `gorm:"column:leafwetness3"`
-	LeafWetness4       float32   `gorm:"column:leafwetness4"`
-	InsideAlarm        uint8     `gorm:"column:insidealarm"`
-	RainAlarm          uint8     `gorm:"column:rainalarm"`
-	OutsideAlarm1      uint8     `gorm:"column:outsidealarm1"`
-	OutsideAlarm2      uint8     `gorm:"column:outsidealarm2"`
-	ExtraAlarm1        uint8     `gorm:"column:extraalarm1"`
-	ExtraAlarm2        uint8     `gorm:"column:extraalarm2"`
-	ExtraAlarm3        uint8     `gorm:"column:extraalarm3"`
-	ExtraAlarm4        uint8     `gorm:"column:extraalarm4"`
-	ExtraAlarm5        uint8     `gorm:"column:extraalarm5"`
-	ExtraAlarm6        uint8     `gorm:"column:extraalarm6"`
-	ExtraAlarm7        uint8     `gorm:"column:extraalarm7"`
-	ExtraAlarm8        uint8     `gorm:"column:extraalarm8"`
-	SoilLeafAlarm1     uint8     `gorm:"column:soilleafalarm1"`
-	SoilLeafAlarm2     uint8     `gorm:"column:soilleafalarm2"`
-	SoilLeafAlarm3     uint8     `gorm:"column:soilleafalarm3"`
-	SoilLeafAlarm4     uint8     `gorm:"column:soilleafalarm4"`
-	TxBatteryStatus    uint8     `gorm:"column:txbatterystatus"`
-	ConsBatteryVoltage float32   `gorm:"column:consbatteryvoltage"`
-	ForecastIcon       uint8     `gorm:"column:forecasticon"`
-	ForecastRule       uint8     `gorm:"column:forecastrule"`
-	Sunrise            time.Time `gorm:"column:sunrise"`
-	Sunset             time.Time `gorm:"column:sunset"`
+func NewDavisWeatherStation(ctx context.Context, wg *sync.WaitGroup, c DeviceConfig, distributor chan Reading, logger *zap.SugaredLogger) (*DavisWeatherStation, error) {
+	d := DavisWeatherStation{
+		ctx:                ctx,
+		wg:                 wg,
+		Config:             c,
+		ReadingDistributor: distributor,
+		Logger:             logger,
+	}
+
+	if c.SerialDevice == "" && (c.Hostname == "" || c.Port == "") {
+		return &d, fmt.Errorf("must define either a serial device or hostname+port")
+	}
+
+	if c.SerialDevice != "" {
+		log.Info("Configuring Davis station via serial port...")
+	}
+
+	if c.Hostname != "" && c.Port == "" {
+		log.Info("Configuring Davis station via TCP/IP")
+	}
+
+	return &d, nil
 }
 
-// NewWeatherStation creates a new data model with a new DB connection and Kube API client
-func NewWeatherStation(c Config, sto *StorageManager, logger *zap.SugaredLogger) *WeatherStation {
-
-	ws := new(WeatherStation)
-
-	ws.Config = c
-	ws.StorageManager = sto
-	ws.Logger = logger
-
-	return ws
+func (w *DavisWeatherStation) StationName() string {
+	return w.Config.Name
 }
 
-// StartLoopPolling launches the station-polling goroutine and process packets as they're received
-func (w *WeatherStation) StartLoopPolling() {
-	packetChan := make(chan Reading)
+// StartWeatherStation wakes the station and launches the station-polling goroutine
+func (d *DavisWeatherStation) StartWeatherStation() error {
+	log.Infof("Starting Davis weather station [%v]...", d.Config.Name)
 
 	// Wake the console
-	w.WakeStation()
+	d.WakeStation()
 
-	go w.GetLoopPackets(packetChan)
-	w.ProcessLoopPackets(packetChan)
-}
+	d.wg.Add(1)
+	go d.GetLoopPackets()
 
-// ProcessLoopPackets processes received LOOP packets
-func (w *WeatherStation) ProcessLoopPackets(packetChan <-chan Reading) {
-	for {
-		p := <-packetChan
-		w.StorageManager.ReadingDistributor <- p
-	}
+	return nil
+
 }
 
 // GetLoopPackets gets 20 LOOP packets at a time.  The Davis API supports more
 // but tends to be flaky and 20 is a safe bet for each LOOP run
-func (w *WeatherStation) GetLoopPackets(packetChan chan<- Reading) {
+func (w *DavisWeatherStation) GetLoopPackets() {
+	defer w.wg.Done()
+	log.Info("starting Davis LOOP packet getter")
 	for {
-		err := w.GetDavisLoopPackets(20, packetChan)
-		if err != nil {
-			w.Logger.Error(err)
-			w.rwc.Close()
-			if len(w.Config.Device.Hostname) > 0 {
-				w.netConn.Close()
+		select {
+		case <-w.ctx.Done():
+			log.Info("cancellation request recieved.  Cancelling GetLoopPackets()")
+			return
+		default:
+			err := w.GetDavisLoopPackets(20)
+			if err != nil {
+				w.Logger.Error(err)
+				w.rwc.Close()
+				if len(w.Config.Hostname) > 0 {
+					w.netConn.Close()
+				}
+				w.Logger.Info("attempting to reconnect...")
+				w.Connect()
 			}
-			w.Logger.Info("attempting to reconnect...")
-			w.Connect()
 		}
 	}
 }
 
 // Connect connects to a Davis station over TCP/IP
-func (w *WeatherStation) Connect() {
-	if len(w.Config.Device.SerialDevice) > 0 {
+func (w *DavisWeatherStation) Connect() {
+	if len(w.Config.SerialDevice) > 0 {
 		w.connectToSerialStation()
-	} else if (len(w.Config.Device.Hostname) > 0) && (len(w.Config.Device.Port) > 0) {
+	} else if (len(w.Config.Hostname) > 0) && (len(w.Config.Port) > 0) {
 		w.connectToNetworkStation()
 	} else {
 		w.Logger.Fatal("must provide either network hostname+port or serial device in config")
@@ -273,7 +213,7 @@ func (w *WeatherStation) Connect() {
 }
 
 // Connect connects to a Davis station over TCP/IP
-func (w *WeatherStation) connectToSerialStation() {
+func (w *DavisWeatherStation) connectToSerialStation() {
 	var err error
 
 	w.connectingMu.RLock()
@@ -290,10 +230,10 @@ func (w *WeatherStation) connectToSerialStation() {
 	w.connecting = true
 	w.connectingMu.Unlock()
 
-	w.Logger.Infof("connecting to %v ...", w.Config.Device.SerialDevice)
+	w.Logger.Infof("connecting to %v ...", w.Config.SerialDevice)
 
 	for {
-		sc := &serial.Config{Name: w.Config.Device.SerialDevice, Baud: 19200}
+		sc := &serial.Config{Name: w.Config.SerialDevice, Baud: 19200}
 		w.rwc, err = serial.OpenPort(sc)
 
 		if err != nil {
@@ -318,10 +258,10 @@ func (w *WeatherStation) connectToSerialStation() {
 }
 
 // Connect connects to a Davis station over TCP/IP
-func (w *WeatherStation) connectToNetworkStation() {
+func (w *DavisWeatherStation) connectToNetworkStation() {
 	var err error
 
-	console := fmt.Sprint(w.Config.Device.Hostname, ":", w.Config.Device.Port)
+	console := fmt.Sprint(w.Config.Hostname, ":", w.Config.Port)
 
 	w.connectingMu.RLock()
 
@@ -340,7 +280,8 @@ func (w *WeatherStation) connectToNetworkStation() {
 	log.Info("connecting to:", console)
 
 	for {
-		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
+		d := net.Dialer{Timeout: 10 * time.Second}
+		w.netConn, err = d.DialContext(w.ctx, "tcp", console)
 		w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
 
 		if err != nil {
@@ -364,7 +305,7 @@ func (w *WeatherStation) connectToNetworkStation() {
 
 }
 
-func (w *WeatherStation) Write(p []byte) (nn int, err error) {
+func (w *DavisWeatherStation) Write(p []byte) (nn int, err error) {
 	for {
 		nn, err = w.rwc.Write(p)
 		if err != nil {
@@ -380,7 +321,7 @@ func (w *WeatherStation) Write(p []byte) (nn int, err error) {
 }
 
 // WakeStation sends a series of carriage returns in an attempt to awaken the station
-func (w *WeatherStation) WakeStation() {
+func (w *DavisWeatherStation) WakeStation() {
 	var alive bool
 	var err error
 
@@ -398,7 +339,7 @@ func (w *WeatherStation) WakeStation() {
 		if err != nil {
 			log.Fatal("could not read from station:", err)
 		}
-		// fmt.Println("This is what we got back:", resp)
+		log.Debug("wake-up response:", resp)
 
 		if resp[0] == 0x0a && resp[1] == 0x0d {
 			log.Info("station has been awaken.")
@@ -412,7 +353,7 @@ func (w *WeatherStation) WakeStation() {
 
 }
 
-func (w *WeatherStation) sendData(d []byte) error {
+func (w *DavisWeatherStation) sendData(d []byte) error {
 	resp := make([]byte, 1)
 
 	// Write the data
@@ -432,8 +373,9 @@ func (w *WeatherStation) sendData(d []byte) error {
 }
 
 // Not currently utilized but can be used to set station clock, among other things
+//
 //lint:ignore U1000 For future use
-func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
+func (w *DavisWeatherStation) sendDataWithCRC16(d []byte) error {
 	var resp []byte
 
 	// We'll write to a Buffer and then dump the buffer to the device
@@ -475,7 +417,7 @@ func (w *WeatherStation) sendDataWithCRC16(d []byte) error {
 }
 
 //lint:ignore U1000 For future use
-func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
+func (w *DavisWeatherStation) sendCommand(command []byte) ([]string, error) {
 	var err error
 	var resp []byte
 
@@ -517,7 +459,7 @@ func (w *WeatherStation) sendCommand(command []byte) ([]string, error) {
 }
 
 //lint:ignore U1000 For future use
-func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) {
+func (w *DavisWeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) {
 	var err error
 
 	buf := new(bytes.Buffer)
@@ -577,7 +519,7 @@ func (w *WeatherStation) getDataWithCRC16(numBytes int64, prompt string) ([]byte
 }
 
 // GetDavisLoopPackets attempts to initiate a LOOP command against the station and retrieve some packets
-func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) error {
+func (w *DavisWeatherStation) GetDavisLoopPackets(n int) error {
 	var err error
 
 	for tries := 1; tries <= maxTries; tries++ {
@@ -618,7 +560,7 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 			return nil
 		}
 
-		if len(w.Config.Device.Hostname) > 0 {
+		if len(w.Config.Hostname) > 0 {
 			err = w.netConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 			if err != nil {
@@ -627,51 +569,56 @@ func (w *WeatherStation) GetDavisLoopPackets(n int, packetChan chan<- Reading) e
 
 		}
 
-		scanner.Scan()
+		select {
+		case <-w.ctx.Done():
+			log.Info("cancellation request recieved.  Cancelling GetDavisLoopPackets()")
+			return nil
+		default:
+			scanner.Scan()
 
-		if err = scanner.Err(); err != nil {
-			return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
-		}
+			if err = scanner.Err(); err != nil {
+				return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
+			}
 
-		buf = scanner.Bytes()
+			buf = scanner.Bytes()
 
-		log.Debugw("read packet:", "packet_contents", hex.Dump(buf))
+			log.Debugw("read packet:", "packet_contents", hex.Dump(buf))
 
-		if len(buf) < 99 {
-			log.Infow("packet too short, rejecting", "packet_length", len(buf), "raw_packet", hex.Dump(buf))
-			tries++
-			continue
-		}
-
-		if buf[95] != 0x0A && buf[96] != 0x0D {
-			log.Error("end-of-packet signature not found; rejecting.")
-		} else {
-
-			if crc16.Crc16(buf) != 0 {
-				log.Errorf("LOOP %v CRC error (try #%v)", l, tries)
+			if len(buf) < 99 {
+				log.Infow("packet too short, rejecting", "packet_length", len(buf), "raw_packet", hex.Dump(buf))
 				tries++
 				continue
 			}
 
-			unpacked, err := w.unpackLoopPacket(buf)
-			if err != nil {
-				tries++
-				log.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
-				continue
+			if buf[95] != 0x0A && buf[96] != 0x0D {
+				log.Error("end-of-packet signature not found; rejecting.")
+			} else {
+
+				if crc16.Crc16(buf) != 0 {
+					log.Errorf("LOOP %v CRC error (try #%v)", l, tries)
+					tries++
+					continue
+				}
+
+				unpacked, err := w.unpackLoopPacket(buf)
+				if err != nil {
+					tries++
+					log.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
+					continue
+				}
+
+				tries = 1
+
+				r := convValues(unpacked)
+
+				// Set the timestamp on our reading to the current system time
+				r.Timestamp = time.Now()
+				r.StationName = w.Config.Name
+
+				log.Debugf("Packet recieved: %+v", r)
+
+				w.ReadingDistributor <- r
 			}
-
-			tries = 1
-
-			r := convValues(unpacked)
-
-			// Set the timestamp on our reading to the current system time
-			r.Timestamp = time.Now()
-			r.StationName = w.Config.Device.Name
-
-			log.Debugf("packet recieved: %+v", r)
-
-			packetChan <- r
-			//loopPackets = append(loopPackets, unpacked)
 		}
 	}
 	return nil
@@ -696,7 +643,7 @@ func scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error)
 	return 0, nil, nil
 }
 
-func (w *WeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
+func (w *DavisWeatherStation) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
 	var trend int8
 	var isFlavorA bool
 	var lpwt *LoopPacketWithTrend
@@ -826,16 +773,8 @@ func convValues(lp *LoopPacketWithTrend) Reading {
 		ForecastRule:       lp.ForecastRule,
 		Sunrise:            convSunTime(lp.Sunrise),
 		Sunset:             convSunTime(lp.Sunset),
-	}
-
-	wc, useWc := calcWindChill(r.OutTemp, r.WindSpeed)
-	if useWc {
-		r.Windchill = wc
-	}
-
-	hi, useHi := calcHeatIndex(r.OutTemp, r.OutHumidity)
-	if useHi {
-		r.HeatIndex = hi
+		WindChill:          calcWindChill(convBigVal10(lp.OutTemp), convLittleVal(lp.WindSpeed)),
+		HeatIndex:          calcHeatIndex(convBigVal10(lp.OutTemp), convLittleVal(lp.OutHumidity)),
 	}
 
 	return r
@@ -936,64 +875,4 @@ func convSunTime(v uint16) time.Time {
 	h := int(v / 100)
 	m := int(v % 100)
 	return time.Date(now.Year(), now.Month(), now.Day(), h, m, 0, 0, time.Local)
-}
-
-func calcWindChill(temp float32, windspeed float32) (float32, bool) {
-	if (temp > 50) || (windspeed < 3) {
-		return 0, false
-	}
-
-	w64 := float64(windspeed)
-	return (35.74 + (0.6215 * temp) - (35.75 * float32(math.Pow(w64, 0.16))) + (0.4275 * temp * float32(math.Pow(w64, 0.16)))), true
-}
-
-func calcHeatIndex(temp float32, humidity float32) (float32, bool) {
-
-	// Heat indices don't make much sense at temps below 77° F
-	if temp < 77 {
-		return 0.0, false
-	}
-
-	// First, we try Steadman's method, which is valid for all heat indices
-	// below 80° F
-	hi := 0.5 * (temp + 61.0 + ((temp - 68.0) * 1.2) + (humidity + 0.094))
-	if hi < 80 {
-		// Only return heat index if it's greater than the temperature
-		if hi > temp {
-			return hi, true
-		}
-		return 0.0, false
-	}
-
-	// Our heat index is > 80, so we need to use the Rothfusz method instead
-	c1 := -42.379
-	c2 := 2.04901523
-	c3 := 10.14333127
-	c4 := 0.22475541
-	c5 := 0.00683783
-	c6 := 0.05481717
-	c7 := 0.00122874
-	c8 := 0.00085282
-	c9 := 0.00000199
-
-	t64 := float64(temp)
-	h64 := float64(humidity)
-
-	hi64 := c1 + (c2 * t64) + (c3 * h64) - (c4 * t64 * h64) - (c5 * math.Pow(t64, 2)) - (c6 * math.Pow(h64, 2)) + (c7 * math.Pow(t64, 2) * h64) + (c8 * t64 * math.Pow(h64, 2)) - (c9 * math.Pow(t64, 2) * math.Pow(h64, 2))
-
-	// If RH < 13% and temperature is between 80 and 112, we need to subtract an adjustment
-	if humidity < 13 && temp >= 80 && temp <= 112 {
-		adj := ((13 - h64) / 4) * math.Sqrt((17-math.Abs(t64-95.0))/17)
-		hi64 = hi64 - adj
-	} else if humidity > 80 && temp >= 80 && temp <= 87 {
-		// Likewise, if RH > 80% and temperature is between 80 and 87, we need to add an adjustment
-		adj := ((h64 - 85.0) / 10) * ((87.0 - t64) / 5)
-		hi64 = hi64 + adj
-	}
-
-	// Only return heat index if it's greater than the temperature
-	if hi64 > t64 {
-		return float32(hi64), true
-	}
-	return 0.0, false
 }

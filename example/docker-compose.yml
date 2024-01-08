@@ -2,7 +2,7 @@ version: '2'
 services:
   gopherwx:
     network_mode: "host"
-    image: chrissnell/gopherwx
+    image: chrissnell/gopherwx:v4.0
     environment:
     - GOPHERWX_CONFIG=/config/config.yaml
     volumes:

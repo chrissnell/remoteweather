@@ -32,12 +32,12 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Sto
 
 	s := StorageManager{}
 
-	// Initialize our channel for passing metrics to the MetricDistributor
+	// Initialize our channel for passing metrics to the reading distributor
 	s.ReadingDistributor = make(chan Reading, 20)
 
 	// Start our reading distributor to distribute received readings to storage
 	// backends
-	go s.readingDistributor(ctx, wg)
+	go s.startReadingDistributor(ctx, wg)
 
 	// Check the configuration file for various supported storage backends
 	// and enable them if found
@@ -74,13 +74,6 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Sto
 		err = s.AddEngine(ctx, wg, "aprs", c)
 		if err != nil {
 			return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
-		}
-	}
-
-	if c.Storage.WU.StationID != "" {
-		err = s.AddEngine(ctx, wg, "wu", c)
-		if err != nil {
-			return &s, fmt.Errorf("could not at WU storage backend: %v", err)
 		}
 	}
 
@@ -134,22 +127,14 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		}
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
-	case "wu":
-		se := StorageEngine{}
-		se.Engine, err = NewWUStorage(c)
-		if err != nil {
-			return err
-		}
-		se.C = se.Engine.StartStorageEngine(ctx, wg)
-		s.Engines = append(s.Engines, se)
 	}
 
 	return nil
 }
 
-// readingDistributor receives readings from gatherers and fans them out to the various
+// startReadingDistributor receives readings from gatherers and fans them out to the various
 // storage backends
-func (s *StorageManager) readingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
+func (s *StorageManager) startReadingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
 	wg.Add(1)
 	defer wg.Done()
 
