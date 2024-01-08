@@ -2,7 +2,7 @@ package main
 
 const createTableSQL = `
 CREATE TABLE IF NOT EXISTS weather (
-    time timestamp WITHOUT TIME ZONE NOT NULL,
+    time timestamp WITH TIME ZONE NOT NULL,
     stationname text NULL,
     barometer float4 NULL,
     intemp float4 NULL,
@@ -37,10 +37,13 @@ CREATE TABLE IF NOT EXISTS weather (
     extrahumidity6 float4 NULL,
     extrahumidity7 float4 NULL,
     rainrate float4 NULL,
+    rainincremental float4 NULL,
 	uv float4 NULL,
+    solarjoules float4 NULL,
+    solarwatts float4 NULL,
 	radiation float4 NULL,
     stormrain float4 NULL,
-    stormstart timestamp WITHOUT TIME ZONE NULL,
+    stormstart timestamp WITH TIME ZONE NULL,
     dayrain float4 NULL,
     monthrain float4 NULL,
     yearrain float4 NULL,
@@ -73,10 +76,11 @@ CREATE TABLE IF NOT EXISTS weather (
     soilleafalarm4 int NULL,
     txbatterystatus int NULL,
     consbatteryvoltage float4 NULL,
+    stationbatteryvoltage float4 NULL,
     forecasticon int NULL,
     forecastrule int NULL,
-    sunrise TIMESTAMP WITHOUT TIME ZONE NULL,
-    sunset TIMESTAMP WITHOUT TIME ZONE NULL
+    sunrise TIMESTAMP WITH TIME ZONE NULL,
+    sunset TIMESTAMP WITH TIME ZONE NULL
 );`
 
 const createExtensionSQL = `CREATE EXTENSION IF NOT EXISTS timescaledb;`
@@ -162,7 +166,7 @@ const createCircAvgAggregateFunctionSQL = `CREATE OR REPLACE AGGREGATE circular_
 );`
 
 const create1mViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1m
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('1 minute', time) as bucket,
@@ -173,6 +177,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -182,6 +189,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -189,18 +198,20 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
 
 const create5mViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_5m
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('5 minutes', time) as bucket,
@@ -211,6 +222,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -220,6 +234,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -227,18 +243,20 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
 
 const create1hViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1h
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('1 hour', time) as bucket,
@@ -249,6 +267,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -258,6 +279,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -265,18 +288,20 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`
 
 const create1dViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1d
-WITH (timescaledb.continuous)
+WITH (timescaledb.continuous, timescaledb.materialized_only = false)
 AS
 SELECT
     time_bucket('1 day', time) as bucket,
@@ -287,6 +312,9 @@ SELECT
     avg(intemp) as intemp,
 	max(intemp) as max_intemp,
 	min(intemp) as min_intemp,
+    avg(extratemp1) as extratemp1,
+	max(extratemp1) as max_extratemp1,
+	min(extratemp1) as min_extratemp1,
     avg(inhumidity) as inhumidity,
 	max(inhumidity) as max_inhumidity,
 	min(inhumidity) as min_inhumidity,
@@ -296,6 +324,8 @@ SELECT
     avg(outhumidity) as outhumidity,
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
+    avg(solarwatts) as solarwatts,
+    avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
     max(windspeed) as max_windspeed,
@@ -303,12 +333,14 @@ SELECT
 	min(windchill) as min_windchill,
     avg(heatindex) as heatindex,
 	max(heatindex) as max_heatindex,
+    sum(rainincremental) as period_rain,
     avg(rainrate) as rainrate,
     max(rainrate) as max_rainrate,
     max(dayrain) as dayrain,
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
-    avg(consbatteryvoltage) as consbatteryvoltage
+    avg(consbatteryvoltage) as consbatteryvoltage,
+    avg(stationbatteryvoltage) as stationbatteryvoltage
 FROM
     weather
 GROUP BY bucket, stationname;`

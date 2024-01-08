@@ -19,21 +19,6 @@ const version = "3.0-" + runtime.GOOS + "/" + runtime.GOARCH
 var zapLogger *zap.Logger
 var log *zap.SugaredLogger
 
-// Service contains our configuration and runtime objects
-type Service struct {
-	ws *WeatherStation
-}
-
-// NewService creates a new instance of Service with the given configuration file
-func NewService(cfg *Config, sto *StorageManager, logger *zap.SugaredLogger) *Service {
-	s := &Service{}
-
-	// Initialize the Controller
-	s.ws = NewWeatherStation(*cfg, sto, logger)
-
-	return s
-}
-
 var debug *bool
 
 func main() {
@@ -70,14 +55,28 @@ func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	sto, err := NewStorageManager(ctx, &wg, &cfg)
+	// Initialize the storage manager
+	distributor, err := NewStorageManager(ctx, &wg, &cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s := NewService(&cfg, sto, log)
+	// Initialize the weather station manager
+	wsm, err := NewWeatherStationManager(ctx, &wg, &cfg, distributor.ReadingDistributor, log)
+	if err != nil {
+		log.Fatalf("could not create weather station manager: %v", err)
+	}
+	go wsm.StartWeatherStations()
 
-	go s.ws.StartLoopPolling()
+	// Initialize the controller manager
+	cm, err := NewControllerManager(ctx, &wg, &cfg, log)
+	if err != nil {
+		log.Fatalf("could not create controller manager: %v", err)
+	}
+	err = cm.StartControllers()
+	if err != nil {
+		log.Fatalf("could not start controllers: %v", err)
+	}
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
