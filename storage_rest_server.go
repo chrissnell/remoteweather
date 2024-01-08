@@ -19,9 +19,10 @@ import (
 )
 
 type WeatherSiteConfig struct {
-	StationName      string        `yaml:"station_name,omitempty"`
-	PageTitle        string        `yaml:"page_title,omitempty"`
-	AboutStationHTML template.HTML `yaml:"about_station_html,omitempty"`
+	StationName      string        `yaml:"station-name,omitempty"`
+	PullFromDevice   string        `yaml:"pull-from-device,omitempty"`
+	PageTitle        string        `yaml:"page-title,omitempty"`
+	AboutStationHTML template.HTML `yaml:"about-station-html,omitempty"`
 }
 
 // RESTServerConfig describes the YAML-provided configuration for a REST
@@ -30,8 +31,8 @@ type RESTServerConfig struct {
 	Cert              string            `yaml:"cert,omitempty"`
 	Key               string            `yaml:"key,omitempty"`
 	Port              int               `yaml:"port,omitempty"`
-	ListenAddr        string            `yaml:"listen_addr,omitempty"`
-	WeatherSiteConfig WeatherSiteConfig `yaml:"weather_site,omitempty"`
+	ListenAddr        string            `yaml:"listen-addr,omitempty"`
+	WeatherSiteConfig WeatherSiteConfig `yaml:"weather-site,omitempty"`
 }
 
 // RESTServerStorage implements a REST server storage backend
@@ -43,6 +44,7 @@ type RESTServerStorage struct {
 	DBEnabled         bool
 	FS                *fs.FS
 	WeatherSiteConfig *WeatherSiteConfig
+	Devices           []DeviceConfig
 }
 
 type WeatherReading struct {
@@ -145,6 +147,8 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 
 	r := new(RESTServerStorage)
 
+	r.Devices = c.Devices
+
 	// If a ListenAddr was not provided, listen on all interfaces
 	if c.Storage.RESTServer.ListenAddr == "" {
 		log.Info("rest.listen_addr not provided; defaulting to 0.0.0.0 (all interfaces)")
@@ -155,6 +159,14 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 		r.WeatherSiteConfig = &c.Storage.RESTServer.WeatherSiteConfig
 	}
 
+	if c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice == "" {
+		return &RESTServerStorage{}, fmt.Errorf("pull-from-device must be set")
+	} else {
+		if !r.validatePullFromStation(c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice) {
+			return &RESTServerStorage{}, fmt.Errorf("pull-from-device %v is not a valid station name", c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice)
+		}
+	}
+
 	fs, _ := fs.Sub(fs.FS(content), "assets")
 	r.FS = &fs
 
@@ -162,6 +174,7 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
 	router.HandleFunc("/latest", r.getWeatherLatest)
 	router.HandleFunc("/", r.serveIndexTemplate)
+	router.HandleFunc("/js/remoteweather.js", r.serveJS)
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
 
 	r.Server.Addr = fmt.Sprintf("%v:%v", c.Storage.RESTServer.ListenAddr, c.Storage.RESTServer.Port)
@@ -205,10 +218,10 @@ func (r *RESTServerStorage) serveIndexTemplate(w http.ResponseWriter, req *http.
 	}
 }
 
-func (r *RESTServerStorage) serveAboutTemplate(w http.ResponseWriter, req *http.Request) {
-	view := template.Must(template.New("about.html.tmpl").ParseFS(*r.FS, "about.html.tmpl"))
+func (r *RESTServerStorage) serveJS(w http.ResponseWriter, req *http.Request) {
+	view := template.Must(template.New("remoteweather.js.tmpl").ParseFS(*r.FS, "remoteweather.js.tmpl"))
 
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/javascript")
 	err := view.Execute(w, r.WeatherSiteConfig)
 	if err != nil {
 		log.Error("error executing template:", err)
@@ -448,6 +461,17 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 		StationBatteryVoltage: float32ToJSONNumber(latest.StationBatteryVoltage),
 	}
 	return &reading
+}
+
+func (r *RESTServerStorage) validatePullFromStation(pullFromDevice string) bool {
+	if len(r.Devices) > 0 {
+		for _, station := range r.Devices {
+			if station.Name == pullFromDevice {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func float32ToJSONNumber(f float32) json.Number {

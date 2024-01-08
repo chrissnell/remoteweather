@@ -146,7 +146,7 @@ function clearCharts(element) {
 }
 
 async function fetchAndCreateCharts(tabKey) {
-    const result = await fetch('/span/' + tabList[tabKey].spanHours + 'h?station=CSI');
+    const result = await fetch('/span/' + tabList[tabKey].spanHours + 'h?station={{ .PullFromDevice }}');
     if (result.ok) {
         console.log(tabList[tabKey].spanHours, "of data fetched for", tabList[tabKey].graphDivSuffix)
         const data = await result.json();
@@ -194,7 +194,7 @@ async function markAsRendered(chart) {
 */
 async function refreshData() {
     console.log("Fetching latest data...")
-    const result = await fetch('/latest?station=CSI');
+    const result = await fetch('/latest?station={{ .PullFromDevice }}');
     if (result.ok) {
         const data = await result.json();
         const ts = data.ts;
@@ -226,7 +226,7 @@ async function refreshData() {
 
 async function refreshWindDirectionData() {
     console.log("Fetching latest wind direction data...")
-    const result = await fetch('/latest?station=CSI');
+    const result = await fetch('/latest?station={{ .PullFromDevice }}');
     if (result.ok) {
         const data = await result.json();
         const ts = data.ts;
@@ -248,7 +248,7 @@ async function refreshWindDirectionData() {
  */
 async function refreshLiveReadings() {
     console.log("Fetching live data...")
-    const result = await fetch('/latest?station=CSI');
+    const result = await fetch('/latest?station={{ .PullFromDevice }}');
     if (result.ok) {
         const data = await result.json();
         const ts = data.ts;
