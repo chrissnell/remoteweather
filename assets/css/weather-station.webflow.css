@@ -36,6 +36,7 @@ a {
 .tab-link {
   background-color: #fdf0d5;
   font-family: Inconsolata, monospace;
+  display: inline-block;
 }
 
 .tab-link.w--current {
@@ -60,6 +61,7 @@ a {
   font-family: Impact, Haettenschweiler, Franklin Gothic Bold, Charcoal, sans-serif;
   font-style: normal;
   font-weight: 400;
+  display: block;
 }
 
 .tabs-content {
@@ -93,8 +95,16 @@ a {
 }
 
 .measurements-container {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  grid-template: "Area Area-2 Area-3 Area-4 Area-5"
+                 ". . . . ."
+                 / 1fr 1fr 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
   margin-top: 25px;
   margin-bottom: 10px;
+  display: grid;
   position: static;
   overflow: visible;
 }
@@ -104,7 +114,7 @@ a {
   text-transform: none;
   text-shadow: none;
   font-family: Courgette, sans-serif;
-  font-size: 45px;
+  font-size: 54px;
   font-weight: 500;
 }
 
@@ -117,7 +127,12 @@ a {
   align-items: center;
   margin-left: 35px;
   margin-right: 35px;
-  display: flex;
+  font-family: Inconsolata, monospace;
+  display: block;
+}
+
+.measurement.textwind {
+  display: none;
 }
 
 .tabs-menu {
@@ -140,23 +155,28 @@ a {
   display: flex;
 }
 
-.measurement-part.measurement-value, .text-block {
+.measurement-part.measurement-value {
   width: 68%;
   height: 100%;
 }
 
+.text-block {
+  width: 0%;
+  height: auto;
+}
+
 .text-block.measurement-part {
-  width: 75%;
-  height: 110px;
+  width: 0%;
+  height: 0;
   float: right;
   clear: none;
   text-align: center;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
   font-family: Inconsolata, monospace;
   font-size: 30px;
   font-weight: 400;
-  display: flex;
+  display: block;
   position: static;
 }
 
@@ -170,7 +190,7 @@ a {
 }
 
 .windrose-box.measurement-part {
-  width: 75%;
+  width: 100%;
   height: 110px;
   float: right;
   justify-content: flex-start;
@@ -282,7 +302,7 @@ a {
 .div-block-3 {
   width: 110px;
   height: 110px;
-  flex-direction: column;
+  flex-flow: column;
   justify-content: center;
   align-items: center;
   display: flex;
@@ -332,33 +352,149 @@ a {
   display: block;
 }
 
-.temperaturegraph, .humiditygraph, .barometergraph, .windspeedgraph {
+.temperaturechart, .humiditychart, .barometerchart, .windspeedchart {
   height: 400px;
   border: 1px #000;
   padding-top: 10px;
 }
 
-.winddirectiongraph {
+.winddirectionchart {
   height: 150px;
   border: 1px #000;
   padding-top: 10px;
   padding-left: 30px;
 }
 
-.rainfallgraph {
+.rainfallchart {
   height: 400px;
   border: 1px #000;
   padding-top: 10px;
 }
 
+.text-block-3 {
+  aspect-ratio: auto;
+  text-align: left;
+}
+
+.text-block-4 {
+  text-align: center;
+}
+
+.text-block-5 {
+  font-size: 48px;
+}
+
+.text-block-5.readingvalue, .text-block-6 {
+  text-align: center;
+  padding-top: 13px;
+  font-size: 32px;
+}
+
+.text-block-7, .text-block-8 {
+  padding-top: 13px;
+  font-size: 32px;
+}
+
+.text-block-9 {
+  text-align: center;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.text-block-9.labeltextwind {
+  display: none;
+}
+
+.text-block-10, .text-block-11 {
+  text-align: center;
+}
+
+.windrosecontainer {
+  justify-content: center;
+  align-items: center;
+  margin-left: 35px;
+  margin-right: 35px;
+  font-family: Inconsolata, monospace;
+  display: block;
+}
+
+.readingval {
+  text-align: center;
+  padding-top: 11px;
+  font-size: 32px;
+}
+
+.readingval.valtextwind {
+  display: none;
+}
+
+.solarwattschart, .voltagechart {
+  height: 400px;
+  border: 1px #000;
+  padding-top: 10px;
+}
+
+.readingdescsubtitle {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.readingdescsubtitle.labeltextwind {
+  display: none;
+}
+
+.readingdescsubtitle-copy {
+  text-align: center;
+}
+
+.readingdescsubtitle-copy.labeltextwind {
+  display: none;
+}
+
+.text-block-9-copy {
+  text-align: center;
+}
+
+.text-block-9-copy.labeltextwind {
+  display: none;
+}
+
+.html-embed {
+  min-height: 1200px;
+  padding-bottom: 0;
+  font-family: Inconsolata, monospace;
+}
+
 @media screen and (max-width: 991px) {
   .header {
+    font-size: 54px;
     font-weight: 700;
   }
 
   .measurement {
     margin-left: 15px;
     margin-right: 15px;
+    display: block;
+  }
+
+  .measurement.textwind {
+    display: none;
+  }
+
+  .text-block-9 {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .windrosecontainer {
+    margin-left: 15px;
+    margin-right: 15px;
+  }
+
+  .readingval {
+    text-align: center;
+    padding-top: 21px;
+    font-size: 32px;
   }
 }
 
@@ -378,6 +514,8 @@ a {
   }
 
   .measurements-container {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-areas: "Area Area-2 Area-3 Area-4";
     margin-top: 9px;
     padding-top: 0;
   }
@@ -385,12 +523,13 @@ a {
   .header {
     margin-top: 0;
     margin-bottom: 0;
-    font-size: 30px;
+    font-size: 35px;
   }
 
   .measurement {
-    height: 40px;
-    margin-left: 25px;
+    height: 80px;
+    margin-left: 10px;
+    display: block;
   }
 
   .measurement-part.measurement-icon {
@@ -419,6 +558,11 @@ a {
     height: 40px;
     flex: 1;
     padding-left: 7px;
+  }
+
+  .windrose-box-container {
+    height: 50px;
+    display: flex;
   }
 
   .title-box {
@@ -455,21 +599,72 @@ a {
   .div-block-3 {
     height: 40px;
     flex-direction: row;
+    display: none;
   }
 
   .tab-pane {
     margin-left: 5px;
     margin-right: 5px;
   }
+
+  .text-block-4 {
+    font-weight: 700;
+  }
+
+  .text-block-5.readingvalue {
+    text-align: center;
+    font-size: 30px;
+    font-weight: 700;
+  }
+
+  .text-block-6 {
+    font-size: 30px;
+    font-weight: 700;
+  }
+
+  .text-block-7, .text-block-8 {
+    text-align: center;
+    font-size: 30px;
+    font-weight: 700;
+  }
+
+  .text-block-9 {
+    font-size: 21px;
+    font-weight: 700;
+  }
+
+  .text-block-10, .text-block-11 {
+    font-weight: 700;
+  }
+
+  .windrosecontainer {
+    height: 40px;
+    margin-left: 25px;
+    display: none;
+  }
+
+  .readingval {
+    padding-top: 16px;
+    font-size: 26px;
+  }
+
+  .readingdescsubtitle, .readingdescsubtitle-copy, .text-block-9-copy {
+    font-weight: 700;
+  }
 }
 
 @media screen and (max-width: 479px) {
+  .container {
+    display: block;
+  }
+
   .tab-link {
     border-top: 1px solid rgba(0, 0, 0, 0);
     border-bottom: 1px solid rgba(0, 0, 0, 0);
     padding-top: 3px;
     padding-bottom: 3px;
     padding-left: 30px;
+    display: block;
   }
 
   .tab-link.w--current {
@@ -477,10 +672,13 @@ a {
     border-style: dotted none;
     padding-top: 3px;
     padding-bottom: 3px;
+    display: block;
   }
 
   .tab-link.about-tab {
-    display: none;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    display: block;
   }
 
   .tab-link.graph-timespan-tab {
@@ -496,9 +694,16 @@ a {
   }
 
   .measurements-container {
+    min-height: 29px;
+    grid-column-gap: 0px;
+    grid-row-gap: 0px;
     border-top: 2px solid #000;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-auto-flow: row;
     margin-top: 0;
     margin-bottom: 0;
+    padding-left: 7px;
+    padding-right: 7px;
   }
 
   .header {
@@ -511,16 +716,26 @@ a {
     align-items: center;
     margin-top: 0;
     margin-bottom: 0;
-    font-size: 22px;
+    font-size: 23px;
     font-weight: 700;
     line-height: 30px;
     display: flex;
   }
 
   .measurement {
-    height: 40px;
+    height: 85px;
+    border: 1px #000;
+    border-right: .5px solid #000;
     margin-left: 0;
+    margin-right: 0;
     padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    font-size: 14px;
+  }
+
+  .measurement.textwind, .tabs-menu {
+    display: block;
   }
 
   .measurement-part.measurement-icon {
@@ -608,6 +823,131 @@ a {
   .tab-pane-2, .tab-pane-3, .tab-pane-4, .tab-pane-5 {
     padding-left: 5px;
     padding-right: 5px;
+  }
+
+  .text-block-4 {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .text-block-5.readingvalue {
+    height: auto;
+    float: none;
+    clear: none;
+    text-align: center;
+    padding-top: 7px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 15px;
+  }
+
+  .text-block-6, .text-block-7, .text-block-8 {
+    padding-top: 7px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .text-block-9 {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .text-block-9.labeltextwind {
+    display: block;
+  }
+
+  .text-block-10, .text-block-11 {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .windrosecontainer {
+    height: 40px;
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+
+  .readingval {
+    text-align: center;
+    padding-top: 9px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .readingval.valtextwind {
+    padding-top: 0;
+    line-height: 18px;
+    display: block;
+  }
+
+  .readingdescsubtitle {
+    padding-left: 0;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .readingdescsubtitle.labeltextwind {
+    display: block;
+  }
+
+  .readingdescsubtitle.windcombinedsubtitle {
+    padding-top: 1px;
+  }
+
+  .readingdescsubtitle-copy {
+    padding-left: 0;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .readingdescsubtitle-copy.labeltextwind {
+    display: block;
+  }
+
+  .text-block-9-copy {
+    padding-left: 0;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .text-block-9-copy.labeltextwind, .tabs {
+    display: block;
+  }
+}
+
+#w-node-_2048ad13-2154-ab04-8572-45d15c4ae103-df4994b6, #w-node-b093136f-4660-fb30-3e50-92bcfd824686-df4994b6 {
+  grid-area: Area;
+  align-self: center;
+  justify-self: center;
+}
+
+#w-node-_2048ad13-2154-ab04-8572-45d15c4ae0e2-df4994b6, #w-node-_2048ad13-2154-ab04-8572-45d15c4ae0f0-df4994b6, #w-node-_2048ad13-2154-ab04-8572-45d15c4ae0e9-df4994b6 {
+  align-self: center;
+  justify-self: center;
+}
+
+@media screen and (max-width: 479px) {
+  #w-node-_2048ad13-2154-ab04-8572-45d15c4ae103-df4994b6 {
+    grid-area: 1 / 1 / 2 / 2;
+    align-self: center;
+    justify-self: stretch;
+  }
+
+  #w-node-b093136f-4660-fb30-3e50-92bcfd824686-df4994b6 {
+    grid-area: 1 / 2 / 2 / 3;
+    align-self: center;
+    justify-self: stretch;
+  }
+
+  #w-node-_2048ad13-2154-ab04-8572-45d15c4ae0e2-df4994b6 {
+    align-self: center;
+    justify-self: stretch;
+  }
+
+  #w-node-_2048ad13-2154-ab04-8572-45d15c4ae0f0-df4994b6, #w-node-_2048ad13-2154-ab04-8572-45d15c4ae0e9-df4994b6 {
+    justify-self: stretch;
   }
 }
 
