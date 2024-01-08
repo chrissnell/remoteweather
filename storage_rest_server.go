@@ -19,8 +19,9 @@ import (
 )
 
 type WeatherSiteConfig struct {
-	StationName string `yaml:"station_name,omitempty"`
-	PageTitle   string `yaml:"page_title,omitempty"`
+	StationName      string        `yaml:"station_name,omitempty"`
+	PageTitle        string        `yaml:"page_title,omitempty"`
+	AboutStationHTML template.HTML `yaml:"about_station_html,omitempty"`
 }
 
 // RESTServerConfig describes the YAML-provided configuration for a REST
@@ -160,16 +161,8 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	router := mux.NewRouter()
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
 	router.HandleFunc("/latest", r.getWeatherLatest)
-
 	router.HandleFunc("/", r.serveIndexTemplate)
-	router.HandleFunc("/index.html.tmpl", r.serveIndexTemplate)
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
-	// works
-	// router.NotFoundHandler = http.FileServer(http.FS(*r.FS))
-
-	// works
-	// router.HandleFunc("/", r.serveIndexTemplate)
-	// router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
 
 	r.Server.Addr = fmt.Sprintf("%v:%v", c.Storage.RESTServer.ListenAddr, c.Storage.RESTServer.Port)
 
@@ -203,6 +196,17 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 
 func (r *RESTServerStorage) serveIndexTemplate(w http.ResponseWriter, req *http.Request) {
 	view := template.Must(template.New("index.html.tmpl").ParseFS(*r.FS, "index.html.tmpl"))
+
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, r.WeatherSiteConfig)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
+}
+
+func (r *RESTServerStorage) serveAboutTemplate(w http.ResponseWriter, req *http.Request) {
+	view := template.Must(template.New("about.html.tmpl").ParseFS(*r.FS, "about.html.tmpl"))
 
 	w.Header().Set("Content-Type", "text/html")
 	err := view.Execute(w, r.WeatherSiteConfig)
@@ -252,15 +256,6 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 
 		spanStart := time.Now().Add(-span)
 
-		// switch {
-		// case span < 2*Day:
-		// 	r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
-		// case (span >= 2*Day) && (span <= 2*Month):
-		// 	r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
-		// default:
-		// 	r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
-		// }
-
 		switch {
 		case span < 1*Day:
 			if stationName != "" {
@@ -268,17 +263,23 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 			} else {
 				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
 			}
-		case (span >= 1*Day) && (span <= 2*Month):
+		case (span >= 1*Day) && (span < 7*Day):
 			if stationName != "" {
 				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
 			} else {
 				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
 			}
-		default:
+		case (span >= 7*Day) && (span < 2*Month):
 			if stationName != "" {
 				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
 			} else {
 				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+			}
+		default:
+			if stationName != "" {
+				r.DB.Table("weather_1d").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+			} else {
+				r.DB.Table("weather_1d").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
 			}
 		}
 
@@ -396,7 +397,6 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 	} else {
 		return &WeatherReading{}
 	}
-	log.Infof("ts: %v", latest.Timestamp.UnixMilli())
 	reading := WeatherReading{
 		StationName:           latest.StationName,
 		ReadingTimestamp:      latest.Timestamp.UnixMilli(),
