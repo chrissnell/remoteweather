@@ -5,10 +5,12 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"html/template"
+	htmltemplate "html/template"
 	"io/fs"
 	"net/http"
+	"regexp"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,10 +21,10 @@ import (
 )
 
 type WeatherSiteConfig struct {
-	StationName      string        `yaml:"station-name,omitempty"`
-	PullFromDevice   string        `yaml:"pull-from-device,omitempty"`
-	PageTitle        string        `yaml:"page-title,omitempty"`
-	AboutStationHTML template.HTML `yaml:"about-station-html,omitempty"`
+	StationName      string            `yaml:"station-name,omitempty"`
+	PullFromDevice   string            `yaml:"pull-from-device,omitempty"`
+	PageTitle        string            `yaml:"page-title,omitempty"`
+	AboutStationHTML htmltemplate.HTML `yaml:"about-station-html,omitempty"`
 }
 
 // RESTServerConfig describes the YAML-provided configuration for a REST
@@ -37,14 +39,15 @@ type RESTServerConfig struct {
 
 // RESTServerStorage implements a REST server storage backend
 type RESTServerStorage struct {
-	ClientChans       []chan Reading
-	ClientChanMutex   sync.RWMutex
-	Server            http.Server
-	DB                *gorm.DB
-	DBEnabled         bool
-	FS                *fs.FS
-	WeatherSiteConfig *WeatherSiteConfig
-	Devices           []DeviceConfig
+	ClientChans         []chan Reading
+	ClientChanMutex     sync.RWMutex
+	Server              http.Server
+	DB                  *gorm.DB
+	DBEnabled           bool
+	FS                  *fs.FS
+	WeatherSiteConfig   *WeatherSiteConfig
+	Devices             []DeviceConfig
+	AerisWeatherEnabled bool
 }
 
 type WeatherReading struct {
@@ -110,37 +113,6 @@ var (
 	content embed.FS
 )
 
-// StartStorageEngine creates a goroutine loop to receive readings and send
-// them off to our gRPC clients
-func (r *RESTServerStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Info("starting REST server storage engine...")
-	readingChan := make(chan Reading)
-	go r.processMetrics(ctx, wg, readingChan)
-	return readingChan
-}
-
-func (r *RESTServerStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
-	wg.Add(1)
-	defer wg.Done()
-
-	for {
-		select {
-		case reading := <-rchan:
-			r.ClientChanMutex.RLock()
-			// Send the Reading we just received to all client channels.
-			// If there are no clients connected, it gets discarded.
-			for _, v := range r.ClientChans {
-				v <- reading
-			}
-			r.ClientChanMutex.RUnlock()
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling readings processor.")
-			r.Server.Shutdown(context.Background())
-			return
-		}
-	}
-}
-
 // NewRESTServerStorage sets up a new REST server storage backend
 func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, error) {
 	var err error
@@ -148,6 +120,14 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	r := new(RESTServerStorage)
 
 	r.Devices = c.Devices
+
+	// Look to see if the Aeris Weather controller has been configured.
+	// If we've configured it, we will enable the /forecast endpoint later on.
+	for _, con := range c.Controllers {
+		if con.Type == "aerisweather" {
+			r.AerisWeatherEnabled = true
+		}
+	}
 
 	// If a ListenAddr was not provided, listen on all interfaces
 	if c.Storage.RESTServer.ListenAddr == "" {
@@ -173,6 +153,10 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	router := mux.NewRouter()
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
 	router.HandleFunc("/latest", r.getWeatherLatest)
+	// We only enable the /forecast endpoint if Aeris Weather has been configured.
+	if r.AerisWeatherEnabled {
+		router.HandleFunc("/forecast/{span}", r.getForecast)
+	}
 	router.HandleFunc("/", r.serveIndexTemplate)
 	router.HandleFunc("/js/remoteweather.js", r.serveJS)
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
@@ -207,8 +191,39 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	return r, nil
 }
 
+// StartStorageEngine creates a goroutine loop to receive readings and send
+// them off to our gRPC clients
+func (r *RESTServerStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+	log.Info("starting REST server storage engine...")
+	readingChan := make(chan Reading)
+	go r.processMetrics(ctx, wg, readingChan)
+	return readingChan
+}
+
+func (r *RESTServerStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+	wg.Add(1)
+	defer wg.Done()
+
+	for {
+		select {
+		case reading := <-rchan:
+			r.ClientChanMutex.RLock()
+			// Send the Reading we just received to all client channels.
+			// If there are no clients connected, it gets discarded.
+			for _, v := range r.ClientChans {
+				v <- reading
+			}
+			r.ClientChanMutex.RUnlock()
+		case <-ctx.Done():
+			log.Info("cancellation request recieved.  Cancelling readings processor.")
+			r.Server.Shutdown(context.Background())
+			return
+		}
+	}
+}
+
 func (r *RESTServerStorage) serveIndexTemplate(w http.ResponseWriter, req *http.Request) {
-	view := template.Must(template.New("index.html.tmpl").ParseFS(*r.FS, "index.html.tmpl"))
+	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*r.FS, "index.html.tmpl"))
 
 	w.Header().Set("Content-Type", "text/html")
 	err := view.Execute(w, r.WeatherSiteConfig)
@@ -341,6 +356,44 @@ func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Re
 
 		w.Write(jsonResponse)
 	}
+}
+
+func (r *RESTServerStorage) getForecast(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	span := vars["span"]
+	if span == "" {
+		log.Errorf("invalid request: missing span duration")
+		http.Error(w, "error: missing span duration", 400)
+		return
+	}
+
+	// 'span' must be between 1 and 4 digits and nothing else
+	re := regexp.MustCompile(`^\d{1,4}$`)
+	if !re.MatchString(span) {
+		log.Errorf("span %v is invalid", span)
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	location := req.URL.Query().Get("location")
+
+	record := AerisWeatherForecastRecord{}
+
+	var result *gorm.DB
+	if location != "" {
+		result = r.DB.Where("forecast_span_hours = ? AND location = ?", span, location).First(&record)
+	} else {
+		result = r.DB.Where("forecast_span_hours = ?", span).First(&record)
+	}
+	if result.RowsAffected == 0 {
+		log.Errorf("no forecast records found for span %v", span)
+		w.WriteHeader(http.StatusNotFound)
+	}
+
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{\"lastUpdated\": \"" + record.UpdatedAt.String() + "\", \"data\": "))
+	w.Write(record.Data.Bytes)
+	w.Write([]byte("}"))
 }
 
 func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) []*WeatherReading {
