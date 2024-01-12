@@ -21,7 +21,7 @@ type WeatherUndergroundController struct {
 	config   *Config
 	wuconfig WeatherUndergroundConfig
 	logger   *zap.SugaredLogger
-	fetcher  *TimescaleDBFetcher
+	DB       *TimescaleDBClient
 }
 
 // WeatherUndergroundconfig holds configuration for this controller
@@ -67,13 +67,13 @@ func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c 
 		wuc.wuconfig.UploadInterval = "60"
 	}
 
-	wuc.fetcher = NewTimescaleDBFetcher(c, logger)
+	wuc.DB = NewTimescaleDBClient(c, logger)
 
-	if !wuc.fetcher.validatePullFromStation(wuc.wuconfig.PullFromDevice) {
+	if !wuc.DB.validatePullFromStation(wuc.wuconfig.PullFromDevice) {
 		return &WeatherUndergroundController{}, fmt.Errorf("pull-from-device %v is not a valid station name", wuc.wuconfig.PullFromDevice)
 	}
 
-	err := wuc.fetcher.connectToTimescaleDB(c.Storage)
+	err := wuc.DB.connectToTimescaleDB(c.Storage)
 	if err != nil {
 		return &WeatherUndergroundController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
@@ -102,7 +102,7 @@ func (p *WeatherUndergroundController) sendPeriodicReports() {
 		select {
 		case <-ticker.C:
 			log.Debug("Sending reading to PWS Weather...")
-			br, err := p.fetcher.getReadingsFromTimescaleDB(p.wuconfig.PullFromDevice)
+			br, err := p.DB.getReadingsFromTimescaleDB(p.wuconfig.PullFromDevice)
 			if err != nil {
 				log.Info("error getting readings from TimescaleDB:", err)
 			}
