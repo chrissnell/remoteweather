@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-type TimescaleDBFetcher struct {
+type TimescaleDBClient struct {
 	config *Config
 	logger *zap.SugaredLogger
 	db     *gorm.DB
@@ -56,8 +56,8 @@ type FetchedBucketReading struct {
 	StationBatteryVoltage float32    `gorm:"column:stationbatteryvoltage"`
 }
 
-func NewTimescaleDBFetcher(c *Config, logger *zap.SugaredLogger) *TimescaleDBFetcher {
-	return &TimescaleDBFetcher{
+func NewTimescaleDBClient(c *Config, logger *zap.SugaredLogger) *TimescaleDBClient {
+	return &TimescaleDBClient{
 		config: c,
 		logger: logger,
 	}
@@ -68,7 +68,7 @@ func (FetchedBucketReading) TableName() string {
 	return "weather_1m"
 }
 
-func (t *TimescaleDBFetcher) connectToTimescaleDB(s StorageConfig) error {
+func (t *TimescaleDBClient) connectToTimescaleDB(s StorageConfig) error {
 
 	var err error
 
@@ -98,7 +98,7 @@ func (t *TimescaleDBFetcher) connectToTimescaleDB(s StorageConfig) error {
 	return nil
 }
 
-func (p *TimescaleDBFetcher) getReadingsFromTimescaleDB(pullFromDevice string) (FetchedBucketReading, error) {
+func (p *TimescaleDBClient) getReadingsFromTimescaleDB(pullFromDevice string) (FetchedBucketReading, error) {
 	var br FetchedBucketReading
 
 	if err := p.db.Table("weather_1m").Where("stationname=? AND bucket > NOW() - INTERVAL '2 minutes'", pullFromDevice).Limit(1).Find(&br).Error; err != nil {
@@ -108,7 +108,7 @@ func (p *TimescaleDBFetcher) getReadingsFromTimescaleDB(pullFromDevice string) (
 	return br, nil
 }
 
-func (t *TimescaleDBFetcher) validatePullFromStation(pullFromDevice string) bool {
+func (t *TimescaleDBClient) validatePullFromStation(pullFromDevice string) bool {
 	if len(t.config.Devices) > 0 {
 		for _, station := range t.config.Devices {
 			if station.Name == pullFromDevice {
