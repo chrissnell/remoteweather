@@ -1,5 +1,5 @@
 let humidityChart, temperatureChart, barometerChart, windspeedChart, winddirectionChart, rainfallChart, solarwattsChart, voltageChart;
-let dataRefresherTimer, windDataRefresherTimer;
+let dataRefresherTimer, windDataRefresherTimer, forecastRefresherTimer;
 
 let tabList = {
     "day": {
@@ -123,7 +123,6 @@ let chartList = {
 
 document.addEventListener('DOMContentLoaded', function () {
     fetchAndCreateCharts("day");
-
     for (let key in tabList) {
         var e = document.getElementById(tabList[key].elementIdVal);
         e.addEventListener("click", function (e) {
@@ -132,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
         })
     }
     refreshLiveReadings();
+    refreshForecastData();
 });
 
 function clearCharts(element) {
@@ -177,7 +177,7 @@ async function fetchAndCreateCharts(tabKey) {
             }
         }
         refreshData();
-        refreshWindDirectionData();    
+        refreshWindDirectionData();
         console.log('DOM fully loaded and parsed');
     }
 }
@@ -242,7 +242,6 @@ async function refreshWindDirectionData() {
     windDataRefresherTimer = setTimeout(refreshData, 1800000);
 }
 
-
 /**
  * Refreshes the live weather readings at the top of the page every 3 seconds
  */
@@ -253,16 +252,91 @@ async function refreshLiveReadings() {
         const data = await result.json();
         const ts = data.ts;
 
-        document.getElementById("rdg-temperature").innerHTML = data.otemp.toFixed(2);
+        document.getElementById("rdg-temperature").innerHTML = data.otemp.toFixed(2) + '&deg;';
         document.getElementById("rdg-humidity").innerHTML = data.outhumidity.toFixed(0);
         document.getElementById("rdg-barometer").innerHTML = data.bar.toFixed(2);
         document.getElementById("rdg-windspeed").innerHTML = data.winds.toFixed(0);
         document.getElementById("rdg-winddir-cardinal").innerHTML = data.windcard;
         document.getElementById("rdg-winddir").style.transform = 'rotate(' + data.windd + 'deg)';
-        document.getElementById("rdg-windandcardinal").innerHTML = data.winds.toFixed(0) + "<br>" + data.windcard;
+        document.getElementById("rdg-combined-windspeed").innerHTML = data.winds.toFixed(0)
+        document.getElementById("rdg-combined-cardinal").innerHTML = data.windcard;
         document.getElementById("rdg-rainfall").innerHTML = data.dayrain.toFixed(2);
     }
     setTimeout(refreshLiveReadings, 3000);
+}
+
+async function refreshForecastData() {
+    console.log("Fetching forecast data...");
+    const result = await fetch('/forecast/168');
+    if (result.ok) {
+        const data = await result.json();
+        console.log(data)
+
+        dayToDayName = {
+            0: "Sunday",
+            1: "Monday",
+            2: "Tuesday",
+            3: "Wednesday",
+            4: "Thursday",
+            5: "Friday",
+            6: "Saturday",
+            7: "Sunday"
+        }
+
+
+
+        let i = 0;
+        for (const interval of data.data) {
+            let intervalDate = new Date(interval.dateTimeISO)
+            let dateLabel;
+            if (i == 0) {
+                dateLabel = "Today"
+            } else {
+                dateLabel = dayToDayName[intervalDate.getDay()];
+            }
+            document.getElementById('week-forecast-interval-' + i + '-title').innerHTML = dateLabel;
+            document.getElementById('week-forecast-interval-' + i + '-high-temp').innerHTML = interval.maxTempF;
+            document.getElementById('week-forecast-interval-' + i + '-low-temp').innerHTML = interval.minTempF;
+            document.getElementById('week-forecast-interval-' + i + '-icon').innerHTML = interval.weatherIcon;
+            document.getElementById('week-forecast-interval-' + i + '-weather').innerHTML = interval.compactWeather;
+
+            // Test to see if snow or rain is in the forecast
+            // See: https://www.aerisweather.com/support/docs/api/reference/weather-codes/
+            const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
+            snow = snowRegex.test(interval.weatherPrimaryCoded);
+            const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
+            rain = rainRegex.test(interval.weatherPrimaryCoded);
+
+            if (snow) {
+                console.log("snow: ", interval.snowIN);
+                document.getElementById('week-forecast-interval-' + i + '-precip-icon').innerHTML = "❄";
+                document.getElementById('week-forecast-interval-' + i + '-precip').innerHTML = interval.snowIN + "\"";
+            } else if (rain) {
+                console.log("rain: ", interval.precipIN);
+                document.getElementById('week-forecast-interval-' + i + '-precip-icon').innerHTML = "⛆";
+                document.getElementById('week-forecast-interval-' + i + '-precip').innerHTML = interval.precipIN + "\"";
+            } else {
+                console.log("no precips");
+                document.getElementById('week-forecast-interval-' + i + '-precip-icon').innerHTML = "";
+                document.getElementById('week-forecast-interval-' + i + '-precip').innerHTML = "";
+            }
+            i++;
+        }
+
+
+        const dateOptions = {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          };          
+        const dateTimeFormat = new Intl.DateTimeFormat("en-US");
+        const lastUpdated = new Date(data.lastUpdated)
+        document.getElementById('forecast-last-updated').innerHTML = "Last Updated: " + dateTimeFormat.format(lastUpdated) + " @ " + lastUpdated.toTimeString();
+
+        // Refresh every 4 hours
+        setTimeout(refreshForecastData, 1000 * 60 * 60 * 4);    
+    }
 }
 
 
