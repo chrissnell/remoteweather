@@ -38,6 +38,7 @@ type ControllerConfig struct {
 	Type               string                   `yaml:"type,omitempty"`
 	PWSWeather         PWSWeatherConfig         `yaml:"pwsweather,omitempty"`
 	WeatherUnderground WeatherUndergroundConfig `yaml:"weatherunderground,omitempty"`
+	AerisWeather       AerisWeatherConfig       `yaml:"aerisweather,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.

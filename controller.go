@@ -44,8 +44,16 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, c *Config, lo
 				return &ControllerManager{}, fmt.Errorf("error creating new PWS Weather controller: %v", err)
 			}
 			cm.Controllers = append(cm.Controllers, controller)
+		case "aerisweather":
+			log.Info("Creating Aeris Weather controller...")
+			controller, err := NewAerisWeatherController(ctx, wg, c, con.AerisWeather, logger)
+			if err != nil {
+				return &ControllerManager{}, fmt.Errorf("error creating new Aeris Weather controller: %v", err)
+			}
+			cm.Controllers = append(cm.Controllers, controller)
 
 		}
+
 	}
 
 	return &cm, nil
