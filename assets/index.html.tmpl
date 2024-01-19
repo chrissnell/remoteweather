@@ -1,6 +1,6 @@
 <!DOCTYPE html><!--  This site was created in Webflow. https://www.webflow.com  -->
-<!--  Last Published: Fri Jan 12 2024 02:51:51 GMT+0000 (Coordinated Universal Time)  -->
-<html data-wf-page="659d73b774ff6f27be3a44e2" data-wf-site="5a57fcd35a82f6000165190a">
+<!--  Last Published: Wed Jan 17 2024 04:55:01 GMT+0000 (Coordinated Universal Time)  -->
+<html data-wf-page="65a16056850de61d27c7fb7b" data-wf-site="5a57fcd35a82f6000165190a">
 <head>
   <meta charset="utf-8">
   <title>{{ .PageTitle }}</title>
@@ -27,7 +27,7 @@
   <script src="https://code.highcharts.com/modules/accessibility.js"></script>
   <script src="https://code.highcharts.com/modules/vector.js"></script>
   <script src="js/remoteweather.js" type="text/javascript"></script>
-  <script src="js/fitty.js" type="text/javascript"></script>
+  <script src="js/moment.min.js" type="text/javascript"></script>
 </head>
 <body class="body">
   <div class="title-box w-container">
@@ -42,22 +42,21 @@
     <div class="div-block-5"></div>
   </div>
   <div class="measurements-container w-container">
-    <div id="w-node-a832350d-0856-ebff-70db-652f90b0706c-be3a44e2" class="measurement">
+    <div id="w-node-a832350d-0856-ebff-70db-652f90b0706c-27c7fb7b" class="measurement">
       <div class="text-block-9">Temp</div>
       <div id="rdg-temperature" class="readingval">----</div>
       <div class="readingdescsubtitle">°F</div>
     </div>
-    <div id="w-node-a832350d-0856-ebff-70db-652f90b07073-be3a44e2" class="measurement textwind">
+    <div id="w-node-a832350d-0856-ebff-70db-652f90b07073-27c7fb7b" class="measurement textwind">
       <div class="text-block-9">Wind</div>
       <div id="rdg-combined-windspeed" class="readingval valtextwind">--</div>
       <div id="rdg-combined-cardinal" class="readingval cardinalval">---</div>
       <div class="readingdescsubtitle windcombinedsubtitle">MPH</div>
     </div>
-    <div class="windrosecontainer w-clearfix">
+    <div id="w-node-a832350d-0856-ebff-70db-652f90b0707a-27c7fb7b" class="windrosecontainer">
       <div class="windrose-box measurement-part">
         <div class="div-block-3">
           <div id="rdg-winddir-cardinal" class="wind-cardinal-dir">---</div>
-          <div class="north w-hidden-small w-hidden-tiny">N</div>
           <div id="rdg-windspeed" class="wind-speed">--</div>
           <div class="windrose-box-container">
             <div id="rdg-winddir" class="windrose-circle w-hidden-small w-hidden-tiny">
@@ -67,20 +66,29 @@
         </div>
       </div>
     </div>
-    <div id="w-node-a832350d-0856-ebff-70db-652f90b07084-be3a44e2" class="measurement">
+    <div id="w-node-a832350d-0856-ebff-70db-652f90b07084-27c7fb7b" class="measurement">
       <div class="text-block-9">Humidity</div>
       <div id="rdg-humidity" class="readingval">---</div>
       <div class="readingdescsubtitle">%</div>
     </div>
-    <div id="w-node-a832350d-0856-ebff-70db-652f90b0708b-be3a44e2" class="measurement">
+    <div id="w-node-a832350d-0856-ebff-70db-652f90b0708b-27c7fb7b" class="measurement">
       <div class="text-block-4 text-block-9">Baro</div>
       <div id="rdg-barometer" class="readingval">----</div>
       <div class="readingdescsubtitle">inches Hg</div>
     </div>
-    <div id="w-node-a832350d-0856-ebff-70db-652f90b07092-be3a44e2" class="measurement">
+    <div id="w-node-a832350d-0856-ebff-70db-652f90b07092-27c7fb7b" class="measurement">
       <div class="text-block-9">Rain</div>
       <div id="rdg-rainfall" class="readingval">----</div>
       <div class="readingdescsubtitle">inches</div>
+    </div>
+    <div id="w-node-e14fb1b5-7090-7916-4811-487f28d320e6-27c7fb7b">
+      <div class="div-block-12">
+        <div data-w-id="c8e9a387-8383-90a1-3acd-e78d855ff08b" class="div-block-11"></div>
+        <div class="live-indicator">
+          <div class="text-block-23">LIVE</div>
+        </div>
+        <div id="observations-last-updated" class="last-updated">---</div>
+      </div>
     </div>
   </div>
   <div class="w-layout-blockcontainer forecast-title w-container">
@@ -92,170 +100,741 @@
     <div class="div-block-5"></div>
   </div>
   <div class="w-layout-blockcontainer forecast-grid-container w-container">
-    <div class="w-layout-grid grid-2">
-      <div id="w-node-cc7d2cf1-67c5-0951-f17d-e67d9d998602-be3a44e2" class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-0-title">Today</div>
-          </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-0-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-0-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-0-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-0-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-0-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-0-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
-        </div>
+    <div data-current="Tab 1" data-easing="ease" data-duration-in="300" data-duration-out="100" class="tabs w-tabs">
+      <div class="tabs-menu w-tab-menu">
+        <a id="forecast-tab-week" data-w-tab="Tab 1" class="tab-link w-inline-block w-tab-link w--current">
+          <div class="text-block-22">7 Days</div>
+        </a>
+        <a data-w-tab="Tab 2" class="tab-link w-inline-block w-tab-link">
+          <div class="text-block-16">24 Hours</div>
+        </a>
       </div>
-      <div class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-1-title">Today</div>
+      <div class="w-tab-content">
+        <div data-w-tab="Tab 1" class="w-tab-pane w--tab-active">
+          <div class="w-layout-grid week-grid">
+            <div id="w-node-cc7d2cf1-67c5-0951-f17d-e67d9d998602-27c7fb7b" class="w-layout-hflex flex-block forecasttimeunit">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-0-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-0-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-0-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-0-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-0-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-0-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-0-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="w-layout-hflex flex-block forecasttimeunit">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-1-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-1-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-1-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-1-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-1-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-1-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-1-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="w-layout-hflex flex-block forecasttimeunit">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-2-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-2-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-2-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-2-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-2-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-2-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-2-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="w-layout-hflex flex-block forecasttimeunit">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-3-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-3-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-3-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-3-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-3-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-3-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-3-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="w-layout-hflex flex-block forecasttimeunit">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-4-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-4-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-4-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-4-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-4-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-4-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-4-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="w-layout-hflex flex-block forecasttimeunit">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-5-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-5-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-5-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-5-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-5-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-5-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-5-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
+            <div class="w-layout-hflex flex-block forecasttimeunit rightendcap">
+              <div class="day-forecast-unit forecastspace leftendcap">
+                <div class="div-block-8">
+                  <div id="week-forecast-interval-6-title" class="week-day-title">--</div>
+                </div>
+                <div class="week-forecast-icon-div">
+                  <div id="week-forecast-interval-6-icon" class="week-forecast-icon">--</div>
+                </div>
+                <div class="week-forecast-description">
+                  <div id="week-forecast-interval-6-weather" class="text-block-13 forecasttext">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div class="forecasttempquadrant uparrow">↑</div>
+                  <div id="week-forecast-interval-6-high-temp" class="forecasttempquadrant hightemp">--</div>
+                  <div class="forecasttempquadrant downarrow">↓</div>
+                  <div id="week-forecast-interval-6-low-temp" class="forecasttempquadrant lowtemp">--</div>
+                </div>
+                <div class="div-block-9">
+                  <div id="week-forecast-interval-6-precip-icon" class="text-block-13 forecastprecipicon">--</div>
+                  <div id="week-forecast-interval-6-precip" class="text-block-13 precipmeasurement">--</div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-1-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-1-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-1-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-1-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-1-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-1-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
+          <div id="forecast-week-last-updated" class="last-updated">---</div>
         </div>
-      </div>
-      <div class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-2-title">Today</div>
+        <div data-w-tab="Tab 2" class="tab-pane-tab-2 w-tab-pane">
+          <div class="w-layout-grid grid-2">
+            <div id="w-node-_2c1eb502-b156-2fbf-5c0a-4c63612b8ca5-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-0-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-0-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-0-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-0-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-0-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-0-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_0ab7a5de-59ed-bf53-dfdf-f98eb2f788ca-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-1-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-1-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-1-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-1-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-1-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-1-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_6f0e9ec9-96bd-3fc4-723c-fb9a4b67d802-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-2-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-2-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-2-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-2-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-2-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-2-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-dab3185b-88df-0b04-34c2-be25aaa49c8a-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-3-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-3-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-3-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-3-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-3-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-3-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-fe4488fb-68c1-5f72-9355-771419263db4-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-4-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-4-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-4-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-4-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-4-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-4-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_1059ec83-94b6-d33c-64f0-7b24304aa14f-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-5-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-5-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-5-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-5-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-5-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-5-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_25923d12-0cd1-de4c-9f77-070dd40ea9b0-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-6-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-6-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-6-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-6-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-6-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-6-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-af68f876-4545-1046-8098-5a0ce288f701-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-7-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-7-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-7-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-7-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-7-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-7-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_56da4360-4406-23ed-88b8-27d6e275ffd4-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-8-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-8-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-8-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-8-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-8-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-8-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_45007a18-91c3-519a-fdbc-166463b6786f-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-9-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-9-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-9-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-9-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-9-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-9-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_949d487d-f277-92e5-5af2-e596deee44f2-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-10-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-10-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-10-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-10-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-10-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-10-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_3f9444d9-b32c-a0f1-b896-0498fd2973cd-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-11-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-11-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-11-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-11-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-11-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-11-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-bb360e9f-8695-866e-208a-3180dc9dc217-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-12-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-12-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-12-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-12-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-12-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-12-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_22db661d-40e6-3e13-8c2f-47357b2e62f5-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-13-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-13-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-13-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-13-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-13-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-13-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_1c623e47-dc53-09cb-a214-97bd641ffcd2-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-14-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-14-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-14-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-14-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-14-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-14-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_010cf6d3-380a-4f61-ef22-4404cd2b35ba-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-15-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-15-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-15-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-15-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-15-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-15-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_4f66febd-31dc-69a6-5c3a-684788e0b457-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-16-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-16-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-16-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-16-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-16-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-16-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-cbc0b06d-bf92-790e-e00b-1b0a9e35aa02-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-17-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-17-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-17-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-17-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-17-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-17-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_8ad5078e-71bc-ec4b-7240-4c441a971fca-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-18-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-18-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-18-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-18-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-18-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-18-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-c80a1420-286f-236d-66a0-6e0bd71f341d-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-19-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-19-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-19-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-19-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-19-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-19-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_69a255c2-8a99-e8df-7119-38d86ba26ee9-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-20-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-20-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-20-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-20-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-20-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-20-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_72173746-41f1-ff8e-1b6c-0cb726ffea18-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-21-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-21-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-21-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-21-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-21-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-21-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_7a97656c-2ea1-35c0-4a6a-2b132b352b48-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-22-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-22-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-22-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-22-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-22-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-22-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="w-node-_6813ccd7-20af-85eb-4721-f4810d57aa01-27c7fb7b" class="w-layout-hflex flex-block day-forecast-period-block">
+              <div class="day-forecast-unit day-forecast-space day-forecast-period-block-sub">
+                <div>
+                  <div class="day-period-title-container">
+                    <div id="day-forecast-interval-23-title" class="day-period-title">--</div>
+                  </div>
+                </div>
+                <div id="day-forecast-interval-23-adjustable-div" class="div-block-10">
+                  <div class="day-period-icon-container">
+                    <div id="day-forecast-interval-23-icon" class="day-period-icon-text">--</div>
+                  </div>
+                  <div class="day-avg-temp-container">
+                    <div id="day-forecast-interval-23-avg-temp" class="day-period-forecast-temp day-period-avg-temp">--</div>
+                  </div>
+                </div>
+                <div>
+                  <div class="day-period-precip-container">
+                    <div id="day-forecast-interval-23-precip-icon" class="day-period-precip-icon-2 day-period-precip-icon">--</div>
+                    <div id="day-forecast-interval-23-precip" class="day-period-precip-measurement-2 day-period-precip-measurement">--</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-2-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-2-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-2-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-2-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-2-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-2-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
-        </div>
-      </div>
-      <div class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-3-title">Today</div>
-          </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-3-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-3-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-3-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-3-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-3-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-3-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
-        </div>
-      </div>
-      <div class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-4-title">Today</div>
-          </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-4-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-4-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-4-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-4-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-4-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-4-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
-        </div>
-      </div>
-      <div class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-5-title">Today</div>
-          </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-5-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-5-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-5-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-5-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-5-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-5-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
-        </div>
-      </div>
-      <div class="w-layout-hflex flex-block forecasttimeunit">
-        <div class="div-block-7 forecastspace leftendcap">
-          <div class="div-block-8">
-            <div id="week-forecast-interval-6-title">Today</div>
-          </div>
-          <div class="div-block-8">
-            <div id="week-forecast-interval-6-icon" class="text-block-14">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-6-weather" class="text-block-13 forecasttext">--</div>
-          </div>
-          <div class="div-block-9">
-            <div class="forecasttempquadrant uparrow">↑</div>
-            <div id="week-forecast-interval-6-high-temp" class="forecasttempquadrant hightemp">--</div>
-            <div class="forecasttempquadrant downarrow">↓</div>
-            <div id="week-forecast-interval-6-low-temp" class="forecasttempquadrant lowtemp">--</div>
-          </div>
-          <div class="div-block-9">
-            <div id="week-forecast-interval-6-precip-icon" class="text-block-13 forecastprecipicon">--</div>
-            <div id="week-forecast-interval-6-precip" class="text-block-13 precipmeasurement">--</div>
-          </div>
+          <div id="forecast-day-last-updated" class="last-updated">---</div>
         </div>
       </div>
     </div>
-    <div id="forecast-last-updated" class="text-block-15">---</div>
   </div>
   <div class="w-layout-blockcontainer charts-title w-container">
     <div class="div-block-4">
@@ -267,21 +846,21 @@
   </div>
   <div class="container w-container">
     <div data-duration-in="1" data-duration-out="1" data-easing="linear" data-current="24-hour" class="tabs w-tabs">
-      <figure class="tabs-menu w-tab-menu">
+      <figure class="tabs-menu charts-tabs w-tab-menu">
         <a id="tab-day" data-w-tab="24-hour" class="tab-link w-inline-block w-tab-link w--current">
           <div class="text-block-2">24 Hours</div>
         </a>
         <a id="tab-threedays" data-w-tab="48-hour" class="tab-link w-inline-block w-tab-link">
-          <div>72 Hours</div>
+          <div class="text-block-17">72 Hours</div>
         </a>
         <a id="tab-week" data-w-tab="week" class="tab-link w-inline-block w-tab-link">
-          <div>Week</div>
+          <div class="text-block-18">Week</div>
         </a>
         <a id="tab-month" data-w-tab="month" class="tab-link w-inline-block w-tab-link">
-          <div>Month</div>
+          <div class="text-block-19">Month</div>
         </a>
         <a id="tab-year" data-w-tab="year" class="tab-link w-inline-block w-tab-link">
-          <div>Year</div>
+          <div class="text-block-20">Year</div>
         </a>
       </figure>
       <div class="tabs-content w-tab-content">
@@ -346,7 +925,7 @@
     </div>
     <div class="div-block-5"></div>
   </div>
-  <div class="about-contents w-container">
+  <div class="about-contents-grid w-container">
     <div class="html-embed w-embed">{{ .AboutStationHTML }}</div>
   </div>
   <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=5a57fcd35a82f6000165190a" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
