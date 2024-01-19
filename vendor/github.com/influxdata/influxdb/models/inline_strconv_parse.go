@@ -1,7 +1,6 @@
 package models // import "github.com/influxdata/influxdb/models"
 
 import (
-	"reflect"
 	"strconv"
 	"unsafe"
 )
@@ -10,6 +9,12 @@ import (
 func parseIntBytes(b []byte, base int, bitSize int) (i int64, err error) {
 	s := unsafeBytesToString(b)
 	return strconv.ParseInt(s, base, bitSize)
+}
+
+// parseUintBytes is a zero-alloc wrapper around strconv.ParseUint.
+func parseUintBytes(b []byte, base int, bitSize int) (i uint64, err error) {
+	s := unsafeBytesToString(b)
+	return strconv.ParseUint(s, base, bitSize)
 }
 
 // parseFloatBytes is a zero-alloc wrapper around strconv.ParseFloat.
@@ -24,15 +29,6 @@ func parseBoolBytes(b []byte) (bool, error) {
 }
 
 // unsafeBytesToString converts a []byte to a string without a heap allocation.
-//
-// It is unsafe, and is intended to prepare input to short-lived functions
-// that require strings.
 func unsafeBytesToString(in []byte) string {
-	src := *(*reflect.SliceHeader)(unsafe.Pointer(&in))
-	dst := reflect.StringHeader{
-		Data: src.Data,
-		Len:  src.Len,
-	}
-	s := *(*string)(unsafe.Pointer(&dst))
-	return s
+	return *(*string)(unsafe.Pointer(&in))
 }
