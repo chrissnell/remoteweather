@@ -172,7 +172,7 @@ func underlyingUUIDType(val interface{}) (interface{}, bool) {
 	switch refVal.Kind() {
 	case reflect.Ptr:
 		if refVal.IsNil() {
-			return time.Time{}, false
+			return nil, false
 		}
 		convVal := refVal.Elem().Interface()
 		return convVal, true
@@ -240,12 +240,7 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 			}
 			*v = int32(srcVal)
 		case *int64:
-			if srcVal < math.MinInt64 {
-				return fmt.Errorf("%d is less than minimum value for int64", srcVal)
-			} else if srcVal > math.MaxInt64 {
-				return fmt.Errorf("%d is greater than maximum value for int64", srcVal)
-			}
-			*v = int64(srcVal)
+			*v = srcVal
 		case *uint:
 			if srcVal < 0 {
 				return fmt.Errorf("%d is less than zero for uint", srcVal)
@@ -262,7 +257,7 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 			*v = uint8(srcVal)
 		case *uint16:
 			if srcVal < 0 {
-				return fmt.Errorf("%d is less than zero for uint32", srcVal)
+				return fmt.Errorf("%d is less than zero for uint16", srcVal)
 			} else if srcVal > math.MaxUint16 {
 				return fmt.Errorf("%d is greater than maximum value for uint16", srcVal)
 			}
@@ -337,6 +332,10 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 			if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 				el := v.Elem()
 				switch el.Kind() {
+				// if dst is a type alias of a float32 or 64, set dst val
+				case reflect.Float32, reflect.Float64:
+					el.SetFloat(srcVal)
+					return nil
 				// if dst is a pointer to pointer, strip the pointer and try again
 				case reflect.Ptr:
 					if el.IsNil() {
