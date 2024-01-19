@@ -1,7 +1,16 @@
 let humidityChart, temperatureChart, barometerChart, windspeedChart, winddirectionChart, rainfallChart, solarwattsChart, voltageChart;
 let dataRefresherTimer, windDataRefresherTimer, forecastRefresherTimer;
+let secondsSinceForecastRefreshed, forecastLastRefreshedElement;
 
-let tabList = {
+let forecastTabList = {
+    "week": {
+        "periodDivPrefix": "week",
+        "elementIdVal": "forecast-tab-week",
+        "spanHours": 168
+    }
+}
+
+let chartTabList = {
     "day": {
         "graphDivSuffix": "24Hour",
         "elementIdVal": "tab-day",
@@ -122,17 +131,26 @@ let chartList = {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    forecastLastRefreshedElement = document.getElementById('observations-last-updated')
     fetchAndCreateCharts("day");
-    for (let key in tabList) {
-        var e = document.getElementById(tabList[key].elementIdVal);
+    for (let key in chartTabList) {
+        var e = document.getElementById(chartTabList[key].elementIdVal);
         e.addEventListener("click", function (e) {
             clearCharts();
             fetchAndCreateCharts(key)
         })
     }
     refreshLiveReadings();
-    refreshForecastData();
+    refreshWeekForecastData();
+    refreshDayForecastData();
+    setInterval(incrementObservationTimer, 1000);
 });
+
+function incrementObservationTimer() {
+    secondsSinceForecastRefreshed++;
+    forecastLastRefreshedElement.innerHTML = "Last refreshed " + secondsSinceForecastRefreshed + "s ago"
+}
+
 
 function clearCharts(element) {
     console.log("stopping data refresher---> ", dataRefresherTimer, windDataRefresherTimer)
@@ -146,9 +164,9 @@ function clearCharts(element) {
 }
 
 async function fetchAndCreateCharts(tabKey) {
-    const result = await fetch('/span/' + tabList[tabKey].spanHours + 'h?station={{ .PullFromDevice }}');
+    const result = await fetch('/span/' + chartTabList[tabKey].spanHours + 'h?station={{ .PullFromDevice }}');
     if (result.ok) {
-        console.log(tabList[tabKey].spanHours, "of data fetched for", tabList[tabKey].graphDivSuffix)
+        console.log(chartTabList[tabKey].spanHours, "of data fetched for", chartTabList[tabKey].graphDivSuffix)
         const data = await result.json();
         var count = 0;
         modVal = (data.length / 50).toFixed(0)
@@ -167,7 +185,7 @@ async function fetchAndCreateCharts(tabKey) {
             count++;
         });
         for (let key in chartList) {
-            chartElement = document.getElementById(chartList[key].divId + tabList[tabKey].graphDivSuffix);
+            chartElement = document.getElementById(chartList[key].divId + chartTabList[tabKey].graphDivSuffix);
             switch (chartList[key].chartType) {
                 case "spline":
                     chartList[key].chart = singleVariableChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, chartList[key].yAxisLabel);
@@ -262,11 +280,12 @@ async function refreshLiveReadings() {
         document.getElementById("rdg-combined-cardinal").innerHTML = data.windcard;
         document.getElementById("rdg-rainfall").innerHTML = data.dayrain.toFixed(2);
     }
+    secondsSinceForecastRefreshed = 0;
     setTimeout(refreshLiveReadings, 3000);
 }
 
-async function refreshForecastData() {
-    console.log("Fetching forecast data...");
+async function refreshWeekForecastData() {
+    console.log("Fetching week forecast data...");
     const result = await fetch('/forecast/168');
     if (result.ok) {
         const data = await result.json();
@@ -282,8 +301,6 @@ async function refreshForecastData() {
             6: "Saturday",
             7: "Sunday"
         }
-
-
 
         let i = 0;
         for (const interval of data.data) {
@@ -324,20 +341,94 @@ async function refreshForecastData() {
         }
 
 
-        const dateOptions = {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          };          
-        const dateTimeFormat = new Intl.DateTimeFormat("en-US");
-        const lastUpdated = new Date(data.lastUpdated)
-        document.getElementById('forecast-last-updated').innerHTML = "Last Updated: " + dateTimeFormat.format(lastUpdated) + " @ " + lastUpdated.toTimeString();
+        const lastUpdated = moment(data.lastUpdated,"YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
+
+        document.getElementById('forecast-week-last-updated').innerHTML = "Last Updated: " + lastUpdated;
 
         // Refresh every 4 hours
-        setTimeout(refreshForecastData, 1000 * 60 * 60 * 4);    
+        setTimeout(refreshWeekForecastData, 1000 * 60 * 60 * 4);    
     }
 }
+
+
+async function refreshDayForecastData() {
+    console.log("Fetching day forecast data...");
+    const result = await fetch('/forecast/24');
+    if (result.ok) {
+        const data = await result.json();
+        console.log(data)
+
+        dayToDayName = {
+            0: "Sun",
+            1: "Mon",
+            2: "Tue",
+            3: "Wed",
+            4: "Thu",
+            5: "Fri",
+            6: "Sat",
+            7: "Sun"
+        }
+
+        let pixelsPerDegree = 0;
+        const tempSpreadPixels = 70;
+        avgTemps = data.data.map((x) => x.avgTempF);
+        lowTemp = Math.min.apply(null, avgTemps);
+        highTemp = Math.max.apply(null, avgTemps);
+        tempSpread = highTemp - lowTemp;
+        if (tempSpread > 0) {
+            pixelsPerDegree = tempSpreadPixels / tempSpread;
+        }
+
+        let i = 0;
+        for (const interval of data.data) {
+            let dateLabel;
+
+            let intervalDate = moment(interval.dateTimeISO,"YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ");
+
+            if (intervalDate.hour() == 0 || i == 0) {
+                dateLabel = intervalDate.format("h A[<BR>]ddd");
+            } else {
+                dateLabel = intervalDate.format("h A");
+            }
+            document.getElementById('day-forecast-interval-' + i + '-title').innerHTML = dateLabel;
+            document.getElementById('day-forecast-interval-' + i + '-avg-temp').innerHTML = interval.avgTempF + "&deg;";
+            document.getElementById('day-forecast-interval-' + i + '-icon').innerHTML = interval.weatherIcon;
+
+            document.getElementById('day-forecast-interval-' + i + '-adjustable-div').style.paddingTop = pixelsPerDegree * (highTemp - interval.avgTempF) + "px";
+
+            // Test to see if snow or rain is in the forecast
+            // See: https://www.aerisweather.com/support/docs/api/reference/weather-codes/
+            const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
+            snow = snowRegex.test(interval.weatherPrimaryCoded);
+            const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
+            rain = rainRegex.test(interval.weatherPrimaryCoded);
+
+            if (snow) {
+                console.log("snow: ", interval.snowIN);
+                document.getElementById('day-forecast-interval-' + i + '-precip-icon').innerHTML = "❄";
+                document.getElementById('day-forecast-interval-' + i + '-precip').innerHTML = interval.snowIN + "\"";
+            } else if (rain) {
+                console.log("rain: ", interval.precipIN);
+                document.getElementById('day-forecast-interval-' + i + '-precip-icon').innerHTML = "⛆";
+                document.getElementById('day-forecast-interval-' + i + '-precip').innerHTML = interval.precipIN + "\"";
+            } else {
+                console.log("no precips");
+                document.getElementById('day-forecast-interval-' + i + '-precip-icon').innerHTML = "";
+                document.getElementById('day-forecast-interval-' + i + '-precip').innerHTML = interval.pop + "%";
+            }
+            i++;
+        }
+
+
+        const lastUpdated = moment(data.lastUpdated,"YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
+
+        document.getElementById('forecast-day-last-updated').innerHTML = "Last Updated: " + lastUpdated;
+
+        // Refresh every 4 hours
+        setTimeout(refreshDayForecastData, 1000 * 60 * 60 * 4);    
+    }
+}
+
 
 
 
@@ -373,10 +464,14 @@ function windVectorChart(chartName, targetDiv, data, title) {
         },
         xAxis: {
             gridLineWidth: 1,
-            type: 'datetime'
+            type: 'datetime',
+            dateTimeLabelFormats : {
+                hour: '%l %p',
+                minute: '%I:%M %p'
+            }
         },
         yAxis: {
-            visible: false
+            visible: false,
         },
         time: {
             useUTC: false
@@ -430,6 +525,10 @@ function singleVariableChart(chartName, targetDiv, data, title, yAxisTitle) {
                 enabled: true,
             },
             type: 'datetime',
+            dateTimeLabelFormats : {
+                hour: '%l %p',
+                minute: '%I:%M %p'
+            }
         },
 
         title: {
