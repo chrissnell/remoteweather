@@ -7,12 +7,16 @@ import "google/protobuf/duration.proto";
 import "google/api/annotations.proto";
 
 service Weather {
-    rpc GetLiveWeather (Empty) returns (stream WeatherReading) {}
+    rpc GetLiveWeather (LiveWeatherRequest) returns (stream WeatherReading) {}
     rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {
         option (google.api.http) = {
             get:"/v1/getWeatherSpan/{spanDuration}"
         };
     }
+}
+
+message LiveWeatherRequest {
+    optional string stationName = 1;
 }
 
 message WeatherSpanRequest {
@@ -36,6 +40,7 @@ message WeatherReading {
     float heatIndex = 9;
     float insideTemperature = 10;
     int32 insideHumidity = 11;
+    string stationName = 12;
 }
 
 message Empty {}

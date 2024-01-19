@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -22,10 +23,11 @@ import (
 // GRPCConfig describes the YAML-provided configuration for a gRPC
 // storage backend
 type GRPCConfig struct {
-	Cert       string `yaml:"cert,omitempty"`
-	Key        string `yaml:"key,omitempty"`
-	ListenAddr string `yaml:"listen_addr,omitempty"`
-	Port       int    `yaml:"port,omitempty"`
+	Cert           string `yaml:"cert,omitempty"`
+	Key            string `yaml:"key,omitempty"`
+	ListenAddr     string `yaml:"listen-addr,omitempty"`
+	Port           int    `yaml:"port,omitempty"`
+	PullFromDevice string `yaml:"pull-from-device,omitempty"`
 }
 
 // GRPCStorage implements a gRPC storage backend
@@ -35,6 +37,7 @@ type GRPCStorage struct {
 	DB              *gorm.DB
 	DBEnabled       bool
 	Server          *grpc.Server
+	GRPCConfig      *GRPCConfig
 
 	weather.UnimplementedWeatherServer
 }
@@ -84,8 +87,14 @@ func NewGRPCStorage(ctx context.Context, c *Config) (*GRPCStorage, error) {
 		g.Server = grpc.NewServer(grpc.Creds(creds))
 	} else {
 		g.Server = grpc.NewServer()
-
 	}
+
+	if c.Storage.GRPC.PullFromDevice == "" {
+		return &GRPCStorage{}, errors.New("you must configure a pull-from-device to specify the default station to pull data for")
+	}
+
+	// Store a reference to our configuration in our GRPCStorage object
+	g.GRPCConfig = &c.Storage.GRPC
 
 	// Optionally, add gRPC reflection to our servers so that clients can self-discover
 	// our methods.
@@ -200,7 +209,7 @@ func (g *GRPCStorage) transformReadings(dbReadings *[]BucketReading) []*weather.
 }
 
 // GetLiveWeather implements the live weather feed for WeatherServer
-func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_GetLiveWeatherServer) error {
+func (g *GRPCStorage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.Weather_GetLiveWeatherServer) error {
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
 
@@ -216,22 +225,29 @@ func (g *GRPCStorage) GetLiveWeather(e *weather.Empty, stream weather.Weather_Ge
 			return nil
 		default:
 			r := <-clientChan
-			log.Debugf("Sending reading to client [%v]", p.Addr)
 
-			//rts, _ := ptypes.TimestampProto(r.Timestamp)
-			rts := timestamppb.New(r.Timestamp)
+			// Only send the reading if the station name matches the PullFromDevice set in the config,
+			// or if it matches the StationName in the request
+			if (r.StationName == g.GRPCConfig.PullFromDevice) || (req.StationName != nil && r.StationName == *req.StationName) {
 
-			stream.Send(&weather.WeatherReading{
-				ReadingTimestamp:   rts,
-				OutsideTemperature: r.OutTemp,
-				InsideTemperature:  r.InTemp,
-				OutsideHumidity:    int32(r.OutHumidity),
-				InsideHumidity:     int32(r.InHumidity),
-				Barometer:          r.Barometer,
-				WindSpeed:          int32(r.WindSpeed),
-				WindDirection:      int32(r.WindDir),
-				RainfallDay:        r.DayRain,
-			})
+				log.Debugf("Sending reading to client [%v]", p.Addr)
+
+				//rts, _ := ptypes.TimestampProto(r.Timestamp)
+				rts := timestamppb.New(r.Timestamp)
+
+				stream.Send(&weather.WeatherReading{
+					ReadingTimestamp:   rts,
+					OutsideTemperature: r.OutTemp,
+					InsideTemperature:  r.InTemp,
+					OutsideHumidity:    int32(r.OutHumidity),
+					InsideHumidity:     int32(r.InHumidity),
+					Barometer:          r.Barometer,
+					WindSpeed:          int32(r.WindSpeed),
+					WindDirection:      int32(r.WindDir),
+					RainfallDay:        r.DayRain,
+					StationName:        r.StationName,
+				})
+			}
 
 		}
 	}
