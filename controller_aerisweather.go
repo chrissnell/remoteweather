@@ -47,6 +47,7 @@ type AerisWeatherForecastPeriod struct {
 	ForecastIntervalStart time.Time `json:"dateTimeISO" gorm:"not null"`
 	MaxTempF              int16     `json:"maxTempF"`
 	MinTempF              int16     `json:"minTempF"`
+	AvgTempF              int16     `json:"avgTempF"`
 	PrecipProbability     int16     `json:"pop"`
 	PrecipInches          float32   `json:"precipIN"`
 	IceInches             float32   `json:"iceaccumIN"`
@@ -134,6 +135,9 @@ func (a *AerisWeatherController) StartController() error {
 }
 
 func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, periodHours int16) {
+	a.wg.Add(1)
+	defer a.wg.Done()
+
 	// time.Ticker's only begin to fire *after* the interval has elapsed.  Since we're dealing with
 	// very long intervals, we will fire the fetcher now, before we start the ticker.
 	forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
@@ -146,7 +150,7 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 		log.Errorf("error saving forecast to database: %v", err)
 	}
 
-	// Aeris recommends updating hourly forecasts at least hourly. We'll do it every 15 minutes
+	// Convert periodHours into a time.Duration
 	spanInterval, err := time.ParseDuration(fmt.Sprintf("%vh", periodHours))
 	if err != nil {
 		log.Errorf("error parsing Aeris Weather refresh interval:", err)
@@ -156,20 +160,21 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 	// For example: for a daily forecast, we refresh every 6 hours.
 	refreshInterval := spanInterval / 4
 
+	log.Infof("Starting Aeris Weather fetcher for %v hours, every %v minutes", numPeriods*periodHours, refreshInterval.Minutes())
+
 	ticker := time.NewTicker(refreshInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			log.Debug("Updating hourly forecast from Aeris Weather...")
-			// Fetch 24 hours of forecasts, in 1-hour periods
+			log.Info("Updating forecast from Aeris Weather...")
 			forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
 			if err != nil {
 				log.Error("error fetching forecast from Aeris Weather:", err)
 			}
 			// Save our forecast record to the database
-			err = a.DB.db.Save(forecast).Error
+			err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
 			if err != nil {
 				log.Errorf("error saving forecast to database: %v", err)
 			}
