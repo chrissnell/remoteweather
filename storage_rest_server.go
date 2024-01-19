@@ -311,9 +311,8 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 			}
 		}
 
-		log.Infof("returned rows: %v", len(dbFetchedReadings))
-
-		log.Infof("getweatherspan -> spanDuration: %v", span)
+		log.Debugf("returned rows: %v", len(dbFetchedReadings))
+		log.Debugf("getweatherspan -> spanDuration: %v", span)
 
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
@@ -339,10 +338,11 @@ func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Re
 		if stationName != "" {
 			r.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
 		} else {
-			r.DB.Table("weather").Limit(1).Order("time DESC").Find(&dbFetchedReadings)
+			// Client did not supply a station name, so pull from the configurated PullFromDevice
+			r.DB.Table("weather").Limit(1).Where("stationname = ?", r.WeatherSiteConfig.PullFromDevice).Order("time DESC").Find(&dbFetchedReadings)
 		}
 
-		log.Infof("returned rows: %v", len(dbFetchedReadings))
+		log.Debugf("returned rows: %v", len(dbFetchedReadings))
 
 		w.Header().Add("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
