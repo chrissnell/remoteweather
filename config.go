@@ -20,6 +20,7 @@ type DeviceConfig struct {
 	Hostname     string `yaml:"hostname,omitempty"`
 	Port         string `yaml:"port,omitempty"`
 	SerialDevice string `yaml:"serialdevice,omitempty"`
+	Baud         int    `yaml:"baud,omitempty"`
 }
 
 // StorageConfig holds the configuration for various storage backends.
