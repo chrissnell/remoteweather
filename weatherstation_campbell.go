@@ -64,6 +64,11 @@ func NewCampbellScientificWeatherStation(ctx context.Context, wg *sync.WaitGroup
 		log.Info("Configuring Campbell Scientific station via TCP/IP")
 	}
 
+	// Use 19200 baud by default, applicable for USB connection.  RS-232 should be set in the config to 115200
+	if c.Baud == 0 {
+		c.Baud = 19200
+	}
+
 	return &d, nil
 }
 
@@ -178,7 +183,7 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 	return fmt.Errorf("scanning aborted due to error or EOF")
 }
 
-// Connect connects to a Davis station over TCP/IP
+// Connect connects to a Campbell Scientific station over TCP/IP
 func (w *CampbellScientificWeatherStation) Connect() {
 	if len(w.Config.SerialDevice) > 0 {
 		w.connectToSerialStation()
@@ -189,7 +194,7 @@ func (w *CampbellScientificWeatherStation) Connect() {
 	}
 }
 
-// Connect connects to a Davis station over TCP/IP
+// Connect connects to a Campbell Scientific station over TCP/IP
 func (w *CampbellScientificWeatherStation) connectToSerialStation() {
 	var err error
 
@@ -210,7 +215,7 @@ func (w *CampbellScientificWeatherStation) connectToSerialStation() {
 	w.Logger.Infof("connecting to %v ...", w.Config.SerialDevice)
 
 	for {
-		sc := &serial.Config{Name: w.Config.SerialDevice, Baud: 19200}
+		sc := &serial.Config{Name: w.Config.SerialDevice, Baud: w.Config.Baud}
 		w.rwc, err = serial.OpenPort(sc)
 
 		if err != nil {
@@ -234,7 +239,7 @@ func (w *CampbellScientificWeatherStation) connectToSerialStation() {
 
 }
 
-// Connect connects to a Davis station over TCP/IP
+// Connect connects to a Campbell Scientific station over TCP/IP
 func (w *CampbellScientificWeatherStation) connectToNetworkStation() {
 	var err error
 
