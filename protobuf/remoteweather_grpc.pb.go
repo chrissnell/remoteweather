@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v4.25.1
-// source: protobuf/gopherwx.proto
+// source: protobuf/remoteweather.proto
 
 package protobuf
 
@@ -170,5 +170,5 @@ var Weather_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "protobuf/gopherwx.proto",
+	Metadata: "protobuf/remoteweather.proto",
 }
