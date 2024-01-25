@@ -1,10 +1,10 @@
 version: '2'
 services:
-  gopherwx:
+  remoteweather:
     network_mode: "host"
-    image: chrissnell/gopherwx:v4.0
+    image: chrissnell/remoteweather:v4.0
     environment:
-    - GOPHERWX_CONFIG=/config/config.yaml
+    - REMOTEWEATHER_CONFIG=/config/config.yaml
     volumes:
-     - /etc/gopherwx:/config
+     - /etc/remoteweather:/config
      - /etc/letsencrypt:/tls

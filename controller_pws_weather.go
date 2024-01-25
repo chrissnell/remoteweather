@@ -140,7 +140,7 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading)
 	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("solarradiation", fmt.Sprintf("%0.2f", r.SolarWatts))
-	v.Set("softwaretype", fmt.Sprintf("gopherwx %v", version))
+	v.Set("softwaretype", fmt.Sprintf("RemoteWeather-%v", version))
 
 	client := http.Client{
 		Timeout: 5 * time.Second,

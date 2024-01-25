@@ -139,7 +139,7 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *Fetch
 	v.Set("tempf", fmt.Sprintf("%.1f", r.OutTemp))
 	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
-	v.Set("softwaretype", fmt.Sprintf("gopherwx %v", version))
+	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", version))
 
 	client := http.Client{
 		Timeout: 5 * time.Second,
