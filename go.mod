@@ -1,4 +1,4 @@
-module github.com/chrissnell/gopherwx
+module github.com/chrissnell/remoteweather
 
 go 1.21.5
 
