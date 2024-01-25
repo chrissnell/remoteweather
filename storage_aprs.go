@@ -156,7 +156,7 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 		return
 	}
 
-	login := fmt.Sprintf("user %v pass %v vers gopherwx %v\r\n",
+	login := fmt.Sprintf("user %v pass %v vers remoteweather-%v\r\n",
 		a.cfg.Storage.APRS.Callsign, a.cfg.Storage.APRS.Passcode, version)
 
 	conn.Write([]byte(login))
@@ -256,7 +256,7 @@ func (a *APRSStorage) CreateCompleteWeatherReport(symTable, symCode rune) string
 	// Finally, we write our barometer reading, converted to tenths of millibars
 	buffer.WriteString((fmt.Sprintf("b%05d", int64(a.currentReading.r.Barometer*33.8638866666667*10))))
 
-	buffer.WriteString("." + "gopherwx-" + version)
+	buffer.WriteString("." + "remoteweather-" + version)
 	a.currentReading.RUnlock()
 
 	return buffer.String()

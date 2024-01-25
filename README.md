@@ -1,6 +1,6 @@
-# gopherwx 
+# remoteweather 
 
-**gopherwx** is a service that pulls live weather data from your weather station hardware and does fun stuff with it.  
+**remoteweather** is a service that pulls live weather data from your weather station hardware and does fun stuff with it.  
 
 ## Features
 * Powers a [dynamically-generated live weather website](https://suncrestweather.com) with live charts and live-updating readings.
@@ -12,7 +12,7 @@
 
 
 ## Quick Start
-You will need a few things to use **gopherwx**:
+You will need a few things to use **remoteweather**:
 
 1. A Campbell Scientific Inc station and datalogger, or a Davis Instruments VantagePro or [VantagePro 2](http://www.davisnet.com/product/wireless-vantage-pro2-with-standard-radiation-shield/) weather station.  This should also work with the Davis Instruments Vue but I haven't tested.
 
@@ -31,24 +31,24 @@ You will need a few things to use **gopherwx**:
 
 ### Installation
 
-The easiest and recommended way to use **gopherwx** is to use the ready-made Docker image, `chrissnell/gopherwx/v4.0`.  This image makes use of `gosu` to drop root privileges to `nobody:nobody`. I have included an example [Docker Compose file](https://github.com/chrissnell/gopherwx/blob/master/example/docker-compose.yml) and [systemd unit file](https://github.com/chrissnell/gopherwx/blob/master/example/gopherwx.service) to get you started.
+The easiest and recommended way to use **remoteweather** is to use the ready-made Docker image, `chrissnell/remoteweather/v4.0`.  This image makes use of `gosu` to drop root privileges to `nobody:nobody`. I have included an example [Docker Compose file](https://github.com/chrissnell/remoteweather/blob/master/example/docker-compose.yml) and [systemd unit file](https://github.com/chrissnell/remoteweather/blob/master/example/remoteweather.service) to get you started.
 
-To use Dockerized **gopherwx**, follow these steps:
+To use Dockerized **remoteweather**, follow these steps:
 
-1. Drop the systemd unit file `gopherwx.service` wherever you keep your aftermarket unit files.  On my Ubuntu server, that's `/etc/systemd/user/`.  
+1. Drop the systemd unit file `remoteweather.service` wherever you keep your aftermarket unit files.  On my Ubuntu server, that's `/etc/systemd/user/`.  
 
-2. Create a directory for the **gopherwx** configuration and compose files.  I recommend `/etc/gopherwx`.  If you call it something different, be sure to edit the `gopherwx.service` and `docker-compose.yml` files to reflect your path.  Most folks won't have to edit these.
+2. Create a directory for the **remoteweather** configuration and compose files.  I recommend `/etc/remoteweather`.  If you call it something different, be sure to edit the `remoteweather.service` and `docker-compose.yml` files to reflect your path.  Most folks won't have to edit these.
 
-3. Copy the `config.yaml` and the `docker-compose.yml` files from this GitHub repo into your `/etc/gopherwx` directory.
+3. Copy the `config.yaml` and the `docker-compose.yml` files from this GitHub repo into your `/etc/remoteweather` directory.
 
-4. Start `gopherwx.service` by running this as root:  `systemctl start gopherwx.service`
+4. Start `remoteweather.service` by running this as root:  `systemctl start remoteweather.service`
 
-5. Have a look at gopherwx logs to make sure everything is working correctly: `journalctl -u gopherwx -f`
+5. Have a look at remoteweather logs to make sure everything is working correctly: `journalctl -u remoteweather -f`
 
-6. Make sure that `gopherwx.service` starts at boot time by running `systemctl enable /etc/gopherwx/user/gopherwx.service`
+6. Make sure that `remoteweather.service` starts at boot time by running `systemctl enable /etc/remoteweather/user/remoteweather.service`
 
 ## gRPC Support
 
-gopherwx includes a built-in **gRPC** server that can serve up a stream of live weather readings to compatible clients.  I have written an example client, [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), that reads live weather from gopherwx over the network and display it within [Polybar](https://github.com/jaagr/polybar), a desktop stats bar for Linux.  
+remoteweather includes a built-in **gRPC** server that can serve up a stream of live weather readings to compatible clients.  I have written an example client, [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), that reads live weather from remoteweather over the network and display it within [Polybar](https://github.com/jaagr/polybar), a desktop stats bar for Linux.  
 
-If you would like to build your own client, have a look at the [protobuf spec](https://github.com/chrissnell/gopherwx/blob/master/protobuf/grpcweather.proto).
+If you would like to build your own client, have a look at the [protobuf spec](https://github.com/chrissnell/remoteweather/blob/master/protobuf/grpcweather.proto).

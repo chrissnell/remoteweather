@@ -1,5 +1,5 @@
 [Unit]
-Description=Dockerized Gopherwx
+Description=Dockerized RemoteWeather
 After=docker.service
 BindsTo=docker.service
  
@@ -9,13 +9,13 @@ TimeoutStopSec=30
 Restart=always
 RestartSec=10
  
-ExecStartPre=-/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml kill gopherwx 
-ExecStartPre=-/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml rm gopherwx 
-ExecStartPre=-/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml pull gopherwx
+ExecStartPre=-/usr/local/bin/docker-compose -f /etc/remoteweather/docker-compose.yml kill remoteweather 
+ExecStartPre=-/usr/local/bin/docker-compose -f /etc/remoteweather/docker-compose.yml rm remoteweather 
+ExecStartPre=-/usr/local/bin/docker-compose -f /etc/remoteweather/docker-compose.yml pull remoteweather
  
-ExecStart=/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml up --force-recreate
+ExecStart=/usr/local/bin/docker-compose -f /etc/remoteweather/docker-compose.yml up --force-recreate
  
-ExecStop=/usr/local/bin/docker-compose -f /etc/gopherwx/docker-compose.yml stop gopherwx
+ExecStop=/usr/local/bin/docker-compose -f /etc/remoteweather/docker-compose.yml stop remoteweather
  
 [Install]
 WantedBy=multi-user.target
