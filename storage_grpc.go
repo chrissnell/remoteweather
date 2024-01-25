@@ -216,12 +216,11 @@ func (g *GRPCStorage) GetLiveWeather(req *weather.LiveWeatherRequest, stream wea
 	log.Infof("Registering new gRPC streaming client [%v]...", p.Addr)
 	clientChan := make(chan Reading, 10)
 	clientIndex := g.registerClient(clientChan)
+	defer g.deregisterClient(clientIndex)
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Infof("Deregistering gRPC streaming client [%v:%v]", clientIndex, p.Addr)
-			g.deregisterClient(clientIndex)
 			return nil
 		default:
 			r := <-clientChan
