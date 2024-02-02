@@ -1,6 +1,6 @@
 # remoteweather 
 
-**remoteweather** is a service that pulls live weather data from your weather station hardware and does fun stuff with it.  
+**remoteweather** is a service that pulls live weather data from your weather station hardware, stores it in a time-series database, and shares it over a variety of mediums.  It supports popular weather services, gRPC, APRS/CWOP/AX.25 (both RF and APRS-IS routing), along with an attractive and responsive live-streaming Web interface for desktops, tablets, and smartphones.
 
 ## Features
 * Powers a [dynamically-generated live weather website](https://suncrestweather.com) with live charts and live-updating readings.
