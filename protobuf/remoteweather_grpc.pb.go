@@ -172,3 +172,93 @@ var Weather_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "protobuf/remoteweather.proto",
 }
+
+const (
+	RemoteReport_SubmitReport_FullMethodName = "/RemoteReport/SubmitReport"
+)
+
+// RemoteReportClient is the client API for RemoteReport service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type RemoteReportClient interface {
+	SubmitReport(ctx context.Context, in *WeatherReading, opts ...grpc.CallOption) (*SubmitReportResponse, error)
+}
+
+type remoteReportClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewRemoteReportClient(cc grpc.ClientConnInterface) RemoteReportClient {
+	return &remoteReportClient{cc}
+}
+
+func (c *remoteReportClient) SubmitReport(ctx context.Context, in *WeatherReading, opts ...grpc.CallOption) (*SubmitReportResponse, error) {
+	out := new(SubmitReportResponse)
+	err := c.cc.Invoke(ctx, RemoteReport_SubmitReport_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// RemoteReportServer is the server API for RemoteReport service.
+// All implementations must embed UnimplementedRemoteReportServer
+// for forward compatibility
+type RemoteReportServer interface {
+	SubmitReport(context.Context, *WeatherReading) (*SubmitReportResponse, error)
+	mustEmbedUnimplementedRemoteReportServer()
+}
+
+// UnimplementedRemoteReportServer must be embedded to have forward compatible implementations.
+type UnimplementedRemoteReportServer struct {
+}
+
+func (UnimplementedRemoteReportServer) SubmitReport(context.Context, *WeatherReading) (*SubmitReportResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitReport not implemented")
+}
+func (UnimplementedRemoteReportServer) mustEmbedUnimplementedRemoteReportServer() {}
+
+// UnsafeRemoteReportServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to RemoteReportServer will
+// result in compilation errors.
+type UnsafeRemoteReportServer interface {
+	mustEmbedUnimplementedRemoteReportServer()
+}
+
+func RegisterRemoteReportServer(s grpc.ServiceRegistrar, srv RemoteReportServer) {
+	s.RegisterService(&RemoteReport_ServiceDesc, srv)
+}
+
+func _RemoteReport_SubmitReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WeatherReading)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RemoteReportServer).SubmitReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RemoteReport_SubmitReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RemoteReportServer).SubmitReport(ctx, req.(*WeatherReading))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// RemoteReport_ServiceDesc is the grpc.ServiceDesc for RemoteReport service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var RemoteReport_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "RemoteReport",
+	HandlerType: (*RemoteReportServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SubmitReport",
+			Handler:    _RemoteReport_SubmitReport_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "protobuf/remoteweather.proto",
+}

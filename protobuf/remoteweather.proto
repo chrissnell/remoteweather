@@ -15,6 +15,14 @@ service Weather {
     }
 }
 
+service RemoteReport {
+    rpc SubmitReport (WeatherReading) returns (SubmitReportResponse) {}
+}
+
+message SubmitReportResponse {
+    bool Received = 1;
+}
+
 message LiveWeatherRequest {
     optional string stationName = 1;
 }
@@ -29,18 +37,83 @@ message WeatherSpan {
 }
 
 message WeatherReading {
-    google.protobuf.Timestamp readingTimestamp = 1;
-    float outsideTemperature = 2;
-    int32 outsideHumidity = 3;
-    float barometer = 4;
-    int32 windSpeed = 5;
-    int32 windDirection = 6;
-    float rainfallDay = 7;
-    float windChill = 8;
-    float heatIndex = 9;
-    float insideTemperature = 10;
-    int32 insideHumidity = 11;
-    string stationName = 12;
+    google.protobuf.Timestamp Timestamp = 1;
+    string StationName = 2;
+    optional float Barometer = 3;
+    optional float InTemp = 4;
+    optional float InHumidity = 5;
+    optional float WindSpeed = 6;
+    optional float WindSpeed10 = 7;
+    optional float WindDir = 8;
+    optional float WindChill = 9;
+    optional float HeatIndex = 10;
+    optional float ExtraTemp1 = 11;
+    optional float ExtraTemp2 = 12;
+    optional float ExtraTemp3 = 13;
+    optional float ExtraTemp4 = 14;
+    optional float ExtraTemp5 = 15;
+    optional float ExtraTemp6 = 16;
+    optional float ExtraTemp7 = 17;
+    optional float SoilTemp1 = 18;
+    optional float SoilTemp2 = 19;
+    optional float SoilTemp3 = 20;
+    optional float SoilTemp4 = 21;
+    optional float LeafTemp1 = 22;
+    optional float LeafTemp2 = 23;
+    optional float LeafTemp3 = 24;
+    optional float LeafTemp4 = 25;
+    optional float OutTemp = 26;
+    optional float OutHumidity = 27;
+    optional float ExtraHumidity1 = 28;
+    optional float ExtraHumidity2 = 29;
+    optional float ExtraHumidity3 = 30;
+    optional float ExtraHumidity4 = 31;
+    optional float ExtraHumidity5 = 32;
+    optional float ExtraHumidity6 = 33;
+    optional float ExtraHumidity8 = 34;
+    optional float RainRate = 35;
+    optional float RainIncremental = 36;
+    optional float SolarWatts = 37;
+    optional float SolarJoules = 38;
+    optional float UV = 39;
+    optional float Radiation = 40;
+    optional float StormRain = 41;
+    optional google.protobuf.Timestamp StormStart = 42;
+    optional float DayRain = 43;
+    optional float MonthRain = 44;
+    optional float YearRain = 45;
+    optional float DayET = 46;
+    optional float MonthET = 47;
+    optional float YearET = 48;
+    optional float SoilMoisture1 = 49;
+    optional float SoilMoisture2 = 50;
+    optional float SoilMoisture4 = 51;
+    optional float SoilMoisture3 = 52;
+    optional float LeafWetness1 = 53;
+    optional float LeafWetness2 = 54;
+    optional float LeafWetness3 = 55;
+    optional float LeafWetness4 = 56;
+    optional uint32 InsideAlarm = 57;
+    optional uint32 RainAlarm = 58;
+    optional uint32 ExtraAlarm1 = 59;
+    optional uint32 ExtraAlarm2 = 60;
+    optional uint32 ExtraAlarm3 = 61;
+    optional uint32 ExtraAlarm4 = 62;
+    optional uint32 ExtraAlarm5 = 63;
+    optional uint32 ExtraAlarm6 = 64;
+    optional uint32 ExtraAlarm7 = 65;
+    optional uint32 ExtraAlarm8 = 66;
+    optional uint32 SoilLeafAlarm1 = 67;
+    optional uint32 SoilLeafAlarm2 = 68;
+    optional uint32 SoilLeafAlarm3 = 69;
+    optional uint32 SoilLeafAlarm4 = 70;
+    optional uint32 TxBatteryStatus = 71;
+    optional float ConsBatteryVoltage = 72;
+    optional float StationBatteryVoltage = 73;
+    optional uint32 ForecastIcon = 74;
+    optional uint32 ForecastRule = 75;
+    optional google.protobuf.Timestamp Sunrise = 76;
+    optional google.protobuf.Timestamp Sunset = 77;
 }
 
 message Empty {}
