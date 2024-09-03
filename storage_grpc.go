@@ -191,17 +191,17 @@ func (g *GRPCStorage) transformReadings(dbReadings *[]BucketReading) []*weather.
 
 	for _, r := range *dbReadings {
 		grpcReadings = append(grpcReadings, &weather.WeatherReading{
-			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
-			OutsideTemperature: r.OutTemp,
-			OutsideHumidity:    int32(r.OutHumidity),
-			Barometer:          r.Barometer,
-			WindSpeed:          int32(r.WindSpeed),
-			WindDirection:      int32(r.WindDir),
-			RainfallDay:        r.DayRain,
-			WindChill:          r.WindChill,
-			HeatIndex:          r.HeatIndex,
-			InsideTemperature:  r.InTemp,
-			InsideHumidity:     int32(r.InHumidity),
+			Timestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
+			OutTemp:     &r.OutTemp,
+			OutHumidity: &r.OutHumidity,
+			Barometer:   &r.Barometer,
+			WindSpeed:   &r.WindSpeed,
+			WindDir:     &r.WindDir,
+			DayRain:     &r.DayRain,
+			WindChill:   &r.WindChill,
+			HeatIndex:   &r.HeatIndex,
+			InTemp:      &r.InTemp,
+			InHumidity:  &r.InHumidity,
 		})
 	}
 
@@ -235,16 +235,16 @@ func (g *GRPCStorage) GetLiveWeather(req *weather.LiveWeatherRequest, stream wea
 				rts := timestamppb.New(r.Timestamp)
 
 				stream.Send(&weather.WeatherReading{
-					ReadingTimestamp:   rts,
-					OutsideTemperature: r.OutTemp,
-					InsideTemperature:  r.InTemp,
-					OutsideHumidity:    int32(r.OutHumidity),
-					InsideHumidity:     int32(r.InHumidity),
-					Barometer:          r.Barometer,
-					WindSpeed:          int32(r.WindSpeed),
-					WindDirection:      int32(r.WindDir),
-					RainfallDay:        r.DayRain,
-					StationName:        r.StationName,
+					Timestamp:   rts,
+					OutTemp:     &r.OutTemp,
+					InTemp:      &r.InTemp,
+					OutHumidity: &r.OutHumidity,
+					InHumidity:  &r.InHumidity,
+					Barometer:   &r.Barometer,
+					WindSpeed:   &r.WindSpeed,
+					WindDir:     &r.WindDir,
+					DayRain:     &r.DayRain,
+					StationName: r.StationName,
 				})
 			}
 
