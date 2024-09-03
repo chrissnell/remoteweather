@@ -20,9 +20,9 @@ RUN /usr/bin/protoc --go_out=. \
         protobuf/remoteweather.proto
 
 RUN go mod tidy && go mod vendor
-RUN CGO_ENABLED=0 go build
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build
 
-FROM alpine:latest
+FROM amd64/alpine:latest
 
 RUN apk update && apk add --no-cache su-exec
 
