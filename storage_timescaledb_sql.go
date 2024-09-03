@@ -95,7 +95,7 @@ const createCircAvgStateTypeSQL = `CREATE TYPE circular_avg_state AS (
   `
 
 const createCircAvgStateFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_state_accumulator(state circular_avg_state, reading real)
-RETURNS circular_avg_state
+RETURNS public.circular_avg_state
 STRICT
 IMMUTABLE
 LANGUAGE plpgsql
@@ -106,13 +106,13 @@ DECLARE
 BEGIN
     sin_sum := state.sin_sum + SIND(reading);
     cos_sum := state.cos_sum + COSD(reading);
-    RETURN ROW(sin_sum, cos_sum, state.accum + 1)::circular_avg_state;
+    RETURN ROW(sin_sum, cos_sum, state.accum + 1)::public.circular_avg_state;
 END;
 $$;
 `
 
-const createCircAvgCombinerFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_state_combiner(state1 circular_avg_state, state2 circular_avg_state)
-RETURNS circular_avg_state
+const createCircAvgCombinerFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_state_combiner(state1 public.circular_avg_state, state2 public.circular_avg_state)
+RETURNS public.circular_avg_state
 STRICT
 IMMUTABLE
 LANGUAGE plpgsql
@@ -125,11 +125,11 @@ BEGIN
     sin_sum := state1.sin_sum + state2.sin_sum;
     cos_sum := state1.cos_sum + state2.cos_sum;
     accum_sum := state1.accum + state2.accum;
-    RETURN ROW(sin_sum, cos_sum, accum_sum)::circular_avg_state;
+    RETURN ROW(sin_sum, cos_sum, accum_sum)::public.circular_avg_state;
 END;
 $$;`
 
-const createCircAvgFinalizerFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_final(state circular_avg_state)
+const createCircAvgFinalizerFunctionSQL = `CREATE OR REPLACE FUNCTION circular_avg_final(state public.circular_avg_state)
 RETURNS real
 STRICT
 IMMUTABLE
@@ -346,7 +346,7 @@ FROM
 GROUP BY bucket, stationname;`
 
 const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', '2 days', '1 minutes', '1 minutes', if_not_exists => true);`
-const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', '2 days', '5 minutes', '5 minutes', if_not_exists => true);`
+const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', '7 days', '5 minutes', '5 minutes', if_not_exists => true);`
 const addAggregationPolicy1hSQL = `SELECT add_continuous_aggregate_policy('weather_1h', '2 months', '1 hour', '1 hour', if_not_exists => true);`
 const addAggregationPolicy1dSQL = `SELECT add_continuous_aggregate_policy('weather_1d', '1 year', '1 day', '1 day', if_not_exists => true);`
 
