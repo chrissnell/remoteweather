@@ -13,14 +13,15 @@ type Config struct {
 	Controllers []ControllerConfig `yaml:"controllers,omitempty"`
 }
 
-// DeviceConfig holds configuration specific to the Davis Instruments device
+// DeviceConfig holds configuration specific to a weather station device
 type DeviceConfig struct {
-	Name         string `yaml:"name"`
-	Type         string `yaml:"type,omitempty"`
-	Hostname     string `yaml:"hostname,omitempty"`
-	Port         string `yaml:"port,omitempty"`
-	SerialDevice string `yaml:"serialdevice,omitempty"`
-	Baud         int    `yaml:"baud,omitempty"`
+	Name              string `yaml:"name"`
+	Type              string `yaml:"type,omitempty"`
+	Hostname          string `yaml:"hostname,omitempty"`
+	Port              string `yaml:"port,omitempty"`
+	SerialDevice      string `yaml:"serialdevice,omitempty"`
+	Baud              int    `yaml:"baud,omitempty"`
+	WindDirCorrection int16  `yaml:"wind-dir-correction,omitempty"`
 }
 
 // StorageConfig holds the configuration for various storage backends.
