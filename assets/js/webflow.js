@@ -28,20 +28,6 @@ __p+='`),de}),W+=`';
  */
 /*!
  * Webflow._ (aka) Underscore.js 1.6.0 (custom build)
- * _.each
- * _.map
- * _.find
- * _.filter
- * _.any
- * _.contains
- * _.delay
- * _.defer
- * _.throttle (webflow)
- * _.debounce
- * _.keys
- * _.has
- * _.now
- * _.template (webflow: upgraded to 1.13.6)
  *
  * http://underscorejs.org
  * (c) 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -65,5 +51,5 @@ timm/lib/timm.js:
  * Webflow: Interactions 2.0: Init
  */
 Webflow.require('ix2').init(
-{"events":{"e-4":{"id":"e-4","name":"","animationType":"custom","eventTypeId":"PAGE_FINISH","action":{"id":"","actionTypeId":"GENERAL_START_ACTION","config":{"delay":0,"easing":"","duration":0,"actionListId":"a","affectedElements":{},"playInReverse":false,"autoStopEventId":"e-3"}},"mediaQueries":["main","medium","small","tiny"],"target":{"id":"65a16056850de61d27c7fb7b","appliesTo":"PAGE","styleBlockIds":[]},"targets":[{"id":"65a16056850de61d27c7fb7b","appliesTo":"PAGE","styleBlockIds":[]}],"config":{"loop":true,"playInReverse":false,"scrollOffsetValue":null,"scrollOffsetUnit":null,"delay":null,"direction":null,"effectIn":null},"createdOn":1705454842551}},"actionLists":{"a":{"id":"a","title":"Pulse Live Indicator","actionItemGroups":[{"actionItems":[{"id":"a-n","actionTypeId":"STYLE_BACKGROUND_COLOR","config":{"delay":0,"easing":"outQuint","duration":500,"target":{"id":"65a16056850de61d27c7fb7b|c8e9a387-8383-90a1-3acd-e78d855ff08b"},"rValue":255,"gValue":255,"bValue":255,"aValue":1}}]},{"actionItems":[{"id":"a-n-2","actionTypeId":"STYLE_BACKGROUND_COLOR","config":{"delay":0,"easing":"outQuint","duration":500,"target":{"id":"65a16056850de61d27c7fb7b|c8e9a387-8383-90a1-3acd-e78d855ff08b"},"rValue":50,"gValue":141,"bValue":50,"aValue":1}}]},{"actionItems":[{"id":"a-n-3","actionTypeId":"STYLE_BACKGROUND_COLOR","config":{"delay":0,"easing":"inQuint","duration":0,"target":{"id":"65a16056850de61d27c7fb7b|c8e9a387-8383-90a1-3acd-e78d855ff08b"},"rValue":255,"gValue":255,"bValue":255,"aValue":1}}]}],"useFirstGroupAsInitialState":false,"createdOn":1705454853699}},"site":{"mediaQueries":[{"key":"main","min":992,"max":10000},{"key":"medium","min":768,"max":991},{"key":"small","min":480,"max":767},{"key":"tiny","min":0,"max":479}]}}
+{"events":{"e-4":{"id":"e-4","name":"","animationType":"custom","eventTypeId":"PAGE_FINISH","action":{"id":"","actionTypeId":"GENERAL_START_ACTION","config":{"delay":0,"easing":"","duration":0,"actionListId":"a","affectedElements":{},"playInReverse":false,"autoStopEventId":"e-3"}},"mediaQueries":["main","medium","small","tiny"],"target":{"id":"65a16056850de61d27c7fb7b","appliesTo":"PAGE","styleBlockIds":[]},"targets":[{"id":"65a16056850de61d27c7fb7b","appliesTo":"PAGE","styleBlockIds":[]}],"config":{"loop":true,"playInReverse":false,"scrollOffsetValue":null,"scrollOffsetUnit":null,"delay":null,"direction":null,"effectIn":null},"createdOn":1705454842551}},"actionLists":{"a":{"id":"a","title":"Pulse Live Indicator","actionItemGroups":[{"actionItems":[{"id":"a-n","actionTypeId":"STYLE_BACKGROUND_COLOR","config":{"delay":0,"easing":"outQuint","duration":500,"target":{"id":"65a16056850de61d27c7fb7b|c8e9a387-8383-90a1-3acd-e78d855ff08b"},"globalSwatchId":"","rValue":255,"bValue":255,"gValue":255,"aValue":1}}]},{"actionItems":[{"id":"a-n-2","actionTypeId":"STYLE_BACKGROUND_COLOR","config":{"delay":0,"easing":"outQuint","duration":500,"target":{"id":"65a16056850de61d27c7fb7b|c8e9a387-8383-90a1-3acd-e78d855ff08b"},"globalSwatchId":"","rValue":50,"bValue":50,"gValue":141,"aValue":1}}]},{"actionItems":[{"id":"a-n-3","actionTypeId":"STYLE_BACKGROUND_COLOR","config":{"delay":0,"easing":"inQuint","duration":0,"target":{"id":"65a16056850de61d27c7fb7b|c8e9a387-8383-90a1-3acd-e78d855ff08b"},"globalSwatchId":"","rValue":255,"bValue":255,"gValue":255,"aValue":1}}]}],"useFirstGroupAsInitialState":false,"createdOn":1705454853699}},"site":{"mediaQueries":[{"key":"main","min":992,"max":10000},{"key":"medium","min":768,"max":991},{"key":"small","min":480,"max":767},{"key":"tiny","min":0,"max":479}]}}
 );

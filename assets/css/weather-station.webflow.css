@@ -176,9 +176,9 @@ a {
   text-shadow: none;
   justify-content: center;
   align-items: center;
-  font-family: Courgette, sans-serif;
+  font-family: Cinzel Variablefont Wght, sans-serif;
   font-size: 54px;
-  font-weight: 500;
+  font-weight: 400;
   display: flex;
 }
 
@@ -302,7 +302,7 @@ a {
 }
 
 .title-box {
-  max-width: 675px;
+  max-width: 910px;
   justify-content: center;
   align-items: center;
   margin-top: 41px;
@@ -1340,7 +1340,7 @@ a {
     justify-content: center;
     align-items: center;
     font-size: 54px;
-    font-weight: 700;
+    font-weight: 400;
     display: flex;
   }
 
@@ -1518,6 +1518,7 @@ a {
     margin-top: 0;
     margin-bottom: 0;
     font-size: 38px;
+    font-weight: 400;
     display: flex;
   }
 
@@ -2201,8 +2202,15 @@ a {
     border-style: none dotted dotted none;
   }
 
-  .flex-block.day-forecast-time-block, .flex-block.day-forecast-period-block {
+  .flex-block.day-forecast-time-block {
     min-height: 195px;
+    flex-direction: row;
+    align-self: auto;
+  }
+
+  .flex-block.day-forecast-period-block {
+    min-height: 195px;
+    border-bottom: 1px solid #555;
     flex-direction: row;
     align-self: auto;
   }
@@ -2385,12 +2393,31 @@ a {
     padding-top: 4px;
   }
 
-  .day-avg-temp-container, .day-period-precip-container {
+  .day-avg-temp-container {
     flex: 0 auto;
     display: flex;
   }
 
-  .text-block-13-copy.forecasttext, .text-block-13-copy.forecastprecipicon, .text-block-13-copy.day-period-precip-icon, .day-period-precip-icon-2.forecasttext, .day-period-precip-icon-2.forecastprecipicon, .day-period-precip-icon-2.day-period-precip-icon, .day-period-precip-icon-2.day-period-precip-icon, .text-block-13-copy.forecasttext, .text-block-13-copy.forecastprecipicon, .text-block-13-copy.day-period-precip-icon, .day-period-precip-measurement-2.forecasttext, .day-period-precip-measurement-2.forecastprecipicon, .day-period-precip-measurement-2.day-period-precip-icon {
+  .day-period-title-container {
+    padding-top: 15px;
+    font-weight: 700;
+  }
+
+  .day-period-precip-container {
+    flex: 0 auto;
+    display: flex;
+  }
+
+  .text-block-13-copy.forecasttext, .text-block-13-copy.forecastprecipicon, .text-block-13-copy.day-period-precip-icon, .day-period-precip-icon-2.forecasttext, .day-period-precip-icon-2.forecastprecipicon, .day-period-precip-icon-2.day-period-precip-icon {
+    display: flex;
+  }
+
+  .day-period-precip-icon-2.day-period-precip-icon {
+    padding-right: 4px;
+    display: flex;
+  }
+
+  .text-block-13-copy.forecasttext, .text-block-13-copy.forecastprecipicon, .text-block-13-copy.day-period-precip-icon, .day-period-precip-measurement-2.forecasttext, .day-period-precip-measurement-2.forecastprecipicon, .day-period-precip-measurement-2.day-period-precip-icon {
     display: flex;
   }
 
@@ -2541,6 +2568,13 @@ a {
   font-family: 'Weathericons Webfont';
   src: url('../fonts/weathericons-regular-webfont.ttf') format('truetype');
   font-weight: 400;
+  font-style: normal;
+  font-display: auto;
+}
+@font-face {
+  font-family: 'Cinzel Variablefont Wght';
+  src: url('../fonts/Cinzel-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400 900;
   font-style: normal;
   font-display: auto;
 }

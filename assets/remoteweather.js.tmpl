@@ -370,7 +370,7 @@ async function refreshDayForecastData() {
         }
 
         let pixelsPerDegree = 0;
-        const tempSpreadPixels = 70;
+        const tempSpreadPixels = 55;
         avgTemps = data.data.map((x) => x.avgTempF);
         lowTemp = Math.min.apply(null, avgTemps);
         highTemp = Math.max.apply(null, avgTemps);
