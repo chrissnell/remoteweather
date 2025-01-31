@@ -73,7 +73,7 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config,
 		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.PWSWeatherConfig.PullFromDevice)
 	}
 
-	err := pwsc.DB.connectToTimescaleDB(c.Storage)
+	err := pwsc.DB.connectToTimescaleDB()
 	if err != nil {
 		return &PWSWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}

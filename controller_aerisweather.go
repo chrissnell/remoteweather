@@ -109,7 +109,7 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Confi
 	a.DB = NewTimescaleDBClient(c, logger)
 
 	// Connect to TimescaleDB for purposes of storing Aeris data for future client requests
-	err := a.DB.connectToTimescaleDB(c.Storage)
+	err := a.DB.connectToTimescaleDB()
 	if err != nil {
 		return &AerisWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
