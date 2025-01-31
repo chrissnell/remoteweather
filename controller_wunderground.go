@@ -73,7 +73,7 @@ func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c 
 		return &WeatherUndergroundController{}, fmt.Errorf("pull-from-device %v is not a valid station name", wuc.wuconfig.PullFromDevice)
 	}
 
-	err := wuc.DB.connectToTimescaleDB(c.Storage)
+	err := wuc.DB.connectToTimescaleDB()
 	if err != nil {
 		return &WeatherUndergroundController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}

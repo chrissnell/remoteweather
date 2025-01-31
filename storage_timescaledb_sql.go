@@ -345,12 +345,24 @@ FROM
     weather
 GROUP BY bucket, stationname;`
 
-const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', '2 days', '1 minutes', '1 minutes', if_not_exists => true);`
-const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', '2 days', '5 minutes', '5 minutes', if_not_exists => true);`
-const addAggregationPolicy1hSQL = `SELECT add_continuous_aggregate_policy('weather_1h', '2 months', '1 hour', '1 hour', if_not_exists => true);`
-const addAggregationPolicy1dSQL = `SELECT add_continuous_aggregate_policy('weather_1d', '1 year', '1 day', '1 day', if_not_exists => true);`
+const dropRainSinceMidnightViewSQL = `DROP VIEW IF EXISTS today_rainfall;`
 
-const addRetentionPolicy = `SELECT add_retention_policy('weather', INTERVAL '7 days', if_not_exists => true);`
+const createRainSinceMidnightViewSQL = `CREATE VIEW today_rainfall AS
+SELECT
+    COALESCE(SUM(period_rain), 0) +
+    (SELECT COALESCE(SUM(rainincremental), 0)
+     FROM weather
+     WHERE time >= (SELECT max(bucket) FROM weather_5m)) AS total_rain
+FROM weather_5m
+WHERE bucket >= date_trunc('day', now());`
+
+const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', INTERVAL '1 month', INTERVAL '1 minute', INTERVAL '1 minute', if_not_exists => true);`
+const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', INTERVAL '6 months', INTERVAL '5 minutes', INTERVAL '5 minutes', if_not_exists => true);`
+const addAggregationPolicy1hSQL = `SELECT add_continuous_aggregate_policy('weather_1h', INTERVAL '2 years', INTERVAL '1 hour', INTERVAL '1 hour', if_not_exists => true);`
+const addAggregationPolicy1dSQL = `SELECT add_continuous_aggregate_policy('weather_1d', INTERVAL '10 years', INTERVAL '1 day', INTERVAL '1 day', if_not_exists => true);`
+
+const addRetentionPolicy = `SELECT add_retention_policy('weather', INTERVAL '14 days', if_not_exists => true);`
 const addRetentionPolicy1m = `SELECT add_retention_policy('weather_1m', INTERVAL '1 month', if_not_exists => true);`
-const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL '6 month', if_not_exists => true);`
-const addRetentionPolicy1h = `SELECT add_retention_policy('weather_1h', INTERVAL '2 year', if_not_exists => true);`
+const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL '6 months', if_not_exists => true);`
+const addRetentionPolicy1h = `SELECT add_retention_policy('weather_1h', INTERVAL '2 years', if_not_exists => true);`
+const addRetentionPolicy1d = `SELECT add_retention_policy('weather_1d', INTERVAL '10 years', if_not_exists => true);`

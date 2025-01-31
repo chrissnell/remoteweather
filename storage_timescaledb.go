@@ -196,6 +196,23 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
+	// There is no updating of views in PostgreSQL, so we have to drop the rain-since-midnight
+	// view if it exists
+	log.Info("Dropping the rain-since-midnight view if it exists...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(dropRainSinceMidnightViewSQL).Error
+	if err != nil {
+		log.Warn("warning: could not drop rain-since-midnight view")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the rain-since-midnight view
+	log.Info("Adding rain-since-midnight view...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainSinceMidnightViewSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create rain-since-midnight view")
+		return &TimescaleDBStorage{}, err
+	}
+
 	// Add the 1m aggregation policy
 	log.Info("Adding 1m aggregation policy...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1mSQL).Error
@@ -257,6 +274,14 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1h).Error
 	if err != nil {
 		log.Warn("warning: could not add 1h continous aggregate retention policy")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the 1d continuous aggregate retention policy
+	log.Info("Adding 1d continuous aggregate retention policy...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1d).Error
+	if err != nil {
+		log.Warn("warning: could not add 1d continous aggregate retention policy")
 		return &TimescaleDBStorage{}, err
 	}
 
