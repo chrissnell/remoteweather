@@ -68,7 +68,7 @@ func (FetchedBucketReading) TableName() string {
 	return "weather_1m"
 }
 
-func (t *TimescaleDBClient) connectToTimescaleDB(s StorageConfig) error {
+func (t *TimescaleDBClient) connectToTimescaleDB() error {
 
 	var err error
 
