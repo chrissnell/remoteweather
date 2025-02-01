@@ -1,34 +1,34 @@
-FROM golang:alpine AS builder
+# --- Stage 1: Build the Go binary ---
+        FROM golang:1.21-alpine AS builder
 
-LABEL Chris Snell <chris.snell@gmail.com>
-
-RUN mkdir -p /go/src/github.com/chrissnell/remoteweather/
-WORKDIR /go/src/github.com/chrissnell/remoteweather/
-
-RUN apk update && apk add --no-cache git protobuf protobuf-dev
-
-COPY . .
-
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-RUN ln -s /go/bin/protoc-gen-go /usr/bin/protoc-gen-go
-
-RUN /usr/bin/protoc --go_out=. \
-        --go_opt=paths=source_relative \
-        --go-grpc_out=. \
-        --go-grpc_opt=paths=source_relative \
-        protobuf/remoteweather.proto
-
-RUN go mod tidy && go mod vendor
-RUN CGO_ENABLED=0 go build
-
-FROM alpine:latest
-
-RUN apk update && apk add --no-cache su-exec
-
-COPY --from=builder /go/src/github.com/chrissnell/remoteweather/remoteweather /remoteweather
-COPY --from=builder /go/src/github.com/chrissnell/remoteweather/entrypoint.sh /entrypoint.sh
-
-VOLUME ["/config"]
-
-CMD ["/entrypoint.sh"]
+        # Install git (needed for fetching dependencies)
+        RUN apk add --no-cache git
+        
+        # Set the working directory inside the container
+        WORKDIR /app
+        
+        # Copy go.mod and go.sum first for dependency resolution
+        COPY go.mod go.sum ./
+        
+        # Download dependencies
+        RUN go mod download
+        
+        # Copy the rest of the application source code
+        COPY . .
+        
+        # Ensure the build is for Linux x86_64 (since you're on macOS)
+        RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o remoteweather .
+        
+        # --- Stage 2: Create a minimal runtime image ---
+        FROM alpine:latest
+        
+        # Set working directory inside the container
+        WORKDIR /app
+        
+        # Copy only the built binary from the builder stage
+        COPY --from=builder /app/remoteweather .
+        COPY entrypoint.sh .
+        
+        # Set the default command to run the application
+        CMD ["./entrypoint.sh"]
+        
