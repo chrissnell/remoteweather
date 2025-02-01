@@ -342,6 +342,18 @@ func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Re
 			r.DB.Table("weather").Limit(1).Where("stationname = ?", r.WeatherSiteConfig.PullFromDevice).Order("time DESC").Find(&dbFetchedReadings)
 		}
 
+		type Rainfall struct {
+			TotalRain float32
+		}
+
+		var todayRainfall Rainfall
+
+		// Fetch the rainfall since midnight
+		r.DB.Table("today_rainfall").First(&todayRainfall)
+
+		// Override DayRain from our weather table with the latest data from our view
+		dbFetchedReadings[0].DayRain = todayRainfall.TotalRain
+
 		log.Debugf("returned rows: %v", len(dbFetchedReadings))
 
 		w.Header().Add("Access-Control-Allow-Origin", "*")
