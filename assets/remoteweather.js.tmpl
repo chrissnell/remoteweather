@@ -179,7 +179,7 @@ async function fetchAndCreateCharts(tabKey) {
             chartList.rainfall.initialSeries.push([d, item.rainincremental]);
             chartList.voltage.initialSeries.push([d, item.stationbatteryvoltage]);
             chartList.solarwatts.initialSeries.push([d, item.solarwatts]);
-            if ((count % modVal) == 0) {
+            if (((count % modVal) == 0) || (data.length < 50)) {
                 chartList.winddirection.initialSeries.push([d, 5, item.winds, item.windd]);
             }
             count++;
