@@ -11,7 +11,7 @@ if [ -z "${REMOTEWEATHER_CONFIG}" ]; then
 fi
 
 if [ "$REMOTEWEATHER_DEBUG" = "true" ]; then
-  exec /remoteweather -config=$REMOTEWEATHER_CONFIG -debug
+  exec /app/remoteweather -config=$REMOTEWEATHER_CONFIG -debug
 else
-  exec /remoteweather -config=$REMOTEWEATHER_CONFIG
+  exec /app/remoteweather -config=$REMOTEWEATHER_CONFIG
 fi
