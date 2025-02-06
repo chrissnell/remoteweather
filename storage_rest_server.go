@@ -270,6 +270,13 @@ func (r *RESTServerStorage) connectToDatabase(dbURI string) error {
 func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
 	if r.DBEnabled {
+		// Enable SQL debugging if RW-Debug header is set to "1"
+		if req.Header.Get("RW-Debug") == "1" {
+			r.DB.Logger = r.DB.Logger.LogMode(logger.Info)
+		} else {
+			r.DB.Logger = r.DB.Logger.LogMode(logger.Warn)
+		}
+
 		var dbFetchedReadings []BucketReading
 
 		stationName := req.URL.Query().Get("station")
@@ -319,8 +326,8 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 
 		jsonResponse, err := json.Marshal(r.transformSpanReadings(&dbFetchedReadings))
 		if err != nil {
-			log.Errorf("error marshalling dbFetchedReadings: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
+			log.Error("error marshaling JSON response:", err)
+			http.Error(w, "error: unable to marshal JSON response", 500)
 			return
 		}
 
@@ -329,8 +336,14 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 }
 
 func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Request) {
-
 	if r.DBEnabled {
+		// Enable SQL debugging if RW-Debug header is set to "1"
+		if req.Header.Get("RW-Debug") == "1" {
+			r.DB.Logger = r.DB.Logger.LogMode(logger.Info)
+		} else {
+			r.DB.Logger = r.DB.Logger.LogMode(logger.Warn)
+		}
+
 		var dbFetchedReadings []BucketReading
 
 		stationName := req.URL.Query().Get("station")
@@ -371,6 +384,13 @@ func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Re
 }
 
 func (r *RESTServerStorage) getForecast(w http.ResponseWriter, req *http.Request) {
+	// Enable SQL debugging if RW-Debug header is set to "1"
+	if req.Header.Get("RW-Debug") == "1" {
+		r.DB.Logger = r.DB.Logger.LogMode(logger.Info)
+	} else {
+		r.DB.Logger = r.DB.Logger.LogMode(logger.Warn)
+	}
+
 	vars := mux.Vars(req)
 	span := vars["span"]
 	if span == "" {
