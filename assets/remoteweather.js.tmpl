@@ -101,7 +101,7 @@ let chartList = {
         "divId": "rainfallChart",
         "title": "Rainfall",
         "yAxisLabel": "Inches",
-        "chartType": "spline",
+        "chartType": "column",
         "pointName": "rainfallPoint",
         "initialSeries": [],
         "rendered": false
@@ -192,6 +192,9 @@ async function fetchAndCreateCharts(tabKey) {
                     break;
                 case "vector":
                     chartList[key].chart = windVectorChart(key, chartElement, chartList[key].initialSeries, chartList[key].title);
+                    break;
+                case "column":
+                    chartList[key].chart = singleVariableColumnChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, chartList[key].yAxisLabel);
             }
         }
         refreshData();
@@ -495,6 +498,76 @@ function singleVariableChart(chartName, targetDiv, data, title, yAxisTitle) {
         chart: {
             displayErrors: true,
             type: 'spline',
+            style: {
+                fontFamily: 'Inconsolata, monospace'
+            },
+            events: {
+                // load: requestData
+                load: function () {
+                    markAsRendered(chartName);
+                }
+            }
+        },
+
+        credits: {
+            enabled: false
+        },
+
+        rangeSelector: {
+            selected: 1
+        },
+
+        yAxis: {
+            title: {
+                text: yAxisTitle
+            }
+        },
+
+        xAxis: {
+            title: {
+                enabled: true,
+            },
+            type: 'datetime',
+            dateTimeLabelFormats : {
+                hour: '%l %p',
+                minute: '%I:%M %p'
+            }
+        },
+
+        title: {
+            text: title
+        },
+
+        time: {
+            useUTC: false
+        },
+
+        series: [{
+            name: title,
+            data: data,
+            color: '#c1121f',
+            tooltip: {
+                valueDecimals: 2
+            },
+            states: {
+                hover: {
+                    lineWidth: 2
+                }
+            }
+        }]
+    });
+    return thisChart;
+}
+
+
+function singleVariableColumnChart(chartName, targetDiv, data, title, yAxisTitle) {
+    thisChart = Highcharts.chart(targetDiv, {
+        legend: {
+            enabled: false
+        },
+        chart: {
+            displayErrors: true,
+            type: 'column',
             style: {
                 fontFamily: 'Inconsolata, monospace'
             },
