@@ -13,7 +13,7 @@ type Config struct {
 	Controllers []ControllerConfig `yaml:"controllers,omitempty"`
 }
 
-// DeviceConfig holds configuration specific to the Davis Instruments device
+// DeviceConfig holds configuration specific to data collection devices
 type DeviceConfig struct {
 	Name         string `yaml:"name"`
 	Type         string `yaml:"type,omitempty"`
