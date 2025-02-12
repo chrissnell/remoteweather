@@ -15,12 +15,14 @@ type Config struct {
 
 // DeviceConfig holds configuration specific to data collection devices
 type DeviceConfig struct {
-	Name         string `yaml:"name"`
-	Type         string `yaml:"type,omitempty"`
-	Hostname     string `yaml:"hostname,omitempty"`
-	Port         string `yaml:"port,omitempty"`
-	SerialDevice string `yaml:"serialdevice,omitempty"`
-	Baud         int    `yaml:"baud,omitempty"`
+	Name              string `yaml:"name"`
+	Type              string `yaml:"type,omitempty"`
+	Hostname          string `yaml:"hostname,omitempty"`
+	Port              string `yaml:"port,omitempty"`
+	SerialDevice      string `yaml:"serialdevice,omitempty"`
+	Baud              int    `yaml:"baud,omitempty"`
+	WindDirCorrection int16  `yaml:"wind-dir-correction,omitempty"`
+	BaseSnowDistance  int16  `yaml:"base-snow-distance,omitempty"`
 }
 
 // StorageConfig holds the configuration for various storage backends.
