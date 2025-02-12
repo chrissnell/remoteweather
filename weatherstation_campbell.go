@@ -158,6 +158,19 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				return fmt.Errorf("error unmarshalling JSON: %v", err)
 			}
 
+			var uncorrectedWindDirection, correctedWindDirection int16
+			uncorrectedWindDirection = int16(cp.WindDir)
+			if w.Config.WindDirCorrection != 0 {
+				log.Debugf("correcting wind direction by %v", w.Config.WindDirCorrection)
+				correctedWindDirection = uncorrectedWindDirection + (w.Config.WindDirCorrection)
+				if correctedWindDirection >= 360 {
+					correctedWindDirection = correctedWindDirection - 360
+				} else if correctedWindDirection < 0 {
+					correctedWindDirection = correctedWindDirection + 360
+				}
+				cp.WindDir = uint16(correctedWindDirection)
+			}
+
 			r := Reading{
 				Timestamp:             time.Now(),
 				StationName:           w.Config.Name,
