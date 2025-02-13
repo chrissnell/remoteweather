@@ -4,6 +4,7 @@ const createTableSQL = `
 CREATE TABLE IF NOT EXISTS weather (
     time timestamp WITH TIME ZONE NOT NULL,
     stationname text NULL,
+    stationtype text NULL,
     barometer float4 NULL,
     intemp float4 NULL,
     inhumidity float4 NULL,
@@ -80,7 +81,29 @@ CREATE TABLE IF NOT EXISTS weather (
     forecasticon int NULL,
     forecastrule int NULL,
     sunrise TIMESTAMP WITH TIME ZONE NULL,
-    sunset TIMESTAMP WITH TIME ZONE NULL
+    sunset TIMESTAMP WITH TIME ZONE NULL,
+    snowdistance float4 NULL,
+    snowdepth float4 NULL,
+    extrafloat1 float4 NULL,
+    extrafloat2 float4 NULL,
+    extrafloat3 float4 NULL,
+    extrafloat4 float4 NULL,
+    extrafloat5 float4 NULL,
+    extrafloat6 float4 NULL,
+    extrafloat7 float4 NULL,
+    extrafloat8 float4 NULL,
+    extrafloat9 float4 NULL,
+    extrafloat10 float4 NULL,
+    extratext1 text NULL,
+    extratext2 text NULL,
+    extratext3 text NULL,
+    extratext4 text NULL,
+    extratext5 text NULL,
+    extratext6 text NULL,
+    extratext7 text NULL,
+    extratext8 text NULL,
+    extratext9 text NULL,
+    extratext10 text NULL
 );`
 
 const createExtensionSQL = `CREATE EXTENSION IF NOT EXISTS timescaledb;`
@@ -106,7 +129,7 @@ DECLARE
 BEGIN
     sin_sum := state.sin_sum + SIND(reading);
     cos_sum := state.cos_sum + COSD(reading);
-    RETURN ROW(sin_sum, cos_sum, state.accum + 1)::circular_avg_state;
+    RETURN ROW(sin_sum, cos_sum, state.accum + 1)::public.circular_avg_state;
 END;
 $$;
 `
@@ -125,7 +148,7 @@ BEGIN
     sin_sum := state1.sin_sum + state2.sin_sum;
     cos_sum := state1.cos_sum + state2.cos_sum;
     accum_sum := state1.accum + state2.accum;
-    RETURN ROW(sin_sum, cos_sum, accum_sum)::circular_avg_state;
+    RETURN ROW(sin_sum, cos_sum, accum_sum)::public.circular_avg_state;
 END;
 $$;`
 
@@ -158,7 +181,7 @@ $$;
 const createCircAvgAggregateFunctionSQL = `CREATE OR REPLACE AGGREGATE circular_avg (real)
 (
     SFUNC = circular_avg_state_accumulator,
-    STYPE = circular_avg_state,
+    STYPE = public.circular_avg_state,
     COMBINEFUNC = circular_avg_state_combiner,
     FINALFUNC = circular_avg_final,
     INITCOND = '(0,0,0)',
@@ -171,6 +194,7 @@ AS
 SELECT
     time_bucket('1 minute', time) as bucket,
     stationname,
+    stationtype,
     avg(barometer) as barometer,
 	max(barometer) as max_barometer,
 	min(barometer) as min_barometer,
@@ -205,10 +229,42 @@ SELECT
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage,
-    avg(stationbatteryvoltage) as stationbatteryvoltage
+    avg(stationbatteryvoltage) as stationbatteryvoltage,
+    avg(snowdistance) as snowdistance,
+    avg(snowdepth) as snowdepth,
+    avg(extrafloat1) as extrafloat1,
+    avg(extrafloat2) as extrafloat2,
+    avg(extrafloat3) as extrafloat3,
+    avg(extrafloat4) as extrafloat4,
+    avg(extrafloat5) as extrafloat5,
+    avg(extrafloat6) as extrafloat6,
+    avg(extrafloat7) as extrafloat7,
+    avg(extrafloat8) as extrafloat8,
+    avg(extrafloat9) as extrafloat9,
+    avg(extrafloat10) as extrafloat10,
+    max(extrafloat1) as max_extrafloat1,
+    max(extrafloat2) as max_extrafloat2,
+    max(extrafloat3) as max_extrafloat3,
+    max(extrafloat4) as max_extrafloat4,
+    max(extrafloat5) as max_extrafloat5,
+    max(extrafloat6) as max_extrafloat6,
+    max(extrafloat7) as max_extrafloat7,
+    max(extrafloat8) as max_extrafloat8,
+    max(extrafloat9) as max_extrafloat9,
+    max(extrafloat10) as max_extrafloat10,
+    min(extrafloat1) as min_extrafloat1,
+    min(extrafloat2) as min_extrafloat2,
+    min(extrafloat3) as min_extrafloat3,
+    min(extrafloat4) as min_extrafloat4,
+    min(extrafloat5) as min_extrafloat5,
+    min(extrafloat6) as min_extrafloat6,
+    min(extrafloat7) as min_extrafloat7,
+    min(extrafloat8) as min_extrafloat8,
+    min(extrafloat9) as min_extrafloat9,
+    min(extrafloat10) as min_extrafloat10
 FROM
     weather
-GROUP BY bucket, stationname;`
+GROUP BY bucket, stationname, stationtype;`
 
 const create5mViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_5m
 WITH (timescaledb.continuous, timescaledb.materialized_only = false)
@@ -216,6 +272,7 @@ AS
 SELECT
     time_bucket('5 minutes', time) as bucket,
     stationname,
+    stationtype,
     avg(barometer) as barometer,
 	max(barometer) as max_barometer,
 	min(barometer) as min_barometer,
@@ -250,10 +307,42 @@ SELECT
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage,
-    avg(stationbatteryvoltage) as stationbatteryvoltage
+    avg(stationbatteryvoltage) as stationbatteryvoltage,
+    avg(snowdistance) as snowdistance,
+    avg(snowdepth) as snowdepth,
+    avg(extrafloat1) as extrafloat1,
+    avg(extrafloat2) as extrafloat2,
+    avg(extrafloat3) as extrafloat3,
+    avg(extrafloat4) as extrafloat4,
+    avg(extrafloat5) as extrafloat5,
+    avg(extrafloat6) as extrafloat6,
+    avg(extrafloat7) as extrafloat7,
+    avg(extrafloat8) as extrafloat8,
+    avg(extrafloat9) as extrafloat9,
+    avg(extrafloat10) as extrafloat10,
+    max(extrafloat1) as max_extrafloat1,
+    max(extrafloat2) as max_extrafloat2,
+    max(extrafloat3) as max_extrafloat3,
+    max(extrafloat4) as max_extrafloat4,
+    max(extrafloat5) as max_extrafloat5,
+    max(extrafloat6) as max_extrafloat6,
+    max(extrafloat7) as max_extrafloat7,
+    max(extrafloat8) as max_extrafloat8,
+    max(extrafloat9) as max_extrafloat9,
+    max(extrafloat10) as max_extrafloat10,
+    min(extrafloat1) as min_extrafloat1,
+    min(extrafloat2) as min_extrafloat2,
+    min(extrafloat3) as min_extrafloat3,
+    min(extrafloat4) as min_extrafloat4,
+    min(extrafloat5) as min_extrafloat5,
+    min(extrafloat6) as min_extrafloat6,
+    min(extrafloat7) as min_extrafloat7,
+    min(extrafloat8) as min_extrafloat8,
+    min(extrafloat9) as min_extrafloat9,
+    min(extrafloat10) as min_extrafloat10
 FROM
     weather
-GROUP BY bucket, stationname;`
+GROUP BY bucket, stationname, stationtype;`
 
 const create1hViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1h
 WITH (timescaledb.continuous, timescaledb.materialized_only = false)
@@ -261,6 +350,7 @@ AS
 SELECT
     time_bucket('1 hour', time) as bucket,
     stationname,
+    stationtype,
     avg(barometer) as barometer,
 	max(barometer) as max_barometer,
 	min(barometer) as min_barometer,
@@ -295,10 +385,42 @@ SELECT
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage,
-    avg(stationbatteryvoltage) as stationbatteryvoltage
+    avg(stationbatteryvoltage) as stationbatteryvoltage,
+    avg(snowdistance) as snowdistance,
+    avg(snowdepth) as snowdepth,
+    avg(extrafloat1) as extrafloat1,
+    avg(extrafloat2) as extrafloat2,
+    avg(extrafloat3) as extrafloat3,
+    avg(extrafloat4) as extrafloat4,
+    avg(extrafloat5) as extrafloat5,
+    avg(extrafloat6) as extrafloat6,
+    avg(extrafloat7) as extrafloat7,
+    avg(extrafloat8) as extrafloat8,
+    avg(extrafloat9) as extrafloat9,
+    avg(extrafloat10) as extrafloat10,
+    max(extrafloat1) as max_extrafloat1,
+    max(extrafloat2) as max_extrafloat2,
+    max(extrafloat3) as max_extrafloat3,
+    max(extrafloat4) as max_extrafloat4,
+    max(extrafloat5) as max_extrafloat5,
+    max(extrafloat6) as max_extrafloat6,
+    max(extrafloat7) as max_extrafloat7,
+    max(extrafloat8) as max_extrafloat8,
+    max(extrafloat9) as max_extrafloat9,
+    max(extrafloat10) as max_extrafloat10,
+    min(extrafloat1) as min_extrafloat1,
+    min(extrafloat2) as min_extrafloat2,
+    min(extrafloat3) as min_extrafloat3,
+    min(extrafloat4) as min_extrafloat4,
+    min(extrafloat5) as min_extrafloat5,
+    min(extrafloat6) as min_extrafloat6,
+    min(extrafloat7) as min_extrafloat7,
+    min(extrafloat8) as min_extrafloat8,
+    min(extrafloat9) as min_extrafloat9,
+    min(extrafloat10) as min_extrafloat10
 FROM
     weather
-GROUP BY bucket, stationname;`
+GROUP BY bucket, stationname, stationtype;`
 
 const create1dViewSQL = `CREATE MATERIALIZED VIEW IF NOT EXISTS weather_1d
 WITH (timescaledb.continuous, timescaledb.materialized_only = false)
@@ -306,6 +428,7 @@ AS
 SELECT
     time_bucket('1 day', time) as bucket,
     stationname,
+    stationtype,
     avg(barometer) as barometer,
 	max(barometer) as max_barometer,
 	min(barometer) as min_barometer,
@@ -340,10 +463,42 @@ SELECT
     max(monthrain) as monthrain,
     max(yearrain) as yearrain,
     avg(consbatteryvoltage) as consbatteryvoltage,
-    avg(stationbatteryvoltage) as stationbatteryvoltage
+    avg(stationbatteryvoltage) as stationbatteryvoltage,
+    avg(snowdistance) as snowdistance,
+    avg(snowdepth) as snowdepth,
+    avg(extrafloat1) as extrafloat1,
+    avg(extrafloat2) as extrafloat2,
+    avg(extrafloat3) as extrafloat3,
+    avg(extrafloat4) as extrafloat4,
+    avg(extrafloat5) as extrafloat5,
+    avg(extrafloat6) as extrafloat6,
+    avg(extrafloat7) as extrafloat7,
+    avg(extrafloat8) as extrafloat8,
+    avg(extrafloat9) as extrafloat9,
+    avg(extrafloat10) as extrafloat10,
+    max(extrafloat1) as max_extrafloat1,
+    max(extrafloat2) as max_extrafloat2,
+    max(extrafloat3) as max_extrafloat3,
+    max(extrafloat4) as max_extrafloat4,
+    max(extrafloat5) as max_extrafloat5,
+    max(extrafloat6) as max_extrafloat6,
+    max(extrafloat7) as max_extrafloat7,
+    max(extrafloat8) as max_extrafloat8,
+    max(extrafloat9) as max_extrafloat9,
+    max(extrafloat10) as max_extrafloat10,
+    min(extrafloat1) as min_extrafloat1,
+    min(extrafloat2) as min_extrafloat2,
+    min(extrafloat3) as min_extrafloat3,
+    min(extrafloat4) as min_extrafloat4,
+    min(extrafloat5) as min_extrafloat5,
+    min(extrafloat6) as min_extrafloat6,
+    min(extrafloat7) as min_extrafloat7,
+    min(extrafloat8) as min_extrafloat8,
+    min(extrafloat9) as min_extrafloat9,
+    min(extrafloat10) as min_extrafloat10
 FROM
     weather
-GROUP BY bucket, stationname;`
+GROUP BY bucket, stationname, stationtype;`
 
 const dropRainSinceMidnightViewSQL = `DROP VIEW IF EXISTS today_rainfall;`
 
@@ -361,7 +516,7 @@ const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weath
 const addAggregationPolicy1hSQL = `SELECT add_continuous_aggregate_policy('weather_1h', INTERVAL '2 years', INTERVAL '1 hour', INTERVAL '1 hour', if_not_exists => true);`
 const addAggregationPolicy1dSQL = `SELECT add_continuous_aggregate_policy('weather_1d', INTERVAL '10 years', INTERVAL '1 day', INTERVAL '1 day', if_not_exists => true);`
 
-const addRetentionPolicy = `SELECT add_retention_policy('weather', INTERVAL '14 days', if_not_exists => true);`
+const addRetentionPolicy = `SELECT add_retention_policy('weather', INTERVAL '365 days', if_not_exists => true);`
 const addRetentionPolicy1m = `SELECT add_retention_policy('weather_1m', INTERVAL '1 month', if_not_exists => true);`
 const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL '6 months', if_not_exists => true);`
 const addRetentionPolicy1h = `SELECT add_retention_policy('weather_1h', INTERVAL '2 years', if_not_exists => true);`
@@ -383,12 +538,12 @@ BEGIN
     -- Determine which view to use based on the time delta
     IF delta_time > INTERVAL '1 day' THEN
         -- Use weather_1d for start depth and weather for end depth
-        SELECT base_distance - barometer INTO start_depth
+        SELECT base_distance - snowdistance INTO start_depth
         FROM weather_1d
         WHERE weather_1d.stationname = calculate_snow_depth_delta.stationname
         AND bucket = date_trunc('day', start_time);
 
-        SELECT base_distance - barometer INTO end_depth
+        SELECT base_distance - snowdistance INTO end_depth
         FROM weather
         WHERE weather.stationname = calculate_snow_depth_delta.stationname
         ORDER BY time DESC
@@ -396,12 +551,12 @@ BEGIN
 
     ELSIF delta_time > INTERVAL '1 hour' THEN
         -- Use weather_1h for start depth and weather for end depth
-        SELECT base_distance - barometer INTO start_depth
+        SELECT base_distance - snowdistance INTO start_depth
         FROM weather_1h
         WHERE weather_1h.stationname = calculate_snow_depth_delta.stationname
         AND bucket = date_trunc('hour', start_time);
 
-        SELECT base_distance - barometer INTO end_depth
+        SELECT base_distance - snowdistance INTO end_depth
         FROM weather
         WHERE weather.stationname = calculate_snow_depth_delta.stationname
         ORDER BY time DESC
@@ -409,12 +564,12 @@ BEGIN
 
     ELSE 
         -- Use weather table for both start and end depth
-        SELECT base_distance - barometer INTO start_depth
+        SELECT base_distance - snowdistance INTO start_depth
         FROM weather
         WHERE weather.stationname = calculate_snow_depth_delta.stationname
         AND time = (SELECT max(time) FROM weather WHERE time <= start_time AND stationname = calculate_snow_depth_delta.stationname);
 
-        SELECT base_distance - barometer INTO end_depth
+        SELECT base_distance - snowdistance INTO end_depth
         FROM weather
         WHERE weather.stationname = calculate_snow_depth_delta.stationname
         ORDER BY time DESC
@@ -450,7 +605,7 @@ BEGIN
 
     -- Cursor to iterate through the weather_1d table in chronological order
     FOR current_bucket, current_depth IN 
-        SELECT bucket, barometer 
+        SELECT bucket, snowdistance 
         FROM weather_1d 
         WHERE weather_1d.stationname = calculate_total_snowfall.stationname
           AND bucket >= local_start_of_season
@@ -469,8 +624,8 @@ BEGIN
                 previous_depth := current_depth;
             END IF;
         ELSE
-            -- Log or handle invalid data point (barometer > base_distance)
-            RAISE NOTICE 'Invalid data point for bucket % at station %: barometer value exceeds base_distance', current_bucket, stationname;
+            -- Log or handle invalid data point (snowdistance > base_distance)
+            RAISE NOTICE 'Invalid data point for bucket % at station %: snowdistance value exceeds base_distance', current_bucket, stationname;
         END IF;
     END LOOP;
 
@@ -503,7 +658,7 @@ BEGIN
     SELECT MAX(time) INTO latest_measurement FROM weather WHERE weather.stationname = calculate_storm_snowfall.stationname;
 
     FOR current_bucket, current_snowfall IN 
-        SELECT bucket, base_distance - barometer AS snowfall_amount 
+        SELECT bucket, base_distance - snowdistance AS snowfall_amount 
         FROM weather_1h
         WHERE weather_1h.stationname = calculate_storm_snowfall.stationname
         ORDER BY bucket
