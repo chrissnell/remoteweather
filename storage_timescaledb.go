@@ -285,5 +285,29 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
+	// Add the snowfall delta function
+	log.Info("Adding snowfall delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaFunctionSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall delta function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall season total function
+	log.Info("Adding snowfall season total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowSeasonTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall season total function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall season total function
+	log.Info("Adding snowfall storm total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowStormTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall storm total function")
+		return &TimescaleDBStorage{}, err
+	}
+
 	return &t, nil
 }
