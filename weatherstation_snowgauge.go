@@ -79,8 +79,8 @@ func (w *SnowGaugeWeatherStation) ConnectToGauge() {
 			fmt.Sprintf("dns:%v:%v", w.Config.Hostname, w.Config.Port),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // Use a secure connection in production with certificates
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{
-				Time:                10 * time.Second, // How often to send a ping to the server
-				Timeout:             30 * time.Second, // How long to wait for the ping ack before considering it dead
+				Time:                2 * time.Minute,  // Increase the ping interval to 2 minutes
+				Timeout:             20 * time.Second, // Increase the ping timeout to 20 seconds
 				PermitWithoutStream: true,             // Allow keepalive pings even without active streams
 			}),
 		)
