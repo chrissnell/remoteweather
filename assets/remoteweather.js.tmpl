@@ -264,7 +264,7 @@ async function refreshWindDirectionData() {
  * Refreshes the live weather readings at the top of the page every 3 seconds
  */
 async function refreshLiveReadings() {
-    console.log("Fetching live data...")
+    console.log("Fetching live data...");
     const result = await fetch('/latest?station={{ .PullFromDevice }}');
     if (result.ok) {
         const data = await result.json();
@@ -280,6 +280,21 @@ async function refreshLiveReadings() {
         document.getElementById("rdg-combined-cardinal").innerHTML = data.windcard;
         document.getElementById("rdg-rainfall").innerHTML = data.dayrain.toFixed(2);
     }
+
+{{- if .SnowDevice }}
+    console.log("Fetching live snow data...");
+    const snowResult = await fetch('/snow?station={{ .SnowDevice }}');
+    if (snowResult.ok) {
+        const snowData = await snowResult.json();
+        const snowTs = snowData.ts;
+
+        document.getElementById("rdg-snow-depth").innerHTML = snowData.snowdepth.toFixed(2);
+        document.getElementById("rdg-snow-since-midnight").innerHTML = snowData.snowtoday.toFixed(2);
+        document.getElementById("rdg-snow-last-24h").innerHTML = snowData.snowlast24.toFixed(2);
+        document.getElementById("rdg-snow-last-72h").innerHTML = snowData.snowlast72.toFixed(2);
+    }
+{{- end }}
+
     secondsSinceForecastRefreshed = 0;
     setTimeout(refreshLiveReadings, 3000);
 }
