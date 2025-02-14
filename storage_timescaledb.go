@@ -285,11 +285,27 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
-	// Add the snowfall delta function
-	log.Info("Adding snowfall delta function...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaFunctionSQL).Error
+	// Add the snowfall 72-hour delta function
+	log.Info("Adding snowfall 72-hour delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta72hSQL).Error
 	if err != nil {
-		log.Warn("warning: could not add snowfall delta function")
+		log.Warn("warning: could not add snowfall 72-hour delta function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall 24-hour delta function
+	log.Info("Adding snowfall 24-hour delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta24hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall 24-hour delta function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall since-midnight delta function
+	log.Info("Adding snowfall since-midnight delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaSinceMidnightSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall since-midnight delta function")
 		return &TimescaleDBStorage{}, err
 	}
 

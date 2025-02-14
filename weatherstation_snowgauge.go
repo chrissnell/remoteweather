@@ -136,10 +136,10 @@ func (w *SnowGaugeWeatherStation) StreamSnowGaugeReadings() {
 			log.Debugf("Received distance: %d mm\n", reading.Distance)
 
 			r := Reading{
-				Timestamp:   time.Now(),
-				StationName: w.Config.Name,
-				// We use Barometer to store the distance to the top of the snowpack. It's ugly but there's a reason.  I'm sorry.
-				Barometer: float32(reading.Distance),
+				Timestamp:    time.Now(),
+				StationName:  w.Config.Name,
+				StationType:  "snowgauge",
+				SnowDistance: float32(reading.Distance),
 			}
 
 			// Send the reading to the distributor
