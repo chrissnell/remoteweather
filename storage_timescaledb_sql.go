@@ -522,65 +522,118 @@ const addRetentionPolicy5m = `SELECT add_retention_policy('weather_5m', INTERVAL
 const addRetentionPolicy1h = `SELECT add_retention_policy('weather_1h', INTERVAL '2 years', if_not_exists => true);`
 const addRetentionPolicy1d = `SELECT add_retention_policy('weather_1d', INTERVAL '10 years', if_not_exists => true);`
 
-const createSnowDeltaFunctionSQL = `CREATE OR REPLACE FUNCTION calculate_snow_depth_delta(
-    stationname TEXT,
-    base_distance FLOAT,
-    start_time TIMESTAMPTZ
-) RETURNS FLOAT AS $$
+const createSnowDelta72hSQL = `CREATE OR REPLACE FUNCTION get_new_snow_72h(
+    p_stationname TEXT,
+    p_base_distance FLOAT
+) RETURNS TABLE(snowfall FLOAT) AS $$
 DECLARE
-    start_depth FLOAT;
-    end_depth FLOAT;
-    delta_time INTERVAL;
+    first_reading FLOAT;  -- The earliest sensor reading in the last 72 hours
+    latest_reading FLOAT; -- The latest sensor reading in the last 72 hours
 BEGIN
-    -- Calculate the time difference between now and start_time
-    delta_time := now() - start_time;
+    -- Get the earliest sensor reading in the last 72 hours.
+    SELECT snowdistance
+      INTO first_reading
+      FROM weather
+     WHERE stationname = p_stationname
+       AND time >= now() - interval '72 hours'
+     ORDER BY time ASC
+     LIMIT 1;
 
-    -- Determine which view to use based on the time delta
-    IF delta_time > INTERVAL '1 day' THEN
-        -- Use weather_1d for start depth and weather for end depth
-        SELECT base_distance - snowdistance INTO start_depth
-        FROM weather_1d
-        WHERE weather_1d.stationname = calculate_snow_depth_delta.stationname
-        AND bucket = date_trunc('day', start_time);
+    -- Get the latest sensor reading in the last 72 hours.
+    SELECT snowdistance
+      INTO latest_reading
+      FROM weather
+     WHERE stationname = p_stationname
+       AND time >= now() - interval '72 hours'
+     ORDER BY time DESC
+     LIMIT 1;
 
-        SELECT base_distance - snowdistance INTO end_depth
-        FROM weather
-        WHERE weather.stationname = calculate_snow_depth_delta.stationname
-        ORDER BY time DESC
-        LIMIT 1;
-
-    ELSIF delta_time > INTERVAL '1 hour' THEN
-        -- Use weather_1h for start depth and weather for end depth
-        SELECT base_distance - snowdistance INTO start_depth
-        FROM weather_1h
-        WHERE weather_1h.stationname = calculate_snow_depth_delta.stationname
-        AND bucket = date_trunc('hour', start_time);
-
-        SELECT base_distance - snowdistance INTO end_depth
-        FROM weather
-        WHERE weather.stationname = calculate_snow_depth_delta.stationname
-        ORDER BY time DESC
-        LIMIT 1;
-
-    ELSE 
-        -- Use weather table for both start and end depth
-        SELECT base_distance - snowdistance INTO start_depth
-        FROM weather
-        WHERE weather.stationname = calculate_snow_depth_delta.stationname
-        AND time = (SELECT max(time) FROM weather WHERE time <= start_time AND stationname = calculate_snow_depth_delta.stationname);
-
-        SELECT base_distance - snowdistance INTO end_depth
-        FROM weather
-        WHERE weather.stationname = calculate_snow_depth_delta.stationname
-        ORDER BY time DESC
-        LIMIT 1;
+    -- If there are no readings, return NULL.
+    IF first_reading IS NULL OR latest_reading IS NULL THEN
+        RETURN;
     END IF;
 
-    -- Return the delta between end_depth and start_depth
-    RETURN end_depth - start_depth;
+    -- Calculate snowfall as the difference between the initial and latest readings.
+    RETURN QUERY SELECT first_reading - latest_reading AS snowfall;
 END;
-$$ LANGUAGE plpgsql;
-`
+$$ LANGUAGE plpgsql;`
+
+const createSnowDelta24hSQL = `CREATE OR REPLACE FUNCTION get_new_snow_24h(
+    p_stationname TEXT,
+    p_base_distance FLOAT
+) RETURNS TABLE(snowfall FLOAT) AS $$
+DECLARE
+    first_reading FLOAT;  -- The earliest sensor reading in the last 24 hours
+    latest_reading FLOAT; -- The latest sensor reading in the last 24 hours
+BEGIN
+    -- Get the earliest sensor reading in the last 24 hours.
+    SELECT snowdistance
+      INTO first_reading
+      FROM weather
+     WHERE stationname = p_stationname
+       AND time >= now() - interval '24 hours'
+     ORDER BY time ASC
+     LIMIT 1;
+
+    -- Get the latest sensor reading in the last 24 hours.
+    SELECT snowdistance
+      INTO latest_reading
+      FROM weather
+     WHERE stationname = p_stationname
+       AND time >= now() - interval '24 hours'
+     ORDER BY time DESC
+     LIMIT 1;
+
+    -- If there are no readings, return NULL.
+    IF first_reading IS NULL OR latest_reading IS NULL THEN
+        RETURN;
+    END IF;
+
+    -- Calculate snowfall as the difference between the initial and latest readings.
+    RETURN QUERY SELECT first_reading - latest_reading AS snowfall;
+END;
+$$ LANGUAGE plpgsql;`
+
+const createSnowDeltaSinceMidnightSQL = `CREATE OR REPLACE FUNCTION get_new_snow_midnight(
+    p_stationname TEXT,
+    p_base_distance FLOAT
+) RETURNS TABLE(snowfall FLOAT) AS $$
+DECLARE
+    first_reading FLOAT;  -- The earliest sensor reading since midnight
+    latest_reading FLOAT; -- The latest sensor reading since midnight
+    midnight TIMESTAMPTZ;
+BEGIN
+    -- Define midnight for the current day.
+    midnight := date_trunc('day', now());
+
+    -- Get the earliest sensor reading since midnight.
+    SELECT snowdistance
+      INTO first_reading
+      FROM weather
+     WHERE stationname = p_stationname
+       AND time >= midnight
+     ORDER BY time ASC
+     LIMIT 1;
+
+    -- Get the latest sensor reading since midnight.
+    SELECT snowdistance
+      INTO latest_reading
+      FROM weather
+     WHERE stationname = p_stationname
+       AND time >= midnight
+     ORDER BY time DESC
+     LIMIT 1;
+
+    -- If there are no readings, return NULL.
+    IF first_reading IS NULL OR latest_reading IS NULL THEN
+        RETURN;
+    END IF;
+
+    -- Calculate snowfall as the difference between the initial and latest readings.
+    -- A higher first_reading and a lower latest_reading indicate snow accumulation.
+    RETURN QUERY SELECT first_reading - latest_reading AS snowfall;
+END;
+$$ LANGUAGE plpgsql;`
 
 const createSnowSeasonTotalSQL = `CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
     stationname TEXT,
@@ -635,8 +688,7 @@ END;
 $$ LANGUAGE plpgsql;
 `
 
-const createSnowStormTotalSQL = `
-CREATE OR REPLACE FUNCTION calculate_storm_snowfall(
+const createSnowStormTotalSQL = `CREATE OR REPLACE FUNCTION calculate_storm_snowfall(
     stationname TEXT,
     base_distance FLOAT
 ) RETURNS TABLE (
@@ -646,10 +698,10 @@ CREATE OR REPLACE FUNCTION calculate_storm_snowfall(
 ) AS $$
 DECLARE
     storm_id INTEGER := 0;
-    previous_snowfall FLOAT := NULL;
     storm_start TIMESTAMPTZ := NULL;
+    storm_start_snow_depth FLOAT := NULL;
     current_bucket TIMESTAMPTZ;
-    current_snowfall FLOAT;
+    current_snow_depth FLOAT;
     hours_below_threshold INTEGER := 0;
     latest_measurement TIMESTAMPTZ;
     storm_detected BOOLEAN := FALSE;
@@ -657,38 +709,35 @@ BEGIN
     -- Get the latest measurement time from the weather table
     SELECT MAX(time) INTO latest_measurement FROM weather WHERE weather.stationname = calculate_storm_snowfall.stationname;
 
-    FOR current_bucket, current_snowfall IN 
-        SELECT bucket, base_distance - snowdistance AS snowfall_amount 
+    FOR current_bucket, current_snow_depth IN 
+        SELECT bucket, GREATEST(base_distance - snowdistance, 0) AS snow_depth
         FROM weather_1h
         WHERE weather_1h.stationname = calculate_storm_snowfall.stationname
         ORDER BY bucket
     LOOP
-        -- Current snowfall (depth increase from base_distance)
-        current_snowfall := GREATEST(current_snowfall, 0); -- Ensure no negative snowfall
-        
         -- Detect storm start
-        IF storm_start IS NULL AND current_snowfall >= 10 THEN
+        IF storm_start IS NULL AND current_snow_depth >= 10 THEN
             storm_start := current_bucket;
-            previous_snowfall := 0;
+            storm_start_snow_depth := current_snow_depth;
             storm_id := storm_id + 1;
             storm_detected := TRUE;
+            hours_below_threshold := 0;
         END IF;
 
-        -- Accumulate snowfall if part of a storm
+        -- If a storm is ongoing, check for termination conditions
         IF storm_start IS NOT NULL THEN
-            IF current_snowfall >= 10 THEN
+            IF current_snow_depth >= 10 THEN
                 -- Reset counter for consecutive hours below threshold
                 hours_below_threshold := 0;
-                previous_snowfall := previous_snowfall + current_snowfall;
             ELSE
                 -- Increment counter for consecutive hours below threshold
                 hours_below_threshold := hours_below_threshold + 1;
 
-                -- Check if we've had 8 hours below threshold to end storm
+                -- If 8 hours below threshold, end the storm
                 IF hours_below_threshold >= 8 THEN
-                    RETURN QUERY SELECT storm_start, current_bucket, previous_snowfall;
+                    RETURN QUERY SELECT storm_start, current_bucket, current_snow_depth - storm_start_snow_depth;
                     storm_start := NULL;  -- Reset for next potential storm
-                    previous_snowfall := NULL;
+                    storm_start_snow_depth := NULL;
                 END IF;
             END IF;
         END IF;
@@ -697,7 +746,7 @@ BEGIN
 
     -- Handle case where the last storm in data hasn't ended
     IF storm_start IS NOT NULL THEN
-        RETURN QUERY SELECT storm_start, latest_measurement, previous_snowfall;
+        RETURN QUERY SELECT storm_start, latest_measurement, current_snow_depth - storm_start_snow_depth;
     END IF;
 
     -- If no storm was detected, return 0 for total snowfall
