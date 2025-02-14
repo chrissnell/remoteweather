@@ -62,3 +62,8 @@ func calcHeatIndex(temp float32, humidity float32) float32 {
 	}
 	return temp
 }
+
+// mmToInches converts millimeters to inches
+func mmToInches(mm float32) float32 {
+	return mm / 25.4
+}

@@ -28,6 +28,7 @@ type WeatherStation interface {
 type Reading struct {
 	Timestamp             time.Time `gorm:"column:time"`
 	StationName           string    `gorm:"column:stationname"`
+	StationType           string    `gorm:"column:stationtype"`
 	Barometer             float32   `gorm:"column:barometer"`
 	InTemp                float32   `gorm:"column:intemp"`
 	InHumidity            float32   `gorm:"column:inhumidity"`
@@ -105,6 +106,28 @@ type Reading struct {
 	ForecastRule          uint8     `gorm:"column:forecastrule"`
 	Sunrise               time.Time `gorm:"column:sunrise"`
 	Sunset                time.Time `gorm:"column:sunset"`
+	SnowDistance          float32   `gorm:"column:snowdistance"`
+	SnowDepth             float32   `gorm:"column:snowdepth"`
+	ExtraFloat1           float32   `gorm:"column:extrafloat1"`
+	ExtraFloat2           float32   `gorm:"column:extrafloat2"`
+	ExtraFloat3           float32   `gorm:"column:extrafloat3"`
+	ExtraFloat4           float32   `gorm:"column:extrafloat4"`
+	ExtraFloat5           float32   `gorm:"column:extrafloat5"`
+	ExtraFloat6           float32   `gorm:"column:extrafloat6"`
+	ExtraFloat7           float32   `gorm:"column:extrafloat7"`
+	ExtraFloat8           float32   `gorm:"column:extrafloat8"`
+	ExtraFloat9           float32   `gorm:"column:extrafloat9"`
+	ExtraFloat10          float32   `gorm:"column:extrafloat10"`
+	ExtraText1            string    `gorm:"column:extratext1"`
+	ExtraText2            string    `gorm:"column:extratext2"`
+	ExtraText3            string    `gorm:"column:extratext3"`
+	ExtraText4            string    `gorm:"column:extratext4"`
+	ExtraText5            string    `gorm:"column:extratext5"`
+	ExtraText6            string    `gorm:"column:extratext6"`
+	ExtraText7            string    `gorm:"column:extratext7"`
+	ExtraText8            string    `gorm:"column:extratext8"`
+	ExtraText9            string    `gorm:"column:extratext9"`
+	ExtraText10           string    `gorm:"column:extratext10"`
 }
 
 // NewWeatherStationManager creats a WeatherStationManager object, populated with all configured
