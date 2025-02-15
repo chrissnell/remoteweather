@@ -135,6 +135,12 @@ func (w *SnowGaugeWeatherStation) StreamSnowGaugeReadings() {
 			}
 			log.Debugf("Received distance: %d mm\n", reading.Distance)
 
+			// The reading should never ever be larger than our base distance.  If it is, we discard it.
+			if reading.Distance > int32(w.Config.BaseSnowDistance) {
+				log.Infof("Discarding invalid snow distance reading from snow gauge %v: %v", w.Config.Name, reading.Distance)
+				continue
+			}
+
 			r := Reading{
 				Timestamp:    time.Now(),
 				StationName:  w.Config.Name,

@@ -348,31 +348,68 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		}
 
 		spanStart := time.Now().Add(-span)
+		baseDistance := r.WeatherSiteConfig.SnowBaseDistance
 
 		switch {
 		case span < 1*Day:
 			if stationName != "" {
-				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		case (span >= 1*Day) && (span < 7*Day):
 			if stationName != "" {
-				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_5m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_5m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		case (span >= 7*Day) && (span < 2*Month):
 			if stationName != "" {
-				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		default:
 			if stationName != "" {
-				r.DB.Table("weather_1d").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_1d").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		}
 
@@ -624,7 +661,7 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 			InsideHumidity:        float32ToJSONNumber(r.InHumidity),
 			ConsBatteryVoltage:    float32ToJSONNumber(r.ConsBatteryVoltage),
 			StationBatteryVoltage: float32ToJSONNumber(r.StationBatteryVoltage),
-			SnowDepth:             float32ToJSONNumber(r.SnowDepth),
+			SnowDepth:             float32ToJSONNumber(mmToInches(r.SnowDepth)),
 			SnowDistance:          float32ToJSONNumber(r.SnowDistance),
 			ExtraFloat1:           float32ToJSONNumber(r.ExtraFloat1),
 			ExtraFloat2:           float32ToJSONNumber(r.ExtraFloat2),

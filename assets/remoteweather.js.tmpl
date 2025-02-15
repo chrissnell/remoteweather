@@ -1,4 +1,4 @@
-let humidityChart, temperatureChart, barometerChart, windspeedChart, winddirectionChart, rainfallChart, solarwattsChart, voltageChart;
+let humidityChart, temperatureChart, barometerChart, snowdepthChart, windspeedChart, winddirectionChart, rainfallChart, solarwattsChart, voltageChart;
 let dataRefresherTimer, windDataRefresherTimer, forecastRefresherTimer;
 let secondsSinceForecastRefreshed, forecastLastRefreshedElement;
 
@@ -59,6 +59,17 @@ let chartList = {
         "yAxisLabel": "Percent",
         "chartType": "spline",
         "pointName": "outsideHumidityPoint",
+        "initialSeries": [],
+        "rendered": false
+    },
+    "snowdepth":
+    {
+        "chart": snowdepthChart,
+        "divId": "snowdepthChart",
+        "title": "Snow Depth",
+        "yAxisLabel": "inches",
+        "chartType": "spline",
+        "pointName": "snowdepthPoint",
         "initialSeries": [],
         "rendered": false
     },
@@ -194,10 +205,30 @@ async function fetchAndCreateCharts(tabKey) {
                     chartList[key].chart = windVectorChart(key, chartElement, chartList[key].initialSeries, chartList[key].title);
             }
         }
-        refreshData();
-        refreshWindDirectionData();
-        console.log('DOM fully loaded and parsed');
     }
+    {{- if .SnowDevice }}
+
+    const snowResult = await fetch('/span/' + chartTabList[tabKey].spanHours + 'h?station={{ .SnowDevice }}');
+    if (snowResult.ok) {
+        console.log(chartTabList[tabKey].spanHours, "of data fetched for", chartTabList[tabKey].graphDivSuffix)
+        const snowData = await snowResult.json();
+        var count = 0;
+        snowData.forEach(function (item, index) {
+            d = item.ts;
+            chartList.snowdepth.initialSeries.push([d, item.snowdepth]);
+            count++;
+        });
+
+        if (chartList.snowdepth.initialSeries.length > 0) {
+            chartElement = document.getElementById(chartList.snowdepth.divId + chartTabList[tabKey].graphDivSuffix);
+            chartList.snowdepth.chart = singleVariableChart("snowdepth", chartElement, chartList.snowdepth.initialSeries, chartList.snowdepth.title, chartList.snowdepth.yAxisLabel);
+        }
+    }
+    {{- end }}
+    
+    refreshData();
+    refreshWindDirectionData();
+    console.log('DOM fully loaded and parsed');
 }
 
 /**
@@ -210,6 +241,7 @@ async function markAsRendered(chart) {
 /**
 * Refresh data from the server, add it to the graph and set a timeout to request again
 */
+
 async function refreshData() {
     console.log("Fetching latest data...")
     const result = await fetch('/latest?station={{ .PullFromDevice }}');
@@ -221,7 +253,6 @@ async function refreshData() {
             "outsideHumidityPoint": [ts, data.outhumidity],
             "barometerPoint": [ts, data.bar],
             "windSpeedPoint": [ts, data.winds],
-            // "windDirectionVectorPoint": [ts, 5, data.winds, data.windd],
             "voltagePoint": [ts, data.stationbatteryvoltage],
             "rainfallPoint": [ts, data.dayrain],
             "solarWattsPoint": [ts, data.solarwatts]
@@ -233,12 +264,38 @@ async function refreshData() {
             if ((key != "winddirection") && (chartList[key].rendered == true)) {
                 console.log("adding data point to", key)
                 const series = chartList[key].chart.series[0]
-                shift = series.data.length > 20;
-                chartList[key].chart.series[0].addPoint(points[chartList[key].pointName]);
+                const shift = series.data.length > 20;
+                if (points[chartList[key].pointName]) {
+                    chartList[key].chart.series[0].addPoint(points[chartList[key].pointName], true, shift);
+                } else {
+                    console.warn('No valid point found for', chartList[key].pointName);
+                }
             }
         }
 
     }
+
+    {{- if .SnowDevice }}
+    console.log("Fetching latest snow data...")
+    const snowResult = await fetch('/snow?station={{ .SnowDevice }}');
+    if (snowResult.ok) {
+        const snowData = await snowResult.json();
+        const ts = snowData.ts;
+        var points = {
+            "snowdepthPoint": [ts, snowData.snowdepth],
+        }
+
+
+        const snowSeries = chartList.snowdepth.chart.series[0];
+        const shift = snowSeries.data.length > 20;
+        if (points.snowdepthPoint) {
+            snowSeries.addPoint(points.snowdepthPoint, true, shift);
+        } else {
+            console.warn('No valid point found for snowdepthPoint');
+        }
+    }
+    {{- end }}
+
     dataRefresherTimer = setTimeout(refreshData, 300000);
 }
 
@@ -252,8 +309,12 @@ async function refreshWindDirectionData() {
         if (chartList.winddirection.rendered == true) {
             console.log("adding data point to winddirection")
             const series = chartList.winddirection.chart.series[0]
-            shift = series.data.length > 20;
-            chartList.winddirection.chart.series[0].addPoint(windDirectionPoint);
+            const shift = series.data.length > 20;
+            if (windDirectionPoint) {
+                chartList.winddirection.chart.series[0].addPoint(windDirectionPoint, true, shift);
+            } else {
+                console.warn('No valid point found for windDirectionPoint');
+            }
         }
 
     }
@@ -292,6 +353,7 @@ async function refreshLiveReadings() {
         document.getElementById("rdg-snow-since-midnight").innerHTML = snowData.snowtoday.toFixed(2);
         document.getElementById("rdg-snow-last-24h").innerHTML = snowData.snowlast24.toFixed(2);
         document.getElementById("rdg-snow-last-72h").innerHTML = snowData.snowlast72.toFixed(2);
+        document.getElementById("rdg-snow-season").innerHTML = (parseFloat(snowData.snowdepth) + 51).toFixed(2);    
     }
 {{- end }}
 
@@ -570,4 +632,3 @@ function singleVariableChart(chartName, targetDiv, data, title, yAxisTitle) {
     });
     return thisChart;
 }
-
