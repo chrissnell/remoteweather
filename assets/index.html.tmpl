@@ -1,4 +1,4 @@
-<!DOCTYPE html><!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Wed Feb 12 2025 16:16:59 GMT+0000 (Coordinated Universal Time)  -->
+<!DOCTYPE html><!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sat Feb 15 2025 06:51:58 GMT+0000 (Coordinated Universal Time)  -->
 <html data-wf-page="65a16056850de61d27c7fb7b" data-wf-site="5a57fcd35a82f6000165190a">
 <head>
   <meta charset="utf-8">
@@ -881,67 +881,72 @@
   <div class="container w-container">
     <div data-duration-in="1" data-duration-out="1" data-easing="linear" data-current="24-hour" class="tabs w-tabs">
       <figure class="tabs-menu charts-tabs w-tab-menu">
-        <a id="tab-day" data-w-tab="24-hour" class="tab-link w-inline-block w-tab-link w--current">
+        <a data-w-tab="24-hour" id="tab-day" class="tab-link w-inline-block w-tab-link w--current">
           <div class="text-block-2">24 Hours</div>
         </a>
-        <a id="tab-threedays" data-w-tab="48-hour" class="tab-link w-inline-block w-tab-link">
+        <a data-w-tab="48-hour" id="tab-threedays" class="tab-link w-inline-block w-tab-link">
           <div class="text-block-17">72 Hours</div>
         </a>
-        <a id="tab-week" data-w-tab="week" class="tab-link w-inline-block w-tab-link">
+        <a data-w-tab="week" id="tab-week" class="tab-link w-inline-block w-tab-link">
           <div class="text-block-18">Week</div>
         </a>
-        <a id="tab-month" data-w-tab="month" class="tab-link w-inline-block w-tab-link">
+        <a data-w-tab="month" id="tab-month" class="tab-link w-inline-block w-tab-link">
           <div class="text-block-19">Month</div>
         </a>
-        <a id="tab-year" data-w-tab="year" class="tab-link w-inline-block w-tab-link">
+        <a data-w-tab="year" id="tab-year" class="tab-link w-inline-block w-tab-link">
           <div class="text-block-20">Year</div>
         </a>
       </figure>
       <div class="tabs-content w-tab-content">
-        <div id="content-span-day" data-w-tab="24-hour" class="tab-pane-2 w-tab-pane w--tab-active">
+        <div data-w-tab="24-hour" id="content-span-day" class="tab-pane-2 w-tab-pane w--tab-active">
           <div id="temperatureChart24Hour" class="temperaturechart"></div>
           <div id="winddirectionChart24Hour" class="winddirectionchart"></div>
           <div id="windspeedChart24Hour" class="windspeedchart"></div>
+          <div id="snowdepthChart24Hour" class="snowdepthchart"></div>
           <div id="humidityChart24Hour" class="humiditychart"></div>
           <div id="barometerChart24Hour" class="barometerchart"></div>
           <div id="rainfallChart24Hour" class="rainfallchart"></div>
           <div id="solarwattsChart24Hour" class="solarwattschart"></div>
           <div id="voltageChart24Hour" class="voltagechart"></div>
         </div>
-        <div id="content-span-twodays" data-w-tab="48-hour" class="tab-pane-2 w-tab-pane">
+        <div data-w-tab="48-hour" id="content-span-twodays" class="tab-pane-2 w-tab-pane">
           <div id="temperatureChart72Hours" class="temperaturechart"></div>
           <div id="winddirectionChart72Hours" class="winddirectionchart"></div>
           <div id="windspeedChart72Hours" class="windspeedchart"></div>
+          <div id="snowdepthChart72Hours" class="snowdepthchart"></div>
           <div id="humidityChart72Hours" class="humiditychart"></div>
           <div id="barometerChart72Hours" class="barometerchart"></div>
           <div id="rainfallChart72Hours" class="rainfallchart"></div>
           <div id="solarwattsChart72Hours" class="solarwattschart"></div>
           <div id="voltageChart72Hours" class="voltagechart"></div>
         </div>
-        <div id="content-span-week" data-w-tab="week" class="tab-pane-2 w-tab-pane">
+        <div data-w-tab="week" id="content-span-week" class="tab-pane-2 w-tab-pane">
           <div id="temperatureChartWeek" class="temperaturechart"></div>
           <div id="winddirectionChartWeek" class="winddirectionchart"></div>
           <div id="windspeedChartWeek" class="windspeedchart"></div>
+          <div id="snowdepthChartWeek" class="snowdepthchart"></div>
           <div id="humidityChartWeek" class="humiditychart"></div>
           <div id="barometerChartWeek" class="barometerchart"></div>
           <div id="rainfallChartWeek" class="rainfallchart"></div>
           <div id="solarwattsChartWeek" class="solarwattschart"></div>
           <div id="voltageChartWeek" class="voltagechart"></div>
         </div>
-        <div id="content-span-month" data-w-tab="month" class="tab-pane-2 w-tab-pane">
+        <div data-w-tab="month" id="content-span-month" class="tab-pane-2 w-tab-pane">
           <div id="temperatureChartMonth" class="temperaturechart"></div>
           <div id="winddirectionChartMonth" class="winddirectionchart"></div>
           <div id="windspeedChartMonth" class="windspeedchart"></div>
+          <div id="snowdepthChartMonth" class="snowdepthchart"></div>
           <div id="humidityChartMonth" class="humiditychart"></div>
           <div id="barometerChartMonth" class="barometerchart"></div>
           <div id="rainfallChartMonth" class="rainfallchart"></div>
           <div id="solarwattsChartMonth" class="solarwattschart"></div>
           <div id="voltageChartMonth" class="voltagechart"></div>
         </div>
-        <div id="content-span-month" data-w-tab="year" class="tab-pane-2 w-tab-pane">
+        <div data-w-tab="year" id="content-span-month" class="tab-pane-2 w-tab-pane">
           <div id="temperatureChartYear" class="temperaturechart"></div>
           <div id="winddirectionChartYear" class="winddirectionchart"></div>
           <div id="windspeedChartYear" class="windspeedchart"></div>
+          <div id="snowdepthChartYear" class="snowdepthchart"></div>
           <div id="humidityChartYear" class="humiditychart"></div>
           <div id="barometerChartYear" class="barometerchart"></div>
           <div id="rainfallChartYear" class="rainfallchart"></div>
