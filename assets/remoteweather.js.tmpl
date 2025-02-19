@@ -3,7 +3,7 @@ let humidityChart, temperatureChart, barometerChart, snowdepthChart, windspeedCh
     winddirectionChart, rainfallChart, solarwattsChart, voltageChart;
 
 // Timer variables
-let dataRefresherTimer, windDataRefresherTimer, liveReadingsTimer, weekForecastTimer, dayForecastTimer;
+let dataRefresherTimer, windDataRefresherTimer;
 let secondsSinceForecastRefreshed, forecastLastRefreshedElement;
 
 // Constants for maintainability
@@ -12,16 +12,6 @@ const DATA_REFRESH_INTERVAL = 300000; // 5 minutes
 const WIND_DATA_REFRESH_INTERVAL = 1800000; // 30 minutes
 const LIVE_READINGS_REFRESH_INTERVAL = 3000; // 3 seconds
 const FORECAST_REFRESH_INTERVAL = 1000 * 60 * 60 * 4; // 4 hours
-const INACTIVE_THRESHOLD = 1000 * 60 * 5; // 5 minutes for testing; adjust as needed
-const DEBOUNCE_DELAY = 500; // 500ms debounce for visibility changes
-
-// Debug flag based on URL
-const debug = new URLSearchParams(window.location.search).get('debug') === '1';
-
-// Track last refresh times for charts and tab inactivity
-let lastChartRefreshTimes = {};
-let lastVisibleTime = Date.now();
-let visibilityAbortController = null;
 
 // Forecast tab configuration
 let forecastTabList = {
@@ -170,30 +160,18 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshWeekForecastData();
     refreshDayForecastData();
     setInterval(incrementObservationTimer, 1000);
-
-    // Handle tab visibility changes with debounce
-    document.addEventListener('visibilitychange', debounce(handleVisibilityChange, DEBOUNCE_DELAY));
 });
 
 // Increment timer for last refreshed display
 function incrementObservationTimer() {
-    if (!document.hidden) {
-        secondsSinceForecastRefreshed++;
-        forecastLastRefreshedElement.innerHTML = "Last refreshed " + secondsSinceForecastRefreshed + "s ago";
-    }
+    secondsSinceForecastRefreshed++;
+    forecastLastRefreshedElement.innerHTML = "Last refreshed " + secondsSinceForecastRefreshed + "s ago";
 }
 
 // Clear charts and timers
 function clearCharts() {
     clearTimeout(dataRefresherTimer);
     clearTimeout(windDataRefresherTimer);
-    clearTimeout(liveReadingsTimer);
-    clearTimeout(weekForecastTimer);
-    clearTimeout(dayForecastTimer);
-    if (visibilityAbortController) {
-        visibilityAbortController.abort();
-        visibilityAbortController = null;
-    }
     for (let key in chartList) {
         chartList[key].chart = {};
         chartList[key].initialSeries = [];
@@ -201,59 +179,35 @@ function clearCharts() {
     }
 }
 
-// Fetch data for a given duration and station with abort support
-async function fetchData(duration, station) {
-    if (visibilityAbortController) visibilityAbortController.abort(); // Cancel previous fetch if active
-    visibilityAbortController = new AbortController();
+// Fetch data for a given tab and station
+async function fetchData(tabKey, station) {
     try {
-        const response = await fetch(`/span/${duration}?station=${station}`, { signal: visibilityAbortController.signal });
+        const response = await fetch(`/span/${chartTabList[tabKey].spanHours}h?station=${station}`);
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        if (error.name === 'AbortError') {
-            if (debug) console.log(`Fetch aborted for duration ${duration}`);
-            return null;
-        }
-        if (debug) console.error(`Failed to fetch data for duration ${duration}:`, error);
+        console.error(`Failed to fetch data for ${tabKey}:`, error);
         return null;
     }
 }
 
 // Process fetched data into chart series
-function processData(data, chartList, updateExisting = false) {
+function processData(data, chartList) {
     if (!data) return;
     const modVal = Math.floor(data.length / 50);
     data.forEach((item, index) => {
         const ts = item.ts;
-        if (updateExisting) {
-            if (chartList.temperature.chart.series) chartList.temperature.chart.series[0].addPoint([ts, item.otemp], false);
-            if (chartList.humidity.chart.series) chartList.humidity.chart.series[0].addPoint([ts, item.outhumidity], false);
-            if (chartList.barometer.chart.series) chartList.barometer.chart.series[0].addPoint([ts, item.bar], false);
-            if (chartList.windspeed.chart.series) chartList.windspeed.chart.series[0].addPoint([ts, item.winds], false);
-            if (chartList.rainfall.chart.series) chartList.rainfall.chart.series[0].addPoint([ts, item.rainincremental], false);
-            if (chartList.voltage.chart.series) chartList.voltage.chart.series[0].addPoint([ts, item.stationbatteryvoltage], false);
-            if (chartList.solarwatts.chart.series) chartList.solarwatts.chart.series[0].addPoint([ts, item.solarwatts], false);
-            if ((index % modVal === 0 || data.length < 50) && chartList.winddirection.chart.series) {
-                chartList.winddirection.chart.series[0].addPoint([ts, 5, item.winds, item.windd], false);
-            }
-        } else {
-            chartList.temperature.initialSeries.push([ts, item.otemp]);
-            chartList.humidity.initialSeries.push([ts, item.outhumidity]);
-            chartList.barometer.initialSeries.push([ts, item.bar]);
-            chartList.windspeed.initialSeries.push([ts, item.winds]);
-            chartList.rainfall.initialSeries.push([ts, item.rainincremental]);
-            chartList.voltage.initialSeries.push([ts, item.stationbatteryvoltage]);
-            chartList.solarwatts.initialSeries.push([ts, item.solarwatts]);
-            if (index % modVal === 0 || data.length < 50) {
-                chartList.winddirection.initialSeries.push([ts, 5, item.winds, item.windd]);
-            }
+        chartList.temperature.initialSeries.push([ts, item.otemp]);
+        chartList.humidity.initialSeries.push([ts, item.outhumidity]);
+        chartList.barometer.initialSeries.push([ts, item.bar]);
+        chartList.windspeed.initialSeries.push([ts, item.winds]);
+        chartList.rainfall.initialSeries.push([ts, item.rainincremental]);
+        chartList.voltage.initialSeries.push([ts, item.stationbatteryvoltage]);
+        chartList.solarwatts.initialSeries.push([ts, item.solarwatts]);
+        if (index % modVal === 0 || data.length < 50) {
+            chartList.winddirection.initialSeries.push([ts, 5, item.winds, item.windd]);
         }
     });
-    if (updateExisting) {
-        for (let key in chartList) {
-            if (chartList[key].chart.series) chartList[key].chart.redraw();
-        }
-    }
 }
 
 // Create charts for all metrics
@@ -268,19 +222,18 @@ function createCharts(tabKey, chartList) {
             } : { valueDecimals: 2 }
         };
         chartList[key].chart = createChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, options);
-        lastChartRefreshTimes[key] = Date.now();
     }
 }
 
 // Fetch data and create charts for a tab
 async function fetchAndCreateCharts(tabKey) {
-    const data = await fetchData(`${chartTabList[tabKey].spanHours}h`, '{{ .PullFromDevice }}');
+    const data = await fetchData(tabKey, '{{ .PullFromDevice }}');
     if (!data) return;
     processData(data, chartList);
     createCharts(tabKey, chartList);
 
     {{- if .SnowDevice }}
-    const snowData = await fetchData(`${chartTabList[tabKey].spanHours}h`, '{{ .SnowDevice }}');
+    const snowData = await fetchData(tabKey, '{{ .SnowDevice }}');
     if (snowData) {
         snowData.forEach(item => {
             chartList.snowdepth.initialSeries.push([item.ts, item.snowdepth]);
@@ -291,7 +244,6 @@ async function fetchAndCreateCharts(tabKey) {
             chartType: chartList.snowdepth.chartType,
             tooltipFormat: { valueDecimals: 2 }
         });
-        lastChartRefreshTimes['snowdepth'] = Date.now();
     }
     {{- end }}
 
@@ -306,7 +258,7 @@ async function fetchLatestData(station) {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        if (debug) console.error(`Failed to fetch latest data for station ${station}:`, error);
+        console.error(`Failed to fetch latest data for station ${station}:`, error);
         return null;
     }
 }
@@ -318,7 +270,7 @@ async function fetchSnowData(station) {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        if (debug) console.error(`Failed to fetch snow data for station ${station}:`, error);
+        console.error(`Failed to fetch snow data for station ${station}:`, error);
         return null;
     }
 }
@@ -329,12 +281,10 @@ function updateChartSeries(chart, point, maxPoints = MAX_POINTS) {
     const series = chart.chart.series[0];
     const shift = series.data.length > maxPoints;
     series.addPoint(point, true, shift);
-    lastChartRefreshTimes[chart.pointName] = Date.now();
 }
 
 // Refresh chart data periodically
 async function refreshData() {
-    if (document.hidden) return;
     clearTimeout(dataRefresherTimer);
     const data = await fetchLatestData('{{ .PullFromDevice }}');
     if (!data) return;
@@ -355,7 +305,6 @@ async function refreshData() {
     {{- if .SnowDevice }}
     const snowData = await fetchSnowData('{{ .SnowDevice }}');
     if (snowData) {
-        if (debug) console.log('Snow data received:', snowData);
         const snowPoint = [snowData.ts, snowData.snowdepth];
         updateChartSeries(chartList.snowdepth, snowPoint);
     }
@@ -365,7 +314,6 @@ async function refreshData() {
 
 // Refresh wind direction data periodically
 async function refreshWindDirectionData() {
-    if (document.hidden) return;
     clearTimeout(windDataRefresherTimer);
     const data = await fetchLatestData('{{ .PullFromDevice }}');
     if (data && chartList.winddirection.rendered) {
@@ -382,15 +330,13 @@ function updateIfChanged(elementId, newValue) {
         if (element.innerHTML !== newValue) {
             element.innerHTML = newValue;
         }
-    } else if (debug) {
+    } else {
         console.warn(`Element not found: ${elementId}`);
     }
 }
 
 // Refresh live readings periodically
 async function refreshLiveReadings() {
-    if (document.hidden) return;
-    clearTimeout(liveReadingsTimer);
     const data = await fetchLatestData('{{ .PullFromDevice }}');
     if (data) {
         updateIfChanged('rdg-temperature', data.otemp.toFixed(2) + '°');
@@ -403,38 +349,36 @@ async function refreshLiveReadings() {
         updateIfChanged('rdg-combined-windspeed', data.winds.toFixed(0));
         updateIfChanged('rdg-combined-cardinal', data.windcard);
         updateIfChanged('rdg-rainfall', data.dayrain.toFixed(2));
-    } else if (debug) {
+    } else {
         console.warn('No data received from {{ .PullFromDevice }}');
     }
 
     {{- if .SnowDevice }}
     const snowData = await fetchSnowData('{{ .SnowDevice }}');
     if (snowData) {
-        if (debug) console.log('Snow data received:', snowData);
+        console.log('Snow data received:', snowData);
         updateIfChanged('rdg-snow-depth', snowData.snowdepth?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-since-midnight', snowData.snowtoday?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-last-24h', snowData.snowlast24?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-last-72h', snowData.snowlast72?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-season', snowData.snowdepth ? (parseFloat(snowData.snowdepth) + 51).toFixed(2) : 'N/A');
-    } else if (debug) {
+    } else {
         console.warn('No snow data received from {{ .SnowDevice }}');
     }
     {{- end }}
 
     secondsSinceForecastRefreshed = 0;
-    liveReadingsTimer = setTimeout(refreshLiveReadings, LIVE_READINGS_REFRESH_INTERVAL);
+    setTimeout(refreshLiveReadings, LIVE_READINGS_REFRESH_INTERVAL);
 }
 
 // Refresh week forecast data
 async function refreshWeekForecastData() {
-    if (document.hidden) return;
-    clearTimeout(weekForecastTimer);
-    if (debug) console.log("Fetching week forecast data...");
+    console.log("Fetching week forecast data...");
     try {
         const response = await fetch('/forecast/168');
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
-        if (debug) console.log("Week forecast data received:", data);
+        console.log("Week forecast data received:", data);
 
         const dayToDayName = {
             0: "Sunday",
@@ -462,21 +406,22 @@ async function refreshWeekForecastData() {
             updateIfChanged(`week-forecast-interval-${i}-icon`, interval.weatherIcon);
             updateIfChanged(`week-forecast-interval-${i}-weather`, interval.compactWeather);
 
+            // Test to see if snow or rain is in the forecast
             const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
             const snow = snowRegex.test(interval.weatherPrimaryCoded);
             const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
             const rain = rainRegex.test(interval.weatherPrimaryCoded);
 
             if (snow) {
-                if (debug) console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
+                console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
                 updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "❄");
                 updateIfChanged(`week-forecast-interval-${i}-precip`, interval.snowIN + "\"");
             } else if (rain) {
-                if (debug) console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
+                console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
                 updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "⛆");
                 updateIfChanged(`week-forecast-interval-${i}-precip`, interval.precipIN + "\"");
             } else {
-                if (debug) console.log(`Week forecast interval ${i} - no precip`);
+                console.log(`Week forecast interval ${i} - no precip`);
                 updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "");
                 updateIfChanged(`week-forecast-interval-${i}-precip`, "");
             }
@@ -486,23 +431,21 @@ async function refreshWeekForecastData() {
         const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
         updateIfChanged('forecast-week-last-updated', "Last Updated: " + lastUpdated);
 
-        weekForecastTimer = setTimeout(refreshWeekForecastData, FORECAST_REFRESH_INTERVAL);
+        setTimeout(refreshWeekForecastData, FORECAST_REFRESH_INTERVAL);
     } catch (error) {
-        if (debug) console.error("Failed to fetch week forecast data:", error);
-        weekForecastTimer = setTimeout(refreshWeekForecastData, 60000); // Retry in 1 minute
+        console.error("Failed to fetch week forecast data:", error);
+        setTimeout(refreshWeekForecastData, 60000); // Retry in 1 minute
     }
 }
 
 // Refresh day forecast data
 async function refreshDayForecastData() {
-    if (document.hidden) return;
-    clearTimeout(dayForecastTimer);
-    if (debug) console.log("Fetching day forecast data...");
+    console.log("Fetching day forecast data...");
     try {
         const response = await fetch('/forecast/24');
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
-        if (debug) console.log("Day forecast data received:", data);
+        console.log("Day forecast data received:", data);
 
         const dayToDayName = {
             0: "Sun",
@@ -541,25 +484,26 @@ async function refreshDayForecastData() {
             const adjustableDiv = document.getElementById(`day-forecast-interval-${i}-adjustable-div`);
             if (adjustableDiv) {
                 adjustableDiv.style.paddingTop = pixelsPerDegree * (highTemp - interval.avgTempF) + "px";
-            } else if (debug) {
+            } else {
                 console.warn(`Adjustable div not found for day-forecast-interval-${i}`);
             }
 
+            // Test to see if snow or rain is in the forecast
             const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
             const snow = snowRegex.test(interval.weatherPrimaryCoded);
             const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
             const rain = rainRegex.test(interval.weatherPrimaryCoded);
 
             if (snow) {
-                if (debug) console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
+                console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
                 updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "❄");
                 updateIfChanged(`day-forecast-interval-${i}-precip`, interval.snowIN + "\"");
             } else if (rain) {
-                if (debug) console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
+                console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
                 updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "⛆");
                 updateIfChanged(`day-forecast-interval-${i}-precip`, interval.precipIN + "\"");
             } else {
-                if (debug) console.log(`Day forecast interval ${i} - no precip`);
+                console.log(`Day forecast interval ${i} - no precip`);
                 updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "");
                 updateIfChanged(`day-forecast-interval-${i}-precip`, interval.pop + "%");
             }
@@ -569,10 +513,10 @@ async function refreshDayForecastData() {
         const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
         updateIfChanged('forecast-day-last-updated', "Last Updated: " + lastUpdated);
 
-        dayForecastTimer = setTimeout(refreshDayForecastData, FORECAST_REFRESH_INTERVAL);
+        setTimeout(refreshDayForecastData, FORECAST_REFRESH_INTERVAL);
     } catch (error) {
-        if (debug) console.error("Failed to fetch day forecast data:", error);
-        dayForecastTimer = setTimeout(refreshDayForecastData, 60000); // Retry in 1 minute
+        console.error("Failed to fetch day forecast data:", error);
+        setTimeout(refreshDayForecastData, 60000); // Retry in 1 minute
     }
 }
 
@@ -607,59 +551,4 @@ function createChart(chartName, targetDiv, data, title, options = {}) {
 // Mark a chart as rendered
 async function markAsRendered(chartName) {
     chartList[chartName].rendered = true;
-}
-
-// Debounce function to prevent rapid visibility changes
-function debounce(func, wait) {
-    let timeout;
-    return function (...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-    };
-}
-
-// Handle visibility changes
-async function handleVisibilityChange() {
-    if (document.hidden) {
-        clearTimeout(dataRefresherTimer);
-        clearTimeout(windDataRefresherTimer);
-        clearTimeout(liveReadingsTimer);
-        clearTimeout(weekForecastTimer);
-        clearTimeout(dayForecastTimer);
-        if (visibilityAbortController) {
-            visibilityAbortController.abort();
-            visibilityAbortController = null;
-        }
-        lastVisibleTime = Date.now();
-        if (debug) console.log('Tab hidden: Timers cleared.');
-    } else {
-        const now = Date.now();
-        const inactiveDurationMs = now - lastVisibleTime;
-        if (debug) console.log(`Tab reactivated: Inactive for ${inactiveDurationMs / 1000} seconds`);
-        const currentTabKey = Object.keys(chartTabList).find(key => 
-            document.getElementById(chartTabList[key].elementIdVal)?.classList.contains('active')
-        ) || 'day';
-
-        // Check if charts need to fill in missing data
-        for (let key in chartList) {
-            const lastRefresh = lastChartRefreshTimes[key] || 0;
-            if (chartList[key].rendered && (now - lastRefresh > INACTIVE_THRESHOLD)) {
-                const durationMs = now - lastRefresh;
-                const durationMinutes = Math.ceil(durationMs / (1000 * 60)); // Convert to minutes, round up
-                const duration = `${durationMinutes}m`;
-                if (debug) console.log(`Filling in data for ${key} since ${lastRefresh} (${duration})`);
-                const missedData = await fetchData(duration, key === 'snowdepth' ? '{{ .SnowDevice }}' : '{{ .PullFromDevice }}');
-                if (missedData) {
-                    processData(missedData, chartList, true);
-                }
-            }
-        }
-
-        // Restart all refreshers
-        refreshLiveReadings();
-        refreshData();
-        refreshWindDirectionData();
-        refreshWeekForecastData();
-        refreshDayForecastData();
-    }
 }
