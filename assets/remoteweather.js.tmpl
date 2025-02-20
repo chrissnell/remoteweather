@@ -13,6 +13,9 @@ const WIND_DATA_REFRESH_INTERVAL = 1800000; // 30 minutes
 const LIVE_READINGS_REFRESH_INTERVAL = 3000; // 3 seconds
 const FORECAST_REFRESH_INTERVAL = 1000 * 60 * 60 * 4; // 4 hours
 
+// Debug flag based on URL parameter
+const debug = new URLSearchParams(window.location.search).get('debug') === '1';
+
 // Forecast tab configuration
 let forecastTabList = {
     "week": {
@@ -186,7 +189,7 @@ async function fetchData(tabKey, station) {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        console.error(`Failed to fetch data for ${tabKey}:`, error);
+        if (debug) console.error(`Failed to fetch data for ${tabKey}:`, error);
         return null;
     }
 }
@@ -299,7 +302,7 @@ async function fetchLatestData(station) {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        console.error(`Failed to fetch latest data for station ${station}:`, error);
+        if (debug) console.error(`Failed to fetch latest data for station ${station}:`, error);
         return null;
     }
 }
@@ -311,7 +314,7 @@ async function fetchSnowData(station) {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        console.error(`Failed to fetch snow data for station ${station}:`, error);
+        if (debug) console.error(`Failed to fetch snow data for station ${station}:`, error);
         return null;
     }
 }
@@ -371,7 +374,7 @@ function updateIfChanged(elementId, newValue) {
         if (element.innerHTML !== newValue) {
             element.innerHTML = newValue;
         }
-    } else {
+    } else if (debug) {
         console.warn(`Element not found: ${elementId}`);
     }
 }
@@ -390,20 +393,20 @@ async function refreshLiveReadings() {
         updateIfChanged('rdg-combined-windspeed', data.winds.toFixed(0));
         updateIfChanged('rdg-combined-cardinal', data.windcard);
         updateIfChanged('rdg-rainfall', data.dayrain.toFixed(2));
-    } else {
+    } else if (debug) {
         console.warn('No data received from {{ .PullFromDevice }}');
     }
 
     {{- if .SnowDevice }}
     const snowData = await fetchSnowData('{{ .SnowDevice }}');
     if (snowData) {
-        console.log('Snow data received:', snowData);
+        if (debug) console.log('Snow data received:', snowData);
         updateIfChanged('rdg-snow-depth', snowData.snowdepth?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-since-midnight', snowData.snowtoday?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-last-24h', snowData.snowlast24?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-last-72h', snowData.snowlast72?.toFixed(2) ?? 'N/A');
         updateIfChanged('rdg-snow-season', snowData.snowdepth ? (parseFloat(snowData.snowdepth) + 51).toFixed(2) : 'N/A');
-    } else {
+    } else if (debug) {
         console.warn('No snow data received from {{ .SnowDevice }}');
     }
     {{- end }}
@@ -414,12 +417,12 @@ async function refreshLiveReadings() {
 
 // Refresh week forecast data
 async function refreshWeekForecastData() {
-    console.log("Fetching week forecast data...");
+    if (debug) console.log("Fetching week forecast data...");
     try {
         const response = await fetch('/forecast/168');
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
-        console.log("Week forecast data received:", data);
+        if (debug) console.log("Week forecast data received:", data);
 
         const dayToDayName = {
             0: "Sunday",
@@ -447,22 +450,21 @@ async function refreshWeekForecastData() {
             updateIfChanged(`week-forecast-interval-${i}-icon`, interval.weatherIcon);
             updateIfChanged(`week-forecast-interval-${i}-weather`, interval.compactWeather);
 
-            // Test to see if snow or rain is in the forecast
             const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
             const snow = snowRegex.test(interval.weatherPrimaryCoded);
             const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
             const rain = rainRegex.test(interval.weatherPrimaryCoded);
 
             if (snow) {
-                console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
+                if (debug) console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
                 updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "❄");
                 updateIfChanged(`week-forecast-interval-${i}-precip`, interval.snowIN + "\"");
             } else if (rain) {
-                console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
+                if (debug) console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
                 updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "⛆");
                 updateIfChanged(`week-forecast-interval-${i}-precip`, interval.precipIN + "\"");
             } else {
-                console.log(`Week forecast interval ${i} - no precip`);
+                if (debug) console.log(`Week forecast interval ${i} - no precip`);
                 updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "");
                 updateIfChanged(`week-forecast-interval-${i}-precip`, "");
             }
@@ -474,19 +476,19 @@ async function refreshWeekForecastData() {
 
         setTimeout(refreshWeekForecastData, FORECAST_REFRESH_INTERVAL);
     } catch (error) {
-        console.error("Failed to fetch week forecast data:", error);
+        if (debug) console.error("Failed to fetch week forecast data:", error);
         setTimeout(refreshWeekForecastData, 60000); // Retry in 1 minute
     }
 }
 
 // Refresh day forecast data
 async function refreshDayForecastData() {
-    console.log("Fetching day forecast data...");
+    if (debug) console.log("Fetching day forecast data...");
     try {
         const response = await fetch('/forecast/24');
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
-        console.log("Day forecast data received:", data);
+        if (debug) console.log("Day forecast data received:", data);
 
         const dayToDayName = {
             0: "Sun",
@@ -525,26 +527,25 @@ async function refreshDayForecastData() {
             const adjustableDiv = document.getElementById(`day-forecast-interval-${i}-adjustable-div`);
             if (adjustableDiv) {
                 adjustableDiv.style.paddingTop = pixelsPerDegree * (highTemp - interval.avgTempF) + "px";
-            } else {
+            } else if (debug) {
                 console.warn(`Adjustable div not found for day-forecast-interval-${i}`);
             }
 
-            // Test to see if snow or rain is in the forecast
             const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
             const snow = snowRegex.test(interval.weatherPrimaryCoded);
             const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
             const rain = rainRegex.test(interval.weatherPrimaryCoded);
 
             if (snow) {
-                console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
+                if (debug) console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
                 updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "❄");
                 updateIfChanged(`day-forecast-interval-${i}-precip`, interval.snowIN + "\"");
             } else if (rain) {
-                console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
+                if (debug) console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
                 updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "⛆");
                 updateIfChanged(`day-forecast-interval-${i}-precip`, interval.precipIN + "\"");
             } else {
-                console.log(`Day forecast interval ${i} - no precip`);
+                if (debug) console.log(`Day forecast interval ${i} - no precip`);
                 updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "");
                 updateIfChanged(`day-forecast-interval-${i}-precip`, interval.pop + "%");
             }
@@ -556,7 +557,7 @@ async function refreshDayForecastData() {
 
         setTimeout(refreshDayForecastData, FORECAST_REFRESH_INTERVAL);
     } catch (error) {
-        console.error("Failed to fetch day forecast data:", error);
+        if (debug) console.error("Failed to fetch day forecast data:", error);
         setTimeout(refreshDayForecastData, 60000); // Retry in 1 minute
     }
 }
