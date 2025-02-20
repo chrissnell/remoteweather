@@ -195,58 +195,99 @@ async function fetchData(tabKey, station) {
 }
 
 // Process fetched data into chart series
-function processData(data, chartList) {
+function processData(data, chartList, updateExisting = false) {
     if (!data) return;
     const modVal = Math.floor(data.length / 50);
+    const seriesData = {
+        temperature: [],
+        humidity: [],
+        barometer: [],
+        windspeed: [],
+        rainfall: [],
+        voltage: [],
+        solarwatts: [],
+        winddirection: [],
+        snowdepth: []
+    };
+
     data.forEach((item, index) => {
         const ts = item.ts;
-        chartList.temperature.initialSeries.push([ts, item.otemp]);
-        chartList.humidity.initialSeries.push([ts, item.outhumidity]);
-        chartList.barometer.initialSeries.push([ts, item.bar]);
-        chartList.windspeed.initialSeries.push([ts, item.winds]);
-        chartList.rainfall.initialSeries.push([ts, item.rainincremental]);
-        chartList.voltage.initialSeries.push([ts, item.stationbatteryvoltage]);
-        chartList.solarwatts.initialSeries.push([ts, item.solarwatts]);
+        seriesData.temperature.push([ts, item.otemp]);
+        seriesData.humidity.push([ts, item.outhumidity]);
+        seriesData.barometer.push([ts, item.bar]);
+        seriesData.windspeed.push([ts, item.winds]);
+        seriesData.rainfall.push([ts, item.rainincremental]);
+        seriesData.voltage.push([ts, item.stationbatteryvoltage]);
+        seriesData.solarwatts.push([ts, item.solarwatts]);
         if (index % modVal === 0 || data.length < 50) {
-            chartList.winddirection.initialSeries.push([ts, 5, item.winds, item.windd]);
+            seriesData.winddirection.push([ts, 5, item.winds, item.windd]);
+        }
+        if (item.snowdepth !== undefined) {
+            seriesData.snowdepth.push([ts, item.snowdepth]);
         }
     });
+
+    if (updateExisting) {
+        for (let key in chartList) {
+            if (chartList[key].chart && chartList[key].chart.series && chartList[key].chart.series[0]) {
+                chartList[key].chart.series[0].setData(seriesData[key], true);
+            }
+        }
+    } else {
+        for (let key in chartList) {
+            chartList[key].initialSeries = seriesData[key];
+        }
+    }
 }
 
-// Create charts for all metrics
-function createCharts(tabKey, chartList) {
+// Create charts for all metrics with optional data
+function createCharts(tabKey, chartList, initialData = false) {
     for (let key in chartList) {
         const chartElement = document.getElementById(`${chartList[key].divId}${chartTabList[tabKey].graphDivSuffix}`);
+        if (!chartElement) continue; // Skip if element not found
         const options = {
-            yAxisTitle: chartList[key].yAxisLabel,
-            chartType: chartList[key].chartType,
-            tooltipFormat: chartList[key].chartType === 'vector' ? {
-                pointFormat: '{date point.x}<br/>Speed: <b>{point.length:.1f} MPH</b><br/>Direction: <b>{point.direction:.0f}\u00B0</b>'
-            } : { valueDecimals: 2 }
+            chart: {
+                type: chartList[key].chartType,
+                style: { fontFamily: 'Inconsolata, monospace' },
+                events: { load: () => markAsRendered(key) }
+            },
+            title: { text: chartList[key].title },
+            credits: { enabled: false },
+            legend: { enabled: false },
+            xAxis: {
+                type: 'datetime',
+                dateTimeLabelFormats: { hour: '%l %p', minute: '%I:%M %p' }
+            },
+            yAxis: chartList[key].chartType === 'vector' ? { visible: false } : { title: { text: chartList[key].yAxisLabel } },
+            time: { useUTC: false },
+            series: [{
+                name: chartList[key].title,
+                data: initialData ? chartList[key].initialSeries : [], // Render with data if provided, else empty
+                color: '#c1121f',
+                tooltip: chartList[key].chartType === 'vector' ? {
+                    pointFormat: '{date point.x}<br/>Speed: <b>{point.length:.1f} MPH</b><br/>Direction: <b>{point.direction:.0f}\u00B0</b>'
+                } : { valueDecimals: 2 }
+            }]
         };
-        chartList[key].chart = createChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, options);
+        chartList[key].chart = Highcharts.chart(chartElement, options);
     }
 }
 
 // Fetch data and create charts for a tab
 async function fetchAndCreateCharts(tabKey) {
+    // Render blank charts immediately
+    createCharts(tabKey, chartList, false);
+
+    // Fetch and update with data asynchronously
     const data = await fetchData(tabKey, '{{ .PullFromDevice }}');
-    if (!data) return;
-    processData(data, chartList);
-    createCharts(tabKey, chartList);
+    if (data) {
+        processData(data, chartList, true); // Update existing charts
+    }
 
     {{- if .SnowDevice }}
     const snowData = await fetchData(tabKey, '{{ .SnowDevice }}');
     if (snowData) {
-        snowData.forEach(item => {
-            chartList.snowdepth.initialSeries.push([item.ts, item.snowdepth]);
-        });
-        const snowChartElement = document.getElementById(`${chartList.snowdepth.divId}${chartTabList[tabKey].graphDivSuffix}`);
-        chartList.snowdepth.chart = createChart('snowdepth', snowChartElement, chartList.snowdepth.initialSeries, chartList.snowdepth.title, {
-            yAxisTitle: chartList.snowdepth.yAxisLabel,
-            chartType: chartList.snowdepth.chartType,
-            tooltipFormat: { valueDecimals: 2 }
-        });
+        processData(snowData, chartList, true); // Update snowdepth chart
     }
     {{- end }}
 
@@ -280,7 +321,7 @@ async function fetchSnowData(station) {
 
 // Update a chart's series with a new point
 function updateChartSeries(chart, point, maxPoints = MAX_POINTS) {
-    if (!chart.rendered) return;
+    if (!chart.rendered || !chart.chart || !chart.chart.series[0]) return;
     const series = chart.chart.series[0];
     const shift = series.data.length > maxPoints;
     series.addPoint(point, true, shift);
