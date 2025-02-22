@@ -7,6 +7,14 @@ import (
 	"github.com/soniakeys/meeus/v3/julian"
 )
 
+// This code was inpsired by the NOAA Solar Calculator (JavaScript) and the libastro library (C).
+// The code was not directly copied from either of these sources, but rather, an inspired port
+// to Go was created.
+//
+// References:
+// https://gml.noaa.gov/grad/solcalc/
+// https://github.com/XEphem/XEphem/blob/main/libastro/circum.c
+
 // SolarResult stores calculated solar parameters
 type SolarResult struct {
 	Irradiance     float64 // W/m², clear-sky solar radiation
@@ -88,7 +96,7 @@ func CalculateSolarRadiationBras(lat, lon, altM float64, ts int64, nfac float64)
 		azDeg = 360 - azDeg
 	}
 
-	// Sun-Earth distance (libastro s_edist)
+	// Sun-Earth distance (inspiration from libastro functions in circum.c)
 	M_rad := degToRad(M)
 	e = 0.016708617 - T*(0.000042037+T*0.0000001236)
 	E := M_rad + e*math.Sin(M_rad)*(1+e*math.Cos(M_rad))
