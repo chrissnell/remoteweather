@@ -104,6 +104,7 @@ type WeatherReading struct {
 	RainRate              json.Number `json:"rainrate,omitempty"`
 	RainIncremental       json.Number `json:"rainincremental,omitempty"`
 	SolarWatts            json.Number `json:"solarwatts,omitempty"`
+	PotentialSolarWatts   json.Number `json:"potentialsolarwatts,omitempty"`
 	SolarJoules           json.Number `json:"solarjoules,omitempty"`
 	UV                    json.Number `json:"uv,omitempty"`
 	Radiation             json.Number `json:"radiation,omitempty"`
