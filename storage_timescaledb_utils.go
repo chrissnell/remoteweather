@@ -32,6 +32,7 @@ type FetchedBucketReading struct {
 	MaxInHumidity         float32    `gorm:"column:max_inhumidity"`
 	MinInHumidity         float32    `gorm:"column:min_inhumidity"`
 	SolarWatts            float32    `gorm:"column:solarwatts"`
+	PotentialSolarWatts   float32    `gorm:"column:potentialsolarwatts"`
 	SolarJoules           float32    `gorm:"column:solarjoules"`
 	OutTemp               float32    `gorm:"column:outtemp"`
 	MaxOutTemp            float32    `gorm:"column:max_outtemp"`

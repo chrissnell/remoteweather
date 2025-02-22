@@ -64,6 +64,7 @@ type Reading struct {
 	RainRate              float32   `gorm:"column:rainrate"`
 	RainIncremental       float32   `gorm:"column:rainincremental"`
 	SolarWatts            float32   `gorm:"column:solarwatts"`
+	PotentialSolarWatts   float32   `gorm:"column:potentialsolarwatts"`
 	SolarJoules           float32   `gorm:"column:solarjoules"`
 	UV                    float32   `gorm:"column:uv"`
 	Radiation             float32   `gorm:"column:radiation"`

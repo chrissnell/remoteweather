@@ -46,6 +46,13 @@ github.com/jinzhu/now
 ## explicit; go 1.12
 # github.com/rogpeppe/go-internal v1.12.0
 ## explicit; go 1.20
+# github.com/soniakeys/meeus/v3 v3.0.1
+## explicit
+github.com/soniakeys/meeus/v3/base
+github.com/soniakeys/meeus/v3/julian
+# github.com/soniakeys/unit v1.0.0
+## explicit
+github.com/soniakeys/unit
 # github.com/tarm/goserial v0.0.0-20151007205400-b3440c3c6355
 ## explicit
 github.com/tarm/goserial
