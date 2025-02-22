@@ -325,5 +325,12 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
+	// Add some indexes to speed up queries
+	log.Info("Adding indexes...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createIndexesSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add indexes")
+		return &TimescaleDBStorage{}, err
+	}
 	return &t, nil
 }

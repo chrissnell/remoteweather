@@ -18,6 +18,8 @@ require (
 	gorm.io/gorm v1.25.12
 )
 
+require github.com/soniakeys/unit v1.0.0 // indirect
+
 require (
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -28,6 +30,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
+	github.com/soniakeys/meeus/v3 v3.0.1
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.35.0 // indirect

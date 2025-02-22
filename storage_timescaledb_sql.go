@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS weather (
 	uv float4 NULL,
     solarjoules float4 NULL,
     solarwatts float4 NULL,
+    potentialsolarwatts float4 NULL,
 	radiation float4 NULL,
     stormrain float4 NULL,
     stormstart timestamp WITH TIME ZONE NULL,
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS weather (
     soilmoisture1 float4 NULL,
     soilmoisture2 float4 NULL,
     soilmoisture3 float4 NULL,
-    soilmoisture4 float4 NULL,
+    soilmoisture4 float4 NULL,  
     leafwetness1 float4 NULL,
     leafwetness2 float4 NULL,
     leafwetness3 float4 NULL,
@@ -214,6 +215,7 @@ SELECT
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
     avg(solarwatts) as solarwatts,
+    avg(potentialsolarwatts) as potentialsolarwatts,
     avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
@@ -292,6 +294,7 @@ SELECT
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
     avg(solarwatts) as solarwatts,
+    avg(potentialsolarwatts) as potentialsolarwatts,
     avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
@@ -370,6 +373,7 @@ SELECT
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
     avg(solarwatts) as solarwatts,
+    avg(potentialsolarwatts) as potentialsolarwatts,
     avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
@@ -448,6 +452,7 @@ SELECT
 	max(outhumidity) as max_outhumidity,
 	min(outhumidity) as min_outhumidity,
     avg(solarwatts) as solarwatts,
+    avg(potentialsolarwatts) as potentialsolarwatts,
     avg(solarjoules) as solarjoules,
     circular_avg(winddir) as winddir,
     avg(windspeed) as windspeed,
@@ -510,6 +515,13 @@ SELECT
      WHERE time >= (SELECT max(bucket) FROM weather_5m)) AS total_rain
 FROM weather_5m
 WHERE bucket >= date_trunc('day', now());`
+
+const createIndexesSQL = `
+CREATE INDEX IF NOT EXISTS weather_1m_bucket_stationname_idx ON weather_1m (stationname, bucket);
+CREATE INDEX IF NOT EXISTS weather_5m_bucket_stationname_idx ON weather_5m (stationname, bucket);
+CREATE INDEX IF NOT EXISTS weather_1h_bucket_stationname_idx ON weather_1h (stationname, bucket);
+CREATE INDEX IF NOT EXISTS weather_1d_bucket_stationname_idx ON weather_1d (stationname, bucket);
+CREATE INDEX IF NOT EXISTS weather_stationname_time_idx ON weather (stationname, time DESC);`
 
 const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', INTERVAL '1 month', INTERVAL '1 minute', INTERVAL '1 minute', if_not_exists => true);`
 const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', INTERVAL '6 months', INTERVAL '5 minutes', INTERVAL '5 minutes', if_not_exists => true);`

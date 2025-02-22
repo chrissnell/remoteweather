@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/util/solar"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"
 )
@@ -171,8 +172,18 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				cp.WindDir = uint16(correctedWindDirection)
 			}
 
+			timestamp := time.Now()
+
+			var potentialSolarWatts solar.SolarResult
+			if w.Config.Solar.Latitude != 0 && w.Config.Solar.Longitude != 0 {
+				// Caclulate potential solar watts for this location and time using the Bras solar model
+				potentialSolarWatts = solar.CalculateSolarRadiationBras(w.Config.Solar.Latitude, w.Config.Solar.Longitude, w.Config.Solar.Altitude, timestamp.Unix(), 2.0)
+
+				log.Debugf("solar calculation reesults: %+v", potentialSolarWatts)
+			}
+
 			r := Reading{
-				Timestamp:             time.Now(),
+				Timestamp:             timestamp,
 				StationName:           w.Config.Name,
 				StationBatteryVoltage: cp.StationBatteryVoltage,
 				OutTemp:               cp.OutTemp,
@@ -186,6 +197,7 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				WindDir:               float32(cp.WindDir),
 				WindChill:             calcWindChill(cp.OutTemp, cp.WindSpeed),
 				HeatIndex:             calcHeatIndex(cp.OutTemp, cp.OutHumidity),
+				PotentialSolarWatts:   float32(potentialSolarWatts.Irradiance),
 			}
 
 			// Send the reading to the distributor
