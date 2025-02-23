@@ -55,7 +55,7 @@ func equationOfTime(t time.Time) float64 {
 }
 
 // calculateGHI computes Global Horizontal Irradiance (GHI) in W/m² using the Ineichen-Perez clear-sky model
-func calculateGHI(t time.Time, latitude, longitude, altitude float64) float64 {
+func CalculateGHIIneichenPerez(t time.Time, latitude, longitude, altitude float64) float64 {
 	// Day of the year (1-365 or 366) for seasonal solar position
 	N := t.YearDay()
 

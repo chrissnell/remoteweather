@@ -134,7 +134,12 @@ let chartList = {
         "chartType": "spline",
         "pointName": "solarWattsPoint",
         "initialSeries": [],
-        "rendered": false
+        "rendered": false,
+        "additionalSeries": [{
+            name: "Maximum Potential Solar Radiation",
+            data: [],
+            color: '#FFA500' // Orange
+        }]
     },
     "voltage": {
         "chart": voltageChart,
@@ -178,6 +183,9 @@ function clearCharts() {
     for (let key in chartList) {
         chartList[key].chart = {};
         chartList[key].initialSeries = [];
+        if (chartList[key].additionalSeries) {
+            chartList[key].additionalSeries.forEach(series => series.data = []);
+        }
         chartList[key].rendered = false;
     }
 }
@@ -207,6 +215,9 @@ function processData(data, chartList) {
         chartList.rainfall.initialSeries.push([ts, item.rainincremental]);
         chartList.voltage.initialSeries.push([ts, item.stationbatteryvoltage]);
         chartList.solarwatts.initialSeries.push([ts, item.solarwatts]);
+        if (chartList.solarwatts.additionalSeries) {
+            chartList.solarwatts.additionalSeries[0].data.push([ts, item.potentialsolarwatts]);
+        }
         if (index % modVal === 0 || data.length < 50) {
             chartList.winddirection.initialSeries.push([ts, 5, item.winds, item.windd]);
         }
@@ -222,7 +233,8 @@ function createCharts(tabKey, chartList) {
             chartType: chartList[key].chartType,
             tooltipFormat: chartList[key].chartType === 'vector' ? {
                 pointFormat: '{date point.x}<br/>Speed: <b>{point.length:.1f} MPH</b><br/>Direction: <b>{point.direction:.0f}\u00B0</b>'
-            } : { valueDecimals: 2 }
+            } : { valueDecimals: 2 },
+            ...(chartList[key].additionalSeries ? { additionalSeries: chartList[key].additionalSeries } : {})
         };
         chartList[key].chart = createChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, options);
     }
@@ -281,9 +293,16 @@ async function fetchSnowData(station) {
 // Update a chart's series with a new point
 function updateChartSeries(chart, point, maxPoints = MAX_POINTS) {
     if (!chart.rendered) return;
-    const series = chart.chart.series[0];
-    const shift = series.data.length > maxPoints;
-    series.addPoint(point, true, shift);
+    if (chart.chart.series.length > 1) {
+        chart.chart.series.forEach((series, index) => {
+            const shift = series.data.length > maxPoints;
+            series.addPoint(point[index], true, shift);
+        });
+    } else {
+        const series = chart.chart.series[0];
+        const shift = series.data.length > maxPoints;
+        series.addPoint(point, true, shift);
+    }
 }
 
 // Refresh chart data periodically
@@ -298,7 +317,10 @@ async function refreshData() {
         windSpeedPoint: [data.ts, data.winds],
         voltagePoint: [data.ts, data.stationbatteryvoltage],
         rainfallPoint: [data.ts, data.dayrain],
-        solarWattsPoint: [data.ts, data.solarwatts]
+        solarWattsPoint: [
+            [data.ts, data.solarwatts],
+            [data.ts, data.potentialsolarwatts]
+        ]
     };
     for (let key in chartList) {
         if (key !== 'winddirection' && chartList[key].rendered) {
@@ -523,7 +545,7 @@ async function refreshDayForecastData() {
 
 // Generic chart creation function
 function createChart(chartName, targetDiv, data, title, options = {}) {
-    const { yAxisTitle, chartType = 'spline', tooltipFormat } = options;
+    const { yAxisTitle, chartType = 'spline', tooltipFormat, additionalSeries = [] } = options;
     const config = {
         chart: {
             type: chartType,
@@ -532,19 +554,22 @@ function createChart(chartName, targetDiv, data, title, options = {}) {
         },
         title: { text: title },
         credits: { enabled: false },
-        legend: { enabled: false },
+        legend: { enabled: additionalSeries.length > 0 },
         xAxis: {
             type: 'datetime',
             dateTimeLabelFormats: { hour: '%l %p', minute: '%I:%M %p' }
         },
         yAxis: chartType === 'vector' ? { visible: false } : { title: { text: yAxisTitle } },
         time: { useUTC: false },
-        series: [{
-            name: title,
-            data,
-            color: '#c1121f',
-            ...(tooltipFormat && { tooltip: tooltipFormat })
-        }]
+        series: [
+            {
+                name: title,
+                data,
+                color: '#c1121f', // Red
+                ...(tooltipFormat && { tooltip: tooltipFormat })
+            },
+            ...additionalSeries
+        ]
     };
     return Highcharts.chart(targetDiv, config);
 }
