@@ -26,15 +26,6 @@ type SolarResult struct {
 	SunEarthDistKm float64 // km, Sun-Earth distance
 }
 
-// degToRad converts degrees to radians
-func degToRad(deg float64) float64 { return deg * math.Pi / 180.0 }
-
-// radToDeg converts radians to degrees
-func radToDeg(rad float64) float64 { return rad * 180.0 / math.Pi }
-
-// fixAngle normalizes angle to [0, 360)
-func fixAngle(a float64) float64 { return a - 360.0*math.Floor(a/360.0) }
-
 // CalculateSolarRadiationBras computes solar parameters using Bras method
 // Inputs: lat (degrees N), lon (degrees W), altM (meters), ts (Unix UTC), nfac (turbidity)
 func CalculateSolarRadiationBras(lat, lon, altM float64, ts int64, nfac float64) SolarResult {
