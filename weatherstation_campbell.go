@@ -174,12 +174,12 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 
 			timestamp := time.Now()
 
-			var potentialSolarWatts solar.SolarResult
+			var potentialSolarWatts float64
 			if w.Config.Solar.Latitude != 0 && w.Config.Solar.Longitude != 0 {
 				// Caclulate potential solar watts for this location and time using the Bras solar model
-				potentialSolarWatts = solar.CalculateSolarRadiationBras(w.Config.Solar.Latitude, w.Config.Solar.Longitude, w.Config.Solar.Altitude, timestamp.Unix(), 2.0)
+				potentialSolarWatts = solar.CalculateGHIIneichenPerez(timestamp.UTC(), w.Config.Solar.Latitude, w.Config.Solar.Longitude, w.Config.Solar.Altitude)
 
-				log.Debugf("solar calculation reesults: %+v", potentialSolarWatts)
+				log.Debugf("solar calculation results: %+v", potentialSolarWatts)
 			}
 
 			r := Reading{
@@ -197,7 +197,7 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				WindDir:               float32(cp.WindDir),
 				WindChill:             calcWindChill(cp.OutTemp, cp.WindSpeed),
 				HeatIndex:             calcHeatIndex(cp.OutTemp, cp.OutHumidity),
-				PotentialSolarWatts:   float32(potentialSolarWatts.Irradiance),
+				PotentialSolarWatts:   float32(potentialSolarWatts),
 			}
 
 			// Send the reading to the distributor
