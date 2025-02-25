@@ -84,7 +84,7 @@ func CalculateGHIIneichenPerez(t time.Time, latitude, longitude, altitude float6
 
 	// Ineichen-Perez clear-sky model: Calculates GHI under clear-sky conditions
 	if thetaZ < 90.0 { // Sun above horizon
-		TL := 3.0 // Linke turbidity factor, typical for clear skies (range: 2-6)
+		TL := 2.0 // Linke turbidity factor, typical for clear skies (range: 2-6)
 		// Air mass (AM): Atmospheric path length, using Kasten-Young formula
 		AM := 1.0 / (math.Cos(degToRad(thetaZ)) + 0.50572*math.Pow(96.07995-thetaZ, -1.6364))
 		c := 0.7   // Normalization constant for DNI (tuned for accuracy)
