@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrissnell/remoteweather/util/crc16"
+	"github.com/chrissnell/remoteweather/pkg/crc16"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"
 )
