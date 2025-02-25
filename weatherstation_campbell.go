@@ -176,8 +176,8 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 
 			var potentialSolarWatts float64
 			if w.Config.Solar.Latitude != 0 && w.Config.Solar.Longitude != 0 {
-				// Caclulate potential solar watts for this location and time using the Bras solar model
-				potentialSolarWatts = solar.CalculateGHIIneichenPerez(timestamp.UTC(), w.Config.Solar.Latitude, w.Config.Solar.Longitude, w.Config.Solar.Altitude)
+				// Caclulate potential solar watts for this location and time using the
+				potentialSolarWatts = solar.CalculateClearSkySolarRadiationASCE(timestamp, w.Config.Solar.Latitude, w.Config.Solar.Longitude, w.Config.Solar.Altitude, float64(cp.OutTemp), float64(cp.OutHumidity))
 
 				log.Debugf("solar calculation results: %+v", potentialSolarWatts)
 			}
