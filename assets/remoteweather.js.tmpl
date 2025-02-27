@@ -129,7 +129,7 @@ let chartList = {
     "solarwatts": {
         "chart": solarwattsChart,
         "divId": "solarwattsChart",
-        "title": "Solar Energy",
+        "title": "Observed Solar Radiation",
         "yAxisLabel": "Watts/m²",
         "chartType": "spline",
         "pointName": "solarWattsPoint",
@@ -212,7 +212,7 @@ function processData(data, chartList) {
         chartList.humidity.initialSeries.push([ts, item.outhumidity]);
         chartList.barometer.initialSeries.push([ts, item.bar]);
         chartList.windspeed.initialSeries.push([ts, item.winds]);
-        chartList.rainfall.initialSeries.push([ts, item.rainincremental]);
+        chartList.rainfall.initialSeries.push([ts, item.period_rain]);
         chartList.voltage.initialSeries.push([ts, item.stationbatteryvoltage]);
         chartList.solarwatts.initialSeries.push([ts, item.solarwatts]);
         if (chartList.solarwatts.additionalSeries) {
