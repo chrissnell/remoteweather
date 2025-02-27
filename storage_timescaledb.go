@@ -27,9 +27,10 @@ type Tabler interface {
 	TableName() string
 }
 
-// BucketReading holds a reading for a given timestamp
+// BucketReading is a Reading with a few extra fields that are present in the materialized view
 type BucketReading struct {
-	Bucket time.Time `gorm:"column:bucket"`
+	Bucket     time.Time `gorm:"column:bucket"`
+	PeriodRain float32   `gorm:"column:period_rain"`
 	Reading
 }
 
