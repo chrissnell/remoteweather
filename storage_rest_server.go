@@ -103,6 +103,7 @@ type WeatherReading struct {
 	OutsideHumidity       json.Number `json:"ohum,omitempty"`
 	RainRate              json.Number `json:"rainrate,omitempty"`
 	RainIncremental       json.Number `json:"rainincremental,omitempty"`
+	PeriodRain            json.Number `json:"period_rain,omitempty"`
 	SolarWatts            json.Number `json:"solarwatts,omitempty"`
 	PotentialSolarWatts   json.Number `json:"potentialsolarwatts,omitempty"`
 	SolarJoules           json.Number `json:"solarjoules,omitempty"`
@@ -643,6 +644,7 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 			OutsideHumidity:       float32ToJSONNumber(r.OutHumidity),
 			RainRate:              float32ToJSONNumber(r.RainRate),
 			RainIncremental:       float32ToJSONNumber(r.RainIncremental),
+			PeriodRain:            float32ToJSONNumber(r.PeriodRain),
 			SolarWatts:            float32ToJSONNumber(r.SolarWatts),
 			PotentialSolarWatts:   float32ToJSONNumber(r.PotentialSolarWatts),
 			SolarJoules:           float32ToJSONNumber(r.SolarJoules),
