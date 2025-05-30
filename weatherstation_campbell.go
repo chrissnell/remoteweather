@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/pkg/solar"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"
 )
@@ -158,8 +159,31 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				return fmt.Errorf("error unmarshalling JSON: %v", err)
 			}
 
+			var uncorrectedWindDirection, correctedWindDirection int16
+			uncorrectedWindDirection = int16(cp.WindDir)
+			if w.Config.WindDirCorrection != 0 {
+				log.Debugf("correcting wind direction by %v", w.Config.WindDirCorrection)
+				correctedWindDirection = uncorrectedWindDirection + (w.Config.WindDirCorrection)
+				if correctedWindDirection >= 360 {
+					correctedWindDirection = correctedWindDirection - 360
+				} else if correctedWindDirection < 0 {
+					correctedWindDirection = correctedWindDirection + 360
+				}
+				cp.WindDir = uint16(correctedWindDirection)
+			}
+
+			timestamp := time.Now()
+
+			var potentialSolarWatts float64
+			if w.Config.Solar.Latitude != 0 && w.Config.Solar.Longitude != 0 {
+				// Caclulate potential solar watts for this location and time using the
+				potentialSolarWatts = solar.CalculateClearSkySolarRadiationASCE(timestamp, w.Config.Solar.Latitude, w.Config.Solar.Longitude, w.Config.Solar.Altitude, float64(cp.OutTemp), float64(cp.OutHumidity))
+
+				log.Debugf("solar calculation results: %+v", potentialSolarWatts)
+			}
+
 			r := Reading{
-				Timestamp:             time.Now(),
+				Timestamp:             timestamp,
 				StationName:           w.Config.Name,
 				StationBatteryVoltage: cp.StationBatteryVoltage,
 				OutTemp:               cp.OutTemp,
@@ -173,6 +197,7 @@ func (w *CampbellScientificWeatherStation) ParseCampbellScientificPackets() erro
 				WindDir:               float32(cp.WindDir),
 				WindChill:             calcWindChill(cp.OutTemp, cp.WindSpeed),
 				HeatIndex:             calcHeatIndex(cp.OutTemp, cp.OutHumidity),
+				PotentialSolarWatts:   float32(potentialSolarWatts),
 			}
 
 			// Send the reading to the distributor

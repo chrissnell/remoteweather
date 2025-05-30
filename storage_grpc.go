@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	weather "github.com/chrissnell/remoteweather/protobuf"
+	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
