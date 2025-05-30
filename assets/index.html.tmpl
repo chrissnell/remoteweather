@@ -90,6 +90,7 @@
       </div>
     </div>
   </div>
+  {{ if .SnowEnabled }}
   <div class="w-layout-blockcontainer snow-gauge-title w-container">
     <div class="div-block-4">
       <div class="div-block-6">
@@ -125,6 +126,7 @@
       <div class="readingdescsubtitle">inches</div>
     </div>
   </div>
+  {{ end }}
   <div class="w-layout-blockcontainer forecast-title w-container">
     <div class="div-block-4">
       <div class="div-block-6">
@@ -902,7 +904,9 @@
           <div id="temperatureChart24Hour" class="temperaturechart"></div>
           <div id="winddirectionChart24Hour" class="winddirectionchart"></div>
           <div id="windspeedChart24Hour" class="windspeedchart"></div>
+          {{ if .SnowEnabled }}
           <div id="snowdepthChart24Hour" class="snowdepthchart"></div>
+          {{ end }}
           <div id="humidityChart24Hour" class="humiditychart"></div>
           <div id="barometerChart24Hour" class="barometerchart"></div>
           <div id="rainfallChart24Hour" class="rainfallchart"></div>
@@ -913,7 +917,9 @@
           <div id="temperatureChart72Hours" class="temperaturechart"></div>
           <div id="winddirectionChart72Hours" class="winddirectionchart"></div>
           <div id="windspeedChart72Hours" class="windspeedchart"></div>
+          {{ if .SnowEnabled }}
           <div id="snowdepthChart72Hours" class="snowdepthchart"></div>
+          {{ end }}
           <div id="humidityChart72Hours" class="humiditychart"></div>
           <div id="barometerChart72Hours" class="barometerchart"></div>
           <div id="rainfallChart72Hours" class="rainfallchart"></div>
@@ -924,7 +930,9 @@
           <div id="temperatureChartWeek" class="temperaturechart"></div>
           <div id="winddirectionChartWeek" class="winddirectionchart"></div>
           <div id="windspeedChartWeek" class="windspeedchart"></div>
+          {{ if .SnowEnabled }}
           <div id="snowdepthChartWeek" class="snowdepthchart"></div>
+          {{ end }}
           <div id="humidityChartWeek" class="humiditychart"></div>
           <div id="barometerChartWeek" class="barometerchart"></div>
           <div id="rainfallChartWeek" class="rainfallchart"></div>
@@ -935,7 +943,9 @@
           <div id="temperatureChartMonth" class="temperaturechart"></div>
           <div id="winddirectionChartMonth" class="winddirectionchart"></div>
           <div id="windspeedChartMonth" class="windspeedchart"></div>
+          {{ if .SnowEnabled }}
           <div id="snowdepthChartMonth" class="snowdepthchart"></div>
+          {{ end }}
           <div id="humidityChartMonth" class="humiditychart"></div>
           <div id="barometerChartMonth" class="barometerchart"></div>
           <div id="rainfallChartMonth" class="rainfallchart"></div>
@@ -946,7 +956,9 @@
           <div id="temperatureChartYear" class="temperaturechart"></div>
           <div id="winddirectionChartYear" class="winddirectionchart"></div>
           <div id="windspeedChartYear" class="windspeedchart"></div>
+          {{ if .SnowEnabled }}
           <div id="snowdepthChartYear" class="snowdepthchart"></div>
+          {{ end }}
           <div id="humidityChartYear" class="humiditychart"></div>
           <div id="barometerChartYear" class="barometerchart"></div>
           <div id="rainfallChartYear" class="rainfallchart"></div>

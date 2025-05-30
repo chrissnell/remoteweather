@@ -76,6 +76,7 @@ let chartList = {
         "initialSeries": [],
         "rendered": false
     },
+    {{- if .SnowEnabled }}
     "snowdepth": {
         "chart": snowdepthChart,
         "divId": "snowdepthChart",
@@ -86,6 +87,7 @@ let chartList = {
         "initialSeries": [],
         "rendered": false
     },
+    {{- end }}
     "barometer": {
         "chart": barometerChart,
         "divId": "barometerChart",
@@ -247,7 +249,7 @@ async function fetchAndCreateCharts(tabKey) {
     processData(data, chartList);
     createCharts(tabKey, chartList);
 
-    {{- if .SnowDevice }}
+    {{- if .SnowEnabled }}
     const snowData = await fetchData(tabKey, '{{ .SnowDevice }}');
     if (snowData) {
         snowData.forEach(item => {
@@ -278,6 +280,7 @@ async function fetchLatestData(station) {
     }
 }
 
+{{- if .SnowEnabled }}
 // Fetch the latest snow data
 async function fetchSnowData(station) {
     try {
@@ -289,6 +292,7 @@ async function fetchSnowData(station) {
         return null;
     }
 }
+{{- end }}
 
 // Update a chart's series with a new point
 function updateChartSeries(chart, point, maxPoints = MAX_POINTS) {
