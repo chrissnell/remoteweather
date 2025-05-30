@@ -23,6 +23,9 @@ import (
 type WeatherSiteConfig struct {
 	StationName      string            `yaml:"station-name,omitempty"`
 	PullFromDevice   string            `yaml:"pull-from-device,omitempty"`
+	SnowEnabled      bool              `yaml:"snow-enabled,omitempty"`
+	SnowDevice       string            `yaml:"snow-device-name,omitempty"`
+	SnowBaseDistance float32           `yaml:"snow-base-distance,omitempty"`
 	PageTitle        string            `yaml:"page-title,omitempty"`
 	AboutStationHTML htmltemplate.HTML `yaml:"about-station-html,omitempty"`
 }
@@ -50,8 +53,26 @@ type RESTServerStorage struct {
 	AerisWeatherEnabled bool
 }
 
+type SnowReading struct {
+	StationName string  `json:"stationname"`
+	SnowDepth   float32 `json:"snowdepth"`
+	SnowToday   float32 `json:"snowtoday"`
+	SnowLast24  float32 `json:"snowlast24"`
+	SnowLast72  float32 `json:"snowlast72"`
+}
+
+type SnowSeasonReading struct {
+	StationName         string  `json:"stationname"`
+	TotalSeasonSnowfall float32 `json:"totalseasonsnowfall"`
+}
+
+type SnowDeltaResult struct {
+	Snowfall float32
+}
+
 type WeatherReading struct {
 	StationName      string `json:"stationname"`
+	StationType      string `json:"stationtype,omitempty"`
 	ReadingTimestamp int64  `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
@@ -82,7 +103,9 @@ type WeatherReading struct {
 	OutsideHumidity       json.Number `json:"ohum,omitempty"`
 	RainRate              json.Number `json:"rainrate,omitempty"`
 	RainIncremental       json.Number `json:"rainincremental,omitempty"`
+	PeriodRain            json.Number `json:"period_rain,omitempty"`
 	SolarWatts            json.Number `json:"solarwatts,omitempty"`
+	PotentialSolarWatts   json.Number `json:"potentialsolarwatts,omitempty"`
 	SolarJoules           json.Number `json:"solarjoules,omitempty"`
 	UV                    json.Number `json:"uv,omitempty"`
 	Radiation             json.Number `json:"radiation,omitempty"`
@@ -101,6 +124,28 @@ type WeatherReading struct {
 	InsideHumidity        json.Number `json:"ihum,omitempty"`
 	ConsBatteryVoltage    json.Number `json:"consbatteryvoltage,omitempty"`
 	StationBatteryVoltage json.Number `json:"stationbatteryvoltage,omitempty"`
+	SnowDepth             json.Number `json:"snowdepth,omitempty"`
+	SnowDistance          json.Number `json:"snowdistance,omitempty"`
+	ExtraFloat1           json.Number `json:"extrafloat1,omitempty"`
+	ExtraFloat2           json.Number `json:"extrafloat2,omitempty"`
+	ExtraFloat3           json.Number `json:"extrafloat3,omitempty"`
+	ExtraFloat4           json.Number `json:"extrafloat4,omitempty"`
+	ExtraFloat5           json.Number `json:"extrafloat5,omitempty"`
+	ExtraFloat6           json.Number `json:"extrafloat6,omitempty"`
+	ExtraFloat7           json.Number `json:"extrafloat7,omitempty"`
+	ExtraFloat8           json.Number `json:"extrafloat8,omitempty"`
+	ExtraFloat9           json.Number `json:"extrafloat9,omitempty"`
+	ExtraFloat10          json.Number `json:"extrafloat10,omitempty"`
+	ExtraText1            string      `json:"extratext1,omitempty"`
+	ExtraText2            string      `json:"extratext2,omitempty"`
+	ExtraText3            string      `json:"extratext3,omitempty"`
+	ExtraText4            string      `json:"extratext4,omitempty"`
+	ExtraText5            string      `json:"extratext5,omitempty"`
+	ExtraText6            string      `json:"extratext6,omitempty"`
+	ExtraText7            string      `json:"extratext7,omitempty"`
+	ExtraText8            string      `json:"extratext8,omitempty"`
+	ExtraText9            string      `json:"extratext9,omitempty"`
+	ExtraText10           string      `json:"extratext10,omitempty"`
 }
 
 const (
@@ -121,6 +166,20 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 
 	r.Devices = c.Devices
 
+	r.WeatherSiteConfig = &c.Storage.RESTServer.WeatherSiteConfig
+
+	if c.Storage.RESTServer.WeatherSiteConfig.SnowEnabled {
+		if !r.snowDeviceExists(c.Storage.RESTServer.WeatherSiteConfig.SnowDevice) {
+			log.Fatalln("snow device does not exist:", c.Storage.RESTServer.WeatherSiteConfig.SnowDevice)
+		}
+
+		for _, d := range r.Devices {
+			if d.Name == c.Storage.RESTServer.WeatherSiteConfig.SnowDevice {
+				r.WeatherSiteConfig.SnowBaseDistance = float32(d.BaseSnowDistance)
+			}
+		}
+	}
+
 	// Look to see if the Aeris Weather controller has been configured.
 	// If we've configured it, we will enable the /forecast endpoint later on.
 	for _, con := range c.Controllers {
@@ -133,10 +192,6 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	if c.Storage.RESTServer.ListenAddr == "" {
 		log.Info("rest.listen_addr not provided; defaulting to 0.0.0.0 (all interfaces)")
 		c.Storage.RESTServer.ListenAddr = "0.0.0.0"
-	}
-
-	if c.Storage.RESTServer.WeatherSiteConfig.StationName != "" {
-		r.WeatherSiteConfig = &c.Storage.RESTServer.WeatherSiteConfig
 	}
 
 	if c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice == "" {
@@ -153,6 +208,11 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	router := mux.NewRouter()
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
 	router.HandleFunc("/latest", r.getWeatherLatest)
+
+	if c.Storage.RESTServer.WeatherSiteConfig.SnowEnabled {
+		router.HandleFunc("/snow", r.getSnowLatest)
+	}
+
 	// We only enable the /forecast endpoint if Aeris Weather has been configured.
 	if r.AerisWeatherEnabled {
 		router.HandleFunc("/forecast/{span}", r.getForecast)
@@ -290,31 +350,68 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		}
 
 		spanStart := time.Now().Add(-span)
+		baseDistance := r.WeatherSiteConfig.SnowBaseDistance
 
 		switch {
 		case span < 1*Day:
 			if stationName != "" {
-				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_1m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		case (span >= 1*Day) && (span < 7*Day):
 			if stationName != "" {
-				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_5m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_5m").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_5m").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		case (span >= 7*Day) && (span < 2*Month):
 			if stationName != "" {
-				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_1h").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		default:
 			if stationName != "" {
-				r.DB.Table("weather_1d").Where("bucket > ?", spanStart).Where("stationname = ?", stationName).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			} else {
-				r.DB.Table("weather_1d").Where("bucket > ?", spanStart).Order("bucket").Find(&dbFetchedReadings)
+				r.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
 			}
 		}
 
@@ -328,6 +425,90 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 		if err != nil {
 			log.Error("error marshaling JSON response:", err)
 			http.Error(w, "error: unable to marshal JSON response", 500)
+			return
+		}
+
+		w.Write(jsonResponse)
+	}
+}
+
+func (r *RESTServerStorage) getSnowLatest(w http.ResponseWriter, req *http.Request) {
+
+	if r.DBEnabled {
+		// Enable SQL debugging if RW-Debug header is set to "1"
+		if req.Header.Get("RW-Debug") == "1" {
+			r.DB.Logger = r.DB.Logger.LogMode(logger.Info)
+		} else {
+			r.DB.Logger = r.DB.Logger.LogMode(logger.Warn)
+		}
+
+		var dbFetchedReadings []BucketReading
+
+		stationName := req.URL.Query().Get("station")
+
+		if stationName != "" {
+			r.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
+		} else {
+			// Client did not supply a station name, so pull from the configured PullFromDevice
+			r.DB.Table("weather").Limit(1).Where("stationname = ?", r.WeatherSiteConfig.SnowDevice).Order("time DESC").Find(&dbFetchedReadings)
+		}
+
+		log.Debugf("returned rows: %v", len(dbFetchedReadings))
+
+		if len(dbFetchedReadings) > 0 {
+			log.Debugf("latest snow reading: %v", mmToInches(dbFetchedReadings[0].SnowDistance))
+		}
+
+		var result SnowDeltaResult
+
+		// Get the snowfall since midnight
+		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
+		err := r.DB.Raw(query, r.WeatherSiteConfig.SnowDevice, r.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
+		snowSinceMidnight := mmToInches(result.Snowfall)
+
+		// Get the snowfall in the last 24 hours
+		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
+		err = r.DB.Raw(query, r.WeatherSiteConfig.SnowDevice, r.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
+		snowLast24 := mmToInches(result.Snowfall)
+
+		// Get the snowfall in the last 72 hours
+		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
+		err = r.DB.Raw(query, r.WeatherSiteConfig.SnowDevice, r.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
+		snowLast72 := mmToInches(result.Snowfall)
+
+		snowReading := SnowReading{
+			StationName: r.WeatherSiteConfig.SnowDevice,
+			SnowDepth:   mmToInches(r.WeatherSiteConfig.SnowBaseDistance - dbFetchedReadings[0].SnowDistance),
+			SnowToday:   float32(snowSinceMidnight),
+			SnowLast24:  float32(snowLast24),
+			SnowLast72:  float32(snowLast72),
+		}
+
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		jsonResponse, err := json.Marshal(&snowReading)
+		if err != nil {
+			log.Errorf("error marshalling snowReading: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
 			return
 		}
 
@@ -434,6 +615,7 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 	for _, r := range *dbReadings {
 		wr = append(wr, &WeatherReading{
 			StationName:           r.StationName,
+			StationType:           r.StationType,
 			ReadingTimestamp:      r.Bucket.UnixMilli(),
 			OutsideTemperature:    float32ToJSONNumber(r.OutTemp),
 			ExtraTemp1:            float32ToJSONNumber(r.ExtraTemp1),
@@ -462,7 +644,9 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 			OutsideHumidity:       float32ToJSONNumber(r.OutHumidity),
 			RainRate:              float32ToJSONNumber(r.RainRate),
 			RainIncremental:       float32ToJSONNumber(r.RainIncremental),
+			PeriodRain:            float32ToJSONNumber(r.PeriodRain),
 			SolarWatts:            float32ToJSONNumber(r.SolarWatts),
+			PotentialSolarWatts:   float32ToJSONNumber(r.PotentialSolarWatts),
 			SolarJoules:           float32ToJSONNumber(r.SolarJoules),
 			UV:                    float32ToJSONNumber(r.UV),
 			Radiation:             float32ToJSONNumber(r.Radiation),
@@ -481,6 +665,28 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 			InsideHumidity:        float32ToJSONNumber(r.InHumidity),
 			ConsBatteryVoltage:    float32ToJSONNumber(r.ConsBatteryVoltage),
 			StationBatteryVoltage: float32ToJSONNumber(r.StationBatteryVoltage),
+			SnowDepth:             float32ToJSONNumber(mmToInches(r.SnowDepth)),
+			SnowDistance:          float32ToJSONNumber(r.SnowDistance),
+			ExtraFloat1:           float32ToJSONNumber(r.ExtraFloat1),
+			ExtraFloat2:           float32ToJSONNumber(r.ExtraFloat2),
+			ExtraFloat3:           float32ToJSONNumber(r.ExtraFloat3),
+			ExtraFloat4:           float32ToJSONNumber(r.ExtraFloat4),
+			ExtraFloat5:           float32ToJSONNumber(r.ExtraFloat5),
+			ExtraFloat6:           float32ToJSONNumber(r.ExtraFloat6),
+			ExtraFloat7:           float32ToJSONNumber(r.ExtraFloat7),
+			ExtraFloat8:           float32ToJSONNumber(r.ExtraFloat8),
+			ExtraFloat9:           float32ToJSONNumber(r.ExtraFloat9),
+			ExtraFloat10:          float32ToJSONNumber(r.ExtraFloat10),
+			ExtraText1:            r.ExtraText1,
+			ExtraText2:            r.ExtraText2,
+			ExtraText3:            r.ExtraText3,
+			ExtraText4:            r.ExtraText4,
+			ExtraText5:            r.ExtraText5,
+			ExtraText6:            r.ExtraText6,
+			ExtraText7:            r.ExtraText7,
+			ExtraText8:            r.ExtraText8,
+			ExtraText9:            r.ExtraText9,
+			ExtraText10:           r.ExtraText10,
 		})
 	}
 
@@ -497,6 +703,7 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 	}
 	reading := WeatherReading{
 		StationName:           latest.StationName,
+		StationType:           latest.StationType,
 		ReadingTimestamp:      latest.Timestamp.UnixMilli(),
 		OutsideTemperature:    float32ToJSONNumber(latest.OutTemp),
 		ExtraTemp1:            float32ToJSONNumber(latest.ExtraTemp1),
@@ -526,6 +733,7 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 		RainRate:              float32ToJSONNumber(latest.RainRate),
 		RainIncremental:       float32ToJSONNumber(latest.RainIncremental),
 		SolarWatts:            float32ToJSONNumber(latest.SolarWatts),
+		PotentialSolarWatts:   float32ToJSONNumber(latest.PotentialSolarWatts),
 		SolarJoules:           float32ToJSONNumber(latest.SolarJoules),
 		UV:                    float32ToJSONNumber(latest.UV),
 		Radiation:             float32ToJSONNumber(latest.Radiation),
@@ -544,6 +752,28 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 		InsideHumidity:        float32ToJSONNumber(latest.InHumidity),
 		ConsBatteryVoltage:    float32ToJSONNumber(latest.ConsBatteryVoltage),
 		StationBatteryVoltage: float32ToJSONNumber(latest.StationBatteryVoltage),
+		SnowDepth:             float32ToJSONNumber(latest.SnowDepth),
+		SnowDistance:          float32ToJSONNumber(latest.SnowDistance),
+		ExtraFloat1:           float32ToJSONNumber(latest.ExtraFloat1),
+		ExtraFloat2:           float32ToJSONNumber(latest.ExtraFloat2),
+		ExtraFloat3:           float32ToJSONNumber(latest.ExtraFloat3),
+		ExtraFloat4:           float32ToJSONNumber(latest.ExtraFloat4),
+		ExtraFloat5:           float32ToJSONNumber(latest.ExtraFloat5),
+		ExtraFloat6:           float32ToJSONNumber(latest.ExtraFloat6),
+		ExtraFloat7:           float32ToJSONNumber(latest.ExtraFloat7),
+		ExtraFloat8:           float32ToJSONNumber(latest.ExtraFloat8),
+		ExtraFloat9:           float32ToJSONNumber(latest.ExtraFloat9),
+		ExtraFloat10:          float32ToJSONNumber(latest.ExtraFloat10),
+		ExtraText1:            latest.ExtraText1,
+		ExtraText2:            latest.ExtraText2,
+		ExtraText3:            latest.ExtraText3,
+		ExtraText4:            latest.ExtraText4,
+		ExtraText5:            latest.ExtraText5,
+		ExtraText6:            latest.ExtraText6,
+		ExtraText7:            latest.ExtraText7,
+		ExtraText8:            latest.ExtraText8,
+		ExtraText9:            latest.ExtraText9,
+		ExtraText10:           latest.ExtraText10,
 	}
 	return &reading
 }
@@ -577,4 +807,13 @@ func headingToCardinalDirection(f float32) string {
 
 	cardIndex := int((float32(f) + float32(11.25)) / float32(22.5))
 	return cardDirections[cardIndex%16]
+}
+
+func (r *RESTServerStorage) snowDeviceExists(name string) bool {
+	for _, device := range r.Devices {
+		if device.Name == name && device.Type == "snowgauge" {
+			return true
+		}
+	}
+	return false
 }

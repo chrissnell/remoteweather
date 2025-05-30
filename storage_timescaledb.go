@@ -27,9 +27,10 @@ type Tabler interface {
 	TableName() string
 }
 
-// BucketReading holds a reading for a given timestamp
+// BucketReading is a Reading with a few extra fields that are present in the materialized view
 type BucketReading struct {
-	Bucket time.Time `gorm:"column:bucket"`
+	Bucket     time.Time `gorm:"column:bucket"`
+	PeriodRain float32   `gorm:"column:period_rain"`
 	Reading
 }
 
@@ -285,5 +286,52 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
+	// Add the snowfall 72-hour delta function
+	log.Info("Adding snowfall 72-hour delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta72hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall 72-hour delta function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall 24-hour delta function
+	log.Info("Adding snowfall 24-hour delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta24hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall 24-hour delta function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall since-midnight delta function
+	log.Info("Adding snowfall since-midnight delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaSinceMidnightSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall since-midnight delta function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall season total function
+	log.Info("Adding snowfall season total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowSeasonTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall season total function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add the snowfall season total function
+	log.Info("Adding snowfall storm total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowStormTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snowfall storm total function")
+		return &TimescaleDBStorage{}, err
+	}
+
+	// Add some indexes to speed up queries
+	log.Info("Adding indexes...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createIndexesSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add indexes")
+		return &TimescaleDBStorage{}, err
+	}
 	return &t, nil
 }

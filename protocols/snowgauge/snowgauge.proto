@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package snowgauge;
+
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/chrissnell/remoteweather/protocols/snowgauge";
+
+// Define the gRPC service
+service SnowGaugeService {
+    rpc StreamReading (StreamRequest) returns (stream Reading);
+}
+
+// Define the request message
+message StreamRequest {
+        optional string stationName = 1;
+}
+
+// Define the response message
+message Reading {
+    string stationName = 1; // Name of snow gauge
+    int32 distance = 2; // Reading value in mm
+    google.protobuf.Duration systemUptime = 3; // Uptime of snow gauge
+    google.protobuf.Duration applicationUptime = 4; // Uptime of application
+}
+
