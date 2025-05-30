@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -29,6 +28,7 @@ type WeatherStation interface {
 type Reading struct {
 	Timestamp             time.Time `gorm:"column:time"`
 	StationName           string    `gorm:"column:stationname"`
+	StationType           string    `gorm:"column:stationtype"`
 	Barometer             float32   `gorm:"column:barometer"`
 	InTemp                float32   `gorm:"column:intemp"`
 	InHumidity            float32   `gorm:"column:inhumidity"`
@@ -64,6 +64,7 @@ type Reading struct {
 	RainRate              float32   `gorm:"column:rainrate"`
 	RainIncremental       float32   `gorm:"column:rainincremental"`
 	SolarWatts            float32   `gorm:"column:solarwatts"`
+	PotentialSolarWatts   float32   `gorm:"column:potentialsolarwatts"`
 	SolarJoules           float32   `gorm:"column:solarjoules"`
 	UV                    float32   `gorm:"column:uv"`
 	Radiation             float32   `gorm:"column:radiation"`
@@ -106,6 +107,28 @@ type Reading struct {
 	ForecastRule          uint8     `gorm:"column:forecastrule"`
 	Sunrise               time.Time `gorm:"column:sunrise"`
 	Sunset                time.Time `gorm:"column:sunset"`
+	SnowDistance          float32   `gorm:"column:snowdistance"`
+	SnowDepth             float32   `gorm:"column:snowdepth"`
+	ExtraFloat1           float32   `gorm:"column:extrafloat1"`
+	ExtraFloat2           float32   `gorm:"column:extrafloat2"`
+	ExtraFloat3           float32   `gorm:"column:extrafloat3"`
+	ExtraFloat4           float32   `gorm:"column:extrafloat4"`
+	ExtraFloat5           float32   `gorm:"column:extrafloat5"`
+	ExtraFloat6           float32   `gorm:"column:extrafloat6"`
+	ExtraFloat7           float32   `gorm:"column:extrafloat7"`
+	ExtraFloat8           float32   `gorm:"column:extrafloat8"`
+	ExtraFloat9           float32   `gorm:"column:extrafloat9"`
+	ExtraFloat10          float32   `gorm:"column:extrafloat10"`
+	ExtraText1            string    `gorm:"column:extratext1"`
+	ExtraText2            string    `gorm:"column:extratext2"`
+	ExtraText3            string    `gorm:"column:extratext3"`
+	ExtraText4            string    `gorm:"column:extratext4"`
+	ExtraText5            string    `gorm:"column:extratext5"`
+	ExtraText6            string    `gorm:"column:extratext6"`
+	ExtraText7            string    `gorm:"column:extratext7"`
+	ExtraText8            string    `gorm:"column:extratext8"`
+	ExtraText9            string    `gorm:"column:extratext9"`
+	ExtraText10           string    `gorm:"column:extratext10"`
 }
 
 // NewWeatherStationManager creats a WeatherStationManager object, populated with all configured
@@ -131,6 +154,14 @@ func NewWeatherStationManager(ctx context.Context, wg *sync.WaitGroup, c *Config
 				return &wsm, fmt.Errorf("error creating Campbell Scientific weather station: %v", err)
 			}
 			wsm.Stations = append(wsm.Stations, station)
+		case "snowgauge":
+			log.Infof("Initializing snow gauge [%v]", s.Name)
+			// Create a new SnowGaugeWeatherStation and pass the config for this station
+			station, err := NewSnowGaugeWeatherStation(ctx, wg, s, distributor, logger)
+			if err != nil {
+				return &wsm, fmt.Errorf("error creating snow gauge: %v", err)
+			}
+			wsm.Stations = append(wsm.Stations, station)
 		}
 	}
 
@@ -149,65 +180,4 @@ func (wsm *WeatherStationManager) StartWeatherStations() error {
 	}
 
 	return nil
-}
-
-func calcWindChill(temp float32, windspeed float32) float32 {
-	// For wind speeds < 3 or temps > 50, wind chill is just the current temperature
-	if (temp > 50) || (windspeed < 3) {
-		return temp
-	}
-
-	w64 := float64(windspeed)
-	return (35.74 + (0.6215 * temp) - (35.75 * float32(math.Pow(w64, 0.16))) + (0.4275 * temp * float32(math.Pow(w64, 0.16))))
-}
-
-func calcHeatIndex(temp float32, humidity float32) float32 {
-
-	// Heat indices don't make much sense at temps below 77° F, so just return the current temperature
-	if temp < 77 {
-		return temp
-	}
-
-	// First, we try Steadman's method, which is valid for all heat indices
-	// below 80° F
-	hi := 0.5 * (temp + 61.0 + ((temp - 68.0) * 1.2) + (humidity + 0.094))
-	if hi < 80 {
-		// Only return heat index if it's greater than the temperature
-		if hi > temp {
-			return hi
-		}
-		return temp
-	}
-
-	// Our heat index is > 80, so we need to use the Rothfusz method instead
-	c1 := -42.379
-	c2 := 2.04901523
-	c3 := 10.14333127
-	c4 := 0.22475541
-	c5 := 0.00683783
-	c6 := 0.05481717
-	c7 := 0.00122874
-	c8 := 0.00085282
-	c9 := 0.00000199
-
-	t64 := float64(temp)
-	h64 := float64(humidity)
-
-	hi64 := c1 + (c2 * t64) + (c3 * h64) - (c4 * t64 * h64) - (c5 * math.Pow(t64, 2)) - (c6 * math.Pow(h64, 2)) + (c7 * math.Pow(t64, 2) * h64) + (c8 * t64 * math.Pow(h64, 2)) - (c9 * math.Pow(t64, 2) * math.Pow(h64, 2))
-
-	// If RH < 13% and temperature is between 80 and 112, we need to subtract an adjustment
-	if humidity < 13 && temp >= 80 && temp <= 112 {
-		adj := ((13 - h64) / 4) * math.Sqrt((17-math.Abs(t64-95.0))/17)
-		hi64 = hi64 - adj
-	} else if humidity > 80 && temp >= 80 && temp <= 87 {
-		// Likewise, if RH > 80% and temperature is between 80 and 87, we need to add an adjustment
-		adj := ((h64 - 85.0) / 10) * ((87.0 - t64) / 5)
-		hi64 = hi64 + adj
-	}
-
-	// Only return heat index if it's greater than the temperature
-	if hi64 > t64 {
-		return float32(hi64)
-	}
-	return temp
 }

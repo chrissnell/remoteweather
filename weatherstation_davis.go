@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrissnell/remoteweather/util/crc16"
+	"github.com/chrissnell/remoteweather/pkg/crc16"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"
 )
@@ -376,7 +376,7 @@ func (w *DavisWeatherStation) sendData(d []byte) error {
 //
 //lint:ignore U1000 For future use
 func (w *DavisWeatherStation) sendDataWithCRC16(d []byte) error {
-	var resp []byte
+	resp := make([]byte, 1024)
 
 	// We'll write to a Buffer and then dump the buffer to the device
 	buf := new(bytes.Buffer)
