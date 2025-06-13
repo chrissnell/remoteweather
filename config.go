@@ -39,7 +39,6 @@ type StorageConfig struct {
 	InfluxDB    InfluxDBConfig    `yaml:"influxdb,omitempty"`
 	TimescaleDB TimescaleDBConfig `yaml:"timescaledb,omitempty"`
 	GRPC        GRPCConfig        `yaml:"grpc,omitempty"`
-	RESTServer  RESTServerConfig  `yaml:"rest,omitempty"`
 	APRS        APRSConfig        `yaml:"aprs,omitempty"`
 }
 
@@ -50,6 +49,7 @@ type ControllerConfig struct {
 	PWSWeather         PWSWeatherConfig         `yaml:"pwsweather,omitempty"`
 	WeatherUnderground WeatherUndergroundConfig `yaml:"weatherunderground,omitempty"`
 	AerisWeather       AerisWeatherConfig       `yaml:"aerisweather,omitempty"`
+	RESTServer         RESTServerConfig         `yaml:"rest,omitempty"`
 }
 
 // NewConfig creates an new config object from the given filename.
