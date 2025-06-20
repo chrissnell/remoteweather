@@ -51,9 +51,14 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, c *Config, lo
 				return &ControllerManager{}, fmt.Errorf("error creating new Aeris Weather controller: %v", err)
 			}
 			cm.Controllers = append(cm.Controllers, controller)
-
+		case "rest":
+			log.Info("Creating REST server controller...")
+			controller, err := NewRESTServerController(ctx, wg, c, con.RESTServer, logger)
+			if err != nil {
+				return &ControllerManager{}, fmt.Errorf("error creating new REST server controller: %v", err)
+			}
+			cm.Controllers = append(cm.Controllers, controller)
 		}
-
 	}
 
 	return &cm, nil

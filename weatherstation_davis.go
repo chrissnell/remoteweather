@@ -166,8 +166,10 @@ func (w *DavisWeatherStation) StationName() string {
 func (d *DavisWeatherStation) StartWeatherStation() error {
 	log.Infof("Starting Davis weather station [%v]...", d.Config.Name)
 
-	// Wake the console
-	d.WakeStation()
+	// Wake the console - if this fails, the GetLoopPackets goroutine will retry
+	if err := d.WakeStation(); err != nil {
+		log.Warnf("initial wake attempt failed, will retry in loop: %v", err)
+	}
 
 	d.wg.Add(1)
 	go d.GetLoopPackets()
@@ -208,7 +210,8 @@ func (w *DavisWeatherStation) Connect() {
 	} else if (len(w.Config.Hostname) > 0) && (len(w.Config.Port) > 0) {
 		w.connectToNetworkStation()
 	} else {
-		w.Logger.Fatal("must provide either network hostname+port or serial device in config")
+		w.Logger.Error("must provide either network hostname+port or serial device in config")
+		return
 	}
 }
 
@@ -321,7 +324,7 @@ func (w *DavisWeatherStation) Write(p []byte) (nn int, err error) {
 }
 
 // WakeStation sends a series of carriage returns in an attempt to awaken the station
-func (w *DavisWeatherStation) WakeStation() {
+func (w *DavisWeatherStation) WakeStation() error {
 	var alive bool
 	var err error
 
@@ -337,20 +340,22 @@ func (w *DavisWeatherStation) WakeStation() {
 		_, err = w.rwc.Read(resp)
 
 		if err != nil {
-			log.Fatal("could not read from station:", err)
+			log.Error("could not read from station:", err)
+			return fmt.Errorf("failed to wake station: %w", err)
 		}
 		log.Debug("wake-up response:", resp)
 
 		if resp[0] == 0x0a && resp[1] == 0x0d {
-			log.Info("station has been awaken.")
+			log.Info("station has been awakened.")
 			alive = true
-			return
+			return nil
 		}
 		log.Info("sleeping 500ms and trying again...")
 		time.Sleep(500 * time.Millisecond)
 
 	}
 
+	return nil
 }
 
 func (w *DavisWeatherStation) sendData(d []byte) error {
@@ -426,7 +431,10 @@ func (w *DavisWeatherStation) sendCommand(command []byte) ([]string, error) {
 
 	// We'll try to send it up to maxTries times before erroring out
 	for i := 0; i <= maxTries; i++ {
-		w.WakeStation()
+		if err := w.WakeStation(); err != nil {
+			log.Warnf("failed to wake station on attempt %d: %v", i+1, err)
+			continue
+		}
 
 		// First, write the data
 		_, err = buf.Write(command)
