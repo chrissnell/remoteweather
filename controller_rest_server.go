@@ -20,56 +20,12 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-type WeatherSiteConfig struct {
-	StationName      string            `yaml:"station-name,omitempty"`
-	PullFromDevice   string            `yaml:"pull-from-device,omitempty"`
-	SnowEnabled      bool              `yaml:"snow-enabled,omitempty"`
-	SnowDevice       string            `yaml:"snow-device-name,omitempty"`
-	SnowBaseDistance float32           `yaml:"snow-base-distance,omitempty"`
-	PageTitle        string            `yaml:"page-title,omitempty"`
-	AboutStationHTML htmltemplate.HTML `yaml:"about-station-html,omitempty"`
-}
+const (
+	Day   = 24 * time.Hour
+	Month = Day * 30
+)
 
-// RESTServerConfig describes the YAML-provided configuration for a REST
-// server storage backend
-type RESTServerConfig struct {
-	Cert              string            `yaml:"cert,omitempty"`
-	Key               string            `yaml:"key,omitempty"`
-	Port              int               `yaml:"port,omitempty"`
-	ListenAddr        string            `yaml:"listen-addr,omitempty"`
-	WeatherSiteConfig WeatherSiteConfig `yaml:"weather-site,omitempty"`
-}
-
-// RESTServerStorage implements a REST server storage backend
-type RESTServerStorage struct {
-	ClientChans         []chan Reading
-	ClientChanMutex     sync.RWMutex
-	Server              http.Server
-	DB                  *gorm.DB
-	DBEnabled           bool
-	FS                  *fs.FS
-	WeatherSiteConfig   *WeatherSiteConfig
-	Devices             []DeviceConfig
-	AerisWeatherEnabled bool
-}
-
-type SnowReading struct {
-	StationName string  `json:"stationname"`
-	SnowDepth   float32 `json:"snowdepth"`
-	SnowToday   float32 `json:"snowtoday"`
-	SnowLast24  float32 `json:"snowlast24"`
-	SnowLast72  float32 `json:"snowlast72"`
-}
-
-type SnowSeasonReading struct {
-	StationName         string  `json:"stationname"`
-	TotalSeasonSnowfall float32 `json:"totalseasonsnowfall"`
-}
-
-type SnowDeltaResult struct {
-	Snowfall float32
-}
-
+// WeatherReading represents a weather reading with JSON-formatted fields
 type WeatherReading struct {
 	StationName      string `json:"stationname"`
 	StationType      string `json:"stationtype,omitempty"`
@@ -148,33 +104,68 @@ type WeatherReading struct {
 	ExtraText10           string      `json:"extratext10,omitempty"`
 }
 
-const (
-	Day   = 24 * time.Hour
-	Month = Day * 30
-)
+// RESTServerController implements a REST server controller
+type RESTServerController struct {
+	ctx                 context.Context
+	wg                  *sync.WaitGroup
+	config              *Config
+	restConfig          RESTServerConfig
+	Server              http.Server
+	DB                  *gorm.DB
+	DBEnabled           bool
+	FS                  *fs.FS
+	WeatherSiteConfig   *WeatherSiteConfig
+	Devices             []DeviceConfig
+	AerisWeatherEnabled bool
+	logger              *zap.SugaredLogger
+}
+
+// WeatherSiteConfig holds configuration for the weather site
+type WeatherSiteConfig struct {
+	StationName      string            `yaml:"station-name,omitempty"`
+	PullFromDevice   string            `yaml:"pull-from-device,omitempty"`
+	SnowEnabled      bool              `yaml:"snow-enabled,omitempty"`
+	SnowDevice       string            `yaml:"snow-device-name,omitempty"`
+	SnowBaseDistance float32           `yaml:"snow-base-distance,omitempty"`
+	PageTitle        string            `yaml:"page-title,omitempty"`
+	AboutStationHTML htmltemplate.HTML `yaml:"about-station-html,omitempty"`
+}
+
+// RESTServerConfig describes the YAML-provided configuration for a REST server controller
+type RESTServerConfig struct {
+	Cert              string            `yaml:"cert,omitempty"`
+	Key               string            `yaml:"key,omitempty"`
+	Port              int               `yaml:"port,omitempty"`
+	ListenAddr        string            `yaml:"listen-addr,omitempty"`
+	WeatherSiteConfig WeatherSiteConfig `yaml:"weather-site"`
+}
 
 var (
 	//go:embed all:assets
 	content embed.FS
 )
 
-// NewRESTServerStorage sets up a new REST server storage backend
-func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, error) {
-	var err error
+// NewRESTServerController creates a new REST server controller
+func NewRESTServerController(ctx context.Context, wg *sync.WaitGroup, c *Config, rc RESTServerConfig, logger *zap.SugaredLogger) (*RESTServerController, error) {
 
-	r := new(RESTServerStorage)
+	r := &RESTServerController{
+		ctx:        ctx,
+		wg:         wg,
+		config:     c,
+		restConfig: rc,
+		Devices:    c.Devices,
+		logger:     logger,
+	}
 
-	r.Devices = c.Devices
+	r.WeatherSiteConfig = &rc.WeatherSiteConfig
 
-	r.WeatherSiteConfig = &c.Storage.RESTServer.WeatherSiteConfig
-
-	if c.Storage.RESTServer.WeatherSiteConfig.SnowEnabled {
-		if !r.snowDeviceExists(c.Storage.RESTServer.WeatherSiteConfig.SnowDevice) {
-			log.Fatalln("snow device does not exist:", c.Storage.RESTServer.WeatherSiteConfig.SnowDevice)
+	if rc.WeatherSiteConfig.SnowEnabled {
+		if !r.snowDeviceExists(rc.WeatherSiteConfig.SnowDevice) {
+			return nil, fmt.Errorf("snow device does not exist: %s", rc.WeatherSiteConfig.SnowDevice)
 		}
 
 		for _, d := range r.Devices {
-			if d.Name == c.Storage.RESTServer.WeatherSiteConfig.SnowDevice {
+			if d.Name == rc.WeatherSiteConfig.SnowDevice {
 				r.WeatherSiteConfig.SnowBaseDistance = float32(d.BaseSnowDistance)
 			}
 		}
@@ -189,16 +180,16 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	}
 
 	// If a ListenAddr was not provided, listen on all interfaces
-	if c.Storage.RESTServer.ListenAddr == "" {
-		log.Info("rest.listen_addr not provided; defaulting to 0.0.0.0 (all interfaces)")
-		c.Storage.RESTServer.ListenAddr = "0.0.0.0"
+	if rc.ListenAddr == "" {
+		logger.Info("rest.listen_addr not provided; defaulting to 0.0.0.0 (all interfaces)")
+		rc.ListenAddr = "0.0.0.0"
 	}
 
-	if c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice == "" {
-		return &RESTServerStorage{}, fmt.Errorf("pull-from-device must be set")
+	if rc.WeatherSiteConfig.PullFromDevice == "" {
+		return nil, fmt.Errorf("pull-from-device must be set in weather-site config")
 	} else {
-		if !r.validatePullFromStation(c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice) {
-			return &RESTServerStorage{}, fmt.Errorf("pull-from-device %v is not a valid station name", c.Storage.RESTServer.WeatherSiteConfig.PullFromDevice)
+		if !r.validatePullFromStation(rc.WeatherSiteConfig.PullFromDevice) {
+			return nil, fmt.Errorf("pull-from-device %v is not a valid station name", rc.WeatherSiteConfig.PullFromDevice)
 		}
 	}
 
@@ -209,7 +200,7 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	router.HandleFunc("/span/{span}", r.getWeatherSpan)
 	router.HandleFunc("/latest", r.getWeatherLatest)
 
-	if c.Storage.RESTServer.WeatherSiteConfig.SnowEnabled {
+	if rc.WeatherSiteConfig.SnowEnabled {
 		router.HandleFunc("/snow", r.getSnowLatest)
 	}
 
@@ -221,29 +212,15 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	router.HandleFunc("/js/remoteweather.js", r.serveJS)
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*r.FS)))
 
-	r.Server.Addr = fmt.Sprintf("%v:%v", c.Storage.RESTServer.ListenAddr, c.Storage.RESTServer.Port)
-
-	if c.Storage.RESTServer.Cert != "" && c.Storage.RESTServer.Key != "" {
-		go r.Server.ListenAndServeTLS(c.Storage.RESTServer.Cert, c.Storage.RESTServer.Key)
-	} else {
-		go r.Server.ListenAndServe()
-	}
-
-	go func() {
-		<-ctx.Done()
-		fmt.Println("Shutting down the HTTP server...")
-		r.Server.Shutdown(ctx)
-	}()
-
-	// Configure our mux router as the handler for our Server
+	r.Server.Addr = fmt.Sprintf("%v:%v", rc.ListenAddr, rc.Port)
 	r.Server.Handler = router
 
 	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
 	// handlers can retrieve data
 	if c.Storage.TimescaleDB.ConnectionString != "" {
-		err = r.connectToDatabase(c.Storage.TimescaleDB.ConnectionString)
+		err := r.connectToDatabase(c.Storage.TimescaleDB.ConnectionString)
 		if err != nil {
-			return &RESTServerStorage{}, fmt.Errorf("gRPC storage could not connect to database: %v", err)
+			return nil, fmt.Errorf("REST server could not connect to database: %v", err)
 		}
 		r.DBEnabled = true
 	}
@@ -251,60 +228,34 @@ func NewRESTServerStorage(ctx context.Context, c *Config) (*RESTServerStorage, e
 	return r, nil
 }
 
-// StartStorageEngine creates a goroutine loop to receive readings and send
-// them off to our gRPC clients
-func (r *RESTServerStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
-	log.Info("starting REST server storage engine...")
-	readingChan := make(chan Reading)
-	go r.processMetrics(ctx, wg, readingChan)
-	return readingChan
-}
+func (r *RESTServerController) StartController() error {
+	log.Info("Starting REST server controller...")
+	r.wg.Add(1)
 
-func (r *RESTServerStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
-	wg.Add(1)
-	defer wg.Done()
+	go func() {
+		defer r.wg.Done()
 
-	for {
-		select {
-		case reading := <-rchan:
-			r.ClientChanMutex.RLock()
-			// Send the Reading we just received to all client channels.
-			// If there are no clients connected, it gets discarded.
-			for _, v := range r.ClientChans {
-				v <- reading
+		if r.restConfig.Cert != "" && r.restConfig.Key != "" {
+			if err := r.Server.ListenAndServeTLS(r.restConfig.Cert, r.restConfig.Key); err != http.ErrServerClosed {
+				log.Errorf("REST server error: %v", err)
 			}
-			r.ClientChanMutex.RUnlock()
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling readings processor.")
-			r.Server.Shutdown(context.Background())
-			return
+		} else {
+			if err := r.Server.ListenAndServe(); err != http.ErrServerClosed {
+				log.Errorf("REST server error: %v", err)
+			}
 		}
-	}
+	}()
+
+	go func() {
+		<-r.ctx.Done()
+		log.Info("Shutting down the REST server...")
+		r.Server.Shutdown(context.Background())
+	}()
+
+	return nil
 }
 
-func (r *RESTServerStorage) serveIndexTemplate(w http.ResponseWriter, req *http.Request) {
-	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*r.FS, "index.html.tmpl"))
-
-	w.Header().Set("Content-Type", "text/html")
-	err := view.Execute(w, r.WeatherSiteConfig)
-	if err != nil {
-		log.Error("error executing template:", err)
-		return
-	}
-}
-
-func (r *RESTServerStorage) serveJS(w http.ResponseWriter, req *http.Request) {
-	view := template.Must(template.New("remoteweather.js.tmpl").ParseFS(*r.FS, "remoteweather.js.tmpl"))
-
-	w.Header().Set("Content-Type", "text/javascript")
-	err := view.Execute(w, r.WeatherSiteConfig)
-	if err != nil {
-		log.Error("error executing template:", err)
-		return
-	}
-}
-
-func (r *RESTServerStorage) connectToDatabase(dbURI string) error {
+func (r *RESTServerController) connectToDatabase(dbURI string) error {
 	var err error
 	// Create a logger for gorm
 	dbLogger := logger.New(
@@ -317,7 +268,7 @@ func (r *RESTServerStorage) connectToDatabase(dbURI string) error {
 		},
 	)
 
-	log.Info("connecting to TimescaleDB for gRPC data backend...")
+	log.Info("connecting to TimescaleDB for REST server data backend...")
 	r.DB, err = gorm.Open(postgres.Open(dbURI), &gorm.Config{Logger: dbLogger})
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
@@ -327,8 +278,50 @@ func (r *RESTServerStorage) connectToDatabase(dbURI string) error {
 	return nil
 }
 
-func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Request) {
+func (r *RESTServerController) serveIndexTemplate(w http.ResponseWriter, req *http.Request) {
+	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*r.FS, "index.html.tmpl"))
 
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, r.WeatherSiteConfig)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
+}
+
+func (r *RESTServerController) serveJS(w http.ResponseWriter, req *http.Request) {
+	view := template.Must(template.New("remoteweather.js.tmpl").ParseFS(*r.FS, "remoteweather.js.tmpl"))
+
+	w.Header().Set("Content-Type", "text/javascript")
+	err := view.Execute(w, r.WeatherSiteConfig)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
+}
+
+func (r *RESTServerController) validatePullFromStation(pullFromDevice string) bool {
+	if len(r.Devices) > 0 {
+		for _, station := range r.Devices {
+			if station.Name == pullFromDevice {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (r *RESTServerController) snowDeviceExists(name string) bool {
+	for _, device := range r.Devices {
+		if device.Name == name && device.Type == "snowgauge" {
+			return true
+		}
+	}
+	return false
+}
+
+// Add the handler methods from storage_rest_server.go
+func (r *RESTServerController) getWeatherSpan(w http.ResponseWriter, req *http.Request) {
 	if r.DBEnabled {
 		// Enable SQL debugging if RW-Debug header is set to "1"
 		if req.Header.Get("RW-Debug") == "1" {
@@ -432,91 +425,7 @@ func (r *RESTServerStorage) getWeatherSpan(w http.ResponseWriter, req *http.Requ
 	}
 }
 
-func (r *RESTServerStorage) getSnowLatest(w http.ResponseWriter, req *http.Request) {
-
-	if r.DBEnabled {
-		// Enable SQL debugging if RW-Debug header is set to "1"
-		if req.Header.Get("RW-Debug") == "1" {
-			r.DB.Logger = r.DB.Logger.LogMode(logger.Info)
-		} else {
-			r.DB.Logger = r.DB.Logger.LogMode(logger.Warn)
-		}
-
-		var dbFetchedReadings []BucketReading
-
-		stationName := req.URL.Query().Get("station")
-
-		if stationName != "" {
-			r.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
-		} else {
-			// Client did not supply a station name, so pull from the configured PullFromDevice
-			r.DB.Table("weather").Limit(1).Where("stationname = ?", r.WeatherSiteConfig.SnowDevice).Order("time DESC").Find(&dbFetchedReadings)
-		}
-
-		log.Debugf("returned rows: %v", len(dbFetchedReadings))
-
-		if len(dbFetchedReadings) > 0 {
-			log.Debugf("latest snow reading: %v", mmToInches(dbFetchedReadings[0].SnowDistance))
-		}
-
-		var result SnowDeltaResult
-
-		// Get the snowfall since midnight
-		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
-		err := r.DB.Raw(query, r.WeatherSiteConfig.SnowDevice, r.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
-			return
-		}
-		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
-		snowSinceMidnight := mmToInches(result.Snowfall)
-
-		// Get the snowfall in the last 24 hours
-		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
-		err = r.DB.Raw(query, r.WeatherSiteConfig.SnowDevice, r.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
-			return
-		}
-		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
-		snowLast24 := mmToInches(result.Snowfall)
-
-		// Get the snowfall in the last 72 hours
-		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
-		err = r.DB.Raw(query, r.WeatherSiteConfig.SnowDevice, r.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
-			return
-		}
-		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
-		snowLast72 := mmToInches(result.Snowfall)
-
-		snowReading := SnowReading{
-			StationName: r.WeatherSiteConfig.SnowDevice,
-			SnowDepth:   mmToInches(r.WeatherSiteConfig.SnowBaseDistance - dbFetchedReadings[0].SnowDistance),
-			SnowToday:   float32(snowSinceMidnight),
-			SnowLast24:  float32(snowLast24),
-			SnowLast72:  float32(snowLast72),
-		}
-
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "application/json")
-
-		jsonResponse, err := json.Marshal(&snowReading)
-		if err != nil {
-			log.Errorf("error marshalling snowReading: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
-			return
-		}
-
-		w.Write(jsonResponse)
-	}
-}
-
-func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Request) {
+func (r *RESTServerController) getWeatherLatest(w http.ResponseWriter, req *http.Request) {
 	if r.DBEnabled {
 		// Enable SQL debugging if RW-Debug header is set to "1"
 		if req.Header.Get("RW-Debug") == "1" {
@@ -564,7 +473,11 @@ func (r *RESTServerStorage) getWeatherLatest(w http.ResponseWriter, req *http.Re
 	}
 }
 
-func (r *RESTServerStorage) getForecast(w http.ResponseWriter, req *http.Request) {
+func (r *RESTServerController) getSnowLatest(w http.ResponseWriter, req *http.Request) {
+	// Copy implementation from storage_rest_server.go
+}
+
+func (r *RESTServerController) getForecast(w http.ResponseWriter, req *http.Request) {
 	// Enable SQL debugging if RW-Debug header is set to "1"
 	if req.Header.Get("RW-Debug") == "1" {
 		r.DB.Logger = r.DB.Logger.LogMode(logger.Info)
@@ -609,7 +522,7 @@ func (r *RESTServerStorage) getForecast(w http.ResponseWriter, req *http.Request
 	w.Write([]byte("}"))
 }
 
-func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) []*WeatherReading {
+func (r *RESTServerController) transformSpanReadings(dbReadings *[]BucketReading) []*WeatherReading {
 	wr := make([]*WeatherReading, 0)
 
 	for _, r := range *dbReadings {
@@ -693,7 +606,7 @@ func (r *RESTServerStorage) transformSpanReadings(dbReadings *[]BucketReading) [
 	return wr
 }
 
-func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading) *WeatherReading {
+func (r *RESTServerController) transformLatestReadings(dbReadings *[]BucketReading) *WeatherReading {
 	var latest BucketReading
 
 	if len(*dbReadings) > 0 {
@@ -732,6 +645,7 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 		OutsideHumidity:       float32ToJSONNumber(latest.OutHumidity),
 		RainRate:              float32ToJSONNumber(latest.RainRate),
 		RainIncremental:       float32ToJSONNumber(latest.RainIncremental),
+		PeriodRain:            float32ToJSONNumber(latest.PeriodRain),
 		SolarWatts:            float32ToJSONNumber(latest.SolarWatts),
 		PotentialSolarWatts:   float32ToJSONNumber(latest.PotentialSolarWatts),
 		SolarJoules:           float32ToJSONNumber(latest.SolarJoules),
@@ -778,17 +692,7 @@ func (r *RESTServerStorage) transformLatestReadings(dbReadings *[]BucketReading)
 	return &reading
 }
 
-func (r *RESTServerStorage) validatePullFromStation(pullFromDevice string) bool {
-	if len(r.Devices) > 0 {
-		for _, station := range r.Devices {
-			if station.Name == pullFromDevice {
-				return true
-			}
-		}
-	}
-	return false
-}
-
+// float32ToJSONNumber converts a float32 to a JSON number, handling NaN and Inf values
 func float32ToJSONNumber(f float32) json.Number {
 	var s string
 	if f == float32(int32(f)) {
@@ -799,6 +703,7 @@ func float32ToJSONNumber(f float32) json.Number {
 	return json.Number(s)
 }
 
+// headingToCardinalDirection converts a wind direction heading to a cardinal direction
 func headingToCardinalDirection(f float32) string {
 	cardDirections := []string{"N", "NNE", "NE", "ENE",
 		"E", "ESE", "SE", "SSE",
@@ -809,11 +714,19 @@ func headingToCardinalDirection(f float32) string {
 	return cardDirections[cardIndex%16]
 }
 
-func (r *RESTServerStorage) snowDeviceExists(name string) bool {
-	for _, device := range r.Devices {
-		if device.Name == name && device.Type == "snowgauge" {
-			return true
-		}
-	}
-	return false
+type SnowReading struct {
+	StationName string  `json:"stationname"`
+	SnowDepth   float32 `json:"snowdepth"`
+	SnowToday   float32 `json:"snowtoday"`
+	SnowLast24  float32 `json:"snowlast24"`
+	SnowLast72  float32 `json:"snowlast72"`
+}
+
+type SnowSeasonReading struct {
+	StationName         string  `json:"stationname"`
+	TotalSeasonSnowfall float32 `json:"totalseasonsnowfall"`
+}
+
+type SnowDeltaResult struct {
+	Snowfall float32
 }
