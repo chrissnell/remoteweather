@@ -16,7 +16,7 @@
         # Copy the rest of the application source code
         COPY . .
         
-        # Ensure the build is for Linux x86_64 (since you're on macOS)
+        # Ensure the build is for Linux x86_64
         RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o remoteweather .
         
         # --- Stage 2: Create a minimal runtime image ---
