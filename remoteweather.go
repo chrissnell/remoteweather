@@ -27,8 +27,8 @@ func main() {
 	var wg sync.WaitGroup
 	var err error
 
-	cfgFile := flag.String("config", "config.yaml", "Path to config file (default: ./config.yaml)")
-	cfgBackend := flag.String("config-backend", "yaml", "Configuration backend: 'yaml' or 'sqlite' (default: yaml)")
+	cfgFile := flag.String("config", "config.yaml", "Path to configuration source:\n\t\t\t  YAML: config.yaml, weather-station.yaml\n\t\t\t  SQLite: config.db, weather-station.db\n\t\t\t  Use 'config-convert' tool to convert YAML→SQLite")
+	cfgBackend := flag.String("config-backend", "yaml", "Configuration backend type: 'yaml' for YAML files, 'sqlite' for SQLite databases")
 	debug = flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
