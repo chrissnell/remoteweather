@@ -1,3 +1,14 @@
 config-secret.yaml
 remoteweather
 binaries/
+misc/
+
+# Compiled binaries
+config-convert
+config-test
+
+# Test and temporary configurations
+test-config*.yaml
+test-config*.db
+*.db
+config.yaml
