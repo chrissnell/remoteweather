@@ -331,7 +331,7 @@ async function refreshData() {
             updateChartSeries(chartList[key], points[chartList[key].pointName]);
         }
     }
-    {{- if .SnowDevice }}
+    {{- if .SnowEnabled }}
     const snowData = await fetchSnowData('{{ .SnowDevice }}');
     if (snowData) {
         const snowPoint = [snowData.ts, snowData.snowdepth];
@@ -382,7 +382,7 @@ async function refreshLiveReadings() {
         console.warn('No data received from {{ .PullFromDevice }}');
     }
 
-    {{- if .SnowDevice }}
+    {{- if .SnowEnabled }}
     const snowData = await fetchSnowData('{{ .SnowDevice }}');
     if (snowData) {
         if (debug) console.log('Snow data received:', snowData);
