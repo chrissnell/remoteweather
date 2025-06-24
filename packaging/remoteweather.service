@@ -1,0 +1,53 @@
+[Unit]
+Description=RemoteWeather - Weather Station Data Collection and Distribution
+Documentation=https://github.com/chrissnell/remoteweather
+After=network.target network-online.target
+Wants=network-online.target
+Requires=network.target
+
+[Service]
+Type=simple
+User=remoteweather
+Group=remoteweather
+ExecStart=/usr/bin/remoteweather -config /var/lib/remoteweather/config.db -config-backend sqlite
+WorkingDirectory=/var/lib/remoteweather
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/remoteweather
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+LockPersonality=true
+
+# Resource limits
+MemoryHigh=512M
+MemoryMax=1G
+TasksMax=256
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=remoteweather
+
+# Environment
+Environment=HOME=/var/lib/remoteweather
+Environment=USER=remoteweather
+
+# Graceful shutdown timeout
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target 
