@@ -1,0 +1,20 @@
+pkgbase = remoteweather
+	pkgdesc = Weather station data collection and distribution system with SQLite and YAML configuration support
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/chrissnell/remoteweather
+	install = remoteweather.install
+	arch = x86_64
+	arch = aarch64
+	arch = armv7h
+	license = Apache
+	makedepends = go
+	makedepends = git
+	depends = glibc
+	backup = var/lib/remoteweather/config.yaml
+	source = remoteweather-1.0.0.tar.gz::https://github.com/chrissnell/remoteweather/archive/v1.0.0.tar.gz
+	source = remoteweather.service
+	sha256sums = SKIP
+	sha256sums = SKIP
+
+pkgname = remoteweather 
