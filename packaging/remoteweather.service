@@ -32,7 +32,11 @@ MemoryDenyWriteExecute=true
 RestrictRealtime=true
 RestrictSUIDSGID=true
 RemoveIPC=true
-PrivateDevices=true
+PrivateDevices=false
+DevicePolicy=closed
+DeviceAllow=/dev/ttyS0 rw
+DeviceAllow=/dev/ttyUSB* rw
+DeviceAllow=/dev/ttyACM* rw
 
 # Resource limits
 LimitNOFILE=65536
