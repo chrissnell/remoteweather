@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+pre_install() {
+    echo -e "${BLUE}==>${NC} Preparing to install RemoteWeather..."
+}
+
+post_install() {
+    echo -e "${BLUE}==>${NC} Setting up RemoteWeather..."
+    
+    # Create user and assign groups via systemd-sysusers
+    echo -e "${BLUE}==>${NC} Creating remoteweather user and assigning groups..."
+    systemd-sysusers
+    
+    # Set proper ownership and permissions
+    chown -R remoteweather:remoteweather /var/lib/remoteweather
+    chmod 755 /var/lib/remoteweather
+    chmod 644 /var/lib/remoteweather/config.yaml
+    
+    # Reload systemd
+    systemctl daemon-reload
+    
+    echo -e "${GREEN}==>${NC} RemoteWeather installation complete!"
+    echo
+    echo -e "${YELLOW}Configuration Setup:${NC}"
+    echo "  1. Edit configuration: /var/lib/remoteweather/config.yaml"
+    echo "  2. Or convert to SQLite:"
+    echo "     remoteweather-config-convert -yaml /var/lib/remoteweather/config.yaml -sqlite /var/lib/remoteweather/config.db"
+    echo "     sudo chown remoteweather:remoteweather /var/lib/remoteweather/config.db"
+    echo
+    echo -e "${YELLOW}Service Management:${NC}"
+    echo "  Start service:  sudo systemctl start remoteweather"
+    echo "  Enable service: sudo systemctl enable remoteweather"
+    echo "  View logs:      sudo journalctl -u remoteweather -f"
+    echo "  Status:         sudo systemctl status remoteweather"
+    echo
+    echo -e "${YELLOW}Additional Tools:${NC}"
+    echo "  Config conversion: remoteweather-config-convert"
+    echo "  Config testing:    remoteweather-config-test"
+    echo "  Database migration: remoteweather-migrate"
+    echo
+    echo -e "${YELLOW}Documentation:${NC}"
+    echo "  Examples: /usr/share/doc/remoteweather/examples/"
+    echo "  SQLite Backend: /usr/share/doc/remoteweather/SQLITE_CONFIG_BACKEND.md"
+    echo
+    echo -e "${BLUE}Note:${NC} The default configuration uses example settings."
+    echo "Please customize it for your weather station setup before starting the service."
+}
+
+pre_upgrade() {
+    echo -e "${BLUE}==>${NC} Preparing to upgrade RemoteWeather..."
+    
+    # Stop service if running
+    if systemctl is-active --quiet remoteweather; then
+        echo -e "${BLUE}==>${NC} Stopping RemoteWeather service..."
+        systemctl stop remoteweather
+    fi
+}
+
+post_upgrade() {
+    echo -e "${BLUE}==>${NC} Finalizing RemoteWeather upgrade..."
+    
+    # Ensure correct ownership
+    chown -R remoteweather:remoteweather /var/lib/remoteweather
+    
+    # Reload systemd
+    systemctl daemon-reload
+    
+    # Restart service if it was running
+    if systemctl is-enabled --quiet remoteweather; then
+        echo -e "${BLUE}==>${NC} Restarting RemoteWeather service..."
+        systemctl start remoteweather
+    fi
+    
+    echo -e "${GREEN}==>${NC} RemoteWeather upgrade complete!"
+    echo "Check the service status: sudo systemctl status remoteweather"
+}
+
+pre_remove() {
+    echo -e "${BLUE}==>${NC} Preparing to remove RemoteWeather..."
+    
+    # Stop and disable service
+    if systemctl is-active --quiet remoteweather; then
+        echo -e "${BLUE}==>${NC} Stopping RemoteWeather service..."
+        systemctl stop remoteweather
+    fi
+    
+    if systemctl is-enabled --quiet remoteweather; then
+        echo -e "${BLUE}==>${NC} Disabling RemoteWeather service..."
+        systemctl disable remoteweather
+    fi
+}
+
+post_remove() {
+    echo -e "${BLUE}==>${NC} Cleaning up RemoteWeather..."
+    
+    # Reload systemd
+    systemctl daemon-reload
+    
+    echo -e "${YELLOW}Note:${NC} Configuration files and data remain in /var/lib/remoteweather"
+    echo "To completely remove user data:"
+    echo "  sudo rm -rf /var/lib/remoteweather"
+    echo "  sudo userdel remoteweather"
+    echo "  sudo groupdel remoteweather"
+    
+    echo -e "${GREEN}==>${NC} RemoteWeather removal complete!"
+} 
