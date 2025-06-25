@@ -240,17 +240,6 @@ func (w *CampbellScientificWeatherStation) connectToSerialStation() {
 	w.Logger.Infof("connecting to %v ...", w.Config.SerialDevice)
 
 	for {
-		// Check for cancellation at the beginning of each loop iteration
-		select {
-		case <-w.ctx.Done():
-			w.Logger.Info("cancellation request received, stopping serial connection attempts")
-			w.connectingMu.Lock()
-			w.connecting = false
-			w.connectingMu.Unlock()
-			return
-		default:
-		}
-
 		sc := &serial.Config{Name: w.Config.SerialDevice, Baud: w.Config.Baud}
 		w.rwc, err = serial.OpenPort(sc)
 
@@ -308,17 +297,6 @@ func (w *CampbellScientificWeatherStation) connectToNetworkStation() {
 	log.Info("connecting to:", console)
 
 	for {
-		// Check for cancellation at the beginning of each loop iteration
-		select {
-		case <-w.ctx.Done():
-			w.Logger.Info("cancellation request received, stopping network connection attempts")
-			w.connectingMu.Lock()
-			w.connecting = false
-			w.connectingMu.Unlock()
-			return
-		default:
-		}
-
 		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
 
 		if err != nil {
