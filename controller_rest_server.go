@@ -13,10 +13,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -199,7 +199,8 @@ func NewRESTServerController(ctx context.Context, wg *sync.WaitGroup, c *Config,
 	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
 	// handlers can retrieve data
 	if c.Storage.TimescaleDB.ConnectionString != "" {
-		err := r.connectToDatabase(c.Storage.TimescaleDB.ConnectionString)
+		var err error
+		r.DB, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
 		if err != nil {
 			return nil, fmt.Errorf("REST server could not connect to database: %v", err)
 		}
@@ -232,29 +233,6 @@ func (r *RESTServerController) StartController() error {
 		log.Info("Shutting down the REST server...")
 		r.Server.Shutdown(context.Background())
 	}()
-
-	return nil
-}
-
-func (r *RESTServerController) connectToDatabase(dbURI string) error {
-	var err error
-	// Create a logger for gorm
-	dbLogger := logger.New(
-		zap.NewStdLog(log.GetZapLogger()),
-		logger.Config{
-			SlowThreshold:             time.Second, // Slow SQL threshold
-			LogLevel:                  logger.Warn, // Log level
-			IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
-			Colorful:                  true,        // Disable color
-		},
-	)
-
-	log.Info("connecting to TimescaleDB for REST server data backend...")
-	r.DB, err = gorm.Open(postgres.Open(dbURI), &gorm.Config{Logger: dbLogger})
-	if err != nil {
-		log.Warn("warning: unable to create a TimescaleDB connection:", err)
-		return err
-	}
 
 	return nil
 }

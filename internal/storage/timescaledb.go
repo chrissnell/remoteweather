@@ -3,15 +3,11 @@ package storage
 import (
 	"context"
 	"sync"
-	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
-	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // TimescaleDBStorage holds the configuration for a TimescaleDB storage backend
@@ -62,25 +58,14 @@ func (t *TimescaleDBStorage) StoreReading(r types.Reading) error {
 	return nil
 }
 
-// NewTimescaleDBStorage sets up a new Graphite storage backend
+// NewTimescaleDBStorage sets up a new TimescaleDB storage backend
 func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBStorage, error) {
 
 	var err error
 	t := TimescaleDBStorage{}
 
-	// Create a logger for gorm
-	dbLogger := logger.New(
-		zap.NewStdLog(log.GetZapLogger()),
-		logger.Config{
-			SlowThreshold:             time.Second, // Slow SQL threshold
-			LogLevel:                  logger.Warn, // Log level
-			IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
-			Colorful:                  true,        // Disable color
-		},
-	)
-
 	log.Info("connecting to TimescaleDB...")
-	t.TimescaleDBConn, err = gorm.Open(postgres.Open(c.Storage.TimescaleDB.ConnectionString), &gorm.Config{Logger: dbLogger})
+	t.TimescaleDBConn, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return &TimescaleDBStorage{}, err

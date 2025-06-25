@@ -1,25 +1,8 @@
-package storage
+package database
 
-import (
-	"fmt"
-	"time"
+import "time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-
-	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
-	"go.uber.org/zap"
-)
-
-// TimescaleDBClient holds the connection to a TimescaleDB database
-type TimescaleDBClient struct {
-	config *types.Config
-	DB     *gorm.DB // Exported so it can be accessed from main package
-	logger *zap.SugaredLogger
-}
-
+// FetchedBucketReading represents a reading fetched from the database with aggregated data
 type FetchedBucketReading struct {
 	Bucket                *time.Time `gorm:"column:bucket"`
 	StationName           string     `gorm:"column:stationname"`
@@ -61,68 +44,7 @@ type FetchedBucketReading struct {
 	StationBatteryVoltage float32    `gorm:"column:stationbatteryvoltage"`
 }
 
-func NewTimescaleDBClient(c *types.Config, logger *zap.SugaredLogger) *TimescaleDBClient {
-	return &TimescaleDBClient{
-		config: c,
-		logger: logger,
-	}
-}
-
-// We implement the Tabler interface for the Reading struct
+// TableName implements the Tabler interface for the FetchedBucketReading struct
 func (FetchedBucketReading) TableName() string {
 	return "weather_1m"
-}
-
-// ConnectToTimescaleDB connects to the TimescaleDB database
-func (t *TimescaleDBClient) ConnectToTimescaleDB() error {
-
-	var err error
-
-	// Create a logger for gorm
-	dbLogger := logger.New(
-		zap.NewStdLog(log.GetZapLogger()),
-		logger.Config{
-			SlowThreshold:             time.Second, // Slow SQL threshold
-			LogLevel:                  logger.Warn, // Log level
-			IgnoreRecordNotFoundError: false,       // Ignore ErrRecordNotFound error for logger
-			Colorful:                  true,        // Use colors
-		},
-	)
-
-	config := &gorm.Config{
-		Logger: dbLogger,
-	}
-
-	log.Info("connecting to TimescaleDB...")
-	t.DB, err = gorm.Open(postgres.Open(t.config.Storage.TimescaleDB.ConnectionString), config)
-	if err != nil {
-		log.Warn("warning: unable to create a TimescaleDB connection:", err)
-		return err
-	}
-	log.Info("TimescaleDB connection successful")
-
-	return nil
-}
-
-// GetReadingsFromTimescaleDB retrieves readings from TimescaleDB
-func (p *TimescaleDBClient) GetReadingsFromTimescaleDB(pullFromDevice string) (FetchedBucketReading, error) {
-	var br FetchedBucketReading
-
-	if err := p.DB.Table("weather_1m").Where("stationname=? AND bucket > NOW() - INTERVAL '2 minutes'", pullFromDevice).Limit(1).Find(&br).Error; err != nil {
-		return FetchedBucketReading{}, fmt.Errorf("error querying database for latest readings: %+v", err)
-	}
-
-	return br, nil
-}
-
-// ValidatePullFromStation validates that the station name exists in config
-func (t *TimescaleDBClient) ValidatePullFromStation(pullFromDevice string) bool {
-	if len(t.config.Devices) > 0 {
-		for _, station := range t.config.Devices {
-			if station.Name == pullFromDevice {
-				return true
-			}
-		}
-	}
-	return false
 }
