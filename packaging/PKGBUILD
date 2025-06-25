@@ -1,15 +1,15 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=remoteweather
-pkgver=1.0.0.sqlite_backend
+pkgver=5.0.0.rest_api
 pkgrel=1
-pkgdesc="Weather station data collection and distribution system with SQLite and YAML configuration support"
+pkgdesc="Weather station data collection and distribution system with REST API and refactored architecture"
 arch=('x86_64' 'aarch64' 'armv7h')
 url="https://github.com/chrissnell/remoteweather"
 license=('Apache')
 depends=('glibc')
 makedepends=('go' 'git')
 backup=('var/lib/remoteweather/config.yaml')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/sqlite-backend.tar.gz"
+source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/v5.0-rest-api.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
 sha256sums=('SKIP'  # Update with actual checksum
@@ -18,7 +18,7 @@ sha256sums=('SKIP'  # Update with actual checksum
 install=$pkgname.install
 
 build() {
-    cd "$pkgname-sqlite-backend"
+    cd "$pkgname-v5.0-rest-api"
     
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
@@ -36,14 +36,14 @@ build() {
 }
 
 check() {
-    cd "$pkgname-sqlite-backend"
+    cd "$pkgname-v5.0-rest-api"
     
     # Run basic tests if they exist
     # go test ./...
 }
 
 package() {
-    cd "$pkgname-sqlite-backend"
+    cd "$pkgname-v5.0-rest-api"
     
     # Install binaries
     install -Dm755 remoteweather "$pkgdir/usr/bin/remoteweather"
