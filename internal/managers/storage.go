@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/storage"
 	"github.com/chrissnell/remoteweather/internal/types"
 )
@@ -127,10 +128,13 @@ func (s *StorageManager) startReadingDistributor(ctx context.Context, wg *sync.W
 		select {
 		case r := <-s.ReadingDistributor:
 			readingCount++
+			log.Debugf("Reading distributor received reading #%d from [%s] (%s): temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph",
+				readingCount, r.StationName, r.StationType, r.OutTemp, r.OutHumidity, r.WindSpeed)
 
 			if len(s.Engines) == 0 {
-				// No storage engines configured - reading discarded silently
+				log.Debug("No storage engines configured - reading discarded")
 			} else {
+				log.Debugf("Distributing reading to %d storage engine(s)", len(s.Engines))
 				for _, e := range s.Engines {
 					e.C <- r
 				}
