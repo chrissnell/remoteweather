@@ -1,0 +1,137 @@
+package restserver
+
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+// Time constants
+const (
+	Day = 24 * time.Hour
+)
+
+// WeatherReading represents a weather reading for JSON output
+type WeatherReading struct {
+	StationName      string `json:"stationname"`
+	StationType      string `json:"stationtype,omitempty"`
+	ReadingTimestamp int64  `json:"ts"`
+	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
+	// instead of simply not including the field in the data structure
+	OutsideTemperature    json.Number `json:"otemp,omitempty"`
+	ExtraTemp1            json.Number `json:"extratemp1,omitempty"`
+	ExtraTemp2            json.Number `json:"extratemp2,omitempty"`
+	ExtraTemp3            json.Number `json:"extratemp3,omitempty"`
+	ExtraTemp4            json.Number `json:"extratemp4,omitempty"`
+	ExtraTemp5            json.Number `json:"extratemp5,omitempty"`
+	ExtraTemp6            json.Number `json:"extratemp6,omitempty"`
+	ExtraTemp7            json.Number `json:"extratemp7,omitempty"`
+	SoilTemp1             json.Number `json:"soiltemp1,omitempty"`
+	SoilTemp2             json.Number `json:"soiltemp2,omitempty"`
+	SoilTemp3             json.Number `json:"soiltemp3,omitempty"`
+	SoilTemp4             json.Number `json:"soiltemp4,omitempty"`
+	LeafTemp1             json.Number `json:"leaftemp1,omitempty"`
+	LeafTemp2             json.Number `json:"leaftemp2,omitempty"`
+	LeafTemp3             json.Number `json:"leaftemp3,omitempty"`
+	LeafTemp4             json.Number `json:"leaftemp4,omitempty"`
+	OutHumidity           json.Number `json:"outhumidity,omitempty"`
+	ExtraHumidity1        json.Number `json:"extrahumidity1,omitempty"`
+	ExtraHumidity2        json.Number `json:"extrahumidity2,omitempty"`
+	ExtraHumidity3        json.Number `json:"extrahumidity3,omitempty"`
+	ExtraHumidity4        json.Number `json:"extrahumidity4,omitempty"`
+	ExtraHumidity5        json.Number `json:"extrahumidity5,omitempty"`
+	ExtraHumidity6        json.Number `json:"extrahumidity6,omitempty"`
+	ExtraHumidity7        json.Number `json:"extrahumidity7,omitempty"`
+	OutsideHumidity       json.Number `json:"ohum,omitempty"`
+	RainRate              json.Number `json:"rainrate,omitempty"`
+	RainIncremental       json.Number `json:"rainincremental,omitempty"`
+	PeriodRain            json.Number `json:"period_rain,omitempty"`
+	SolarWatts            json.Number `json:"solarwatts,omitempty"`
+	PotentialSolarWatts   json.Number `json:"potentialsolarwatts,omitempty"`
+	SolarJoules           json.Number `json:"solarjoules,omitempty"`
+	UV                    json.Number `json:"uv,omitempty"`
+	Radiation             json.Number `json:"radiation,omitempty"`
+	StormRain             json.Number `json:"stormrain,omitempty"`
+	DayRain               json.Number `json:"dayrain,omitempty"`
+	MonthRain             json.Number `json:"monthrain,omitempty"`
+	YearRain              json.Number `json:"yearrain,omitempty"`
+	Barometer             json.Number `json:"bar,omitempty"`
+	WindSpeed             json.Number `json:"winds,omitempty"`
+	WindDirection         json.Number `json:"windd,omitempty"`
+	CardinalDirection     string      `json:"windcard,omitempty"`
+	RainfallDay           json.Number `json:"rainday,omitempty"`
+	WindChill             json.Number `json:"windch,omitempty"`
+	HeatIndex             json.Number `json:"heatidx,omitempty"`
+	InsideTemperature     json.Number `json:"itemp,omitempty"`
+	InsideHumidity        json.Number `json:"ihum,omitempty"`
+	ConsBatteryVoltage    json.Number `json:"consbatteryvoltage,omitempty"`
+	StationBatteryVoltage json.Number `json:"stationbatteryvoltage,omitempty"`
+	SnowDepth             json.Number `json:"snowdepth,omitempty"`
+	SnowDistance          json.Number `json:"snowdistance,omitempty"`
+	ExtraFloat1           json.Number `json:"extrafloat1,omitempty"`
+	ExtraFloat2           json.Number `json:"extrafloat2,omitempty"`
+	ExtraFloat3           json.Number `json:"extrafloat3,omitempty"`
+	ExtraFloat4           json.Number `json:"extrafloat4,omitempty"`
+	ExtraFloat5           json.Number `json:"extrafloat5,omitempty"`
+	ExtraFloat6           json.Number `json:"extrafloat6,omitempty"`
+	ExtraFloat7           json.Number `json:"extrafloat7,omitempty"`
+	ExtraFloat8           json.Number `json:"extrafloat8,omitempty"`
+	ExtraFloat9           json.Number `json:"extrafloat9,omitempty"`
+	ExtraFloat10          json.Number `json:"extrafloat10,omitempty"`
+	ExtraText1            string      `json:"extratext1,omitempty"`
+	ExtraText2            string      `json:"extratext2,omitempty"`
+	ExtraText3            string      `json:"extratext3,omitempty"`
+	ExtraText4            string      `json:"extratext4,omitempty"`
+	ExtraText5            string      `json:"extratext5,omitempty"`
+	ExtraText6            string      `json:"extratext6,omitempty"`
+	ExtraText7            string      `json:"extratext7,omitempty"`
+	ExtraText8            string      `json:"extratext8,omitempty"`
+	ExtraText9            string      `json:"extratext9,omitempty"`
+	ExtraText10           string      `json:"extratext10,omitempty"`
+}
+
+// SnowReading represents snow data for JSON output
+type SnowReading struct {
+	StationName string  `json:"stationname"`
+	SnowDepth   float32 `json:"snowdepth"`
+	SnowToday   float32 `json:"snowtoday"`
+	SnowLast24  float32 `json:"snowlast24"`
+	SnowLast72  float32 `json:"snowlast72"`
+}
+
+// SnowSeasonReading represents seasonal snow data
+type SnowSeasonReading struct {
+	StationName         string  `json:"stationname"`
+	TotalSeasonSnowfall float32 `json:"totalseasonsnowfall"`
+}
+
+// SnowDeltaResult represents snow delta calculation result
+type SnowDeltaResult struct {
+	Snowfall float32
+}
+
+// Utility functions
+
+// float32ToJSONNumber converts a float32 to json.Number
+func float32ToJSONNumber(f float32) json.Number {
+	if f == 0 {
+		return json.Number("0")
+	}
+	return json.Number(fmt.Sprintf("%.6f", f))
+}
+
+// mmToInches converts millimeters to inches
+func mmToInches(mm float32) float32 {
+	return mm * 0.0393701
+}
+
+// headingToCardinalDirection converts a heading to cardinal direction
+func headingToCardinalDirection(f float32) string {
+	cardDirections := []string{
+		"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+		"S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+	}
+
+	cardIndex := int((f + 11.25) / 22.5)
+	return cardDirections[cardIndex%16]
+}

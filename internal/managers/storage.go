@@ -1,42 +1,35 @@
-package main
+package managers
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/storage"
+	"github.com/chrissnell/remoteweather/internal/types"
 )
 
 // StorageManager holds our active storage backends
 type StorageManager struct {
 	Engines            []StorageEngine
-	ReadingDistributor chan Reading
+	ReadingDistributor chan types.Reading
 }
 
 // StorageEngine holds a backend storage engine's interface as well as
 // a channel for passing readings to the engine
 type StorageEngine struct {
 	Engine storage.StorageEngineInterface
-	C      chan<- Reading
+	C      chan<- types.Reading
 }
 
-// StorageEngineInterface is an interface that provides a few standardized
-// methods for various storage backends
-type StorageEngineInterface interface {
-	StartStorageEngine(context.Context, *sync.WaitGroup) chan<- Reading
-}
-
-// NewStorageManager creats a StorageManager object, populated with all configured
-// StorageEngines
-func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*StorageManager, error) {
+// NewStorageManager creates a StorageManager object, populated with all configured StorageEngines
+func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *types.Config) (*StorageManager, error) {
 	var err error
 
 	s := StorageManager{}
 
 	// Initialize our channel for passing metrics to the reading distributor
-	s.ReadingDistributor = make(chan Reading, 20)
+	s.ReadingDistributor = make(chan types.Reading, 20)
 
 	// Start our reading distributor to distribute received readings to storage
 	// backends
@@ -76,8 +69,13 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *Config) (*Sto
 	return &s, nil
 }
 
+// GetReadingDistributor returns the reading distributor channel
+func (s *StorageManager) GetReadingDistributor() chan types.Reading {
+	return s.ReadingDistributor
+}
+
 // AddEngine adds a new StorageEngine of name engineName to our Storage object
-func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *Config) error {
+func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *types.Config) error {
 	var err error
 
 	switch engineName {
@@ -97,7 +95,6 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		}
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
-
 	case "grpc":
 		se := StorageEngine{}
 		se.Engine, err = storage.NewGRPCStorage(ctx, c)
@@ -106,7 +103,6 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		}
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
-
 	case "aprs":
 		se := StorageEngine{}
 		se.Engine, err = storage.NewAPRSStorage(c)
@@ -122,19 +118,29 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 
 // startReadingDistributor receives readings from gatherers and fans them out to the various
 // storage backends
-func (s *StorageManager) startReadingDistributor(ctx context.Context, wg *sync.WaitGroup) error {
+func (s *StorageManager) startReadingDistributor(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
+	readingCount := 0
 	for {
 		select {
 		case r := <-s.ReadingDistributor:
-			for _, e := range s.Engines {
-				e.C <- r
+			readingCount++
+			fmt.Printf("Storage manager: Received reading #%d from station [%s]: temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph\n",
+				readingCount, r.StationName, r.OutTemp, r.OutHumidity, r.WindSpeed)
+
+			if len(s.Engines) == 0 {
+				fmt.Printf("Storage manager: No storage engines configured - reading discarded\n")
+			} else {
+				for i, e := range s.Engines {
+					fmt.Printf("Storage manager: Sending reading to storage engine #%d\n", i+1)
+					e.C <- r
+				}
 			}
 		case <-ctx.Done():
-			log.Info("cancellation request received.  Cancelling reading distributor.")
-			return nil
+			fmt.Printf("Storage manager: Shutdown signal received, processed %d readings total\n", readingCount)
+			return
 		}
 	}
 }

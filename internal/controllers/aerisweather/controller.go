@@ -1,4 +1,4 @@
-package main
+package aerisweather
 
 import (
 	"context"
@@ -11,7 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/jackc/pgtype"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -21,10 +23,10 @@ import (
 type AerisWeatherController struct {
 	ctx                context.Context
 	wg                 *sync.WaitGroup
-	config             *Config
-	AerisWeatherConfig AerisWeatherConfig
+	config             *types.Config
+	AerisWeatherConfig types.AerisWeatherConfig
 	logger             *zap.SugaredLogger
-	DB                 *TimescaleDBClient
+	DB                 *database.Client
 }
 
 type AerisWeatherForecastResponse struct {
@@ -70,7 +72,7 @@ func (AerisWeatherForecastRecord) TableName() string {
 	return "aeris_weather_forecasts"
 }
 
-func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config, ac AerisWeatherConfig, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
+func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, ac types.AerisWeatherConfig, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
 	a := AerisWeatherController{
 		ctx:                ctx,
 		wg:                 wg,
@@ -100,7 +102,7 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Confi
 		return &AerisWeatherController{}, fmt.Errorf("forecast location must be set")
 	}
 
-	a.DB = NewTimescaleDBClient(c, logger)
+	a.DB = database.NewClient(c, logger)
 
 	// Connect to TimescaleDB for purposes of storing Aeris data for future client requests
 	err := a.DB.ConnectToTimescaleDB()
