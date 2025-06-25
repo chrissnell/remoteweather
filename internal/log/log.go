@@ -39,6 +39,16 @@ func GetZapLogger() *zap.Logger {
 	return baseLogger
 }
 
+// GetSugaredLogger returns the sugared logger instance
+func GetSugaredLogger() *zap.SugaredLogger {
+	if log == nil {
+		// Fallback logger if not initialized
+		baseLogger, _ = zap.NewProduction()
+		log = baseLogger.Sugar()
+	}
+	return log
+}
+
 // Sync flushes any buffered log entries
 func Sync() {
 	if log != nil {

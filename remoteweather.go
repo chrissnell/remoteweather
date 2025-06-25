@@ -74,7 +74,7 @@ func main() {
 	}
 
 	// Initialize the weather station manager
-	wsm, err := NewWeatherStationManager(ctx, &wg, &cfg, distributor.ReadingDistributor, nil)
+	wsm, err := NewWeatherStationManager(ctx, &wg, &cfg, distributor.ReadingDistributor, log.GetSugaredLogger())
 	if err != nil {
 		log.Errorf("could not create weather station manager: %v", err)
 		cancel()
@@ -83,7 +83,7 @@ func main() {
 	go wsm.StartWeatherStations()
 
 	// Initialize the controller manager
-	cm, err := NewControllerManager(ctx, &wg, &cfg, nil)
+	cm, err := NewControllerManager(ctx, &wg, &cfg, log.GetSugaredLogger())
 	if err != nil {
 		log.Errorf("could not create controller manager: %v", err)
 		cancel()
