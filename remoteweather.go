@@ -8,20 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"syscall"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
-	"go.uber.org/zap"
 )
-
-const version = "3.0-" + runtime.GOOS + "/" + runtime.GOARCH
-
-var zapLogger *zap.Logger
-var log *zap.SugaredLogger
-
-var debug *bool
 
 func main() {
 	var wg sync.WaitGroup
@@ -29,21 +21,16 @@ func main() {
 
 	cfgFile := flag.String("config", "config.yaml", "Path to configuration source:\n\t\t\t  YAML: config.yaml, weather-station.yaml\n\t\t\t  SQLite: config.db, weather-station.db\n\t\t\t  Use 'config-convert' tool to convert YAML→SQLite")
 	cfgBackend := flag.String("config-backend", "yaml", "Configuration backend type: 'yaml' for YAML files, 'sqlite' for SQLite databases")
-	debug = flag.Bool("debug", false, "Turn on debugging output")
+	debug := flag.Bool("debug", false, "Turn on debugging output")
 	flag.Parse()
 
 	// Set up our logger
-	if *debug {
-		zapLogger, err = zap.NewDevelopment()
-	} else {
-		zapLogger, err = zap.NewProduction()
-	}
+	err = log.Init(*debug)
 	if err != nil {
-		fmt.Printf("can't initialize zap logger: %v\n", err)
+		fmt.Printf("can't initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer zapLogger.Sync()
-	log = zapLogger.Sugar()
+	defer log.Sync()
 
 	// Read our server configuration using the specified backend
 	filename, _ := filepath.Abs(*cfgFile)
@@ -87,7 +74,7 @@ func main() {
 	}
 
 	// Initialize the weather station manager
-	wsm, err := NewWeatherStationManager(ctx, &wg, &cfg, distributor.ReadingDistributor, log)
+	wsm, err := NewWeatherStationManager(ctx, &wg, &cfg, distributor.ReadingDistributor, nil)
 	if err != nil {
 		log.Errorf("could not create weather station manager: %v", err)
 		cancel()
@@ -96,7 +83,7 @@ func main() {
 	go wsm.StartWeatherStations()
 
 	// Initialize the controller manager
-	cm, err := NewControllerManager(ctx, &wg, &cfg, log)
+	cm, err := NewControllerManager(ctx, &wg, &cfg, nil)
 	if err != nil {
 		log.Errorf("could not create controller manager: %v", err)
 		cancel()

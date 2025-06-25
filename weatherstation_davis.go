@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/crc16"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"
@@ -535,9 +536,7 @@ func (w *DavisWeatherStation) GetDavisLoopPackets(n int) error {
 			return fmt.Errorf("tried to initiate LOOP %v times, unsucessfully", tries)
 		}
 
-		if *debug {
-			log.Info("initiating LOOP mode for", n, "packets.")
-		}
+		log.Info("initiating LOOP mode for", n, "packets.")
 
 		// Send a LOOP request up to (maxTries) times
 		err = w.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
