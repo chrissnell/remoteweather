@@ -24,6 +24,11 @@ type AerisWeatherForecastRecord struct {
 	Data              pgtype.JSONB `gorm:"type:jsonb;default:'[]';not null"`
 }
 
+// TableName implements the GORM Tabler interface to specify the correct table name
+func (AerisWeatherForecastRecord) TableName() string {
+	return "aeris_weather_forecasts"
+}
+
 // WeatherReading represents a weather reading for JSON output
 type WeatherReading struct {
 	StationName      string `json:"stationname"`
