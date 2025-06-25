@@ -149,6 +149,8 @@ func (s *Station) StreamSnowGaugeReadings() {
 			}
 
 			// Send the reading to the distributor
+			log.Debugf("SnowGauge [%s] sending reading to distributor: distance=%.1fmm, depth=%.1fmm",
+				s.config.Name, r.SnowDistance, float32(s.config.BaseSnowDistance)-r.SnowDistance)
 			s.ReadingDistributor <- r
 		}
 	}
