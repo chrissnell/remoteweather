@@ -2,8 +2,11 @@ package restserver
 
 import (
 	"encoding/json"
+	htmltemplate "html/template"
 	"net/http"
 	"time"
+
+	"text/template"
 
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
@@ -183,25 +186,24 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 
 // ServeIndexTemplate serves the main HTML template
 func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) {
-	// For now, serve a simple response until we handle assets properly
+	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*h.controller.FS, "index.html.tmpl"))
+
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(`
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<title>RemoteWeather</title>
-		</head>
-		<body>
-			<h1>RemoteWeather Station</h1>
-			<p>REST API is running. Assets serving will be implemented later.</p>
-		</body>
-		</html>
-	`))
+	err := view.Execute(w, h.controller.WeatherSiteConfig)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
 }
 
 // ServeJS serves the JavaScript template
 func (h *Handlers) ServeJS(w http.ResponseWriter, req *http.Request) {
-	// For now, serve a simple response until we handle assets properly
+	view := template.Must(template.New("remoteweather.js.tmpl").ParseFS(*h.controller.FS, "remoteweather.js.tmpl"))
+
 	w.Header().Set("Content-Type", "text/javascript")
-	w.Write([]byte(`console.log("RemoteWeather JS - assets serving will be implemented later");`))
+	err := view.Execute(w, h.controller.WeatherSiteConfig)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
 }

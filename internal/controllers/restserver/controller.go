@@ -2,7 +2,9 @@ package restserver
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"sync"
 
@@ -14,6 +16,11 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	//go:embed all:assets
+	content embed.FS
+)
+
 // Controller represents the REST server controller
 type Controller struct {
 	ctx                 context.Context
@@ -23,6 +30,7 @@ type Controller struct {
 	Server              http.Server
 	DB                  *gorm.DB
 	DBEnabled           bool
+	FS                  *fs.FS
 	WeatherSiteConfig   *types.WeatherSiteConfig
 	Devices             []types.DeviceConfig
 	AerisWeatherEnabled bool
@@ -91,6 +99,10 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, rc 
 	// Create handlers
 	ctrl.handlers = NewHandlers(ctrl)
 
+	// Set up embedded filesystem for assets
+	assetsFS, _ := fs.Sub(fs.FS(content), "assets")
+	ctrl.FS = &assetsFS
+
 	// Set up router
 	router := ctrl.setupRouter()
 	ctrl.Server.Addr = fmt.Sprintf("%v:%v", rc.ListenAddr, rc.Port)
@@ -148,8 +160,8 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.HandleFunc("/", c.handlers.ServeIndexTemplate)
 	router.HandleFunc("/js/remoteweather.js", c.handlers.ServeJS)
 
-	// Static file serving (disabled for now until we handle assets properly)
-	// router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
+	// Static file serving
+	router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
 
 	return router
 }
