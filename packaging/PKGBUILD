@@ -18,7 +18,7 @@ sha256sums=('SKIP'  # Update with actual checksum
 install=$pkgname.install
 
 build() {
-    cd "$pkgname-v5.0-rest-api"
+    cd "remoteweather-5.0-rest-api"
     
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
@@ -36,14 +36,14 @@ build() {
 }
 
 check() {
-    cd "$pkgname-v5.0-rest-api"
+    cd "remoteweather-5.0-rest-api"
     
     # Run basic tests if they exist
     # go test ./...
 }
 
 package() {
-    cd "$pkgname-v5.0-rest-api"
+    cd "remoteweather-5.0-rest-api"
     
     # Install binaries
     install -Dm755 remoteweather "$pkgdir/usr/bin/remoteweather"
