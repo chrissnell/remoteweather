@@ -143,11 +143,12 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 	forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
 	if err != nil {
 		log.Error("error fetching forecast from Aeris Weather:", err)
-	}
-	// Save our forecast record to the database
-	err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
-	if err != nil {
-		log.Errorf("error saving forecast to database: %v", err)
+	} else {
+		// Only save to database if fetch was successful
+		err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
+		if err != nil {
+			log.Errorf("error saving forecast to database: %v", err)
+		}
 	}
 
 	// Convert periodHours into a time.Duration
@@ -172,11 +173,12 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 			forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
 			if err != nil {
 				log.Error("error fetching forecast from Aeris Weather:", err)
-			}
-			// Save our forecast record to the database
-			err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
-			if err != nil {
-				log.Errorf("error saving forecast to database: %v", err)
+			} else {
+				// Only save to database if fetch was successful
+				err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
+				if err != nil {
+					log.Errorf("error saving forecast to database: %v", err)
+				}
 			}
 
 		case <-a.ctx.Done():
