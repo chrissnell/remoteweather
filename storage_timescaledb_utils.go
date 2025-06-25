@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -75,7 +76,7 @@ func (t *TimescaleDBClient) connectToTimescaleDB() error {
 
 	// Create a logger for gorm
 	dbLogger := logger.New(
-		zap.NewStdLog(zapLogger),
+		zap.NewStdLog(log.GetZapLogger()),
 		logger.Config{
 			SlowThreshold:             time.Second, // Slow SQL threshold
 			LogLevel:                  logger.Warn, // Log level

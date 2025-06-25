@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 )
 
