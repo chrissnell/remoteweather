@@ -1,0 +1,173 @@
+package restserver
+
+import (
+	"github.com/chrissnell/remoteweather/internal/types"
+)
+
+// transformSpanReadings converts database readings to WeatherReading slice for JSON output
+func (h *Handlers) transformSpanReadings(dbReadings *[]types.BucketReading) []*WeatherReading {
+	var spanReadings []*WeatherReading
+
+	for _, r := range *dbReadings {
+		wr := &WeatherReading{
+			StationName:           r.StationName,
+			ReadingTimestamp:      r.Bucket.Unix(),
+			OutsideTemperature:    float32ToJSONNumber(r.OutTemp),
+			ExtraTemp1:            float32ToJSONNumber(r.ExtraTemp1),
+			ExtraTemp2:            float32ToJSONNumber(r.ExtraTemp2),
+			ExtraTemp3:            float32ToJSONNumber(r.ExtraTemp3),
+			ExtraTemp4:            float32ToJSONNumber(r.ExtraTemp4),
+			ExtraTemp5:            float32ToJSONNumber(r.ExtraTemp5),
+			ExtraTemp6:            float32ToJSONNumber(r.ExtraTemp6),
+			ExtraTemp7:            float32ToJSONNumber(r.ExtraTemp7),
+			SoilTemp1:             float32ToJSONNumber(r.SoilTemp1),
+			SoilTemp2:             float32ToJSONNumber(r.SoilTemp2),
+			SoilTemp3:             float32ToJSONNumber(r.SoilTemp3),
+			SoilTemp4:             float32ToJSONNumber(r.SoilTemp4),
+			LeafTemp1:             float32ToJSONNumber(r.LeafTemp1),
+			LeafTemp2:             float32ToJSONNumber(r.LeafTemp2),
+			LeafTemp3:             float32ToJSONNumber(r.LeafTemp3),
+			LeafTemp4:             float32ToJSONNumber(r.LeafTemp4),
+			OutsideHumidity:       float32ToJSONNumber(r.OutHumidity),
+			ExtraHumidity1:        float32ToJSONNumber(r.ExtraHumidity1),
+			ExtraHumidity2:        float32ToJSONNumber(r.ExtraHumidity2),
+			ExtraHumidity3:        float32ToJSONNumber(r.ExtraHumidity3),
+			ExtraHumidity4:        float32ToJSONNumber(r.ExtraHumidity4),
+			ExtraHumidity5:        float32ToJSONNumber(r.ExtraHumidity5),
+			ExtraHumidity6:        float32ToJSONNumber(r.ExtraHumidity6),
+			ExtraHumidity7:        float32ToJSONNumber(r.ExtraHumidity7),
+			RainRate:              float32ToJSONNumber(r.RainRate),
+			RainIncremental:       float32ToJSONNumber(r.RainIncremental),
+			PeriodRain:            float32ToJSONNumber(r.PeriodRain),
+			SolarWatts:            float32ToJSONNumber(r.SolarWatts),
+			PotentialSolarWatts:   float32ToJSONNumber(r.PotentialSolarWatts),
+			SolarJoules:           float32ToJSONNumber(r.SolarJoules),
+			UV:                    float32ToJSONNumber(r.UV),
+			Radiation:             float32ToJSONNumber(r.Radiation),
+			StormRain:             float32ToJSONNumber(r.StormRain),
+			DayRain:               float32ToJSONNumber(r.DayRain),
+			MonthRain:             float32ToJSONNumber(r.MonthRain),
+			YearRain:              float32ToJSONNumber(r.YearRain),
+			Barometer:             float32ToJSONNumber(r.Barometer),
+			WindSpeed:             float32ToJSONNumber(r.WindSpeed),
+			WindDirection:         float32ToJSONNumber(r.WindDir),
+			CardinalDirection:     headingToCardinalDirection(r.WindDir),
+			WindChill:             float32ToJSONNumber(r.WindChill),
+			HeatIndex:             float32ToJSONNumber(r.HeatIndex),
+			InsideTemperature:     float32ToJSONNumber(r.InTemp),
+			InsideHumidity:        float32ToJSONNumber(r.InHumidity),
+			ConsBatteryVoltage:    float32ToJSONNumber(r.ConsBatteryVoltage),
+			StationBatteryVoltage: float32ToJSONNumber(r.StationBatteryVoltage),
+			SnowDepth:             float32ToJSONNumber(r.SnowDepth),
+			SnowDistance:          float32ToJSONNumber(r.SnowDistance),
+			ExtraFloat1:           float32ToJSONNumber(r.ExtraFloat1),
+			ExtraFloat2:           float32ToJSONNumber(r.ExtraFloat2),
+			ExtraFloat3:           float32ToJSONNumber(r.ExtraFloat3),
+			ExtraFloat4:           float32ToJSONNumber(r.ExtraFloat4),
+			ExtraFloat5:           float32ToJSONNumber(r.ExtraFloat5),
+			ExtraFloat6:           float32ToJSONNumber(r.ExtraFloat6),
+			ExtraFloat7:           float32ToJSONNumber(r.ExtraFloat7),
+			ExtraFloat8:           float32ToJSONNumber(r.ExtraFloat8),
+			ExtraFloat9:           float32ToJSONNumber(r.ExtraFloat9),
+			ExtraFloat10:          float32ToJSONNumber(r.ExtraFloat10),
+			ExtraText1:            r.ExtraText1,
+			ExtraText2:            r.ExtraText2,
+			ExtraText3:            r.ExtraText3,
+			ExtraText4:            r.ExtraText4,
+			ExtraText5:            r.ExtraText5,
+			ExtraText6:            r.ExtraText6,
+			ExtraText7:            r.ExtraText7,
+			ExtraText8:            r.ExtraText8,
+			ExtraText9:            r.ExtraText9,
+			ExtraText10:           r.ExtraText10,
+		}
+
+		spanReadings = append(spanReadings, wr)
+	}
+
+	return spanReadings
+}
+
+// transformLatestReadings converts database readings to a single WeatherReading for JSON output
+func (h *Handlers) transformLatestReadings(dbReadings *[]types.BucketReading) *WeatherReading {
+	if len(*dbReadings) == 0 {
+		return &WeatherReading{}
+	}
+
+	r := (*dbReadings)[0] // Get the first (and only) reading
+
+	wr := &WeatherReading{
+		StationName:           r.StationName,
+		ReadingTimestamp:      r.Bucket.Unix(),
+		OutsideTemperature:    float32ToJSONNumber(r.OutTemp),
+		ExtraTemp1:            float32ToJSONNumber(r.ExtraTemp1),
+		ExtraTemp2:            float32ToJSONNumber(r.ExtraTemp2),
+		ExtraTemp3:            float32ToJSONNumber(r.ExtraTemp3),
+		ExtraTemp4:            float32ToJSONNumber(r.ExtraTemp4),
+		ExtraTemp5:            float32ToJSONNumber(r.ExtraTemp5),
+		ExtraTemp6:            float32ToJSONNumber(r.ExtraTemp6),
+		ExtraTemp7:            float32ToJSONNumber(r.ExtraTemp7),
+		SoilTemp1:             float32ToJSONNumber(r.SoilTemp1),
+		SoilTemp2:             float32ToJSONNumber(r.SoilTemp2),
+		SoilTemp3:             float32ToJSONNumber(r.SoilTemp3),
+		SoilTemp4:             float32ToJSONNumber(r.SoilTemp4),
+		LeafTemp1:             float32ToJSONNumber(r.LeafTemp1),
+		LeafTemp2:             float32ToJSONNumber(r.LeafTemp2),
+		LeafTemp3:             float32ToJSONNumber(r.LeafTemp3),
+		LeafTemp4:             float32ToJSONNumber(r.LeafTemp4),
+		OutsideHumidity:       float32ToJSONNumber(r.OutHumidity),
+		ExtraHumidity1:        float32ToJSONNumber(r.ExtraHumidity1),
+		ExtraHumidity2:        float32ToJSONNumber(r.ExtraHumidity2),
+		ExtraHumidity3:        float32ToJSONNumber(r.ExtraHumidity3),
+		ExtraHumidity4:        float32ToJSONNumber(r.ExtraHumidity4),
+		ExtraHumidity5:        float32ToJSONNumber(r.ExtraHumidity5),
+		ExtraHumidity6:        float32ToJSONNumber(r.ExtraHumidity6),
+		ExtraHumidity7:        float32ToJSONNumber(r.ExtraHumidity7),
+		RainRate:              float32ToJSONNumber(r.RainRate),
+		RainIncremental:       float32ToJSONNumber(r.RainIncremental),
+		PeriodRain:            float32ToJSONNumber(r.PeriodRain),
+		SolarWatts:            float32ToJSONNumber(r.SolarWatts),
+		PotentialSolarWatts:   float32ToJSONNumber(r.PotentialSolarWatts),
+		SolarJoules:           float32ToJSONNumber(r.SolarJoules),
+		UV:                    float32ToJSONNumber(r.UV),
+		Radiation:             float32ToJSONNumber(r.Radiation),
+		StormRain:             float32ToJSONNumber(r.StormRain),
+		DayRain:               float32ToJSONNumber(r.DayRain),
+		MonthRain:             float32ToJSONNumber(r.MonthRain),
+		YearRain:              float32ToJSONNumber(r.YearRain),
+		Barometer:             float32ToJSONNumber(r.Barometer),
+		WindSpeed:             float32ToJSONNumber(r.WindSpeed),
+		WindDirection:         float32ToJSONNumber(r.WindDir),
+		CardinalDirection:     headingToCardinalDirection(r.WindDir),
+		WindChill:             float32ToJSONNumber(r.WindChill),
+		HeatIndex:             float32ToJSONNumber(r.HeatIndex),
+		InsideTemperature:     float32ToJSONNumber(r.InTemp),
+		InsideHumidity:        float32ToJSONNumber(r.InHumidity),
+		ConsBatteryVoltage:    float32ToJSONNumber(r.ConsBatteryVoltage),
+		StationBatteryVoltage: float32ToJSONNumber(r.StationBatteryVoltage),
+		SnowDepth:             float32ToJSONNumber(r.SnowDepth),
+		SnowDistance:          float32ToJSONNumber(r.SnowDistance),
+		ExtraFloat1:           float32ToJSONNumber(r.ExtraFloat1),
+		ExtraFloat2:           float32ToJSONNumber(r.ExtraFloat2),
+		ExtraFloat3:           float32ToJSONNumber(r.ExtraFloat3),
+		ExtraFloat4:           float32ToJSONNumber(r.ExtraFloat4),
+		ExtraFloat5:           float32ToJSONNumber(r.ExtraFloat5),
+		ExtraFloat6:           float32ToJSONNumber(r.ExtraFloat6),
+		ExtraFloat7:           float32ToJSONNumber(r.ExtraFloat7),
+		ExtraFloat8:           float32ToJSONNumber(r.ExtraFloat8),
+		ExtraFloat9:           float32ToJSONNumber(r.ExtraFloat9),
+		ExtraFloat10:          float32ToJSONNumber(r.ExtraFloat10),
+		ExtraText1:            r.ExtraText1,
+		ExtraText2:            r.ExtraText2,
+		ExtraText3:            r.ExtraText3,
+		ExtraText4:            r.ExtraText4,
+		ExtraText5:            r.ExtraText5,
+		ExtraText6:            r.ExtraText6,
+		ExtraText7:            r.ExtraText7,
+		ExtraText8:            r.ExtraText8,
+		ExtraText9:            r.ExtraText9,
+		ExtraText10:           r.ExtraText10,
+	}
+
+	return wr
+}
