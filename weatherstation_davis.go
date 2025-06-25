@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -785,24 +784,6 @@ func convValues(lp *LoopPacketWithTrend) Reading {
 	}
 
 	return r
-}
-
-// ToMap converts a Reading object into a map for later storage
-func (r *Reading) ToMap() map[string]interface{} {
-	m := make(map[string]interface{})
-
-	v := reflect.ValueOf(*r)
-
-	for i := 0; i < v.NumField(); i++ {
-		switch v.Field(i).Kind() {
-		case reflect.Float32:
-			m[v.Type().Field(i).Name] = v.Field(i).Float()
-		case reflect.Uint8:
-			m[v.Type().Field(i).Name] = v.Field(i).Uint()
-		}
-	}
-
-	return m
 }
 
 // Used to convert LoopPacket.StormStart to a time.Time.  This conversion

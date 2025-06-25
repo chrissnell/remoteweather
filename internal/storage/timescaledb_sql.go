@@ -1,4 +1,4 @@
-package main
+package storage
 
 const createTableSQL = `
 CREATE TABLE IF NOT EXISTS weather (

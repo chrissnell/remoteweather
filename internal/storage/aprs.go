@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"bufio"
@@ -14,25 +14,26 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/types"
 )
 
 // CurrentReading is a Reading + a mutex that maintains the most recent reading from
 // the station for whenever we need to send one to APRS-IS
 type CurrentReading struct {
-	r Reading
+	r types.Reading
 	sync.RWMutex
 }
 
 // APRSStorage holds general configuration related to our APRS/CWOP transmissions
 type APRSStorage struct {
 	ctx             context.Context
-	cfg             *Config
-	APRSReadingChan chan Reading
+	cfg             *types.Config
+	APRSReadingChan chan types.Reading
 	currentReading  *CurrentReading
 }
 
 // NewAPRSStorage sets up a new APRS-IS storage backend
-func NewAPRSStorage(c *Config) (APRSStorage, error) {
+func NewAPRSStorage(c *types.Config) (APRSStorage, error) {
 	a := APRSStorage{}
 
 	if c.Storage.APRS.Callsign == "" {
@@ -53,20 +54,20 @@ func NewAPRSStorage(c *Config) (APRSStorage, error) {
 
 	a.cfg = c
 
-	a.APRSReadingChan = make(chan Reading, 10)
+	a.APRSReadingChan = make(chan types.Reading, 10)
 
 	return a, nil
 }
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to APRS-IS when needed
-func (a APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (a APRSStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting APRS-IS storage engine...")
 	a.ctx = ctx
-	readingChan := make(chan Reading)
+	readingChan := make(chan types.Reading)
 
 	a.currentReading = &CurrentReading{}
-	a.currentReading.r = Reading{}
+	a.currentReading.r = types.Reading{}
 	go a.processMetrics(ctx, wg, readingChan)
 	go a.sendReports(ctx, wg)
 	return readingChan
@@ -170,7 +171,7 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 	conn.Write([]byte(pkt + "\r\n"))
 }
 
-func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -189,7 +190,7 @@ func (a *APRSStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 }
 
 // StoreCurrentReading stores the latest reading in our object
-func (a *APRSStorage) StoreCurrentReading(r Reading) error {
+func (a *APRSStorage) StoreCurrentReading(r types.Reading) error {
 	a.currentReading.Lock()
 	a.currentReading.r = r
 	a.currentReading.Unlock()
@@ -198,200 +199,177 @@ func (a *APRSStorage) StoreCurrentReading(r Reading) error {
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
 // report included.
-func (a *APRSStorage) CreateCompleteWeatherReport(symTable, symCode rune) string {
-	var buffer bytes.Buffer
-
+func (a *APRSStorage) CreateCompleteWeatherReport(symbolTable byte, symbol byte) string {
 	// Lock our mutex for reading
 	a.currentReading.RLock()
 
-	// Our callsign comes first.
+	// Build compressed position report
+	var buffer bytes.Buffer
+
+	// Send out callsign
 	buffer.WriteString(a.cfg.Storage.APRS.Callsign)
 
-	// Then we add our APRS path
-	buffer.WriteString(">APRS,TCPIP:")
+	// Begin our APRS data
+	buffer.WriteString(">APRS:!")
 
-	// Next byte in our compressed weather report is the data type indicator.
-	// The rune '!' indicates a real-time compressed position report
-	buffer.WriteRune('!')
+	lat := LatPrecompress(a.cfg.Storage.APRS.Location.Lat)
+	lon := LonPrecompress(a.cfg.Storage.APRS.Location.Lon)
 
-	// Next, we write our latitude
-	buffer.WriteString(convertLatitudeToAPRSFormat(a.cfg.Storage.APRS.Location.Lat))
+	// Encode lat/lon per APRS spec
+	latBytes := EncodeBase91Position(int(lat))
+	lonBytes := EncodeBase91Position(int(lon))
 
-	// Next byte is the symbol table selector
-	buffer.WriteRune(symTable)
+	// Write the bytes to our buffer
+	buffer.Write(latBytes)
+	buffer.Write(lonBytes)
 
-	// Then we write our longitude
-	buffer.WriteString(convertLongitudeToAPRSFormat(a.cfg.Storage.APRS.Location.Lon))
+	// Write symbol table
+	buffer.WriteByte(symbolTable)
 
-	// Then our symbol code
-	buffer.WriteRune(symCode)
+	// Calculate our wind direction and speed bytes
+	// If we have zero wind speed, then we send wind direction of 0,
+	// regardless of what the wind vane is showing
+	var windDirCompass, windSpeed int
+	if a.currentReading.r.WindSpeed != 0 {
+		windDirCompass = int(a.currentReading.r.WindDir)
+		windSpeed = int(a.currentReading.r.WindSpeed)
+	} else {
+		windDirCompass = 0
+		windSpeed = 0
+	}
 
-	// Then our wind direction and speed
-	buffer.WriteString(fmt.Sprintf("%03d/%03d", int(a.currentReading.r.WindSpeed), int(a.currentReading.r.WindSpeed)))
+	// Generate our course/speed bytes and write them to the buffer
+	buffer.WriteByte(CourseCompress(windDirCompass))
+	buffer.WriteByte(SpeedCompress(float64(windSpeed)))
 
-	// We don't keep track of gusts
-	buffer.WriteString("g...")
+	// Write symbol ID
+	buffer.WriteByte(symbol)
 
 	// Then we add our temperature reading
 	buffer.WriteString(fmt.Sprintf("t%03d", int64(a.currentReading.r.OutTemp)))
 
-	// Then we add our rainfall since midnight
+	// then we add our rainfall reading for the past 24hrs, in hundredths of an inch
 	buffer.WriteString(fmt.Sprintf("P%03d", int64(a.currentReading.r.DayRain*100)))
 
-	// Then we add our humidity
+	// then we write our humidity reading
 	buffer.WriteString(fmt.Sprintf("h%02d", int64(a.currentReading.r.OutHumidity)))
 
 	// Finally, we write our barometer reading, converted to tenths of millibars
 	buffer.WriteString((fmt.Sprintf("b%05d", int64(a.currentReading.r.Barometer*33.8638866666667*10))))
 
-	buffer.WriteString("." + "remoteweather-" + constants.Version)
+	// End critical section
 	a.currentReading.RUnlock()
 
 	return buffer.String()
 }
 
 func convertLongitudeToAPRSFormat(l float64) string {
-	var hemisphere string
-
-	degrees := int(math.Floor(math.Abs(l)))
-	remainder := math.Abs(l) - math.Floor(math.Abs(l))
-	minutes := remainder * 60
-
+	var dir byte
 	if l < 0 {
-		hemisphere = "W"
+		dir = 'W'
+		l = math.Abs(l)
 	} else {
-		hemisphere = "E"
+		dir = 'E'
 	}
 
-	return fmt.Sprintf("%03d%2.2f%v", degrees, minutes, hemisphere)
+	degrees := int(l)
+	minutes := (l - float64(degrees)) * 60
+
+	return fmt.Sprintf("%03d%05.2f%c", degrees, minutes, dir)
+
 }
 
 func convertLatitudeToAPRSFormat(l float64) string {
-	var hemisphere string
-
-	degrees := int(math.Floor(math.Abs(l)))
-	remainder := math.Abs(l) - math.Floor(math.Abs(l))
-	minutes := remainder * 60
-
+	var dir byte
 	if l < 0 {
-		hemisphere = "S"
+		dir = 'S'
+		l = math.Abs(l)
 	} else {
-		hemisphere = "N"
+		dir = 'N'
 	}
 
-	return fmt.Sprintf("%2d%2.2f%v", degrees, minutes, hemisphere)
+	degrees := int(l)
+	minutes := (l - float64(degrees)) * 60
+
+	return fmt.Sprintf("%02d%05.2f%c", degrees, minutes, dir)
+
 }
 
-// AltitudeCompress generates a compressed altitude string for a given altitude (in feet)
 func AltitudeCompress(a float64) []byte {
-	var buffer bytes.Buffer
+	compressed := make([]byte, 2)
 
-	// Altitude is compressed with the exponential equation:
-	//   a = 1.002 ^ x
-	//  where:
-	//     a == altitude
-	//     x == our pre-compressed altitude, to be converted to Base91
-	precompAlt := int((math.Log(a) / math.Log(1.002)) + 0.5)
+	s := int(math.Log(a*3.28084) / math.Log(1.002))
 
-	// Convert our pre-compressed altitude to funky APRS-style Base91
-	s := byte(precompAlt%91) + 33
-	c := byte(precompAlt/91) + 33
-	buffer.WriteByte(c)
-	buffer.WriteByte(s)
+	compressed[0] = byte(s/91) + 33
+	compressed[1] = byte(s%91) + 33
 
-	return buffer.Bytes()
+	return compressed
 }
 
-// CourseCompress generates a compressed course byte for a given course (in degrees)
 func CourseCompress(c int) byte {
-	// Course is compressed with the equation:
-	//   c = (x - 33) * 4
-	//  where:
-	//   c == course in degrees
-	//   x == Keycode of compressed ASCII representation of course
-	//
-	//  So, to determine the correct ASCII keycode, we use this equivalent:
-	//
-	//  x = (c/4) + 33
-
-	return byte(int(math.Floor((float64(c)/4)+.5) + 33))
-}
-
-// SpeedCompress generates a compressed speed byte for a given speed (in knots)
-func SpeedCompress(s float64) byte {
-	// Speed is compressed with the exponential equation:
-	//   s = (1.08 ^ (x-33)) - 1
-	// where:
-	//      s == speed, in knots
-	//      x == Keycode of compressed ASCII representation of speed
-	//
-	// So, to determine the correct ASCII keycode, we use this equivalent:
-	// x = rnd(log(s) / log(1.08)) + 32
-
-	// If the speed is 1 kt or less, just return ASCII 33
-	if s <= 1 {
-		return byte(33)
+	if c == 0 {
+		return byte(0 + 33)
 	}
 
-	asciiVal := int(round(math.Log(s)/math.Log(1.08))) + 34
-	return byte(asciiVal)
+	if c == 360 {
+		c = 0
+	}
+
+	return byte(c/4 + 33)
 }
 
-// LatPrecompress prepares a latitude (in decimal degrees) for Base91 conversion/compression
+func SpeedCompress(s float64) byte {
+	kts := mphToKnots(s)
+
+	// APRS spec says we should do this
+	compressed := int(math.Log(kts+1)/math.Log(1.08) + 0.5)
+
+	if compressed > 90 {
+		compressed = 90
+	}
+
+	return byte(compressed + 33)
+}
+
 func LatPrecompress(l float64) float64 {
 
-	// Formula for pre-compression of latitude, prior to Base91 conversion
-	p := 380926 * (90 - l)
-	return p
+	return 380926 * (90 - l)
 }
 
-// LonPrecompress prepares a longitude (in decimal degrees) for Base91 conversion/compression
 func LonPrecompress(l float64) float64 {
 
-	// Formula for pre-compression of longitude, prior to Base91 conversion
-	p := 190463 * (180 + l)
-	return p
+	return 190463 * (180 + l)
 }
 
-// EncodeBase91Position encodes a position to Base91 format
 func EncodeBase91Position(l int) []byte {
-	b91 := make([]byte, 4)
-	p1Div := int(l / (91 * 91 * 91))
-	p1Rem := l % (91 * 91 * 91)
-	p2Div := int(p1Rem / (91 * 91))
-	p2Rem := p1Rem % (91 * 91)
-	p3Div := int(p2Rem / 91)
-	p3Rem := p2Rem % 91
-	b91[0] = byte(p1Div) + 33
-	b91[1] = byte(p2Div) + 33
-	b91[2] = byte(p3Div) + 33
-	b91[3] = byte(p3Rem) + 33
-	return b91
+	encoded := make([]byte, 4)
+
+	encoded[0] = byte(l/(91*91*91)) + 33
+	encoded[1] = byte((l/(91*91))%91) + 33
+	encoded[2] = byte((l/91)%91) + 33
+	encoded[3] = byte(l%91) + 33
+
+	return encoded
+
 }
 
-// EncodeBase91Telemetry encodes telemetry to Base91 format
 func EncodeBase91Telemetry(l uint16) ([]byte, error) {
-
 	if l > 8280 {
-		return nil, errors.New("cannot encode telemetry value larger than 8280")
+		return nil, errors.New("EncodeBase91Telemetry: argument too large to encode")
 	}
 
-	b91 := make([]byte, 2)
-	p1Div := int(l / 91)
-	p1Rem := l % 91
-	b91[0] = byte(p1Div) + 33
-	b91[1] = byte(p1Rem) + 33
-	return b91, nil
+	encoded := make([]byte, 2)
+
+	encoded[0] = byte(int(l)/91) + 33
+	encoded[1] = byte(int(l)%91) + 33
+
+	return encoded, nil
 }
 
-//lint:ignore U1000 For future use
 func mphToKnots(m float64) float64 {
-	return m * 0.8689758
+	return m * 0.868976
 }
 
 func round(x float64) float64 {
-	if x > 0 {
-		return math.Floor(x + 0.5)
-	}
-	return math.Ceil(x - 0.5)
+	return float64(int(x + 0.5))
 }

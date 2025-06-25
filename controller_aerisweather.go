@@ -103,7 +103,7 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Confi
 	a.DB = NewTimescaleDBClient(c, logger)
 
 	// Connect to TimescaleDB for purposes of storing Aeris data for future client requests
-	err := a.DB.connectToTimescaleDB()
+	err := a.DB.ConnectToTimescaleDB()
 	if err != nil {
 		return &AerisWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
@@ -139,7 +139,7 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 		log.Error("error fetching forecast from Aeris Weather:", err)
 	} else {
 		// Only save to database if fetch was successful
-		err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
+		err = a.DB.DB.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
 		if err != nil {
 			log.Errorf("error saving forecast to database: %v", err)
 		}
@@ -169,7 +169,7 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 				log.Error("error fetching forecast from Aeris Weather:", err)
 			} else {
 				// Only save to database if fetch was successful
-				err = a.DB.db.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
+				err = a.DB.DB.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
 				if err != nil {
 					log.Errorf("error saving forecast to database: %v", err)
 				}
@@ -333,7 +333,7 @@ func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodH
 }
 
 func (a *AerisWeatherController) CreateTables() error {
-	err := a.DB.db.AutoMigrate(AerisWeatherForecastRecord{})
+	err := a.DB.DB.AutoMigrate(AerisWeatherForecastRecord{})
 	if err != nil {
 		return fmt.Errorf("error creating or migrating Aeris forecast record database table: %v", err)
 	}

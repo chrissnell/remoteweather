@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/influxdata/influxdb/client/v2"
 )
 
@@ -17,14 +18,14 @@ type InfluxDBStorage struct {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to InfluxDB
-func (i *InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (i *InfluxDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting InfluxDB storage engine...")
-	readingChan := make(chan Reading, 10)
+	readingChan := make(chan types.Reading, 10)
 	go i.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (i *InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+func (i *InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -43,7 +44,7 @@ func (i *InfluxDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup
 }
 
 // StoreReading stores a reading value in InfluxDB
-func (i *InfluxDBStorage) StoreReading(r Reading) error {
+func (i *InfluxDBStorage) StoreReading(r types.Reading) error {
 
 	fields := r.ToMap()
 
@@ -78,7 +79,7 @@ func (i *InfluxDBStorage) StoreReading(r Reading) error {
 }
 
 // NewInfluxDBStorage sets up a new InfluxDB storage backend
-func NewInfluxDBStorage(c *Config) (*InfluxDBStorage, error) {
+func NewInfluxDBStorage(c *types.Config) (*InfluxDBStorage, error) {
 	var err error
 	i := InfluxDBStorage{}
 

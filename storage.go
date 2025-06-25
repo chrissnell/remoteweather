@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/storage"
 )
 
 // StorageManager holds our active storage backends
@@ -17,7 +18,7 @@ type StorageManager struct {
 // StorageEngine holds a backend storage engine's interface as well as
 // a channel for passing readings to the engine
 type StorageEngine struct {
-	Engine StorageEngineInterface
+	Engine storage.StorageEngineInterface
 	C      chan<- Reading
 }
 
@@ -82,7 +83,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 	switch engineName {
 	case "timescaledb":
 		se := StorageEngine{}
-		se.Engine, err = NewTimescaleDBStorage(ctx, c)
+		se.Engine, err = storage.NewTimescaleDBStorage(ctx, c)
 		if err != nil {
 			return err
 		}
@@ -90,7 +91,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		s.Engines = append(s.Engines, se)
 	case "influxdb":
 		se := StorageEngine{}
-		se.Engine, err = NewInfluxDBStorage(c)
+		se.Engine, err = storage.NewInfluxDBStorage(c)
 		if err != nil {
 			return err
 		}
@@ -99,7 +100,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 
 	case "grpc":
 		se := StorageEngine{}
-		se.Engine, err = NewGRPCStorage(ctx, c)
+		se.Engine, err = storage.NewGRPCStorage(ctx, c)
 		if err != nil {
 			return err
 		}
@@ -108,7 +109,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 
 	case "aprs":
 		se := StorageEngine{}
-		se.Engine, err = NewAPRSStorage(c)
+		se.Engine, err = storage.NewAPRSStorage(c)
 		if err != nil {
 			return err
 		}
