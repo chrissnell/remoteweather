@@ -10,8 +10,10 @@ depends=('glibc')
 makedepends=('go' 'git')
 backup=('var/lib/remoteweather/config.yaml')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/sqlite-backend.tar.gz"
-        "remoteweather.service")
+        "remoteweather.service"
+        "remoteweather.sysusers")
 sha256sums=('SKIP'  # Update with actual checksum
+            'SKIP'  # Update with actual checksum
             'SKIP') # Update with actual checksum
 install=$pkgname.install
 
@@ -51,6 +53,9 @@ package() {
     
     # Install systemd service
     install -Dm644 "$srcdir/remoteweather.service" "$pkgdir/usr/lib/systemd/system/remoteweather.service"
+    
+    # Install sysusers.d configuration
+    install -Dm644 "$srcdir/remoteweather.sysusers" "$pkgdir/usr/lib/sysusers.d/remoteweather.conf"
     
     # Create application directories
     install -dm755 "$pkgdir/var/lib/remoteweather"

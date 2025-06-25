@@ -14,11 +14,9 @@ pre_install() {
 post_install() {
     echo -e "${BLUE}==>${NC} Setting up RemoteWeather..."
     
-    # Create remoteweather user and group
-    if ! id remoteweather >/dev/null 2>&1; then
-        echo -e "${BLUE}==>${NC} Creating remoteweather user..."
-        useradd -r -s /bin/false -d /var/lib/remoteweather -c "RemoteWeather service user" remoteweather
-    fi
+    # Create user and assign groups via systemd-sysusers
+    echo -e "${BLUE}==>${NC} Creating remoteweather user and assigning groups..."
+    systemd-sysusers
     
     # Set proper ownership and permissions
     chown -R remoteweather:remoteweather /var/lib/remoteweather
