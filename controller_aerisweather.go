@@ -11,12 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/jackc/pgtype"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-// AerisWeatherController holds our connection along with some mutexes for operation
+// AerisWeatherController holds our AerisWeather configuration
 type AerisWeatherController struct {
 	ctx                context.Context
 	wg                 *sync.WaitGroup
@@ -24,13 +25,6 @@ type AerisWeatherController struct {
 	AerisWeatherConfig AerisWeatherConfig
 	logger             *zap.SugaredLogger
 	DB                 *TimescaleDBClient
-}
-
-type AerisWeatherConfig struct {
-	APIClientID     string `yaml:"api-client-id"`
-	APIClientSecret string `yaml:"api-client-secret"`
-	APIEndpoint     string `yaml:"api-endpoint,omitempty"`
-	Location        string `yaml:"location"`
 }
 
 type AerisWeatherForecastResponse struct {

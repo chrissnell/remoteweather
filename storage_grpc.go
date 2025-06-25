@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/types"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -20,16 +22,6 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// GRPCConfig describes the YAML-provided configuration for a gRPC
-// storage backend
-type GRPCConfig struct {
-	Cert           string `yaml:"cert,omitempty"`
-	Key            string `yaml:"key,omitempty"`
-	ListenAddr     string `yaml:"listen-addr,omitempty"`
-	Port           int    `yaml:"port,omitempty"`
-	PullFromDevice string `yaml:"pull-from-device,omitempty"`
-}
-
 // GRPCStorage implements a gRPC storage backend
 type GRPCStorage struct {
 	ClientChans     []chan Reading
@@ -37,7 +29,7 @@ type GRPCStorage struct {
 	DB              *gorm.DB
 	DBEnabled       bool
 	Server          *grpc.Server
-	GRPCConfig      *GRPCConfig
+	GRPCConfig      *types.GRPCConfig
 
 	weather.UnimplementedWeatherServer
 }
@@ -127,7 +119,7 @@ func (g *GRPCStorage) connectToDatabase(dbURI string) error {
 	var err error
 	// Create a logger for gorm
 	dbLogger := logger.New(
-		zap.NewStdLog(zapLogger),
+		zap.NewStdLog(log.GetZapLogger()),
 		logger.Config{
 			SlowThreshold:             time.Second, // Slow SQL threshold
 			LogLevel:                  logger.Warn, // Log level

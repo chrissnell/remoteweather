@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	"github.com/chrissnell/remoteweather/internal/log"
 )
 
 // StorageManager holds our active storage backends
