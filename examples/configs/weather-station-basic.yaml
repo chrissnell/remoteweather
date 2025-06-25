@@ -1,0 +1,25 @@
+# Basic Weather Station Configuration
+# This example shows a minimal setup with a single Davis weather station
+# and a REST server for web access.
+
+devices:
+  - name: "weather-station-1"
+    type: "davis"
+    hostname: "192.168.1.100"
+    port: "22222"
+    solar:
+      latitude: 45.5152    # Portland, Oregon latitude
+      longitude: -122.6784  # Portland, Oregon longitude
+      altitude: 50.0        # Elevation in meters
+
+controllers:
+  - type: "rest"
+    rest:
+      port: 8080
+      listen-addr: "0.0.0.0"
+      weather-site:
+        station-name: "Example Weather Station"
+        pull-from-device: "weather-station-1"
+        page-title: "Local Weather"
+        snow-enabled: false
+        about-station-html: "<p>This is an example weather station configuration.</p>" 

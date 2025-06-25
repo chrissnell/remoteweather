@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+option go_package = "github.com/chrissnell/remoteweather/protocols/remoteweather";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/api/annotations.proto";
+
+service Weather {
+    rpc GetLiveWeather (LiveWeatherRequest) returns (stream WeatherReading) {}
+    rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {
+        option (google.api.http) = {
+            get:"/v1/getWeatherSpan/{spanDuration}"
+        };
+    }
+}
+
+message LiveWeatherRequest {
+    optional string stationName = 1;
+}
+
+message WeatherSpanRequest {
+    google.protobuf.Duration spanDuration = 1;
+}
+
+message WeatherSpan {
+    google.protobuf.Timestamp spanStart = 1;
+    repeated WeatherReading reading = 2;
+}
+
+message WeatherReading {
+    google.protobuf.Timestamp readingTimestamp = 1;
+    float outsideTemperature = 2;
+    int32 outsideHumidity = 3;
+    float barometer = 4;
+    int32 windSpeed = 5;
+    int32 windDirection = 6;
+    float rainfallDay = 7;
+    float windChill = 8;
+    float heatIndex = 9;
+    float insideTemperature = 10;
+    int32 insideHumidity = 11;
+    string stationName = 12;
+}
+
+message Empty {}
