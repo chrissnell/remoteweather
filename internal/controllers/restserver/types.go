@@ -8,7 +8,8 @@ import (
 
 // Time constants
 const (
-	Day = 24 * time.Hour
+	Day   = 24 * time.Hour
+	Month = Day * 30
 )
 
 // WeatherReading represents a weather reading for JSON output
@@ -112,26 +113,29 @@ type SnowDeltaResult struct {
 
 // Utility functions
 
-// float32ToJSONNumber converts a float32 to json.Number
+// float32ToJSONNumber converts a float32 to a JSON number, handling NaN and Inf values
 func float32ToJSONNumber(f float32) json.Number {
-	if f == 0 {
-		return json.Number("0")
+	var s string
+	if f == float32(int32(f)) {
+		s = fmt.Sprintf("%.1f", f) // 1 decimal if integer
+	} else {
+		s = fmt.Sprint(f)
 	}
-	return json.Number(fmt.Sprintf("%.6f", f))
+	return json.Number(s)
 }
 
 // mmToInches converts millimeters to inches
 func mmToInches(mm float32) float32 {
-	return mm * 0.0393701
+	return mm / 25.4
 }
 
-// headingToCardinalDirection converts a heading to cardinal direction
+// headingToCardinalDirection converts a wind direction heading to a cardinal direction
 func headingToCardinalDirection(f float32) string {
-	cardDirections := []string{
-		"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-		"S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
-	}
+	cardDirections := []string{"N", "NNE", "NE", "ENE",
+		"E", "ESE", "SE", "SSE",
+		"S", "SSW", "SW", "WSW",
+		"W", "WNW", "NW", "NNW"}
 
-	cardIndex := int((f + 11.25) / 22.5)
+	cardIndex := int((float32(f) + float32(11.25)) / float32(22.5))
 	return cardDirections[cardIndex%16]
 }
