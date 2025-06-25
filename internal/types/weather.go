@@ -135,7 +135,7 @@ func (r *Reading) ToMap() map[string]interface{} {
 
 // TableName implements the GORM Tabler interface for the Reading struct
 func (Reading) TableName() string {
-	return "readings"
+	return "weather"
 }
 
 // BucketReading is a Reading with a few extra fields that are present in the materialized view
