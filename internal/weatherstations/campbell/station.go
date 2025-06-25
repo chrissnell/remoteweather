@@ -204,6 +204,8 @@ func (s *Station) ParseCampbellScientificPackets() error {
 			}
 
 			// Send the reading to the distributor
+			log.Debugf("Campbell Scientific [%s] sending reading to distributor: temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph @ %d°, pressure=%.2f\"",
+				s.config.Name, r.OutTemp, r.OutHumidity, r.WindSpeed, int(r.WindDir), r.Barometer)
 			s.ReadingDistributor <- r
 		}
 	}
