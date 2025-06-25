@@ -11,16 +11,10 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-// APRSConfig describes the YAML-provided configuration for the APRS storage
-// backend
-type APRSConfig struct {
-	Callsign     string `yaml:"callsign,omitempty"`
-	Passcode     string `yaml:"passcode,omitempty"`
-	APRSISServer string `yaml:"aprs-is-server,omitempty"`
-	Location     Point  `yaml:"location,omitempty"`
-}
+	"github.com/chrissnell/remoteweather/internal/constants"
+	"github.com/chrissnell/remoteweather/internal/log"
+)
 
 // CurrentReading is a Reading + a mutex that maintains the most recent reading from
 // the station for whenever we need to send one to APRS-IS
@@ -35,12 +29,6 @@ type APRSStorage struct {
 	cfg             *Config
 	APRSReadingChan chan Reading
 	currentReading  *CurrentReading
-}
-
-// Point represents a geographic location of an APRS/CWOP station
-type Point struct {
-	Lat float64 `yaml:"latitude,omitempty"`
-	Lon float64 `yaml:"longitude,omitempty"`
 }
 
 // NewAPRSStorage sets up a new APRS-IS storage backend
@@ -157,7 +145,7 @@ func (a *APRSStorage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGrou
 	}
 
 	login := fmt.Sprintf("user %v pass %v vers remoteweather-%v\r\n",
-		a.cfg.Storage.APRS.Callsign, a.cfg.Storage.APRS.Passcode, version)
+		a.cfg.Storage.APRS.Callsign, a.cfg.Storage.APRS.Passcode, constants.Version)
 
 	conn.Write([]byte(login))
 
@@ -256,7 +244,7 @@ func (a *APRSStorage) CreateCompleteWeatherReport(symTable, symCode rune) string
 	// Finally, we write our barometer reading, converted to tenths of millibars
 	buffer.WriteString((fmt.Sprintf("b%05d", int64(a.currentReading.r.Barometer*33.8638866666667*10))))
 
-	buffer.WriteString("." + "remoteweather-" + version)
+	buffer.WriteString("." + "remoteweather-" + constants.Version)
 	a.currentReading.RUnlock()
 
 	return buffer.String()

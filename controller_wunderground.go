@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/constants"
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 )
 
@@ -22,15 +24,6 @@ type WeatherUndergroundController struct {
 	wuconfig WeatherUndergroundConfig
 	logger   *zap.SugaredLogger
 	DB       *TimescaleDBClient
-}
-
-// WeatherUndergroundconfig holds configuration for this controller
-type WeatherUndergroundConfig struct {
-	StationID      string `yaml:"station-id,omitempty"`
-	APIKey         string `yaml:"api-key,omitempty"`
-	UploadInterval string `yaml:"upload-interval,omitempty"`
-	PullFromDevice string `yaml:"pull-from-device,omitempty"`
-	APIEndpoint    string `yaml:"api-endpoint,omitempty"`
 }
 
 func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c *Config, wuconfig WeatherUndergroundConfig, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
@@ -139,7 +132,7 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *Fetch
 	v.Set("tempf", fmt.Sprintf("%.1f", r.OutTemp))
 	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
-	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", version))
+	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", constants.Version))
 
 	client := http.Client{
 		Timeout: 5 * time.Second,

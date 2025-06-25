@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 )
 

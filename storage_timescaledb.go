@@ -5,17 +5,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
-
-// TimescaleDBConfig describes the YAML-provided configuration for a TimescaleDB
-// storage backend
-type TimescaleDBConfig struct {
-	ConnectionString string `yaml:"connection-string"`
-}
 
 // TimescaleDBStorage holds the configuration for a TimescaleDB storage backend
 type TimescaleDBStorage struct {
@@ -55,7 +50,11 @@ func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGr
 	for {
 		select {
 		case r := <-rchan:
-			t.StoreReading(ctx, r)
+			err := t.StoreReading(r)
+			if err != nil {
+				log.Info("cancellation request recieved.  Cancelling readings processor.")
+				return
+			}
 		case <-ctx.Done():
 			log.Info("cancellation request recieved.  Cancelling readings processor.")
 			return
@@ -64,11 +63,13 @@ func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGr
 }
 
 // StoreReading stores a reading value in TimescaleDB
-func (t *TimescaleDBStorage) StoreReading(ctx context.Context, r Reading) {
-	err := t.TimescaleDBConn.WithContext(ctx).Create(&r).Error
+func (t *TimescaleDBStorage) StoreReading(r Reading) error {
+	err := t.TimescaleDBConn.Create(&r).Error
 	if err != nil {
 		log.Error("could not store reading:", err)
+		return err
 	}
+	return nil
 }
 
 // NewTimescaleDBStorage sets up a new Graphite storage backend
@@ -79,7 +80,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 
 	// Create a logger for gorm
 	dbLogger := logger.New(
-		zap.NewStdLog(zapLogger),
+		zap.NewStdLog(log.GetZapLogger()),
 		logger.Config{
 			SlowThreshold:             time.Second, // Slow SQL threshold
 			LogLevel:                  logger.Warn, // Log level

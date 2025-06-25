@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/solar"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"

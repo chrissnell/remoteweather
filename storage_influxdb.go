@@ -5,20 +5,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/influxdata/influxdb/client/v2"
 )
-
-// InfluxDBConfig describes the YAML-provided configuration for a InfluxDB
-// storage backend
-type InfluxDBConfig struct {
-	Scheme   string `yaml:"scheme"`
-	Host     string `yaml:"host"`
-	Username string `yaml:"username,omitempty"`
-	Password string `yaml:"password,omitempty"`
-	Database string `yaml:"database"`
-	Port     int    `yaml:"port,omitempty"`
-	Protocol string `yaml:"protocol,omitempty"`
-}
 
 // InfluxDBStorage holds the configuration for a InfluxDB storage backend
 type InfluxDBStorage struct {

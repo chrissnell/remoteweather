@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/constants"
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 )
 
@@ -22,15 +24,6 @@ type PWSWeatherController struct {
 	PWSWeatherConfig PWSWeatherConfig
 	logger           *zap.SugaredLogger
 	DB               *TimescaleDBClient
-}
-
-// PWSWeatherConfig holds configuration for this controller
-type PWSWeatherConfig struct {
-	StationID      string `yaml:"station-id,omitempty"`
-	APIKey         string `yaml:"api-key,omitempty"`
-	APIEndpoint    string `yaml:"api-endpoint,omitempty"`
-	UploadInterval string `yaml:"upload-interval,omitempty"`
-	PullFromDevice string `yaml:"pull-from-device,omitempty"`
 }
 
 func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config, p PWSWeatherConfig, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
@@ -140,7 +133,7 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *FetchedBucketReading)
 	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("solarradiation", fmt.Sprintf("%0.2f", r.SolarWatts))
-	v.Set("softwaretype", fmt.Sprintf("RemoteWeather-%v", version))
+	v.Set("softwaretype", fmt.Sprintf("RemoteWeather-%v", constants.Version))
 
 	client := http.Client{
 		Timeout: 5 * time.Second,

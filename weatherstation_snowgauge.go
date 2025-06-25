@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -13,7 +14,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 
-	"github.com/chrissnell/remoteweather/protocols/snowgauge"
+	snowgauge "github.com/chrissnell/remoteweather/protocols/snowgauge"
 )
 
 // SnowGaugeWeatherStation holds our connection along with some mutexes for operation

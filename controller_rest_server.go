@@ -13,6 +13,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
@@ -118,26 +119,6 @@ type RESTServerController struct {
 	Devices             []DeviceConfig
 	AerisWeatherEnabled bool
 	logger              *zap.SugaredLogger
-}
-
-// WeatherSiteConfig holds configuration for the weather site
-type WeatherSiteConfig struct {
-	StationName      string            `yaml:"station-name,omitempty"`
-	PullFromDevice   string            `yaml:"pull-from-device,omitempty"`
-	SnowEnabled      bool              `yaml:"snow-enabled,omitempty"`
-	SnowDevice       string            `yaml:"snow-device-name,omitempty"`
-	SnowBaseDistance float32           `yaml:"snow-base-distance,omitempty"`
-	PageTitle        string            `yaml:"page-title,omitempty"`
-	AboutStationHTML htmltemplate.HTML `yaml:"about-station-html,omitempty"`
-}
-
-// RESTServerConfig describes the YAML-provided configuration for a REST server controller
-type RESTServerConfig struct {
-	Cert              string            `yaml:"cert,omitempty"`
-	Key               string            `yaml:"key,omitempty"`
-	Port              int               `yaml:"port,omitempty"`
-	ListenAddr        string            `yaml:"listen-addr,omitempty"`
-	WeatherSiteConfig WeatherSiteConfig `yaml:"weather-site"`
 }
 
 var (
@@ -259,7 +240,7 @@ func (r *RESTServerController) connectToDatabase(dbURI string) error {
 	var err error
 	// Create a logger for gorm
 	dbLogger := logger.New(
-		zap.NewStdLog(zapLogger),
+		zap.NewStdLog(log.GetZapLogger()),
 		logger.Config{
 			SlowThreshold:             time.Second, // Slow SQL threshold
 			LogLevel:                  logger.Warn, // Log level
