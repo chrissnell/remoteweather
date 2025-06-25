@@ -365,7 +365,7 @@ func (packet *LoopPacketWithTrend) ToBytes() []byte {
 	crc := crc16.Crc16(data[:97])
 	result := make([]byte, 99)
 	copy(result, data)
-	// Store CRC in bytes 97-98 (big-endian as per Davis protocol)
+	// Store CRC in bytes 97-98 (big-endian as per Davis protocol documentation)
 	binary.BigEndian.PutUint16(result[97:99], crc)
 
 	return result
