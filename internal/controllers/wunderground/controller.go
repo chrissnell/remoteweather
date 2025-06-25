@@ -77,6 +77,7 @@ func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c 
 }
 
 func (p *WeatherUndergroundController) StartController() error {
+	log.Info("Starting Weather Underground controller...")
 	go p.sendPeriodicReports()
 	return nil
 }
@@ -96,15 +97,15 @@ func (p *WeatherUndergroundController) sendPeriodicReports() {
 	for {
 		select {
 		case <-ticker.C:
-			log.Debug("Sending reading to PWS Weather...")
+			log.Debug("Sending reading to Weather Underground...")
 			br, err := p.DB.GetReadingsFromTimescaleDB(p.WeatherUndergroundConfig.PullFromDevice)
 			if err != nil {
 				log.Info("error getting readings from TimescaleDB:", err)
 			}
-			log.Debugf("readings fetched from TimescaleDB for PWS Weather: %+v", br)
+			log.Debugf("readings fetched from TimescaleDB for Weather Underground: %+v", br)
 			err = p.sendReadingsToWeatherUnderground(&br)
 			if err != nil {
-				log.Errorf("error sending readings to PWS Weather: %v", err)
+				log.Errorf("error sending readings to Weather Underground: %v", err)
 			}
 		case <-p.ctx.Done():
 			return
@@ -142,24 +143,24 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *datab
 
 	req, err := http.NewRequest("GET", fmt.Sprint(p.WeatherUndergroundConfig.APIEndpoint+"?"+v.Encode()), nil)
 	if err != nil {
-		return fmt.Errorf("error creating PWS Weather HTTP request: %v", err)
+		return fmt.Errorf("error creating Weather Underground HTTP request: %v", err)
 	}
 
 	log.Debugf("Making request to Weather Underground: %v?%v", p.WeatherUndergroundConfig.APIEndpoint, v.Encode())
 	req = req.WithContext(p.ctx)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending report to PWS Weather: %v", err)
+		return fmt.Errorf("error sending report to Weather Underground: %v", err)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return fmt.Errorf("error reading PWS Weather response body: %v", err)
+		return fmt.Errorf("error reading Weather Underground response body: %v", err)
 	}
 
 	if !bytes.Contains(body, []byte("success")) {
-		return fmt.Errorf("bad response from PWS Weather server: %v", string(body))
+		return fmt.Errorf("bad response from Weather Underground server: %v", string(body))
 	}
 
 	return nil
