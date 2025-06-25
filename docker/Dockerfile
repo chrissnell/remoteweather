@@ -17,7 +17,7 @@
         COPY . .
         
         # Ensure the build is for Linux x86_64
-        RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o remoteweather .
+        RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o remoteweather ./cmd/remoteweather
         
         # --- Stage 2: Create a minimal runtime image ---
         FROM alpine:latest
@@ -27,7 +27,7 @@
         
         # Copy only the built binary from the builder stage
         COPY --from=builder /app/remoteweather .
-        COPY entrypoint.sh .
+        COPY docker/entrypoint.sh .
         
         # Set the default command to run the application
         CMD ["./entrypoint.sh"]
