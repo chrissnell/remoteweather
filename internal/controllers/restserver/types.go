@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgtype"
+	"gorm.io/gorm"
 )
 
 // Time constants
@@ -11,6 +14,15 @@ const (
 	Day   = 24 * time.Hour
 	Month = Day * 30
 )
+
+// AerisWeatherForecastRecord represents forecast data from Aeris Weather
+type AerisWeatherForecastRecord struct {
+	gorm.Model
+
+	ForecastSpanHours int16        `gorm:"uniqueIndex:idx_location_span,not null"`
+	Location          string       `gorm:"uniqueIndex:idx_location_span,not null"`
+	Data              pgtype.JSONB `gorm:"type:jsonb;default:'[]';not null"`
+}
 
 // WeatherReading represents a weather reading for JSON output
 type WeatherReading struct {
