@@ -77,6 +77,7 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *types.C
 }
 
 func (p *PWSWeatherController) StartController() error {
+	log.Info("Starting PWS Weather controller...")
 	go p.sendPeriodicReports()
 	return nil
 }
