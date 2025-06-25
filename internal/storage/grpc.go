@@ -8,18 +8,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // GRPCStorage implements a gRPC storage backend
@@ -102,7 +100,7 @@ func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) 
 	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
 	// gRPC handlers can retrieve data
 	if c.Storage.TimescaleDB.ConnectionString != "" {
-		err = g.connectToDatabase(c.Storage.TimescaleDB.ConnectionString)
+		g.DB, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
 		if err != nil {
 			return &GRPCStorage{}, fmt.Errorf("gRPC storage could not connect to database: %v", err)
 		}
@@ -113,29 +111,6 @@ func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) 
 	go g.Server.Serve(l)
 
 	return &g, nil
-}
-
-func (g *GRPCStorage) connectToDatabase(dbURI string) error {
-	var err error
-	// Create a logger for gorm
-	dbLogger := logger.New(
-		zap.NewStdLog(log.GetZapLogger()),
-		logger.Config{
-			SlowThreshold:             time.Second, // Slow SQL threshold
-			LogLevel:                  logger.Warn, // Log level
-			IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
-			Colorful:                  true,        // Disable color
-		},
-	)
-
-	log.Info("connecting to TimescaleDB for gRPC data backend...")
-	g.DB, err = gorm.Open(postgres.Open(dbURI), &gorm.Config{Logger: dbLogger})
-	if err != nil {
-		log.Warn("warning: unable to create a TimescaleDB connection:", err)
-		return err
-	}
-
-	return nil
 }
 
 // registerClient creates a channel for sending readings to a client and adds it
@@ -158,7 +133,7 @@ func (g *GRPCStorage) deregisterClient(i int) {
 
 func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSpanRequest) (*weather.WeatherSpan, error) {
 
-	var dbFetchedReadings []types.BucketReading
+	var dbFetchedReadings []database.FetchedBucketReading
 
 	spanStart := time.Now().Add(-request.SpanDuration.AsDuration())
 
@@ -178,12 +153,12 @@ func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.Weath
 	return &weather.WeatherSpan{}, fmt.Errorf("ignoring GetWeatherSpan request: database not configured")
 }
 
-func (g *GRPCStorage) transformReadings(dbReadings *[]types.BucketReading) []*weather.WeatherReading {
+func (g *GRPCStorage) transformReadings(dbReadings *[]database.FetchedBucketReading) []*weather.WeatherReading {
 	grpcReadings := make([]*weather.WeatherReading, 0)
 
 	for _, r := range *dbReadings {
 		grpcReadings = append(grpcReadings, &weather.WeatherReading{
-			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
+			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(*r.Bucket)),
 			OutsideTemperature: r.OutTemp,
 			OutsideHumidity:    int32(r.OutHumidity),
 			Barometer:          r.Barometer,
