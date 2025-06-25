@@ -80,15 +80,35 @@ func main() {
 	fmt.Printf("\nControllers - YAML: %d, SQLite: %d\n", len(yamlConfig.Controllers), len(sqliteConfig.Controllers))
 	if len(yamlConfig.Controllers) == len(sqliteConfig.Controllers) {
 		fmt.Println("✓ Controller count matches")
-		for i, yamlController := range yamlConfig.Controllers {
-			if i < len(sqliteConfig.Controllers) {
-				sqliteController := sqliteConfig.Controllers[i]
+
+		// Create a map of SQLite controllers by type for proper matching
+		sqliteControllerMap := make(map[string]config.ControllerData)
+		for _, controller := range sqliteConfig.Controllers {
+			sqliteControllerMap[controller.Type] = controller
+		}
+
+		for _, yamlController := range yamlConfig.Controllers {
+			if sqliteController, exists := sqliteControllerMap[yamlController.Type]; exists {
 				if compareControllers(yamlController, sqliteController) {
 					fmt.Printf("✓ Controller %s matches\n", yamlController.Type)
 				} else {
 					fmt.Printf("✗ Controller %s differs\n", yamlController.Type)
 					printControllerDiff(yamlController, sqliteController)
 				}
+			} else {
+				fmt.Printf("✗ Controller %s missing in SQLite\n", yamlController.Type)
+			}
+		}
+
+		// Check for SQLite controllers not in YAML
+		yamlControllerMap := make(map[string]bool)
+		for _, controller := range yamlConfig.Controllers {
+			yamlControllerMap[controller.Type] = true
+		}
+
+		for _, sqliteController := range sqliteConfig.Controllers {
+			if !yamlControllerMap[sqliteController.Type] {
+				fmt.Printf("✗ Controller %s only exists in SQLite\n", sqliteController.Type)
 			}
 		}
 	} else {
