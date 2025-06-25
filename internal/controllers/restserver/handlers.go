@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	htmltemplate "html/template"
 	"net/http"
+	"regexp"
 	"text/template"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
@@ -171,20 +173,140 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 // GetSnowLatest handles requests for the latest snow data
 func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
-	// Snow handler implementation would go here
-	// For now, return a placeholder
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	json.NewEncoder(w).Encode(map[string]string{"status": "snow endpoint not implemented"})
+	if h.controller.DBEnabled {
+		// Enable SQL debugging if RW-Debug header is set to "1"
+		if req.Header.Get("RW-Debug") == "1" {
+			h.controller.DB.Logger = h.controller.DB.Logger.LogMode(logger.Info)
+		} else {
+			h.controller.DB.Logger = h.controller.DB.Logger.LogMode(logger.Warn)
+		}
+
+		var dbFetchedReadings []types.BucketReading
+
+		stationName := req.URL.Query().Get("station")
+
+		if stationName != "" {
+			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
+		} else {
+			// Client did not supply a station name, so pull from the configured SnowDevice
+			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", h.controller.WeatherSiteConfig.SnowDevice).Order("time DESC").Find(&dbFetchedReadings)
+		}
+
+		log.Debugf("returned rows: %v", len(dbFetchedReadings))
+
+		if len(dbFetchedReadings) > 0 {
+			log.Debugf("latest snow reading: %v", mmToInches(dbFetchedReadings[0].SnowDistance))
+		}
+
+		var result SnowDeltaResult
+
+		// Get the snowfall since midnight
+		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
+		err := h.controller.DB.Raw(query, h.controller.WeatherSiteConfig.SnowDevice, h.controller.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
+		snowSinceMidnight := mmToInches(result.Snowfall)
+
+		// Get the snowfall in the last 24 hours
+		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
+		err = h.controller.DB.Raw(query, h.controller.WeatherSiteConfig.SnowDevice, h.controller.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
+		snowLast24 := mmToInches(result.Snowfall)
+
+		// Get the snowfall in the last 72 hours
+		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
+		err = h.controller.DB.Raw(query, h.controller.WeatherSiteConfig.SnowDevice, h.controller.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
+		snowLast72 := mmToInches(result.Snowfall)
+
+		snowReading := SnowReading{
+			StationName: h.controller.WeatherSiteConfig.SnowDevice,
+			SnowDepth:   mmToInches(h.controller.WeatherSiteConfig.SnowBaseDistance - dbFetchedReadings[0].SnowDistance),
+			SnowToday:   float32(snowSinceMidnight),
+			SnowLast24:  float32(snowLast24),
+			SnowLast72:  float32(snowLast72),
+		}
+
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		jsonResponse, err := json.Marshal(&snowReading)
+		if err != nil {
+			log.Errorf("error marshalling snowReading: %v", err)
+			http.Error(w, "error fetching readings from DB", 500)
+			return
+		}
+
+		w.Write(jsonResponse)
+	} else {
+		http.Error(w, "database not enabled", 500)
+	}
 }
 
 // GetForecast handles requests for forecast data
 func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
-	// Forecast handler implementation would go here
-	// For now, return a placeholder
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	json.NewEncoder(w).Encode(map[string]string{"status": "forecast endpoint not implemented"})
+	if h.controller.DBEnabled {
+		// Enable SQL debugging if RW-Debug header is set to "1"
+		if req.Header.Get("RW-Debug") == "1" {
+			h.controller.DB.Logger = h.controller.DB.Logger.LogMode(logger.Info)
+		} else {
+			h.controller.DB.Logger = h.controller.DB.Logger.LogMode(logger.Warn)
+		}
+
+		vars := mux.Vars(req)
+		span := vars["span"]
+		if span == "" {
+			log.Errorf("invalid request: missing span duration")
+			http.Error(w, "error: missing span duration", 400)
+			return
+		}
+
+		// 'span' must be between 1 and 4 digits and nothing else
+		re := regexp.MustCompile(`^\d{1,4}$`)
+		if !re.MatchString(span) {
+			log.Errorf("span %v is invalid", span)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		location := req.URL.Query().Get("location")
+
+		record := AerisWeatherForecastRecord{}
+
+		var result *gorm.DB
+		if location != "" {
+			result = h.controller.DB.Where("forecast_span_hours = ? AND location = ?", span, location).First(&record)
+		} else {
+			result = h.controller.DB.Where("forecast_span_hours = ?", span).First(&record)
+		}
+		if result.RowsAffected == 0 {
+			log.Errorf("no forecast records found for span %v", span)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("{\"lastUpdated\": \"" + record.UpdatedAt.String() + "\", \"data\": "))
+		w.Write(record.Data.Bytes)
+		w.Write([]byte("}"))
+	} else {
+		http.Error(w, "database not enabled", 500)
+	}
 }
 
 // ServeIndexTemplate serves the main HTML template
