@@ -1,6 +1,9 @@
 package main
 
-import "github.com/chrissnell/remoteweather/internal/types"
+import (
+	"github.com/chrissnell/remoteweather/internal/storage"
+	"github.com/chrissnell/remoteweather/internal/types"
+)
 
 // Re-export types from the types package for backward compatibility
 type Config = types.Config
@@ -19,5 +22,16 @@ type AerisWeatherConfig = types.AerisWeatherConfig
 type RESTServerConfig = types.RESTServerConfig
 type WeatherSiteConfig = types.WeatherSiteConfig
 
+// Re-export weather-related types
+type Reading = types.Reading
+type BucketReading = types.BucketReading
+
+// Re-export storage-related types
+type TimescaleDBClient = storage.TimescaleDBClient
+type FetchedBucketReading = storage.FetchedBucketReading
+
 // NewConfig creates a new config object from the given filename.
 var NewConfig = types.NewConfig
+
+// NewTimescaleDBClient creates a new TimescaleDB client
+var NewTimescaleDBClient = storage.NewTimescaleDBClient

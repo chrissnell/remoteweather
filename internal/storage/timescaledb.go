@@ -1,15 +1,17 @@
-package main
+package storage
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/chrissnell/remoteweather/internal/log"
-	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/types"
+	"go.uber.org/zap"
 )
 
 // TimescaleDBStorage holds the configuration for a TimescaleDB storage backend
@@ -22,28 +24,16 @@ type Tabler interface {
 	TableName() string
 }
 
-// BucketReading is a Reading with a few extra fields that are present in the materialized view
-type BucketReading struct {
-	Bucket     time.Time `gorm:"column:bucket"`
-	PeriodRain float32   `gorm:"column:period_rain"`
-	Reading
-}
-
-// We implement the Tabler interface for the Reading struct
-func (Reading) TableName() string {
-	return "weather"
-}
-
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to TimescaleDB
-func (t *TimescaleDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (t *TimescaleDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting TimescaleDB storage engine...")
-	readingChan := make(chan Reading, 10)
+	readingChan := make(chan types.Reading, 10)
 	go t.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -63,7 +53,7 @@ func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGr
 }
 
 // StoreReading stores a reading value in TimescaleDB
-func (t *TimescaleDBStorage) StoreReading(r Reading) error {
+func (t *TimescaleDBStorage) StoreReading(r types.Reading) error {
 	err := t.TimescaleDBConn.Create(&r).Error
 	if err != nil {
 		log.Error("could not store reading:", err)
@@ -73,7 +63,7 @@ func (t *TimescaleDBStorage) StoreReading(r Reading) error {
 }
 
 // NewTimescaleDBStorage sets up a new Graphite storage backend
-func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage, error) {
+func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBStorage, error) {
 
 	var err error
 	t := TimescaleDBStorage{}
@@ -319,7 +309,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		return &TimescaleDBStorage{}, err
 	}
 
-	// Add the snowfall season total function
+	// Add the snowfall storm total function
 	log.Info("Adding snowfall storm total function...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowStormTotalSQL).Error
 	if err != nil {
@@ -334,5 +324,6 @@ func NewTimescaleDBStorage(ctx context.Context, c *Config) (*TimescaleDBStorage,
 		log.Warn("warning: could not add indexes")
 		return &TimescaleDBStorage{}, err
 	}
+
 	return &t, nil
 }
