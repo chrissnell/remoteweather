@@ -168,6 +168,9 @@ func (s *Station) StationName() string {
 func (s *Station) StartWeatherStation() error {
 	log.Infof("Starting Davis weather station [%v]...", s.config.Name)
 
+	// Connect to the station first
+	s.Connect()
+
 	// Wake the console - if this fails, the GetLoopPackets goroutine will retry
 	if err := s.WakeStation(); err != nil {
 		log.Warnf("initial wake attempt failed, will retry in loop: %v", err)
@@ -360,32 +363,22 @@ func (s *Station) WakeStation() error {
 
 // sendData sends data to the Davis station without CRC
 func (s *Station) sendData(d []byte) error {
-	tries := 0
-	for tries < maxTries {
-		_, err := s.Write(d)
-		if err != nil {
-			return fmt.Errorf("error writing data: %w", err)
-		}
+	resp := make([]byte, 1)
 
-		// Read the response
-		response := make([]byte, 1)
-		_, err = s.rwc.Read(response)
-		if err != nil {
-			return fmt.Errorf("error reading response: %w", err)
-		}
+	// Write the data
+	s.Write(d)
 
-		if string(response) == ACK {
-			return nil
-		} else if string(response) == RESEND {
-			tries++
-			s.logger.Debugf("received RESEND, retrying (attempt %d/%d)", tries, maxTries)
-			continue
-		} else {
-			return fmt.Errorf("unexpected response: %x", response)
-		}
+	_, err := s.rwc.Read(resp)
+	if err != nil {
+		s.logger.Info("error reading response:", err)
+		return err
 	}
 
-	return fmt.Errorf("max retries exceeded")
+	// See if it was ACKed
+	if resp[0] != 0x06 {
+		return fmt.Errorf("no <ACK> received from console")
+	}
+	return nil
 }
 
 // sendDataWithCRC16 sends data to the Davis station with CRC16 checksum
@@ -501,71 +494,133 @@ func (s *Station) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error
 
 // GetDavisLoopPackets gets n LOOP packets from the Davis station
 func (s *Station) GetDavisLoopPackets(n int) error {
-	s.logger.Debugf("requesting %d LOOP packets from Davis station", n)
+	var err error
 
-	// Send LOOP command
-	loopCommand := fmt.Sprintf("LOOP %d\n", n)
-	_, err := s.Write([]byte(loopCommand))
-	if err != nil {
-		return fmt.Errorf("error sending LOOP command: %w", err)
-	}
+	for tries := 1; tries <= maxTries; tries++ {
+		if tries == maxTries {
+			return fmt.Errorf("tried to initiate LOOP %v times, unsucessfully", tries)
+		}
 
-	// Read ACK
-	ack := make([]byte, 1)
-	_, err = s.rwc.Read(ack)
-	if err != nil {
-		return fmt.Errorf("error reading LOOP ACK: %w", err)
-	}
+		s.logger.Debugf("initiating LOOP mode for %d packets", n)
 
-	if string(ack) != ACK {
-		return fmt.Errorf("expected ACK, got %x", ack)
-	}
-
-	// Read LOOP packets
-	scanner := bufio.NewScanner(s.rwc)
-	scanner.Split(s.scanPackets)
-
-	packetCount := 0
-	for scanner.Scan() && packetCount < n {
-		select {
-		case <-s.ctx.Done():
-			return nil
-		default:
-			packet := scanner.Bytes()
-			if len(packet) > 0 {
-				loopPacket, err := s.unpackLoopPacket(packet)
-				if err != nil {
-					s.logger.Errorf("error unpacking LOOP packet: %v", err)
-					continue
-				}
-
-				// Convert to Reading and send to distributor
-				reading := s.convertLoopPacket(loopPacket)
-				s.ReadingDistributor <- reading
-
-				packetCount++
-			}
+		// Send a LOOP request up to (maxTries) times
+		err = s.sendData([]byte(fmt.Sprintf("LOOP %v\n", n)))
+		if err != nil {
+			s.logger.Error(err)
+			tries++
+		} else {
+			break
 		}
 	}
 
-	return scanner.Err()
+	time.Sleep(1 * time.Second)
+
+	tries := 1
+
+	scanner := bufio.NewScanner(s.rwc)
+	scanner.Split(s.scanPackets)
+
+	buf := make([]byte, 99)
+	scanner.Buffer(buf, 99)
+
+	for l := 0; l < n; l++ {
+
+		time.Sleep(1 * time.Second)
+
+		if tries > maxTries {
+			s.logger.Error("max retries exceeded while getting loop data")
+			return nil
+		}
+
+		if len(s.config.Hostname) > 0 {
+			err = s.netConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+			if err != nil {
+				s.logger.Error("error setting read deadline:", err)
+			}
+		}
+
+		select {
+		case <-s.ctx.Done():
+			s.logger.Info("cancellation request received. Cancelling GetDavisLoopPackets()")
+			return nil
+		default:
+			scanner.Scan()
+
+			if err = scanner.Err(); err != nil {
+				return fmt.Errorf("error while reading from console, LOOP %v: %v", l, err)
+			}
+
+			buf = scanner.Bytes()
+
+			s.logger.Debugf("read packet: %s", hex.Dump(buf))
+
+			if len(buf) < 99 {
+				s.logger.Infof("packet too short, rejecting: length=%d", len(buf))
+				tries++
+				continue
+			}
+
+			// Verify CRC16 checksum
+			if crc16.Crc16(buf) != 0 {
+				s.logger.Errorf("LOOP %v CRC error (try #%v)", l, tries)
+				tries++
+				continue
+			}
+
+			unpacked, err := s.unpackLoopPacket(buf)
+			if err != nil {
+				tries++
+				s.logger.Errorf("error unpacking loop packet: %v (try #%v)", err, tries)
+				continue
+			}
+
+			tries = 1
+
+			r := s.convertLoopPacket(unpacked)
+
+			// Set the timestamp on our reading to the current system time
+			r.Timestamp = time.Now()
+			r.StationName = s.config.Name
+			r.StationType = "davis"
+
+			s.logger.Debugf("Packet received: %+v", r)
+
+			// Send the reading to the distributor
+			log.Debugf("Davis [%s] sending reading to distributor: temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph @ %d°, pressure=%.2f\"",
+				s.config.Name, r.OutTemp, r.OutHumidity, r.WindSpeed, int(r.WindDir), r.Barometer)
+			s.ReadingDistributor <- r
+		}
+	}
+	return nil
 }
 
 // scanPackets is a custom scanner function for LOOP packets
 func (s *Station) scanPackets(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	// Look for LOOP packet start
-	for i := 0; i < len(data)-2; i++ {
-		if string(data[i:i+3]) == "LOO" {
-			// Found start of packet, now look for end (99 bytes total)
-			if i+99 <= len(data) {
-				return i + 99, data[i : i+99], nil
-			}
+	// Davis LOOP packets are exactly 99 bytes with no terminators
+	// First 3 bytes should be "LOO" (0x4C 0x4F 0x4F)
+	if len(data) >= 99 {
+		// Check if we have a valid LOOP packet header
+		if len(data) >= 3 && data[0] == 0x4C && data[1] == 0x4F && data[2] == 0x4F {
+			s.logger.Debugf("scanPackets found complete LOOP packet (99 bytes)")
+			return 99, data[:99], nil
 		}
 	}
 
-	// If we're at EOF and haven't found a complete packet, return what we have
+	// Look for LOOP packet header in the buffer
+	for i := 0; i <= len(data)-3; i++ {
+		if data[i] == 0x4C && data[i+1] == 0x4F && data[i+2] == 0x4F {
+			// Found LOOP header, check if we have enough bytes for a complete packet
+			if len(data) >= i+99 {
+				s.logger.Debugf("scanPackets found LOOP packet at offset %d", i)
+				return i + 99, data[i : i+99], nil
+			}
+			// Not enough data yet, request more
+			return 0, nil, nil
+		}
+	}
+
 	if atEOF && len(data) > 0 {
-		return len(data), data, nil
+		return len(data), data[0:], io.EOF
 	}
 
 	// Request more data
@@ -574,43 +629,60 @@ func (s *Station) scanPackets(data []byte, atEOF bool) (advance int, token []byt
 
 // unpackLoopPacket unpacks a binary LOOP packet into a struct
 func (s *Station) unpackLoopPacket(p []byte) (*LoopPacketWithTrend, error) {
-	if len(p) < 99 {
-		return nil, fmt.Errorf("packet too short: %d bytes", len(p))
+	var trend int8
+	var isFlavorA bool
+	var lpwt *LoopPacketWithTrend
+
+	lp := new(LoopPacket)
+
+	// OK, this is super goofy: the loop packets come in two flavors: A and B.
+	// Flavor A will always have the character 'P' (ASCII 80) as the fourth byte of the packet
+	// Flavor B will have the 3-hour barometer trend in this position instead
+
+	// So, first we create a new Reader from the packet...
+	r := bytes.NewReader(p)
+
+	// Then we make a 1-byte slice
+	peek := make([]byte, 1)
+
+	// And we skip the first three bytes of the packet and read the fourth byte into peek
+	_, err := r.ReadAt(peek, 3)
+	if err != nil {
+		return nil, err
 	}
 
-	// Verify packet starts with "LOO"
-	if string(p[0:3]) != "LOO" {
-		return nil, fmt.Errorf("invalid packet header: %s", string(p[0:3]))
+	// Now we compare the fourth byte (peek) of the packet to see if it's set to 'P'
+	if bytes.Equal(peek, []byte{80}) {
+		// It's set to 'P', so we set isFlavorA to true.  Following the weewx convention, we'll later set PacketType
+		// to 'A' (ASCII 65) to signify a Flavor-A packet.
+		isFlavorA = true
+	} else {
+		// The fourth byte was not 'P' so we now know that it's our 3-hour barometer trend.   Create a Reader
+		// from this byte, decode it into an int8, then save the byte value to trend for later assignment in
+		// our object.
+		peekr := bytes.NewReader(peek)
+		err = binary.Read(peekr, binary.LittleEndian, &trend)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// Verify CRC
-	receivedCRC := binary.LittleEndian.Uint16(p[97:99])
-	calculatedCRC := crc16.Crc16(p[0:97])
-	if receivedCRC != calculatedCRC {
-		return nil, fmt.Errorf("CRC mismatch: received %x, calculated %x", receivedCRC, calculatedCRC)
+	// Now we read in the loop packet into our LoopPacket struct
+	err = binary.Read(r, binary.LittleEndian, lp)
+	if err != nil {
+		return nil, err
 	}
 
-	// Unpack the packet
-	lp := &LoopPacketWithTrend{}
-	buf := bytes.NewReader(p)
+	if isFlavorA {
+		// For Flavor-A packets, we build a LoopPacketWithTrend but set trend to 0 and PacketType to 'A'
+		lp.PacketType = 65
+		lpwt = &LoopPacketWithTrend{*lp, 0}
+	} else {
+		// For Flavor-B packets, we build a LoopPacketWithTrend and set trend to the value we extracted
+		lpwt = &LoopPacketWithTrend{*lp, trend}
+	}
 
-	// Read all fields in order
-	binary.Read(buf, binary.LittleEndian, &lp.Loop)
-	binary.Read(buf, binary.LittleEndian, &lp.LoopType)
-	binary.Read(buf, binary.LittleEndian, &lp.PacketType)
-	binary.Read(buf, binary.LittleEndian, &lp.NextRecord)
-	binary.Read(buf, binary.LittleEndian, &lp.Barometer)
-	binary.Read(buf, binary.LittleEndian, &lp.InTemp)
-	binary.Read(buf, binary.LittleEndian, &lp.InHumidity)
-	binary.Read(buf, binary.LittleEndian, &lp.OutTemp)
-	binary.Read(buf, binary.LittleEndian, &lp.WindSpeed)
-	binary.Read(buf, binary.LittleEndian, &lp.WindSpeed10)
-	binary.Read(buf, binary.LittleEndian, &lp.WindDir)
-
-	// Continue reading all other fields...
-	// (truncated for brevity - in real implementation, read all fields)
-
-	return lp, nil
+	return lpwt, nil
 }
 
 // convertLoopPacket converts a Davis LOOP packet to a standard Reading
@@ -621,17 +693,76 @@ func (s *Station) convertLoopPacket(lp *LoopPacketWithTrend) types.Reading {
 		Timestamp:             timestamp,
 		StationName:           s.config.Name,
 		StationType:           "davis",
-		OutTemp:               s.convBigVal10(lp.OutTemp) / 10.0,
-		OutHumidity:           s.convLittleVal(lp.OutHumidity),
-		Barometer:             s.convVal1000(lp.Barometer),
+		Barometer:             s.convVal1000Zero(lp.Barometer),
+		InTemp:                s.convBigVal10(lp.InTemp),
+		InHumidity:            s.convLittleVal(lp.InHumidity),
+		OutTemp:               s.convBigVal10(lp.OutTemp),
 		WindSpeed:             s.convLittleVal(lp.WindSpeed),
-		WindDir:               float32(lp.WindDir),
-		RainRate:              s.convBigVal100(lp.RainRate),
-		UV:                    s.convLittleVal(lp.UV),
-		SolarWatts:            s.convBigVal(lp.Radiation),
-		StationBatteryVoltage: s.convConsBatteryVoltage(lp.ConsBatteryVoltage),
+		WindSpeed10:           s.convLittleVal(lp.WindSpeed10),
+		WindDir:               s.convBigVal(lp.WindDir),
 		ExtraTemp1:            s.convLittleTemp(lp.ExtraTemp1),
-		// Add other fields as needed...
+		ExtraTemp2:            s.convLittleTemp(lp.ExtraTemp2),
+		ExtraTemp3:            s.convLittleTemp(lp.ExtraTemp3),
+		ExtraTemp4:            s.convLittleTemp(lp.ExtraTemp4),
+		ExtraTemp5:            s.convLittleTemp(lp.ExtraTemp5),
+		ExtraTemp6:            s.convLittleTemp(lp.ExtraTemp6),
+		ExtraTemp7:            s.convLittleTemp(lp.ExtraTemp7),
+		SoilTemp1:             s.convLittleTemp(lp.SoilTemp1),
+		SoilTemp2:             s.convLittleTemp(lp.SoilTemp2),
+		SoilTemp3:             s.convLittleTemp(lp.SoilTemp3),
+		SoilTemp4:             s.convLittleTemp(lp.SoilTemp4),
+		LeafTemp1:             s.convLittleTemp(lp.LeafTemp1),
+		LeafTemp2:             s.convLittleTemp(lp.LeafTemp2),
+		LeafTemp3:             s.convLittleTemp(lp.LeafTemp3),
+		LeafTemp4:             s.convLittleTemp(lp.LeafTemp4),
+		OutHumidity:           s.convLittleVal(lp.OutHumidity),
+		ExtraHumidity1:        s.convLittleVal(lp.ExtraHumidity1),
+		ExtraHumidity2:        s.convLittleVal(lp.ExtraHumidity2),
+		ExtraHumidity3:        s.convLittleVal(lp.ExtraHumidity3),
+		ExtraHumidity4:        s.convLittleVal(lp.ExtraHumidity4),
+		ExtraHumidity5:        s.convLittleVal(lp.ExtraHumidity5),
+		ExtraHumidity6:        s.convLittleVal(lp.ExtraHumidity6),
+		ExtraHumidity7:        s.convLittleVal(lp.ExtraHumidity7),
+		RainRate:              s.convBigVal100(lp.RainRate),
+		UV:                    s.convLittleVal10(lp.UV),
+		SolarWatts:            s.convBigVal(lp.Radiation),
+		StormRain:             s.convVal100(lp.StormRain),
+		DayRain:               s.convVal100(lp.DayRain),
+		MonthRain:             s.convVal100(lp.MonthRain),
+		YearRain:              s.convVal100(lp.YearRain),
+		DayET:                 s.convVal1000(lp.DayET),
+		MonthET:               s.convVal100(lp.MonthET),
+		YearET:                s.convVal100(lp.YearET),
+		SoilMoisture1:         s.convLittleVal(lp.SoilMoisture1),
+		SoilMoisture2:         s.convLittleVal(lp.SoilMoisture2),
+		SoilMoisture3:         s.convLittleVal(lp.SoilMoisture3),
+		SoilMoisture4:         s.convLittleVal(lp.SoilMoisture4),
+		LeafWetness1:          s.convLittleVal(lp.LeafWetness1),
+		LeafWetness2:          s.convLittleVal(lp.LeafWetness2),
+		LeafWetness3:          s.convLittleVal(lp.LeafWetness3),
+		LeafWetness4:          s.convLittleVal(lp.LeafWetness4),
+		InsideAlarm:           lp.InsideAlarm,
+		RainAlarm:             lp.RainAlarm,
+		OutsideAlarm1:         lp.OutsideAlarm1,
+		OutsideAlarm2:         lp.OutsideAlarm2,
+		ExtraAlarm1:           lp.ExtraAlarm1,
+		ExtraAlarm2:           lp.ExtraAlarm2,
+		ExtraAlarm3:           lp.ExtraAlarm3,
+		ExtraAlarm4:           lp.ExtraAlarm4,
+		ExtraAlarm5:           lp.ExtraAlarm5,
+		ExtraAlarm6:           lp.ExtraAlarm6,
+		ExtraAlarm7:           lp.ExtraAlarm7,
+		ExtraAlarm8:           lp.ExtraAlarm8,
+		SoilLeafAlarm1:        lp.SoilLeafAlarm1,
+		SoilLeafAlarm2:        lp.SoilLeafAlarm2,
+		SoilLeafAlarm3:        lp.SoilLeafAlarm3,
+		SoilLeafAlarm4:        lp.SoilLeafAlarm4,
+		TxBatteryStatus:       lp.TxBatteryStatus,
+		StationBatteryVoltage: s.convConsBatteryVoltage(lp.ConsBatteryVoltage),
+		ForecastIcon:          lp.ForecastIcon,
+		ForecastRule:          lp.ForecastRule,
+		WindChill:             s.calcWindChill(s.convBigVal10(lp.OutTemp), s.convLittleVal(lp.WindSpeed)),
+		HeatIndex:             s.calcHeatIndex(s.convBigVal10(lp.OutTemp), s.convLittleVal(lp.OutHumidity)),
 	}
 }
 
@@ -681,4 +812,28 @@ func (s *Station) convLittleTemp(v uint8) float32 {
 
 func (s *Station) convConsBatteryVoltage(v uint16) float32 {
 	return (float32(v) * 300.0) / 512.0 / 100.0
+}
+
+func (s *Station) convVal1000Zero(v uint16) float32 {
+	if v == 0x7FFF {
+		return 0
+	}
+	return float32(v) / 1000.0
+}
+
+func (s *Station) convLittleVal10(v uint8) float32 {
+	if v == 0xFF {
+		return 0
+	}
+	return float32(v) / 10.0
+}
+
+func (s *Station) calcWindChill(temp float32, windSpeed float32) float32 {
+	// Implementation of wind chill calculation
+	return 0 // Placeholder, actual implementation needed
+}
+
+func (s *Station) calcHeatIndex(temp float32, humidity float32) float32 {
+	// Implementation of heat index calculation
+	return 0 // Placeholder, actual implementation needed
 }
