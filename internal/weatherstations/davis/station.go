@@ -386,8 +386,8 @@ func (s *Station) sendDataWithCRC16(d []byte) error {
 	// Calculate CRC16 for the data
 	crc := crc16.Crc16(d)
 
-	// Append CRC to data (little-endian)
-	dataWithCRC := append(d, byte(crc&0xFF), byte(crc>>8))
+	// Append CRC to data (big-endian)
+	dataWithCRC := append(d, byte(crc>>8), byte(crc&0xFF))
 
 	tries := 0
 	for tries < maxTries {
@@ -482,7 +482,7 @@ func (s *Station) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error
 
 	// Verify CRC16
 	payload := data[:numBytes]
-	receivedCRC := binary.LittleEndian.Uint16(data[numBytes:])
+	receivedCRC := binary.BigEndian.Uint16(data[numBytes:])
 	calculatedCRC := crc16.Crc16(payload)
 
 	if receivedCRC != calculatedCRC {
