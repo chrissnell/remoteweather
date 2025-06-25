@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	htmltemplate "html/template"
 	"net/http"
-	"time"
-
 	"text/template"
+	"time"
 
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
@@ -67,7 +66,7 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 					Order("bucket").
 					Find(&dbFetchedReadings)
 			}
-		case span >= 1*Day && span <= 7*Day:
+		case span >= 1*Day && span < 7*Day:
 			if stationName != "" {
 				h.controller.DB.Table("weather_5m").
 					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
@@ -82,7 +81,22 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 					Order("bucket").
 					Find(&dbFetchedReadings)
 			}
-		case span > 7*Day:
+		case span >= 7*Day && span < 2*Month:
+			if stationName != "" {
+				h.controller.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Where("stationname = ?", stationName).
+					Order("bucket").
+					Find(&dbFetchedReadings)
+			} else {
+				h.controller.DB.Table("weather_1h").
+					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+					Where("bucket > ?", spanStart).
+					Order("bucket").
+					Find(&dbFetchedReadings)
+			}
+		default:
 			if stationName != "" {
 				h.controller.DB.Table("weather_1h").
 					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
@@ -119,23 +133,12 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		var dbFetchedReadings []types.BucketReading
 
 		stationName := req.URL.Query().Get("station")
-		baseDistance := h.controller.WeatherSiteConfig.SnowBaseDistance
 
 		if stationName != "" {
-			h.controller.DB.Table("weather_1m").
-				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-				Where("bucket > NOW() - INTERVAL '2 minutes'").
-				Where("stationname = ?", stationName).
-				Order("bucket DESC").
-				Limit(1).
-				Find(&dbFetchedReadings)
+			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
 		} else {
-			h.controller.DB.Table("weather_1m").
-				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-				Where("bucket > NOW() - INTERVAL '2 minutes'").
-				Order("bucket DESC").
-				Limit(1).
-				Find(&dbFetchedReadings)
+			// Client did not supply a station name, so pull from the configured PullFromDevice
+			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", h.controller.WeatherSiteConfig.PullFromDevice).Order("time DESC").Find(&dbFetchedReadings)
 		}
 
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
@@ -146,13 +149,13 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		}
 
 		var totalRainfall Rainfall
-		h.controller.DB.Table("weather_1m").
-			Select("MAX(dayrain) as total_rain").
-			Where("DATE(bucket) = CURRENT_DATE").
-			Where("stationname = ?", h.controller.WeatherSiteConfig.PullFromDevice).
-			Scan(&totalRainfall)
+		// Fetch the rainfall since midnight
+		h.controller.DB.Table("today_rainfall").First(&totalRainfall)
 
-		latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
+		// Override DayRain from our weather table with the latest data from our view
+		if len(dbFetchedReadings) > 0 {
+			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
