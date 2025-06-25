@@ -1,5 +1,5 @@
 config-secret.yaml
-remoteweather
+/remoteweather
 binaries/
 misc/
 
