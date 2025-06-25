@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"context"
@@ -24,7 +24,7 @@ import (
 
 // GRPCStorage implements a gRPC storage backend
 type GRPCStorage struct {
-	ClientChans     []chan Reading
+	ClientChans     []chan types.Reading
 	ClientChanMutex sync.RWMutex
 	DB              *gorm.DB
 	DBEnabled       bool
@@ -36,14 +36,14 @@ type GRPCStorage struct {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to our gRPC clients
-func (g *GRPCStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- Reading {
+func (g *GRPCStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting gRPC storage engine...")
-	readingChan := make(chan Reading)
+	readingChan := make(chan types.Reading)
 	go g.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (g *GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan Reading) {
+func (g *GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -66,7 +66,7 @@ func (g *GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 }
 
 // NewGRPCStorage sets up a new gRPC storage backend
-func NewGRPCStorage(ctx context.Context, c *Config) (*GRPCStorage, error) {
+func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) {
 	var err error
 	var g GRPCStorage
 
@@ -140,7 +140,7 @@ func (g *GRPCStorage) connectToDatabase(dbURI string) error {
 
 // registerClient creates a channel for sending readings to a client and adds it
 // to the slice of active client channels
-func (g *GRPCStorage) registerClient(clientChan chan Reading) int {
+func (g *GRPCStorage) registerClient(clientChan chan types.Reading) int {
 	g.ClientChanMutex.Lock()
 	defer g.ClientChanMutex.Unlock()
 
@@ -158,7 +158,7 @@ func (g *GRPCStorage) deregisterClient(i int) {
 
 func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSpanRequest) (*weather.WeatherSpan, error) {
 
-	var dbFetchedReadings []BucketReading
+	var dbFetchedReadings []types.BucketReading
 
 	spanStart := time.Now().Add(-request.SpanDuration.AsDuration())
 
@@ -178,7 +178,7 @@ func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.Weath
 	return &weather.WeatherSpan{}, fmt.Errorf("ignoring GetWeatherSpan request: database not configured")
 }
 
-func (g *GRPCStorage) transformReadings(dbReadings *[]BucketReading) []*weather.WeatherReading {
+func (g *GRPCStorage) transformReadings(dbReadings *[]types.BucketReading) []*weather.WeatherReading {
 	grpcReadings := make([]*weather.WeatherReading, 0)
 
 	for _, r := range *dbReadings {
@@ -200,13 +200,12 @@ func (g *GRPCStorage) transformReadings(dbReadings *[]BucketReading) []*weather.
 	return grpcReadings
 }
 
-// GetLiveWeather implements the live weather feed for WeatherServer
 func (g *GRPCStorage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.Weather_GetLiveWeatherServer) error {
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
 
 	log.Infof("Registering new gRPC streaming client [%v]...", p.Addr)
-	clientChan := make(chan Reading, 10)
+	clientChan := make(chan types.Reading, 10)
 	clientIndex := g.registerClient(clientChan)
 	defer g.deregisterClient(clientIndex)
 

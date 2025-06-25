@@ -62,11 +62,11 @@ func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c 
 
 	wuc.DB = NewTimescaleDBClient(c, logger)
 
-	if !wuc.DB.validatePullFromStation(wuc.wuconfig.PullFromDevice) {
+	if !wuc.DB.ValidatePullFromStation(wuc.wuconfig.PullFromDevice) {
 		return &WeatherUndergroundController{}, fmt.Errorf("pull-from-device %v is not a valid station name", wuc.wuconfig.PullFromDevice)
 	}
 
-	err := wuc.DB.connectToTimescaleDB()
+	err := wuc.DB.ConnectToTimescaleDB()
 	if err != nil {
 		return &WeatherUndergroundController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
@@ -95,7 +95,7 @@ func (p *WeatherUndergroundController) sendPeriodicReports() {
 		select {
 		case <-ticker.C:
 			log.Debug("Sending reading to PWS Weather...")
-			br, err := p.DB.getReadingsFromTimescaleDB(p.wuconfig.PullFromDevice)
+			br, err := p.DB.GetReadingsFromTimescaleDB(p.wuconfig.PullFromDevice)
 			if err != nil {
 				log.Info("error getting readings from TimescaleDB:", err)
 			}
