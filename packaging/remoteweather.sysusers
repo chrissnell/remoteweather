@@ -1,3 +1,4 @@
 #Type Name          ID             GECOS                           Home directory     Shell
 u     remoteweather -              "RemoteWeather service user"   /var/lib/remoteweather /bin/false
-m     remoteweather certusers 
+m     remoteweather certusers
+m     remoteweather uucp 
