@@ -127,19 +127,15 @@ func (s *StorageManager) startReadingDistributor(ctx context.Context, wg *sync.W
 		select {
 		case r := <-s.ReadingDistributor:
 			readingCount++
-			fmt.Printf("Storage manager: Received reading #%d from station [%s]: temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph\n",
-				readingCount, r.StationName, r.OutTemp, r.OutHumidity, r.WindSpeed)
 
 			if len(s.Engines) == 0 {
-				fmt.Printf("Storage manager: No storage engines configured - reading discarded\n")
+				// No storage engines configured - reading discarded silently
 			} else {
-				for i, e := range s.Engines {
-					fmt.Printf("Storage manager: Sending reading to storage engine #%d\n", i+1)
+				for _, e := range s.Engines {
 					e.C <- r
 				}
 			}
 		case <-ctx.Done():
-			fmt.Printf("Storage manager: Shutdown signal received, processed %d readings total\n", readingCount)
 			return
 		}
 	}
