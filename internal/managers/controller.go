@@ -76,7 +76,7 @@ func (cm *controllerManager) createController(cc types.ControllerConfig) (Contro
 		return pwsweather.NewPWSWeatherController(cm.ctx, cm.wg, cm.config, cc.PWSWeather, cm.logger)
 	case "wunderground", "weatherunderground":
 		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.config, cc.WeatherUnderground, cm.logger)
-	case "restserver":
+	case "restserver", "rest":
 		return restserver.NewController(cm.ctx, cm.wg, cm.config, cc.RESTServer, cm.logger)
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", cc.Type)
