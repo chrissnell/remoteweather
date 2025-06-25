@@ -62,11 +62,11 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *Config,
 
 	pwsc.DB = NewTimescaleDBClient(c, logger)
 
-	if !pwsc.DB.validatePullFromStation(pwsc.PWSWeatherConfig.PullFromDevice) {
+	if !pwsc.DB.ValidatePullFromStation(pwsc.PWSWeatherConfig.PullFromDevice) {
 		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.PWSWeatherConfig.PullFromDevice)
 	}
 
-	err := pwsc.DB.connectToTimescaleDB()
+	err := pwsc.DB.ConnectToTimescaleDB()
 	if err != nil {
 		return &PWSWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
@@ -95,7 +95,7 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 		select {
 		case <-ticker.C:
 			log.Debug("Sending reading to PWS Weather...")
-			br, err := p.DB.getReadingsFromTimescaleDB(p.PWSWeatherConfig.PullFromDevice)
+			br, err := p.DB.GetReadingsFromTimescaleDB(p.PWSWeatherConfig.PullFromDevice)
 			if err != nil {
 				log.Info("error getting readings from TimescaleDB:", err)
 			}
