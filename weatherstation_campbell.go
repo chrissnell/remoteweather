@@ -241,12 +241,14 @@ func (w *CampbellScientificWeatherStation) connectToSerialStation() {
 
 	for {
 		sc := &serial.Config{Name: w.Config.SerialDevice, Baud: w.Config.Baud}
+		w.Logger.Debugf("attempting to open serial port %s at %d baud", w.Config.SerialDevice, w.Config.Baud)
 		w.rwc, err = serial.OpenPort(sc)
 
 		if err != nil {
 			// There is a known problem where some shitty USB <-> serial adapters will drop out and Linux
 			// will reattach them under a new device.  This code doesn't handle this situation currently
 			// but it would be a nice enhancement in the future.
+			w.Logger.Errorf("failed to open serial port %s: %v", w.Config.SerialDevice, err)
 			w.Logger.Error("sleeping 30 seconds and trying again")
 
 			// Use a select to respect cancellation during sleep
