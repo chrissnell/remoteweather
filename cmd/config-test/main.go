@@ -87,6 +87,7 @@ func main() {
 					fmt.Printf("✓ Controller %s matches\n", yamlController.Type)
 				} else {
 					fmt.Printf("✗ Controller %s differs\n", yamlController.Type)
+					printControllerDiff(yamlController, sqliteController)
 				}
 			}
 		}
@@ -227,4 +228,146 @@ func compareControllers(yaml, sqlite config.ControllerData) bool {
 	}
 
 	return true
+}
+
+func printControllerDiff(yaml, sqlite config.ControllerData) {
+	fmt.Printf("  Controller Type: %s\n", yaml.Type)
+
+	// Compare PWSWeather
+	if (yaml.PWSWeather == nil) != (sqlite.PWSWeather == nil) {
+		fmt.Printf("  PWSWeather presence differs: YAML=%v, SQLite=%v\n", yaml.PWSWeather != nil, sqlite.PWSWeather != nil)
+	} else if yaml.PWSWeather != nil && !reflect.DeepEqual(*yaml.PWSWeather, *sqlite.PWSWeather) {
+		fmt.Printf("  PWSWeather configuration differs:\n")
+		printPWSWeatherDiff(*yaml.PWSWeather, *sqlite.PWSWeather)
+	}
+
+	// Compare WeatherUnderground
+	if (yaml.WeatherUnderground == nil) != (sqlite.WeatherUnderground == nil) {
+		fmt.Printf("  WeatherUnderground presence differs: YAML=%v, SQLite=%v\n", yaml.WeatherUnderground != nil, sqlite.WeatherUnderground != nil)
+	} else if yaml.WeatherUnderground != nil && !reflect.DeepEqual(*yaml.WeatherUnderground, *sqlite.WeatherUnderground) {
+		fmt.Printf("  WeatherUnderground configuration differs:\n")
+		printWeatherUndergroundDiff(*yaml.WeatherUnderground, *sqlite.WeatherUnderground)
+	}
+
+	// Compare AerisWeather
+	if (yaml.AerisWeather == nil) != (sqlite.AerisWeather == nil) {
+		fmt.Printf("  AerisWeather presence differs: YAML=%v, SQLite=%v\n", yaml.AerisWeather != nil, sqlite.AerisWeather != nil)
+	} else if yaml.AerisWeather != nil && !reflect.DeepEqual(*yaml.AerisWeather, *sqlite.AerisWeather) {
+		fmt.Printf("  AerisWeather configuration differs:\n")
+		printAerisWeatherDiff(*yaml.AerisWeather, *sqlite.AerisWeather)
+	}
+
+	// Compare RESTServer
+	if (yaml.RESTServer == nil) != (sqlite.RESTServer == nil) {
+		fmt.Printf("  RESTServer presence differs: YAML=%v, SQLite=%v\n", yaml.RESTServer != nil, sqlite.RESTServer != nil)
+	} else if yaml.RESTServer != nil && !reflect.DeepEqual(*yaml.RESTServer, *sqlite.RESTServer) {
+		fmt.Printf("  RESTServer configuration differs:\n")
+		printRESTServerDiff(*yaml.RESTServer, *sqlite.RESTServer)
+	}
+}
+
+func printPWSWeatherDiff(yaml, sqlite config.PWSWeatherData) {
+	if yaml.StationID != sqlite.StationID {
+		fmt.Printf("    StationID: YAML='%s', SQLite='%s'\n", yaml.StationID, sqlite.StationID)
+	}
+	if yaml.APIKey != sqlite.APIKey {
+		fmt.Printf("    APIKey: YAML='%s', SQLite='%s'\n", yaml.APIKey, sqlite.APIKey)
+	}
+	if yaml.APIEndpoint != sqlite.APIEndpoint {
+		fmt.Printf("    APIEndpoint: YAML='%s', SQLite='%s'\n", yaml.APIEndpoint, sqlite.APIEndpoint)
+	}
+	if yaml.PullFromDevice != sqlite.PullFromDevice {
+		fmt.Printf("    PullFromDevice: YAML='%s', SQLite='%s'\n", yaml.PullFromDevice, sqlite.PullFromDevice)
+	}
+	if yaml.UploadInterval != sqlite.UploadInterval {
+		fmt.Printf("    UploadInterval: YAML='%s', SQLite='%s'\n", yaml.UploadInterval, sqlite.UploadInterval)
+	}
+}
+
+func printWeatherUndergroundDiff(yaml, sqlite config.WeatherUndergroundData) {
+	if yaml.StationID != sqlite.StationID {
+		fmt.Printf("    StationID: YAML='%s', SQLite='%s'\n", yaml.StationID, sqlite.StationID)
+	}
+	if yaml.APIKey != sqlite.APIKey {
+		fmt.Printf("    APIKey: YAML='%s', SQLite='%s'\n", yaml.APIKey, sqlite.APIKey)
+	}
+	if yaml.APIEndpoint != sqlite.APIEndpoint {
+		fmt.Printf("    APIEndpoint: YAML='%s', SQLite='%s'\n", yaml.APIEndpoint, sqlite.APIEndpoint)
+	}
+	if yaml.PullFromDevice != sqlite.PullFromDevice {
+		fmt.Printf("    PullFromDevice: YAML='%s', SQLite='%s'\n", yaml.PullFromDevice, sqlite.PullFromDevice)
+	}
+	if yaml.UploadInterval != sqlite.UploadInterval {
+		fmt.Printf("    UploadInterval: YAML='%s', SQLite='%s'\n", yaml.UploadInterval, sqlite.UploadInterval)
+	}
+}
+
+func printAerisWeatherDiff(yaml, sqlite config.AerisWeatherData) {
+	if yaml.APIClientID != sqlite.APIClientID {
+		fmt.Printf("    APIClientID: YAML='%s', SQLite='%s'\n", yaml.APIClientID, sqlite.APIClientID)
+	}
+	if yaml.APIClientSecret != sqlite.APIClientSecret {
+		fmt.Printf("    APIClientSecret: YAML='%s', SQLite='%s'\n", yaml.APIClientSecret, sqlite.APIClientSecret)
+	}
+	if yaml.APIEndpoint != sqlite.APIEndpoint {
+		fmt.Printf("    APIEndpoint: YAML='%s', SQLite='%s'\n", yaml.APIEndpoint, sqlite.APIEndpoint)
+	}
+	if yaml.Location != sqlite.Location {
+		fmt.Printf("    Location: YAML='%s', SQLite='%s'\n", yaml.Location, sqlite.Location)
+	}
+}
+
+func printRESTServerDiff(yaml, sqlite config.RESTServerData) {
+	if yaml.ListenAddr != sqlite.ListenAddr {
+		fmt.Printf("    ListenAddr: YAML='%s', SQLite='%s'\n", yaml.ListenAddr, sqlite.ListenAddr)
+	}
+	if yaml.Port != sqlite.Port {
+		fmt.Printf("    Port: YAML=%d, SQLite=%d\n", yaml.Port, sqlite.Port)
+	}
+	if yaml.Cert != sqlite.Cert {
+		fmt.Printf("    Cert: YAML='%s', SQLite='%s'\n", yaml.Cert, sqlite.Cert)
+	}
+	if yaml.Key != sqlite.Key {
+		fmt.Printf("    Key: YAML='%s', SQLite='%s'\n", yaml.Key, sqlite.Key)
+	}
+
+	// Compare WeatherSiteConfig
+	if !compareWeatherSiteConfig(yaml.WeatherSiteConfig, sqlite.WeatherSiteConfig) {
+		fmt.Printf("    WeatherSiteConfig differs:\n")
+		printWeatherSiteConfigDiff(yaml.WeatherSiteConfig, sqlite.WeatherSiteConfig)
+	}
+}
+
+func compareWeatherSiteConfig(yaml, sqlite config.WeatherSiteData) bool {
+	return yaml.StationName == sqlite.StationName &&
+		yaml.PullFromDevice == sqlite.PullFromDevice &&
+		yaml.SnowEnabled == sqlite.SnowEnabled &&
+		yaml.SnowDevice == sqlite.SnowDevice &&
+		yaml.SnowBaseDistance == sqlite.SnowBaseDistance &&
+		yaml.PageTitle == sqlite.PageTitle &&
+		yaml.AboutStationHTML == sqlite.AboutStationHTML
+}
+
+func printWeatherSiteConfigDiff(yaml, sqlite config.WeatherSiteData) {
+	if yaml.StationName != sqlite.StationName {
+		fmt.Printf("      StationName: YAML='%s', SQLite='%s'\n", yaml.StationName, sqlite.StationName)
+	}
+	if yaml.PullFromDevice != sqlite.PullFromDevice {
+		fmt.Printf("      PullFromDevice: YAML='%s', SQLite='%s'\n", yaml.PullFromDevice, sqlite.PullFromDevice)
+	}
+	if yaml.SnowEnabled != sqlite.SnowEnabled {
+		fmt.Printf("      SnowEnabled: YAML=%v, SQLite=%v\n", yaml.SnowEnabled, sqlite.SnowEnabled)
+	}
+	if yaml.SnowDevice != sqlite.SnowDevice {
+		fmt.Printf("      SnowDevice: YAML='%s', SQLite='%s'\n", yaml.SnowDevice, sqlite.SnowDevice)
+	}
+	if yaml.SnowBaseDistance != sqlite.SnowBaseDistance {
+		fmt.Printf("      SnowBaseDistance: YAML=%.2f, SQLite=%.2f\n", yaml.SnowBaseDistance, sqlite.SnowBaseDistance)
+	}
+	if yaml.PageTitle != sqlite.PageTitle {
+		fmt.Printf("      PageTitle: YAML='%s', SQLite='%s'\n", yaml.PageTitle, sqlite.PageTitle)
+	}
+	if yaml.AboutStationHTML != sqlite.AboutStationHTML {
+		fmt.Printf("      AboutStationHTML: YAML='%s', SQLite='%s'\n", yaml.AboutStationHTML, sqlite.AboutStationHTML)
+	}
 }
