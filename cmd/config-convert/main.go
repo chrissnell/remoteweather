@@ -14,10 +14,11 @@ import (
 
 func main() {
 	var (
-		yamlFile   = flag.String("yaml", "", "Path to YAML configuration file (required)")
-		sqliteFile = flag.String("sqlite", "", "Path to SQLite database file (required)")
-		force      = flag.Bool("force", false, "Overwrite existing SQLite database")
-		dryRun     = flag.Bool("dry-run", false, "Show what would be done without executing")
+		yamlFile      = flag.String("yaml", "", "Path to YAML configuration file (required)")
+		sqliteFile    = flag.String("sqlite", "", "Path to SQLite database file (required)")
+		migrationsDir = flag.String("migrations-dir", "", "Path to migrations directory (default: auto-detect)")
+		force         = flag.Bool("force", false, "Overwrite existing SQLite database")
+		dryRun        = flag.Bool("dry-run", false, "Show what would be done without executing")
 	)
 	flag.Parse()
 
@@ -27,9 +28,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Auto-detect migrations directory if not specified
+	if *migrationsDir == "" {
+		*migrationsDir = detectMigrationsDir()
+	}
+
 	// Check if YAML file exists
 	if _, err := os.Stat(*yamlFile); os.IsNotExist(err) {
 		fmt.Fprintf(os.Stderr, "Error: YAML file does not exist: %s\n", *yamlFile)
+		os.Exit(1)
+	}
+
+	// Check if migrations directory exists
+	if _, err := os.Stat(*migrationsDir); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Error: Migrations directory does not exist: %s\n", *migrationsDir)
+		fmt.Fprintf(os.Stderr, "Use -migrations-dir to specify the correct path\n")
 		os.Exit(1)
 	}
 
@@ -43,6 +56,7 @@ func main() {
 	fmt.Printf("Converting YAML configuration to SQLite...\n")
 	fmt.Printf("  Source: %s\n", *yamlFile)
 	fmt.Printf("  Target: %s\n", *sqliteFile)
+	fmt.Printf("  Migrations: %s\n", *migrationsDir)
 
 	if *dryRun {
 		fmt.Println("DRY RUN - No changes will be made")
@@ -75,7 +89,7 @@ func main() {
 
 	// Create and initialize SQLite database
 	fmt.Printf("Creating SQLite database...\n")
-	err = createSQLiteDatabase(*sqliteFile)
+	err = createSQLiteDatabase(*sqliteFile, *migrationsDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating SQLite database: %v\n", err)
 		os.Exit(1)
@@ -93,7 +107,26 @@ func main() {
 	fmt.Printf("You can now use the SQLite backend with: -config-backend sqlite -config %s\n", *sqliteFile)
 }
 
-func createSQLiteDatabase(dbPath string) error {
+// detectMigrationsDir attempts to find the migrations directory in common locations
+func detectMigrationsDir() string {
+	// List of possible locations in order of preference
+	candidates := []string{
+		"migrations/config",                                // Development/source directory
+		"/usr/share/remoteweather/migrations/config",       // AUR package location
+		"/usr/local/share/remoteweather/migrations/config", // Alternative system location
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	// Default fallback
+	return "migrations/config"
+}
+
+func createSQLiteDatabase(dbPath string, migrationsDir string) error {
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -107,8 +140,8 @@ func createSQLiteDatabase(dbPath string) error {
 	}
 	defer db.Close()
 
-	// Run database migrations
-	provider := migrate.NewFileProvider("migrations/config", "schema_migrations")
+	// Run database migrations using the specified directory
+	provider := migrate.NewFileProvider(migrationsDir, "schema_migrations")
 	migrator := migrate.NewMigrator(db, provider)
 	return migrator.MigrateUp()
 }
