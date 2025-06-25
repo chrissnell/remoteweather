@@ -80,7 +80,4 @@ package() {
     # Install web assets
     install -dm755 "$pkgdir/usr/share/remoteweather/assets"
     cp -r assets/* "$pkgdir/usr/share/remoteweather/assets/"
-    
-    # Install license
-    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 } 
