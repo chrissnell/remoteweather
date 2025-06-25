@@ -240,28 +240,47 @@ func (w *CampbellScientificWeatherStation) connectToSerialStation() {
 	w.Logger.Infof("connecting to %v ...", w.Config.SerialDevice)
 
 	for {
-		sc := &serial.Config{Name: w.Config.SerialDevice, Baud: w.Config.Baud}
-		w.rwc, err = serial.OpenPort(sc)
-
-		if err != nil {
-			// There is a known problem where some shitty USB <-> serial adapters will drop out and Linux
-			// will reattach them under a new device.  This code doesn't handle this situation currently
-			// but it would be a nice enhancement in the future.
-			w.Logger.Error("sleeping 30 seconds and trying again")
-			time.Sleep(30 * time.Second)
-		} else {
-			// We're connected now so we set connected to true and connecting to false
-			w.connectedMu.Lock()
-			defer w.connectedMu.Unlock()
-			w.connected = true
+		select {
+		case <-w.ctx.Done():
+			w.Logger.Info("cancellation request received, stopping serial connection attempts")
 			w.connectingMu.Lock()
-			defer w.connectingMu.Unlock()
 			w.connecting = false
-
+			w.connectingMu.Unlock()
 			return
+		default:
+			sc := &serial.Config{Name: w.Config.SerialDevice, Baud: w.Config.Baud}
+			w.rwc, err = serial.OpenPort(sc)
+
+			if err != nil {
+				// There is a known problem where some shitty USB <-> serial adapters will drop out and Linux
+				// will reattach them under a new device.  This code doesn't handle this situation currently
+				// but it would be a nice enhancement in the future.
+				w.Logger.Error("sleeping 30 seconds and trying again")
+
+				// Use a select to respect cancellation during sleep
+				select {
+				case <-w.ctx.Done():
+					w.Logger.Info("cancellation request received during retry wait")
+					w.connectingMu.Lock()
+					w.connecting = false
+					w.connectingMu.Unlock()
+					return
+				case <-time.After(30 * time.Second):
+					// Continue to next iteration
+				}
+			} else {
+				// We're connected now so we set connected to true and connecting to false
+				w.connectedMu.Lock()
+				defer w.connectedMu.Unlock()
+				w.connected = true
+				w.connectingMu.Lock()
+				defer w.connectingMu.Unlock()
+				w.connecting = false
+
+				return
+			}
 		}
 	}
-
 }
 
 // Connect connects to a Campbell Scientific station over TCP/IP
@@ -287,26 +306,47 @@ func (w *CampbellScientificWeatherStation) connectToNetworkStation() {
 	log.Info("connecting to:", console)
 
 	for {
-		w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
-		w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
-
-		if err != nil {
-			log.Errorf("could not connect to %v: %v", console, err)
-			log.Error("sleeping 5 seconds and trying again.")
-			time.Sleep(5 * time.Second)
-		} else {
-			// We're connected now so we set connected to true and connecting to false
-			w.connectedMu.Lock()
-			defer w.connectedMu.Unlock()
-			w.connected = true
+		select {
+		case <-w.ctx.Done():
+			w.Logger.Info("cancellation request received, stopping network connection attempts")
 			w.connectingMu.Lock()
-			defer w.connectingMu.Unlock()
 			w.connecting = false
-
-			// Create an io.ReadWriteCloser for our connection
-			w.rwc = io.ReadWriteCloser(w.netConn)
+			w.connectingMu.Unlock()
 			return
+		default:
+			w.netConn, err = net.DialTimeout("tcp", console, 10*time.Second)
+
+			if err != nil {
+				log.Errorf("could not connect to %v: %v", console, err)
+				log.Error("sleeping 5 seconds and trying again.")
+
+				// Use a select to respect cancellation during sleep
+				select {
+				case <-w.ctx.Done():
+					w.Logger.Info("cancellation request received during retry wait")
+					w.connectingMu.Lock()
+					w.connecting = false
+					w.connectingMu.Unlock()
+					return
+				case <-time.After(5 * time.Second):
+					// Continue to next iteration
+				}
+			} else {
+				// Set read deadline after successful connection
+				w.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
+
+				// We're connected now so we set connected to true and connecting to false
+				w.connectedMu.Lock()
+				defer w.connectedMu.Unlock()
+				w.connected = true
+				w.connectingMu.Lock()
+				defer w.connectingMu.Unlock()
+				w.connecting = false
+
+				// Create an io.ReadWriteCloser for our connection
+				w.rwc = io.ReadWriteCloser(w.netConn)
+				return
+			}
 		}
 	}
-
 }
