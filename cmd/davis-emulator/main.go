@@ -12,11 +12,28 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/chrissnell/remoteweather/pkg/crc16"
 )
+
+// FlakyHardwareConfig holds configuration for simulating hardware issues
+type FlakyHardwareConfig struct {
+	Enabled            bool    // Enable flaky hardware simulation
+	DropByteRate       float64 // Probability of dropping random bytes from packets (0.0-1.0)
+	CorruptByteRate    float64 // Probability of corrupting random bytes in packets (0.0-1.0)
+	DisconnectRate     float64 // Probability of disconnecting during packet transmission (0.0-1.0)
+	HangRate           float64 // Probability of hanging/freezing during transmission (0.0-1.0)
+	HangDurationMin    int     // Minimum hang duration in seconds
+	HangDurationMax    int     // Maximum hang duration in seconds
+	BadCRCRate         float64 // Probability of intentionally corrupting CRC (0.0-1.0)
+	TruncatePacketRate float64 // Probability of sending truncated packets (0.0-1.0)
+	SlowResponseRate   float64 // Probability of very slow responses (0.0-1.0)
+	NoResponseRate     float64 // Probability of not responding to commands (0.0-1.0)
+}
 
 // LoopPacketWithTrend matches the Davis station implementation
 type LoopPacketWithTrend struct {
@@ -105,14 +122,16 @@ type WeatherEmulator struct {
 	baseHumidity float64
 	basePressure float64
 	startTime    time.Time
+	flakyConfig  FlakyHardwareConfig
 }
 
-func NewWeatherEmulator() *WeatherEmulator {
+func NewWeatherEmulator(flakyConfig FlakyHardwareConfig) *WeatherEmulator {
 	return &WeatherEmulator{
 		baseTemp:     70.0, // Base temperature in °F
 		baseHumidity: 50.0, // Base humidity in %
 		basePressure: 30.0, // Base pressure in inches Hg
 		startTime:    time.Now(),
+		flakyConfig:  flakyConfig,
 	}
 }
 
@@ -342,13 +361,95 @@ func (packet *LoopPacketWithTrend) ToBytes() []byte {
 	data[95] = byte(packet.Trend)
 	data[96] = 0 // Padding
 
-	// Calculate CRC16 and append
-	crc := crc16.Crc16(data)
+	// Calculate CRC16 for the first 97 bytes only
+	crc := crc16.Crc16(data[:97])
 	result := make([]byte, 99)
 	copy(result, data)
-	binary.LittleEndian.PutUint16(result[97:99], crc)
+	// Store CRC in bytes 97-98 (big-endian as per Davis protocol)
+	binary.BigEndian.PutUint16(result[97:99], crc)
 
 	return result
+}
+
+// simulateHardwareIssues applies various hardware problems to packet data
+func (w *WeatherEmulator) simulateHardwareIssues(packet []byte) []byte {
+	if !w.flakyConfig.Enabled {
+		return packet
+	}
+
+	result := make([]byte, len(packet))
+	copy(result, packet)
+
+	// Simulate dropped bytes
+	if rand.Float64() < w.flakyConfig.DropByteRate {
+		dropCount := 1 + rand.Intn(3) // Drop 1-3 bytes
+		for i := 0; i < dropCount && len(result) > 3; i++ {
+			dropPos := 3 + rand.Intn(len(result)-3) // Don't drop LOO header
+			result = append(result[:dropPos], result[dropPos+1:]...)
+			log.Printf("FLAKY: Dropped byte at position %d", dropPos)
+		}
+	}
+
+	// Simulate corrupted bytes
+	if rand.Float64() < w.flakyConfig.CorruptByteRate {
+		corruptCount := 1 + rand.Intn(2) // Corrupt 1-2 bytes
+		for i := 0; i < corruptCount && len(result) > 3; i++ {
+			corruptPos := 3 + rand.Intn(len(result)-3) // Don't corrupt LOO header
+			originalByte := result[corruptPos]
+			result[corruptPos] = byte(rand.Intn(256))
+			log.Printf("FLAKY: Corrupted byte at position %d: 0x%02X -> 0x%02X",
+				corruptPos, originalByte, result[corruptPos])
+		}
+	}
+
+	// Simulate truncated packets
+	if rand.Float64() < w.flakyConfig.TruncatePacketRate {
+		truncateAt := 10 + rand.Intn(len(result)-10) // Keep at least 10 bytes
+		result = result[:truncateAt]
+		log.Printf("FLAKY: Truncated packet to %d bytes (was %d)", len(result), len(packet))
+	}
+
+	// Simulate bad CRC (corrupt the CRC bytes specifically)
+	if rand.Float64() < w.flakyConfig.BadCRCRate && len(result) >= 99 {
+		result[97] = byte(rand.Intn(256))
+		result[98] = byte(rand.Intn(256))
+		log.Printf("FLAKY: Corrupted CRC bytes")
+	}
+
+	return result
+}
+
+// shouldHang determines if the emulator should hang/freeze
+func (w *WeatherEmulator) shouldHang() bool {
+	return w.flakyConfig.Enabled && rand.Float64() < w.flakyConfig.HangRate
+}
+
+// shouldDisconnect determines if the emulator should disconnect
+func (w *WeatherEmulator) shouldDisconnect() bool {
+	return w.flakyConfig.Enabled && rand.Float64() < w.flakyConfig.DisconnectRate
+}
+
+// shouldRespondSlowly determines if the emulator should respond very slowly
+func (w *WeatherEmulator) shouldRespondSlowly() bool {
+	return w.flakyConfig.Enabled && rand.Float64() < w.flakyConfig.SlowResponseRate
+}
+
+// shouldNotRespond determines if the emulator should ignore commands
+func (w *WeatherEmulator) shouldNotRespond() bool {
+	return w.flakyConfig.Enabled && rand.Float64() < w.flakyConfig.NoResponseRate
+}
+
+// hangForRandomDuration simulates the device hanging/freezing
+func (w *WeatherEmulator) hangForRandomDuration() {
+	if !w.flakyConfig.Enabled {
+		return
+	}
+
+	duration := w.flakyConfig.HangDurationMin +
+		rand.Intn(w.flakyConfig.HangDurationMax-w.flakyConfig.HangDurationMin+1)
+	log.Printf("FLAKY: Hanging for %d seconds...", duration)
+	time.Sleep(time.Duration(duration) * time.Second)
+	log.Printf("FLAKY: Resuming after hang")
 }
 
 func handleConnection(conn net.Conn, emulator *WeatherEmulator) {
@@ -362,31 +463,132 @@ func handleConnection(conn net.Conn, emulator *WeatherEmulator) {
 		command := scanner.Text()
 		log.Printf("Received command: %q", command)
 
+		// Check if we should ignore this command (simulate unresponsive hardware)
+		if emulator.shouldNotRespond() {
+			log.Printf("FLAKY: Ignoring command (no response)")
+			continue
+		}
+
+		// Check if we should respond very slowly
+		if emulator.shouldRespondSlowly() {
+			slowDelay := 5 + rand.Intn(10) // 5-15 second delay
+			log.Printf("FLAKY: Responding slowly (waiting %d seconds)", slowDelay)
+			time.Sleep(time.Duration(slowDelay) * time.Second)
+		}
+
+		// Check if we should hang before processing
+		if emulator.shouldHang() {
+			emulator.hangForRandomDuration()
+		}
+
 		switch {
 		case command == "" || command == "\n" || command == "\r":
 			// Wake command - respond with line feed and carriage return
+
+			// Check for random disconnection during wake response
+			if emulator.shouldDisconnect() {
+				log.Printf("FLAKY: Disconnecting during wake response")
+				return
+			}
+
 			conn.Write([]byte("\n\r"))
 			log.Printf("Sent wake response")
 
 		case command == "LPS 2 1":
-			// LOOP command - send ACK then 20 LOOP packets
+			// LOOP command (older format) - send ACK then 20 LOOP packets
 			conn.Write([]byte("\x06")) // ACK
-			log.Printf("Sent ACK for LOOP command")
+			log.Printf("Sent ACK for LPS LOOP command")
 
 			// Send 20 LOOP packets
 			for i := 0; i < 20; i++ {
+				// Check for disconnection before sending packet
+				if emulator.shouldDisconnect() {
+					log.Printf("FLAKY: Disconnecting during LPS packet %d/20 transmission", i+1)
+					return
+				}
+
+				// Check for hang before generating packet
+				if emulator.shouldHang() {
+					emulator.hangForRandomDuration()
+				}
+
 				packet := emulator.GenerateLoopPacket()
 				packetBytes := packet.ToBytes()
 
-				n, err := conn.Write(packetBytes)
+				// Apply hardware issues to the packet
+				flakyPacketBytes := emulator.simulateHardwareIssues(packetBytes)
+
+				n, err := conn.Write(flakyPacketBytes)
 				if err != nil {
 					log.Printf("Error sending LOOP packet %d: %v", i+1, err)
 					return
 				}
-				log.Printf("Sent LOOP packet %d (%d bytes): temp=%.1f°F, humidity=%d%%, pressure=%.2f\"",
-					i+1, n, float64(packet.OutTemp)/10.0, packet.OutHumidity, float64(packet.Barometer)/1000.0)
 
-				time.Sleep(50 * time.Millisecond) // Small delay between packets
+				if len(flakyPacketBytes) != len(packetBytes) {
+					log.Printf("Sent FLAKY LPS packet %d/20 (%d bytes, original %d): temp=%.1f°F, humidity=%d%%, pressure=%.2f\"",
+						i+1, n, len(packetBytes), float64(packet.OutTemp)/10.0, packet.OutHumidity, float64(packet.Barometer)/1000.0)
+				} else {
+					log.Printf("Sent LPS packet %d/20 (%d bytes): temp=%.1f°F, humidity=%d%%, pressure=%.2f\"",
+						i+1, n, float64(packet.OutTemp)/10.0, packet.OutHumidity, float64(packet.Barometer)/1000.0)
+				}
+
+				time.Sleep(1500 * time.Millisecond) // 1.5 second delay between packets
+			}
+
+		case strings.HasPrefix(command, "LOOP "):
+			// Standard LOOP command format: "LOOP n"
+			parts := strings.Fields(command)
+			if len(parts) != 2 {
+				log.Printf("Invalid LOOP command format: %q", command)
+				conn.Write([]byte("\x15")) // RESEND (NACK)
+				continue
+			}
+
+			numPackets, err := strconv.Atoi(parts[1])
+			if err != nil || numPackets <= 0 || numPackets > 2048 {
+				log.Printf("Invalid LOOP packet count: %q", parts[1])
+				conn.Write([]byte("\x15")) // RESEND (NACK)
+				continue
+			}
+
+			// Send ACK first
+			conn.Write([]byte("\x06")) // ACK
+			log.Printf("Sent ACK for LOOP %d command", numPackets)
+
+			// Send the requested number of LOOP packets
+			for i := 0; i < numPackets; i++ {
+				// Check for disconnection before sending packet
+				if emulator.shouldDisconnect() {
+					log.Printf("FLAKY: Disconnecting during packet %d/%d transmission", i+1, numPackets)
+					return
+				}
+
+				// Check for hang before generating packet
+				if emulator.shouldHang() {
+					emulator.hangForRandomDuration()
+				}
+
+				packet := emulator.GenerateLoopPacket()
+				packetBytes := packet.ToBytes()
+
+				// Apply hardware issues to the packet
+				flakyPacketBytes := emulator.simulateHardwareIssues(packetBytes)
+
+				n, err := conn.Write(flakyPacketBytes)
+				if err != nil {
+					log.Printf("Error sending LOOP packet %d: %v", i+1, err)
+					return
+				}
+
+				if len(flakyPacketBytes) != len(packetBytes) {
+					log.Printf("Sent FLAKY LOOP packet %d/%d (%d bytes, original %d): temp=%.1f°F, humidity=%d%%, pressure=%.2f\"",
+						i+1, numPackets, n, len(packetBytes), float64(packet.OutTemp)/10.0, packet.OutHumidity, float64(packet.Barometer)/1000.0)
+				} else {
+					log.Printf("Sent LOOP packet %d/%d (%d bytes): temp=%.1f°F, humidity=%d%%, pressure=%.2f\"",
+						i+1, numPackets, n, float64(packet.OutTemp)/10.0, packet.OutHumidity, float64(packet.Barometer)/1000.0)
+				}
+
+				time.Sleep(1500 * time.Millisecond) // 1.5 second delay between packets
 			}
 
 		default:
@@ -403,10 +605,35 @@ func handleConnection(conn net.Conn, emulator *WeatherEmulator) {
 }
 
 func main() {
-	var port = flag.Int("port", 22222, "Port to listen on")
+	var (
+		port = flag.Int("port", 22222, "Port to listen on")
+
+		// Flaky hardware simulation flags
+		flaky              = flag.Bool("flaky", false, "Enable flaky hardware simulation")
+		dropByteRate       = flag.Float64("drop-rate", 0.05, "Probability of dropping bytes from packets (0.0-1.0)")
+		corruptByteRate    = flag.Float64("corrupt-rate", 0.05, "Probability of corrupting bytes in packets (0.0-1.0)")
+		disconnectRate     = flag.Float64("disconnect-rate", 0.02, "Probability of disconnecting during transmission (0.0-1.0)")
+		hangRate           = flag.Float64("hang-rate", 0.01, "Probability of hanging/freezing (0.0-1.0)")
+		hangDurationMin    = flag.Int("hang-min", 3, "Minimum hang duration in seconds")
+		hangDurationMax    = flag.Int("hang-max", 8, "Maximum hang duration in seconds")
+		badCRCRate         = flag.Float64("bad-crc-rate", 0.03, "Probability of corrupting CRC (0.0-1.0)")
+		truncatePacketRate = flag.Float64("truncate-rate", 0.02, "Probability of truncating packets (0.0-1.0)")
+		slowResponseRate   = flag.Float64("slow-rate", 0.02, "Probability of very slow responses (0.0-1.0)")
+		noResponseRate     = flag.Float64("no-response-rate", 0.01, "Probability of not responding to commands (0.0-1.0)")
+	)
 	flag.Parse()
 
 	log.Printf("Starting Davis Weather Station Emulator on port %d", *port)
+	if *flaky {
+		log.Printf("FLAKY HARDWARE MODE ENABLED:")
+		log.Printf("  Drop bytes: %.1f%%, Corrupt bytes: %.1f%%, Bad CRC: %.1f%%",
+			*dropByteRate*100, *corruptByteRate*100, *badCRCRate*100)
+		log.Printf("  Truncate: %.1f%%, Disconnect: %.1f%%, Hang: %.1f%%",
+			*truncatePacketRate*100, *disconnectRate*100, *hangRate*100)
+		log.Printf("  Slow response: %.1f%%, No response: %.1f%%",
+			*slowResponseRate*100, *noResponseRate*100)
+		log.Printf("  Hang duration: %d-%d seconds", *hangDurationMin, *hangDurationMax)
+	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
@@ -414,7 +641,20 @@ func main() {
 	}
 	defer listener.Close()
 
-	emulator := NewWeatherEmulator()
+	flakyConfig := FlakyHardwareConfig{
+		Enabled:            *flaky,
+		DropByteRate:       *dropByteRate,
+		CorruptByteRate:    *corruptByteRate,
+		DisconnectRate:     *disconnectRate,
+		HangRate:           *hangRate,
+		HangDurationMin:    *hangDurationMin,
+		HangDurationMax:    *hangDurationMax,
+		BadCRCRate:         *badCRCRate,
+		TruncatePacketRate: *truncatePacketRate,
+		SlowResponseRate:   *slowResponseRate,
+		NoResponseRate:     *noResponseRate,
+	}
+	emulator := NewWeatherEmulator(flakyConfig)
 
 	// Handle graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
