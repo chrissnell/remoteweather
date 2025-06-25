@@ -74,7 +74,7 @@ func (cm *controllerManager) createController(cc types.ControllerConfig) (Contro
 		return aerisweather.NewAerisWeatherController(cm.ctx, cm.wg, cm.config, cc.AerisWeather, cm.logger)
 	case "pwsweather":
 		return pwsweather.NewPWSWeatherController(cm.ctx, cm.wg, cm.config, cc.PWSWeather, cm.logger)
-	case "wunderground":
+	case "wunderground", "weatherunderground":
 		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.config, cc.WeatherUnderground, cm.logger)
 	case "restserver":
 		return restserver.NewController(cm.ctx, cm.wg, cm.config, cc.RESTServer, cm.logger)
