@@ -15,6 +15,9 @@ type Storage struct {
 	TimescaleDBConn *gorm.DB
 }
 
+// Note: TimescaleDBClient functionality has been moved to internal/database package.
+// Use database.NewClient() for database operations like reading data and connection management.
+
 // We declare the Tabler interface for purposes of customizing the table name in the DB
 type Tabler interface {
 	TableName() string
@@ -221,6 +224,95 @@ func New(ctx context.Context, c *types.Config) (*Storage, error) {
 		log.Warn("warning: could not add 1d aggregation policy")
 		return &Storage{}, err
 	}
+
+	// Add retention policies
+	log.Info("Adding retention policy for raw data...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicySQL).Error
+	if err != nil {
+		log.Warn("warning: could not add retention policy for raw data")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding retention policy for 1m data...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1mSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add retention policy for 1m data")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding retention policy for 5m data...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy5mSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add retention policy for 5m data")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding retention policy for 1h data...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add retention policy for 1h data")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding retention policy for 1d data...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1dSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add retention policy for 1d data")
+		return &Storage{}, err
+	}
+
+	// Add snow depth calculation functions
+	log.Info("Adding snow depth calculations...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addSnowDepthCalculations).Error
+	if err != nil {
+		log.Warn("warning: could not add snow depth calculations")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding 72h snow delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta72hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add 72h snow delta function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding 24h snow delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta24hSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add 24h snow delta function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding midnight snow delta function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaSinceMidnightSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add midnight snow delta function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding season snow total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowSeasonTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add season snow total function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding storm snow total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowStormTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add storm snow total function")
+		return &Storage{}, err
+	}
+
+	// Add indexes to speed up our most common queries
+	log.Info("Creating indexes...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createIndexesSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create indexes")
+		return &Storage{}, err
+	}
+
+	log.Info("TimescaleDB connection successful")
 
 	return &t, nil
 }
