@@ -6,7 +6,6 @@ toolchain go1.24.0
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/influxdata/influxdb v1.11.8
 	github.com/jackc/pgtype v1.14.4
 	github.com/tarm/goserial v0.0.0-20151007205400-b3440c3c6355
 	go.uber.org/zap v1.27.0
