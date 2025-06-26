@@ -17,14 +17,13 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"gorm.io/gorm"
 )
 
 // Storage implements a gRPC storage backend
 type Storage struct {
 	ClientChans     []chan types.Reading
 	ClientChanMutex sync.RWMutex
-	DB              *gorm.DB
+	DBClient        *database.Client
 	DBEnabled       bool
 	Server          *grpc.Server
 	GRPCConfig      *types.GRPCConfig
@@ -97,10 +96,10 @@ func New(ctx context.Context, c *types.Config) (*Storage, error) {
 		return &Storage{}, fmt.Errorf("could not create gRPC listener: %v", err)
 	}
 
-	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
-	// gRPC handlers can retrieve data
+	// If a TimescaleDB database was configured, create a database client
 	if c.Storage.TimescaleDB.ConnectionString != "" {
-		g.DB, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
+		g.DBClient = database.NewClient(c, log.GetZapLogger().Sugar())
+		err = g.DBClient.Connect()
 		if err != nil {
 			return &Storage{}, fmt.Errorf("gRPC storage could not connect to database: %v", err)
 		}
@@ -133,12 +132,12 @@ func (g *Storage) deregisterClient(i int) {
 
 func (g *Storage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSpanRequest) (*weather.WeatherSpan, error) {
 
-	var dbFetchedReadings []database.FetchedBucketReading
+	var dbFetchedReadings []types.BucketReading
 
 	spanStart := time.Now().Add(-request.SpanDuration.AsDuration())
 
 	if g.DBEnabled {
-		g.DB.Table("weather_1m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
+		g.DBClient.DB.Table("weather_1m").Where("bucket > ?", spanStart).Find(&dbFetchedReadings)
 		log.Infof("returned rows: %v", len(dbFetchedReadings))
 
 		span := &weather.WeatherSpan{
@@ -153,12 +152,12 @@ func (g *Storage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSp
 	return &weather.WeatherSpan{}, fmt.Errorf("ignoring GetWeatherSpan request: database not configured")
 }
 
-func (g *Storage) transformReadings(dbReadings *[]database.FetchedBucketReading) []*weather.WeatherReading {
+func (g *Storage) transformReadings(dbReadings *[]types.BucketReading) []*weather.WeatherReading {
 	grpcReadings := make([]*weather.WeatherReading, 0)
 
 	for _, r := range *dbReadings {
 		grpcReadings = append(grpcReadings, &weather.WeatherReading{
-			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(*r.Bucket)),
+			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
 			OutsideTemperature: r.OutTemp,
 			OutsideHumidity:    int32(r.OutHumidity),
 			Barometer:          r.Barometer,
@@ -175,6 +174,7 @@ func (g *Storage) transformReadings(dbReadings *[]database.FetchedBucketReading)
 	return grpcReadings
 }
 
+// GetLiveWeather implements the live weather feed for WeatherServer
 func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.Weather_GetLiveWeatherServer) error {
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
@@ -197,25 +197,23 @@ func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather
 
 				log.Debugf("Sending reading to client [%v]", p.Addr)
 
-				wr := &weather.WeatherReading{
-					ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Timestamp)),
+				//rts, _ := ptypes.TimestampProto(r.Timestamp)
+				rts := timestamppb.New(r.Timestamp)
+
+				stream.Send(&weather.WeatherReading{
+					ReadingTimestamp:   rts,
 					OutsideTemperature: r.OutTemp,
+					InsideTemperature:  r.InTemp,
 					OutsideHumidity:    int32(r.OutHumidity),
+					InsideHumidity:     int32(r.InHumidity),
 					Barometer:          r.Barometer,
 					WindSpeed:          int32(r.WindSpeed),
 					WindDirection:      int32(r.WindDir),
 					RainfallDay:        r.DayRain,
-					WindChill:          r.WindChill,
-					HeatIndex:          r.HeatIndex,
-					InsideTemperature:  r.InTemp,
-					InsideHumidity:     int32(r.InHumidity),
-				}
-
-				if err := stream.Send(wr); err != nil {
-					log.Error("error sending reading to client:", err)
-					return err
-				}
+					StationName:        r.StationName,
+				})
 			}
+
 		}
 	}
 }
