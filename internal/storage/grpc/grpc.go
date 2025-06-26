@@ -1,4 +1,4 @@
-package storage
+package grpc
 
 import (
 	"context"
@@ -20,8 +20,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// GRPCStorage implements a gRPC storage backend
-type GRPCStorage struct {
+// Storage implements a gRPC storage backend
+type Storage struct {
 	ClientChans     []chan types.Reading
 	ClientChanMutex sync.RWMutex
 	DB              *gorm.DB
@@ -34,14 +34,14 @@ type GRPCStorage struct {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to our gRPC clients
-func (g *GRPCStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
+func (g *Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting gRPC storage engine...")
 	readingChan := make(chan types.Reading)
 	go g.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (g *GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
+func (g *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -63,16 +63,16 @@ func (g *GRPCStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rc
 	}
 }
 
-// NewGRPCStorage sets up a new gRPC storage backend
-func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) {
+// New sets up a new gRPC storage backend
+func New(ctx context.Context, c *types.Config) (*Storage, error) {
 	var err error
-	var g GRPCStorage
+	var g Storage
 
 	if c.Storage.GRPC.Cert != "" && c.Storage.GRPC.Key != "" {
 		// Create the TLS credentials
 		creds, err := credentials.NewServerTLSFromFile(c.Storage.GRPC.Cert, c.Storage.GRPC.Key)
 		if err != nil {
-			return &GRPCStorage{}, fmt.Errorf("could not create TLS server from keypair: %v", err)
+			return &Storage{}, fmt.Errorf("could not create TLS server from keypair: %v", err)
 		}
 		g.Server = grpc.NewServer(grpc.Creds(creds))
 	} else {
@@ -80,10 +80,10 @@ func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) 
 	}
 
 	if c.Storage.GRPC.PullFromDevice == "" {
-		return &GRPCStorage{}, errors.New("you must configure a pull-from-device to specify the default station to pull data for")
+		return &Storage{}, errors.New("you must configure a pull-from-device to specify the default station to pull data for")
 	}
 
-	// Store a reference to our configuration in our GRPCStorage object
+	// Store a reference to our configuration in our Storage object
 	g.GRPCConfig = &c.Storage.GRPC
 
 	// Optionally, add gRPC reflection to our servers so that clients can self-discover
@@ -94,7 +94,7 @@ func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) 
 
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		return &GRPCStorage{}, fmt.Errorf("could not create gRPC listener: %v", err)
+		return &Storage{}, fmt.Errorf("could not create gRPC listener: %v", err)
 	}
 
 	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
@@ -102,7 +102,7 @@ func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) 
 	if c.Storage.TimescaleDB.ConnectionString != "" {
 		g.DB, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
 		if err != nil {
-			return &GRPCStorage{}, fmt.Errorf("gRPC storage could not connect to database: %v", err)
+			return &Storage{}, fmt.Errorf("gRPC storage could not connect to database: %v", err)
 		}
 		g.DBEnabled = true
 	}
@@ -115,7 +115,7 @@ func NewGRPCStorage(ctx context.Context, c *types.Config) (*GRPCStorage, error) 
 
 // registerClient creates a channel for sending readings to a client and adds it
 // to the slice of active client channels
-func (g *GRPCStorage) registerClient(clientChan chan types.Reading) int {
+func (g *Storage) registerClient(clientChan chan types.Reading) int {
 	g.ClientChanMutex.Lock()
 	defer g.ClientChanMutex.Unlock()
 
@@ -123,7 +123,7 @@ func (g *GRPCStorage) registerClient(clientChan chan types.Reading) int {
 	return len(g.ClientChans) - 1
 }
 
-func (g *GRPCStorage) deregisterClient(i int) {
+func (g *Storage) deregisterClient(i int) {
 	g.ClientChanMutex.Lock()
 	defer g.ClientChanMutex.Unlock()
 
@@ -131,7 +131,7 @@ func (g *GRPCStorage) deregisterClient(i int) {
 	g.ClientChans = g.ClientChans[:len(g.ClientChans)-1]
 }
 
-func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSpanRequest) (*weather.WeatherSpan, error) {
+func (g *Storage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSpanRequest) (*weather.WeatherSpan, error) {
 
 	var dbFetchedReadings []database.FetchedBucketReading
 
@@ -153,7 +153,7 @@ func (g *GRPCStorage) GetWeatherSpan(ctx context.Context, request *weather.Weath
 	return &weather.WeatherSpan{}, fmt.Errorf("ignoring GetWeatherSpan request: database not configured")
 }
 
-func (g *GRPCStorage) transformReadings(dbReadings *[]database.FetchedBucketReading) []*weather.WeatherReading {
+func (g *Storage) transformReadings(dbReadings *[]database.FetchedBucketReading) []*weather.WeatherReading {
 	grpcReadings := make([]*weather.WeatherReading, 0)
 
 	for _, r := range *dbReadings {
@@ -175,7 +175,7 @@ func (g *GRPCStorage) transformReadings(dbReadings *[]database.FetchedBucketRead
 	return grpcReadings
 }
 
-func (g *GRPCStorage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.Weather_GetLiveWeatherServer) error {
+func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.Weather_GetLiveWeatherServer) error {
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
 
@@ -197,23 +197,25 @@ func (g *GRPCStorage) GetLiveWeather(req *weather.LiveWeatherRequest, stream wea
 
 				log.Debugf("Sending reading to client [%v]", p.Addr)
 
-				//rts, _ := ptypes.TimestampProto(r.Timestamp)
-				rts := timestamppb.New(r.Timestamp)
-
-				stream.Send(&weather.WeatherReading{
-					ReadingTimestamp:   rts,
+				wr := &weather.WeatherReading{
+					ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Timestamp)),
 					OutsideTemperature: r.OutTemp,
-					InsideTemperature:  r.InTemp,
 					OutsideHumidity:    int32(r.OutHumidity),
-					InsideHumidity:     int32(r.InHumidity),
 					Barometer:          r.Barometer,
 					WindSpeed:          int32(r.WindSpeed),
 					WindDirection:      int32(r.WindDir),
 					RainfallDay:        r.DayRain,
-					StationName:        r.StationName,
-				})
-			}
+					WindChill:          r.WindChill,
+					HeatIndex:          r.HeatIndex,
+					InsideTemperature:  r.InTemp,
+					InsideHumidity:     int32(r.InHumidity),
+				}
 
+				if err := stream.Send(wr); err != nil {
+					log.Error("error sending reading to client:", err)
+					return err
+				}
+			}
 		}
 	}
 }
