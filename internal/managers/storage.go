@@ -7,6 +7,9 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/storage"
+	"github.com/chrissnell/remoteweather/internal/storage/aprs"
+	"github.com/chrissnell/remoteweather/internal/storage/grpc"
+	"github.com/chrissnell/remoteweather/internal/storage/timescaledb"
 	"github.com/chrissnell/remoteweather/internal/types"
 )
 
@@ -46,13 +49,6 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *types.Config)
 		}
 	}
 
-	if c.Storage.InfluxDB.Host != "" {
-		err = s.AddEngine(ctx, wg, "influxdb", c)
-		if err != nil {
-			return &s, fmt.Errorf("could not add InfluxDB storage backend: %v", err)
-		}
-	}
-
 	if c.Storage.GRPC.Port != 0 {
 		err = s.AddEngine(ctx, wg, "grpc", c)
 		if err != nil {
@@ -82,15 +78,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 	switch engineName {
 	case "timescaledb":
 		se := StorageEngine{}
-		se.Engine, err = storage.NewTimescaleDBStorage(ctx, c)
-		if err != nil {
-			return err
-		}
-		se.C = se.Engine.StartStorageEngine(ctx, wg)
-		s.Engines = append(s.Engines, se)
-	case "influxdb":
-		se := StorageEngine{}
-		se.Engine, err = storage.NewInfluxDBStorage(c)
+		se.Engine, err = timescaledb.New(ctx, c)
 		if err != nil {
 			return err
 		}
@@ -98,7 +86,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		s.Engines = append(s.Engines, se)
 	case "grpc":
 		se := StorageEngine{}
-		se.Engine, err = storage.NewGRPCStorage(ctx, c)
+		se.Engine, err = grpc.New(ctx, c)
 		if err != nil {
 			return err
 		}
@@ -106,7 +94,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		s.Engines = append(s.Engines, se)
 	case "aprs":
 		se := StorageEngine{}
-		se.Engine, err = storage.NewAPRSStorage(c)
+		se.Engine, err = aprs.New(c)
 		if err != nil {
 			return err
 		}
