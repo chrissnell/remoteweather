@@ -198,214 +198,201 @@ func (a *Storage) StoreCurrentReading(r types.Reading) error {
 }
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
-func (a *Storage) CreateCompleteWeatherReport(symbolTable byte, symbol byte) string {
+// report included.
+func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
+	var buffer bytes.Buffer
+
+	// Lock our mutex for reading
 	a.currentReading.RLock()
-	defer a.currentReading.RUnlock()
 
-	if a.currentReading.r.Timestamp.Unix() == 0 {
-		return ""
-	}
+	// Our callsign comes first.
+	buffer.WriteString(a.cfg.Storage.APRS.Callsign)
 
-	var b bytes.Buffer
+	// Then we add our APRS path
+	buffer.WriteString(">APRS,TCPIP:")
 
-	// Create callsign field
-	b.WriteString(a.cfg.Storage.APRS.Callsign)
-	b.WriteString(">APRS,TCPIP*:")
+	// Next byte in our compressed weather report is the data type indicator.
+	// The rune '!' indicates a real-time compressed position report
+	buffer.WriteRune('!')
 
-	// Create position timestamp
-	b.WriteString(a.currentReading.r.Timestamp.Format("021504z"))
+	// Next, we write our latitude
+	buffer.WriteString(convertLatitudeToAPRSFormat(a.cfg.Storage.APRS.Location.Lat))
 
-	// Create the compressed position report
-	lat := LatPrecompress(a.cfg.Storage.APRS.Location.Lat)
-	lon := LonPrecompress(a.cfg.Storage.APRS.Location.Lon)
+	// Next byte is the symbol table selector
+	buffer.WriteRune(symTable)
 
-	latBytes := EncodeBase91Position(int(lat))
-	lonBytes := EncodeBase91Position(int(lon))
+	// Then we write our longitude
+	buffer.WriteString(convertLongitudeToAPRSFormat(a.cfg.Storage.APRS.Location.Lon))
 
-	b.WriteByte(symbolTable)
-	b.Write(latBytes)
-	b.Write(lonBytes)
-	b.WriteByte(symbol)
+	// Then our symbol code
+	buffer.WriteRune(symCode)
 
-	var cse int
-	if !math.IsNaN(float64(a.currentReading.r.WindDir)) {
-		cse = int(a.currentReading.r.WindDir)
-	}
+	// Then our wind direction and speed
+	buffer.WriteString(fmt.Sprintf("%03d/%03d", int(a.currentReading.r.WindDir), int(a.currentReading.r.WindSpeed)))
 
-	var spd float64
-	if !math.IsNaN(float64(a.currentReading.r.WindSpeed)) {
-		spd = mphToKnots(float64(a.currentReading.r.WindSpeed))
-	}
+	// We don't keep track of gusts
+	buffer.WriteString("g...")
 
-	b.WriteByte(CourseCompress(cse))
-	b.WriteByte(SpeedCompress(spd))
+	// Then we add our temperature reading
+	buffer.WriteString(fmt.Sprintf("t%03d", int64(a.currentReading.r.OutTemp)))
 
-	// Add the station type identifier
-	b.WriteByte(byte(98))
+	// Then we add our rainfall since midnight
+	buffer.WriteString(fmt.Sprintf("P%03d", int64(a.currentReading.r.DayRain*100)))
 
-	// Weather report
-	b.WriteString("_")
+	// Then we add our humidity
+	buffer.WriteString(fmt.Sprintf("h%02d", int64(a.currentReading.r.OutHumidity)))
 
-	// Timestamp
-	b.WriteString(a.currentReading.r.Timestamp.Format("150405"))
+	// Finally, we write our barometer reading, converted to tenths of millibars
+	buffer.WriteString((fmt.Sprintf("b%05d", int64(a.currentReading.r.Barometer*33.8638866666667*10))))
 
-	// Wind direction and speed
-	if !math.IsNaN(float64(a.currentReading.r.WindDir)) {
-		b.WriteString(fmt.Sprintf("c%s", convertWindDirToAPRSFormat(float64(a.currentReading.r.WindDir))))
-	} else {
-		b.WriteString("c...")
-	}
+	buffer.WriteString("." + "remoteweather-" + constants.Version)
+	a.currentReading.RUnlock()
 
-	if !math.IsNaN(float64(a.currentReading.r.WindSpeed)) {
-		b.WriteString(fmt.Sprintf("s%s", convertWindSpeedToAPRSFormat(mphToKnots(float64(a.currentReading.r.WindSpeed)))))
-	} else {
-		b.WriteString("s...")
-	}
-
-	// Gust (we don't have this, so we skip it)
-	b.WriteString("g...")
-
-	// Temperature
-	if !math.IsNaN(float64(a.currentReading.r.OutTemp)) {
-		b.WriteString(fmt.Sprintf("t%s", convertTempToAPRSFormat(float64(a.currentReading.r.OutTemp))))
-	} else {
-		b.WriteString("t...")
-	}
-
-	// Rainfall in last hour
-	b.WriteString("r...")
-
-	// Rainfall in last 24 hours
-	b.WriteString("p...")
-
-	// Rainfall since midnight
-	if !math.IsNaN(float64(a.currentReading.r.DayRain)) {
-		b.WriteString(fmt.Sprintf("P%s", convertRainToAPRSFormat(float64(a.currentReading.r.DayRain))))
-	} else {
-		b.WriteString("P...")
-	}
-
-	// Humidity
-	if !math.IsNaN(float64(a.currentReading.r.OutHumidity)) {
-		b.WriteString(fmt.Sprintf("h%s", convertHumidityToAPRSFormat(float64(a.currentReading.r.OutHumidity))))
-	} else {
-		b.WriteString("h..")
-	}
-
-	// Barometric pressure
-	if !math.IsNaN(float64(a.currentReading.r.Barometer)) {
-		b.WriteString(fmt.Sprintf("b%s", convertBarometerToAPRSFormat(float64(a.currentReading.r.Barometer))))
-	} else {
-		b.WriteString("b.....")
-	}
-
-	return b.String()
-}
-
-func convertWindDirToAPRSFormat(w float64) string {
-	return fmt.Sprintf("%03.0f", w)
-}
-
-func convertWindSpeedToAPRSFormat(w float64) string {
-	return fmt.Sprintf("%03.0f", w)
-}
-
-func convertTempToAPRSFormat(t float64) string {
-	return fmt.Sprintf("%03.0f", t)
-}
-
-func convertRainToAPRSFormat(r float64) string {
-	return fmt.Sprintf("%03.0f", r*100)
-}
-
-func convertHumidityToAPRSFormat(h float64) string {
-	if h == 100.0 {
-		return "00"
-	}
-	return fmt.Sprintf("%02.0f", h)
-}
-
-func convertBarometerToAPRSFormat(b float64) string {
-	return fmt.Sprintf("%05.0f", b*10)
+	return buffer.String()
 }
 
 func convertLongitudeToAPRSFormat(l float64) string {
-	degrees := int(math.Abs(l))
-	minutes := (math.Abs(l) - float64(degrees)) * 60
+	var hemisphere string
 
-	var direction string
+	degrees := int(math.Floor(math.Abs(l)))
+	remainder := math.Abs(l) - math.Floor(math.Abs(l))
+	minutes := remainder * 60
+
 	if l < 0 {
-		direction = "W"
+		hemisphere = "W"
 	} else {
-		direction = "E"
+		hemisphere = "E"
 	}
 
-	return fmt.Sprintf("%03d%05.2f%s", degrees, minutes, direction)
+	return fmt.Sprintf("%03d%2.2f%v", degrees, minutes, hemisphere)
 }
 
 func convertLatitudeToAPRSFormat(l float64) string {
-	degrees := int(math.Abs(l))
-	minutes := (math.Abs(l) - float64(degrees)) * 60
+	var hemisphere string
 
-	var direction string
+	degrees := int(math.Floor(math.Abs(l)))
+	remainder := math.Abs(l) - math.Floor(math.Abs(l))
+	minutes := remainder * 60
+
 	if l < 0 {
-		direction = "S"
+		hemisphere = "S"
 	} else {
-		direction = "N"
+		hemisphere = "N"
 	}
 
-	return fmt.Sprintf("%02d%05.2f%s", degrees, minutes, direction)
+	return fmt.Sprintf("%2d%2.2f%v", degrees, minutes, hemisphere)
 }
 
+// AltitudeCompress generates a compressed altitude string for a given altitude (in feet)
 func AltitudeCompress(a float64) []byte {
-	var altBytes []byte
-	cs := int(math.Log(a) / math.Log(1.002))
-	altBytes = EncodeBase91Position(cs)
-	return altBytes
+	var buffer bytes.Buffer
+
+	// Altitude is compressed with the exponential equation:
+	//   a = 1.002 ^ x
+	//  where:
+	//     a == altitude
+	//     x == our pre-compressed altitude, to be converted to Base91
+	precompAlt := int((math.Log(a) / math.Log(1.002)) + 0.5)
+
+	// Convert our pre-compressed altitude to funky APRS-style Base91
+	s := byte(precompAlt%91) + 33
+	c := byte(precompAlt/91) + 33
+	buffer.WriteByte(c)
+	buffer.WriteByte(s)
+
+	return buffer.Bytes()
 }
 
+// CourseCompress generates a compressed course byte for a given course (in degrees)
 func CourseCompress(c int) byte {
-	return byte(c/4) + 33
+	// Course is compressed with the equation:
+	//   c = (x - 33) * 4
+	//  where:
+	//   c == course in degrees
+	//   x == Keycode of compressed ASCII representation of course
+	//
+	//  So, to determine the correct ASCII keycode, we use this equivalent:
+	//
+	//  x = (c/4) + 33
+
+	return byte(int(math.Floor((float64(c)/4)+.5) + 33))
 }
 
+// SpeedCompress generates a compressed speed byte for a given speed (in knots)
 func SpeedCompress(s float64) byte {
-	// Speed is in knots
-	return byte(math.Log(s+1)/math.Log(1.08)) + 33
+	// Speed is compressed with the exponential equation:
+	//   s = (1.08 ^ (x-33)) - 1
+	// where:
+	//      s == speed, in knots
+	//      x == Keycode of compressed ASCII representation of speed
+	//
+	// So, to determine the correct ASCII keycode, we use this equivalent:
+	// x = rnd(log(s) / log(1.08)) + 32
+
+	// If the speed is 1 kt or less, just return ASCII 33
+	if s <= 1 {
+		return byte(33)
+	}
+
+	asciiVal := int(round(math.Log(s)/math.Log(1.08))) + 34
+	return byte(asciiVal)
 }
 
+// LatPrecompress prepares a latitude (in decimal degrees) for Base91 conversion/compression
 func LatPrecompress(l float64) float64 {
-	return 380926 * (90 - l)
+
+	// Formula for pre-compression of latitude, prior to Base91 conversion
+	p := 380926 * (90 - l)
+	return p
 }
 
+// LonPrecompress prepares a longitude (in decimal degrees) for Base91 conversion/compression
 func LonPrecompress(l float64) float64 {
-	return 190463 * (180 + l)
+
+	// Formula for pre-compression of longitude, prior to Base91 conversion
+	p := 190463 * (180 + l)
+	return p
 }
 
+// EncodeBase91Position encodes a position to Base91 format
 func EncodeBase91Position(l int) []byte {
-	var encBytes []byte
-	encBytes = append(encBytes, byte(l/753571)+33)
-	encBytes = append(encBytes, byte((l%753571)/8281)+33)
-	encBytes = append(encBytes, byte(((l%753571)%8281)/91)+33)
-	encBytes = append(encBytes, byte(((l%753571)%8281)%91)+33)
-	return encBytes
+	b91 := make([]byte, 4)
+	p1Div := int(l / (91 * 91 * 91))
+	p1Rem := l % (91 * 91 * 91)
+	p2Div := int(p1Rem / (91 * 91))
+	p2Rem := p1Rem % (91 * 91)
+	p3Div := int(p2Rem / 91)
+	p3Rem := p2Rem % 91
+	b91[0] = byte(p1Div) + 33
+	b91[1] = byte(p2Div) + 33
+	b91[2] = byte(p3Div) + 33
+	b91[3] = byte(p3Rem) + 33
+	return b91
 }
 
+// EncodeBase91Telemetry encodes telemetry to Base91 format
 func EncodeBase91Telemetry(l uint16) ([]byte, error) {
-	var encBytes []byte
 
 	if l > 8280 {
-		return encBytes, errors.New("telemetry value too large for base-91 encoding")
+		return nil, errors.New("cannot encode telemetry value larger than 8280")
 	}
 
-	encBytes = append(encBytes, byte(l/91)+33)
-	encBytes = append(encBytes, byte(l%91)+33)
-	return encBytes, nil
+	b91 := make([]byte, 2)
+	p1Div := int(l / 91)
+	p1Rem := l % 91
+	b91[0] = byte(p1Div) + 33
+	b91[1] = byte(p1Rem) + 33
+	return b91, nil
 }
 
+//lint:ignore U1000 For future use
 func mphToKnots(m float64) float64 {
-	return m * 0.868976
+	return m * 0.8689758
 }
 
 func round(x float64) float64 {
-	return math.Floor(x + 0.5)
+	if x > 0 {
+		return math.Floor(x + 0.5)
+	}
+	return math.Ceil(x - 0.5)
 }
