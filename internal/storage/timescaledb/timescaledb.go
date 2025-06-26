@@ -1,4 +1,4 @@
-package storage
+package timescaledb
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// TimescaleDBStorage holds the configuration for a TimescaleDB storage backend
-type TimescaleDBStorage struct {
+// Storage holds the configuration for a TimescaleDB storage backend
+type Storage struct {
 	TimescaleDBConn *gorm.DB
 }
 
@@ -22,14 +22,14 @@ type Tabler interface {
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
 // them off to TimescaleDB
-func (t *TimescaleDBStorage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
+func (t *Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting TimescaleDB storage engine...")
 	readingChan := make(chan types.Reading, 10)
 	go t.processMetrics(ctx, wg, readingChan)
 	return readingChan
 }
 
-func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
+func (t *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -49,7 +49,7 @@ func (t *TimescaleDBStorage) processMetrics(ctx context.Context, wg *sync.WaitGr
 }
 
 // StoreReading stores a reading value in TimescaleDB
-func (t *TimescaleDBStorage) StoreReading(r types.Reading) error {
+func (t *Storage) StoreReading(r types.Reading) error {
 	err := t.TimescaleDBConn.Create(&r).Error
 	if err != nil {
 		log.Error("could not store reading:", err)
@@ -58,17 +58,17 @@ func (t *TimescaleDBStorage) StoreReading(r types.Reading) error {
 	return nil
 }
 
-// NewTimescaleDBStorage sets up a new TimescaleDB storage backend
-func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBStorage, error) {
+// New sets up a new TimescaleDB storage backend
+func New(ctx context.Context, c *types.Config) (*Storage, error) {
 
 	var err error
-	t := TimescaleDBStorage{}
+	t := Storage{}
 
 	log.Info("connecting to TimescaleDB...")
 	t.TimescaleDBConn, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the database table
@@ -76,7 +76,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createTableSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create table in database")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the TimescaleDB extension
@@ -84,7 +84,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createExtensionSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create TimescaleDB extension")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the hypertable
@@ -92,7 +92,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createHypertableSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create hypertable")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the custom data type used to compute circular average
@@ -114,7 +114,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createCircAvgStateFunctionSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create circular average state accumulating function")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the circular average state combiner function
@@ -122,7 +122,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createCircAvgCombinerFunctionSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create circular average state combiner function")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the circular average finalizer function
@@ -130,7 +130,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createCircAvgFinalizerFunctionSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create circular average state finalizer function")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the circular average aggregate function
@@ -138,7 +138,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createCircAvgAggregateFunctionSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create circular average state aggregate function")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the 1m view
@@ -146,7 +146,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1mViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create 1m view")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the 5m view
@@ -154,7 +154,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create5mViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create 5m view")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the 1h view
@@ -162,7 +162,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1hViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create 1h view")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Create the 1d view
@@ -170,7 +170,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(create1dViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create 1d view")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// There is no updating of views in PostgreSQL, so we have to drop the rain-since-midnight
@@ -179,7 +179,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(dropRainSinceMidnightViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not drop rain-since-midnight view")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Add the rain-since-midnight view
@@ -187,7 +187,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainSinceMidnightViewSQL).Error
 	if err != nil {
 		log.Warn("warning: could not create rain-since-midnight view")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Add the 1m aggregation policy
@@ -195,7 +195,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1mSQL).Error
 	if err != nil {
 		log.Warn("warning: could not add 1m aggregation policy")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Add the 5m aggregation policy
@@ -203,7 +203,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy5mSQL).Error
 	if err != nil {
 		log.Warn("warning: could not add 5m aggregation policy")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Add the 1h aggregation policy
@@ -211,7 +211,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1hSQL).Error
 	if err != nil {
 		log.Warn("warning: could not add 1h aggregation policy")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	// Add the 1d aggregation policy
@@ -219,95 +219,7 @@ func NewTimescaleDBStorage(ctx context.Context, c *types.Config) (*TimescaleDBSt
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(addAggregationPolicy1dSQL).Error
 	if err != nil {
 		log.Warn("warning: could not add 1d aggregation policy")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the hypertable retention policy
-	log.Info("Adding hypertable retention policy...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy).Error
-	if err != nil {
-		log.Warn("warning: could not add hypertable retention policy")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the 1m continuous aggregate retention policy
-	log.Info("Adding 1m continuous aggregate retention policy...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1m).Error
-	if err != nil {
-		log.Warn("warning: could not add 1m continous aggregate retention policy")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the 5m continuous aggregate retention policy
-	log.Info("Adding 5m continuous aggregate retention policy...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy5m).Error
-	if err != nil {
-		log.Warn("warning: could not add 5m continous aggregate retention policy")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the 1h continuous aggregate retention policy
-	log.Info("Adding 1h continuous aggregate retention policy...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1h).Error
-	if err != nil {
-		log.Warn("warning: could not add 1h continous aggregate retention policy")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the 1d continuous aggregate retention policy
-	log.Info("Adding 1d continuous aggregate retention policy...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRetentionPolicy1d).Error
-	if err != nil {
-		log.Warn("warning: could not add 1d continous aggregate retention policy")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the snowfall 72-hour delta function
-	log.Info("Adding snowfall 72-hour delta function...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta72hSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add snowfall 72-hour delta function")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the snowfall 24-hour delta function
-	log.Info("Adding snowfall 24-hour delta function...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta24hSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add snowfall 24-hour delta function")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the snowfall since-midnight delta function
-	log.Info("Adding snowfall since-midnight delta function...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaSinceMidnightSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add snowfall since-midnight delta function")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the snowfall season total function
-	log.Info("Adding snowfall season total function...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowSeasonTotalSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add snowfall season total function")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add the snowfall storm total function
-	log.Info("Adding snowfall storm total function...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowStormTotalSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add snowfall storm total function")
-		return &TimescaleDBStorage{}, err
-	}
-
-	// Add some indexes to speed up queries
-	log.Info("Adding indexes...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createIndexesSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add indexes")
-		return &TimescaleDBStorage{}, err
+		return &Storage{}, err
 	}
 
 	return &t, nil
