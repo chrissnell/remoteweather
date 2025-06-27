@@ -71,6 +71,29 @@ func (h *Handlers) ValidateConfig(w http.ResponseWriter, r *http.Request) {
 	h.sendJSON(w, response)
 }
 
+// ReloadConfig reloads the configuration dynamically
+func (h *Handlers) ReloadConfig(w http.ResponseWriter, r *http.Request) {
+	if h.controller.app == nil {
+		h.sendError(w, http.StatusServiceUnavailable, "Configuration reload not available", nil)
+		return
+	}
+
+	h.controller.logger.Info("Management API triggered configuration reload")
+
+	if err := h.controller.app.ReloadConfiguration(h.controller.ctx); err != nil {
+		h.sendError(w, http.StatusInternalServerError, "Failed to reload configuration", err)
+		return
+	}
+
+	response := map[string]interface{}{
+		"success":   true,
+		"message":   "Configuration reloaded successfully",
+		"timestamp": time.Now().Unix(),
+	}
+
+	h.sendJSON(w, response)
+}
+
 // ServeIndex serves the main management interface
 func (h *Handlers) ServeIndex(w http.ResponseWriter, r *http.Request) {
 	// For now, serve a simple HTML page
@@ -122,6 +145,8 @@ func (h *Handlers) ServeIndex(w http.ResponseWriter, r *http.Request) {
             <h3>System Discovery:</h3>
             <div class="endpoint">GET /api/status - API status</div>
             <div class="endpoint">GET /api/config - Current configuration</div>
+            <div class="endpoint">GET /api/config/validate - Validate configuration</div>
+            <div class="endpoint">POST /api/config/reload - Reload configuration dynamically</div>
             <div class="endpoint">GET /api/system/serial-ports - Available serial ports</div>
             <div class="endpoint">GET /api/system/info - System information</div>
         </div>

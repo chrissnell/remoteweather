@@ -24,15 +24,22 @@ type Controller struct {
 	ConfigProvider   config.ConfigProvider
 	logger           *zap.SugaredLogger
 	handlers         *Handlers
+	app              AppReloader // Interface to trigger app configuration reload
+}
+
+// AppReloader interface for triggering application configuration reloads
+type AppReloader interface {
+	ReloadConfiguration(ctx context.Context) error
 }
 
 // NewController creates a new management API controller
-func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, mc config.ManagementAPIData, logger *zap.SugaredLogger) (*Controller, error) {
+func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, mc config.ManagementAPIData, logger *zap.SugaredLogger, app AppReloader) (*Controller, error) {
 	ctrl := &Controller{
 		ctx:            ctx,
 		wg:             wg,
 		configProvider: configProvider,
 		logger:         logger,
+		app:            app,
 	}
 
 	// Convert ManagementAPIData to ManagementAPIConfig for now (we can remove this later)
@@ -130,6 +137,7 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/status", c.handlers.GetStatus).Methods("GET")
 	api.HandleFunc("/config", c.handlers.GetConfig).Methods("GET")
 	api.HandleFunc("/config/validate", c.handlers.ValidateConfig).Methods("GET")
+	api.HandleFunc("/config/reload", c.handlers.ReloadConfig).Methods("POST")
 
 	// System discovery endpoints
 	api.HandleFunc("/system/serial-ports", c.handlers.GetSerialPorts).Methods("GET")

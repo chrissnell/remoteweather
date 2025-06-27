@@ -141,14 +141,38 @@ func (s *Station) ConnectToStation() {
 	s.Connect()
 
 	for !alive {
+		// Check for cancellation before each iteration
+		select {
+		case <-s.ctx.Done():
+			s.logger.Info("cancellation request received while waiting for first packet")
+			return
+		default:
+		}
+
 		log.Infof("Waiting for first packet from station [%v]", s.config.Name)
+
+		// Check if connection is still valid
+		if s.rwc == nil {
+			s.logger.Info("connection is nil, attempting to reconnect")
+			s.Connect()
+			continue
+		}
+
 		dec := json.NewDecoder(s.rwc)
 		packet := new(Packet)
 		err = dec.Decode(&packet)
 		if err != nil {
 			log.Info("error decoding JSON from station:", err)
 			log.Info("sleeping 500ms and trying again")
-			time.Sleep(500 * time.Millisecond)
+
+			// Use a select to respect cancellation during sleep
+			select {
+			case <-s.ctx.Done():
+				s.logger.Info("cancellation request received during retry wait")
+				return
+			case <-time.After(500 * time.Millisecond):
+				// Continue to next iteration
+			}
 		} else {
 			log.Infof("Station [%v] is alive", s.config.Name)
 			alive = true
