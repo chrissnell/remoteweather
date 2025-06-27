@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/chrissnell/remoteweather/internal/app"
 	"github.com/chrissnell/remoteweather/internal/log"
@@ -73,5 +74,8 @@ func createConfigProvider(cfgFile, cfgBackend string) (config.ConfigProvider, er
 		return nil, fmt.Errorf("error reading config file. Did you pass the -config flag? Run with -h for help: %w", err)
 	}
 
-	return provider, nil
+	// Wrap with caching layer for performance (30 second cache)
+	cachedProvider := config.NewCachedProvider(provider, 30*time.Second)
+
+	return cachedProvider, nil
 }
