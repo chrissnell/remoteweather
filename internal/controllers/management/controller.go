@@ -129,6 +129,7 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Basic API endpoints
 	api.HandleFunc("/status", c.handlers.GetStatus).Methods("GET")
 	api.HandleFunc("/config", c.handlers.GetConfig).Methods("GET")
+	api.HandleFunc("/config/validate", c.handlers.ValidateConfig).Methods("GET")
 
 	// System discovery endpoints
 	api.HandleFunc("/system/serial-ports", c.handlers.GetSerialPorts).Methods("GET")
@@ -137,6 +138,7 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Configuration management endpoints
 	api.HandleFunc("/config/weather-stations", c.handlers.GetWeatherStations).Methods("GET")
 	api.HandleFunc("/config/weather-stations", c.handlers.CreateWeatherStation).Methods("POST")
+	api.HandleFunc("/config/weather-stations/{id}", c.handlers.GetWeatherStation).Methods("GET")
 	api.HandleFunc("/config/weather-stations/{id}", c.handlers.UpdateWeatherStation).Methods("PUT")
 	api.HandleFunc("/config/weather-stations/{id}", c.handlers.DeleteWeatherStation).Methods("DELETE")
 

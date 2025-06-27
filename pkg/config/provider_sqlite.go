@@ -196,6 +196,9 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       cc.aeris_api_endpoint, cc.aeris_location,
 		       -- REST Server fields
 		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
+		       -- Management API fields
+		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
+		       cc.management_auth_token, cc.management_enable_cors,
 		       -- Weather Site fields
 		       wsc.station_name, wsc.pull_from_device, wsc.snow_enabled,
 		       wsc.snow_device, wsc.snow_base_distance, wsc.page_title,
@@ -222,6 +225,9 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLocation sql.NullString
 		var restCert, restKey, restListenAddr sql.NullString
 		var restPort sql.NullInt64
+		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
+		var mgmtPort sql.NullInt64
+		var mgmtEnableCORS sql.NullBool
 		var wsStationName, wsPullFromDevice, wsSnowDevice, wsPageTitle, wsAboutHTML sql.NullString
 		var wsSnowEnabled sql.NullBool
 		var wsSnowBaseDistance sql.NullFloat64
@@ -232,6 +238,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
 			&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLocation,
 			&restCert, &restKey, &restPort, &restListenAddr,
+			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 			&wsStationName, &wsPullFromDevice, &wsSnowEnabled,
 			&wsSnowDevice, &wsSnowBaseDistance, &wsPageTitle, &wsAboutHTML,
 		)
@@ -293,6 +300,17 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 						PageTitle:        wsPageTitle.String,
 						AboutStationHTML: wsAboutHTML.String,
 					}
+				}
+			}
+		case "management":
+			if mgmtPort.Valid {
+				controller.ManagementAPI = &ManagementAPIData{
+					Cert:       mgmtCert.String,
+					Key:        mgmtKey.String,
+					Port:       int(mgmtPort.Int64),
+					ListenAddr: mgmtListenAddr.String,
+					AuthToken:  mgmtAuthToken.String,
+					EnableCORS: mgmtEnableCORS.Bool,
 				}
 			}
 		}
@@ -470,8 +488,10 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 			pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
 			wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
 			aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_location,
-			rest_cert, rest_key, rest_port, rest_listen_addr
-		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			rest_cert, rest_key, rest_port, rest_listen_addr,
+			management_cert, management_key, management_port, management_listen_addr,
+			management_auth_token, management_enable_cors
+		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
@@ -479,6 +499,9 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	var aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLocation sql.NullString
 	var restCert, restKey, restListenAddr sql.NullString
 	var restPort sql.NullInt64
+	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
+	var mgmtPort sql.NullInt64
+	var mgmtEnableCORS sql.NullBool
 
 	if controller.PWSWeather != nil {
 		pwsStationID = sql.NullString{String: controller.PWSWeather.StationID, Valid: controller.PWSWeather.StationID != ""}
@@ -510,11 +533,21 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 		restListenAddr = sql.NullString{String: controller.RESTServer.ListenAddr, Valid: controller.RESTServer.ListenAddr != ""}
 	}
 
+	if controller.ManagementAPI != nil {
+		mgmtCert = sql.NullString{String: controller.ManagementAPI.Cert, Valid: controller.ManagementAPI.Cert != ""}
+		mgmtKey = sql.NullString{String: controller.ManagementAPI.Key, Valid: controller.ManagementAPI.Key != ""}
+		mgmtPort = sql.NullInt64{Int64: int64(controller.ManagementAPI.Port), Valid: controller.ManagementAPI.Port != 0}
+		mgmtListenAddr = sql.NullString{String: controller.ManagementAPI.ListenAddr, Valid: controller.ManagementAPI.ListenAddr != ""}
+		mgmtAuthToken = sql.NullString{String: controller.ManagementAPI.AuthToken, Valid: controller.ManagementAPI.AuthToken != ""}
+		mgmtEnableCORS = sql.NullBool{Bool: controller.ManagementAPI.EnableCORS, Valid: true}
+	}
+
 	result, err := tx.Exec(query, configID, controller.Type,
 		pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint,
 		wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint,
 		aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLocation,
 		restCert, restKey, restPort, restListenAddr,
+		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS,
 	)
 	if err != nil {
 		return err
@@ -546,4 +579,477 @@ func (s *SQLiteProvider) insertWeatherSiteConfig(tx *sql.Tx, controllerConfigID 
 		site.SnowDevice, site.SnowBaseDistance, site.PageTitle, site.AboutStationHTML,
 	)
 	return err
+}
+
+// Individual device management methods
+
+// GetDevice retrieves a specific device by name
+func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
+	query := `
+		SELECT d.name, d.type, d.hostname, d.port, d.serial_device, d.baud,
+		       d.wind_dir_correction, d.base_snow_distance,
+		       d.solar_latitude, d.solar_longitude, d.solar_altitude
+		FROM devices d
+		JOIN configs c ON d.config_id = c.id
+		WHERE d.name = ?
+	`
+
+	var device DeviceData
+	var solar SolarData
+
+	err := s.db.QueryRow(query, name).Scan(
+		&device.Name, &device.Type, &device.Hostname, &device.Port,
+		&device.SerialDevice, &device.Baud, &device.WindDirCorrection,
+		&device.BaseSnowDistance, &solar.Latitude, &solar.Longitude, &solar.Altitude,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("device %s not found", name)
+		}
+		return nil, fmt.Errorf("failed to get device %s: %w", name, err)
+	}
+
+	device.Solar = solar
+	return &device, nil
+}
+
+// AddDevice adds a new device to the configuration
+func (s *SQLiteProvider) AddDevice(device *DeviceData) error {
+	// Validate device doesn't already exist
+	if _, err := s.GetDevice(device.Name); err == nil {
+		return fmt.Errorf("device %s already exists", device.Name)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get or create config ID
+	configID, err := s.getOrCreateConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Insert device
+	if err := s.insertDevice(tx, configID, device); err != nil {
+		return fmt.Errorf("failed to insert device: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// UpdateDevice updates an existing device
+func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
+	// Validate device exists
+	if _, err := s.GetDevice(name); err != nil {
+		return fmt.Errorf("device %s not found: %w", name, err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update device
+	query := `
+		UPDATE devices SET
+			name = ?, type = ?, hostname = ?, port = ?, serial_device = ?,
+			baud = ?, wind_dir_correction = ?, base_snow_distance = ?,
+			solar_latitude = ?, solar_longitude = ?, solar_altitude = ?
+		WHERE name = ?
+	`
+
+	_, err = tx.Exec(query,
+		device.Name, device.Type, device.Hostname, device.Port,
+		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
+		device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		name,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update device: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// DeleteDevice removes a device from the configuration
+func (s *SQLiteProvider) DeleteDevice(name string) error {
+	// Validate device exists
+	if _, err := s.GetDevice(name); err != nil {
+		return fmt.Errorf("device %s not found: %w", name, err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Delete device
+	query := "DELETE FROM devices WHERE name = ?"
+	result, err := tx.Exec(query, name)
+	if err != nil {
+		return fmt.Errorf("failed to delete device: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("device %s not found", name)
+	}
+
+	return tx.Commit()
+}
+
+// Individual storage management methods
+
+// AddStorageConfig adds a new storage configuration
+func (s *SQLiteProvider) AddStorageConfig(storageType string, config interface{}) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get or create config ID
+	configID, err := s.getOrCreateConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Check if storage config already exists
+	existingQuery := "SELECT COUNT(*) FROM storage_configs WHERE config_id = ? AND backend_type = ?"
+	var count int
+	err = tx.QueryRow(existingQuery, configID, storageType).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check existing storage config: %w", err)
+	}
+
+	if count > 0 {
+		return fmt.Errorf("storage config for %s already exists", storageType)
+	}
+
+	// Insert storage config based on type
+	switch storageType {
+	case "timescaledb":
+		timescale, ok := config.(*TimescaleDBData)
+		if !ok {
+			return fmt.Errorf("invalid config type for TimescaleDB")
+		}
+		return s.insertTimescaleDBConfig(tx, configID, timescale)
+	case "grpc":
+		grpc, ok := config.(*GRPCData)
+		if !ok {
+			return fmt.Errorf("invalid config type for GRPC")
+		}
+		return s.insertGRPCConfig(tx, configID, grpc)
+	case "aprs":
+		aprs, ok := config.(*APRSData)
+		if !ok {
+			return fmt.Errorf("invalid config type for APRS")
+		}
+		return s.insertAPRSConfig(tx, configID, aprs)
+	default:
+		return fmt.Errorf("unsupported storage type: %s", storageType)
+	}
+}
+
+// UpdateStorageConfig updates an existing storage configuration
+func (s *SQLiteProvider) UpdateStorageConfig(storageType string, config interface{}) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get config ID
+	configID, err := s.getConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Delete existing storage config
+	deleteQuery := "DELETE FROM storage_configs WHERE config_id = ? AND backend_type = ?"
+	_, err = tx.Exec(deleteQuery, configID, storageType)
+	if err != nil {
+		return fmt.Errorf("failed to delete existing storage config: %w", err)
+	}
+
+	// Insert new storage config based on type
+	switch storageType {
+	case "timescaledb":
+		timescale, ok := config.(*TimescaleDBData)
+		if !ok {
+			return fmt.Errorf("invalid config type for TimescaleDB")
+		}
+		if err := s.insertTimescaleDBConfig(tx, configID, timescale); err != nil {
+			return err
+		}
+	case "grpc":
+		grpc, ok := config.(*GRPCData)
+		if !ok {
+			return fmt.Errorf("invalid config type for GRPC")
+		}
+		if err := s.insertGRPCConfig(tx, configID, grpc); err != nil {
+			return err
+		}
+	case "aprs":
+		aprs, ok := config.(*APRSData)
+		if !ok {
+			return fmt.Errorf("invalid config type for APRS")
+		}
+		if err := s.insertAPRSConfig(tx, configID, aprs); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported storage type: %s", storageType)
+	}
+
+	return tx.Commit()
+}
+
+// DeleteStorageConfig removes a storage configuration
+func (s *SQLiteProvider) DeleteStorageConfig(storageType string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get config ID
+	configID, err := s.getConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Delete storage config
+	query := "DELETE FROM storage_configs WHERE config_id = ? AND backend_type = ?"
+	result, err := tx.Exec(query, configID, storageType)
+	if err != nil {
+		return fmt.Errorf("failed to delete storage config: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("storage config for %s not found", storageType)
+	}
+
+	return tx.Commit()
+}
+
+// Individual controller management methods
+
+// GetController retrieves a specific controller by type
+func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, error) {
+	query := `
+		SELECT controller_type,
+		       pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
+		       wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
+		       aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_location,
+		       rest_cert, rest_key, rest_port, rest_listen_addr
+		FROM controller_configs cc
+		JOIN configs c ON cc.config_id = c.id
+		WHERE cc.controller_type = ?
+	`
+
+	var controller ControllerData
+	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
+	var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
+	var aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLocation sql.NullString
+	var restCert, restKey, restListenAddr sql.NullString
+	var restPort sql.NullInt64
+
+	err := s.db.QueryRow(query, controllerType).Scan(
+		&controller.Type,
+		&pwsStationID, &pwsAPIKey, &pwsUploadInterval, &pwsPullFromDevice, &pwsAPIEndpoint,
+		&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
+		&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLocation,
+		&restCert, &restKey, &restPort, &restListenAddr,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("controller %s not found", controllerType)
+		}
+		return nil, fmt.Errorf("failed to get controller %s: %w", controllerType, err)
+	}
+
+	// Populate controller-specific data
+	if pwsStationID.Valid {
+		controller.PWSWeather = &PWSWeatherData{
+			StationID:      pwsStationID.String,
+			APIKey:         pwsAPIKey.String,
+			UploadInterval: pwsUploadInterval.String,
+			PullFromDevice: pwsPullFromDevice.String,
+			APIEndpoint:    pwsAPIEndpoint.String,
+		}
+	}
+
+	if wuStationID.Valid {
+		controller.WeatherUnderground = &WeatherUndergroundData{
+			StationID:      wuStationID.String,
+			APIKey:         wuAPIKey.String,
+			UploadInterval: wuUploadInterval.String,
+			PullFromDevice: wuPullFromDevice.String,
+			APIEndpoint:    wuAPIEndpoint.String,
+		}
+	}
+
+	if aerisClientID.Valid {
+		controller.AerisWeather = &AerisWeatherData{
+			APIClientID:     aerisClientID.String,
+			APIClientSecret: aerisClientSecret.String,
+			APIEndpoint:     aerisAPIEndpoint.String,
+			Location:        aerisLocation.String,
+		}
+	}
+
+	if restCert.Valid {
+		controller.RESTServer = &RESTServerData{
+			Cert:       restCert.String,
+			Key:        restKey.String,
+			Port:       int(restPort.Int64),
+			ListenAddr: restListenAddr.String,
+		}
+	}
+
+	return &controller, nil
+}
+
+// AddController adds a new controller to the configuration
+func (s *SQLiteProvider) AddController(controller *ControllerData) error {
+	// Validate controller doesn't already exist
+	if _, err := s.GetController(controller.Type); err == nil {
+		return fmt.Errorf("controller %s already exists", controller.Type)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get or create config ID
+	configID, err := s.getOrCreateConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Insert controller
+	if err := s.insertController(tx, configID, controller); err != nil {
+		return fmt.Errorf("failed to insert controller: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// UpdateController updates an existing controller
+func (s *SQLiteProvider) UpdateController(controllerType string, controller *ControllerData) error {
+	// Validate controller exists
+	if _, err := s.GetController(controllerType); err != nil {
+		return fmt.Errorf("controller %s not found: %w", controllerType, err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get config ID
+	configID, err := s.getConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Delete existing controller
+	deleteQuery := "DELETE FROM controller_configs WHERE config_id = ? AND controller_type = ?"
+	_, err = tx.Exec(deleteQuery, configID, controllerType)
+	if err != nil {
+		return fmt.Errorf("failed to delete existing controller: %w", err)
+	}
+
+	// Insert updated controller
+	if err := s.insertController(tx, configID, controller); err != nil {
+		return fmt.Errorf("failed to insert updated controller: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// DeleteController removes a controller from the configuration
+func (s *SQLiteProvider) DeleteController(controllerType string) error {
+	// Validate controller exists
+	if _, err := s.GetController(controllerType); err != nil {
+		return fmt.Errorf("controller %s not found: %w", controllerType, err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get config ID
+	configID, err := s.getConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Delete controller (cascade will handle weather_site_configs)
+	query := "DELETE FROM controller_configs WHERE config_id = ? AND controller_type = ?"
+	result, err := tx.Exec(query, configID, controllerType)
+	if err != nil {
+		return fmt.Errorf("failed to delete controller: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("controller %s not found", controllerType)
+	}
+
+	return tx.Commit()
+}
+
+// Helper methods
+
+// getConfigID gets the existing config ID
+func (s *SQLiteProvider) getConfigID(tx *sql.Tx) (int64, error) {
+	var configID int64
+	err := tx.QueryRow("SELECT id FROM configs ORDER BY id LIMIT 1").Scan(&configID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("no configuration found")
+		}
+		return 0, err
+	}
+	return configID, nil
+}
+
+// getOrCreateConfigID gets existing config ID or creates a new one
+func (s *SQLiteProvider) getOrCreateConfigID(tx *sql.Tx) (int64, error) {
+	// Try to get existing config
+	configID, err := s.getConfigID(tx)
+	if err == nil {
+		return configID, nil
+	}
+
+	// Create new config if none exists
+	return s.insertConfig(tx, "default")
 }
