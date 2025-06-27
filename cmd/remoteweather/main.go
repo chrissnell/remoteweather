@@ -34,22 +34,22 @@ func main() {
 	}
 	defer log.Sync()
 
-	// Load configuration
-	cfgData, err := loadConfig(*cfgFile, *cfgBackend)
+	// Create and run the application
+	configProvider, err := createConfigProvider(*cfgFile, *cfgBackend)
 	if err != nil {
-		log.Errorf("Failed to load configuration: %v", err)
+		log.Errorf("Failed to create config provider: %v", err)
 		os.Exit(1)
 	}
+	defer configProvider.Close()
 
-	// Create and run the application
-	application := app.New(cfgData, log.GetSugaredLogger())
+	application := app.New(configProvider, log.GetSugaredLogger())
 	if err := application.Run(context.Background()); err != nil {
 		log.Errorf("Application error: %v", err)
 		os.Exit(1)
 	}
 }
 
-func loadConfig(cfgFile, cfgBackend string) (*config.ConfigData, error) {
+func createConfigProvider(cfgFile, cfgBackend string) (config.ConfigProvider, error) {
 	filename, _ := filepath.Abs(cfgFile)
 
 	var provider config.ConfigProvider
@@ -67,10 +67,11 @@ func loadConfig(cfgFile, cfgBackend string) (*config.ConfigData, error) {
 		return nil, fmt.Errorf("unsupported configuration backend: %s. Use 'yaml' or 'sqlite'", cfgBackend)
 	}
 
-	cfgData, err := provider.LoadConfig()
+	// Test that we can load the config
+	_, err = provider.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file. Did you pass the -config flag? Run with -h for help: %w", err)
 	}
 
-	return cfgData, nil
+	return provider, nil
 }

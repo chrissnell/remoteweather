@@ -14,7 +14,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -22,22 +22,28 @@ import (
 type WeatherUndergroundController struct {
 	ctx                      context.Context
 	wg                       *sync.WaitGroup
-	config                   *types.Config
-	WeatherUndergroundConfig types.WeatherUndergroundConfig
+	configProvider           config.ConfigProvider
+	WeatherUndergroundConfig config.WeatherUndergroundData
 	logger                   *zap.SugaredLogger
 	DB                       *database.Client
 }
 
-func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, wuconfig types.WeatherUndergroundConfig, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
+func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, wuconfig config.WeatherUndergroundData, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
 	wuc := WeatherUndergroundController{
 		ctx:                      ctx,
 		wg:                       wg,
-		config:                   c,
+		configProvider:           configProvider,
 		WeatherUndergroundConfig: wuconfig,
 		logger:                   logger,
 	}
 
-	if wuc.config.Storage.TimescaleDB.ConnectionString == "" {
+	// Load configuration to validate storage settings
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return &WeatherUndergroundController{}, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
 		return &WeatherUndergroundController{}, fmt.Errorf("TimescaleDB storage must be configured for the Weather Underground controller to function")
 	}
 
@@ -62,13 +68,13 @@ func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, c 
 		wuc.WeatherUndergroundConfig.UploadInterval = "60"
 	}
 
-	wuc.DB = database.NewClient(c, logger)
+	wuc.DB = database.NewClient(configProvider, logger)
 
 	if !wuc.DB.ValidatePullFromStation(wuc.WeatherUndergroundConfig.PullFromDevice) {
 		return &WeatherUndergroundController{}, fmt.Errorf("pull-from-device %v is not a valid station name", wuc.WeatherUndergroundConfig.PullFromDevice)
 	}
 
-	err := wuc.DB.ConnectToTimescaleDB()
+	err = wuc.DB.ConnectToTimescaleDB()
 	if err != nil {
 		return &WeatherUndergroundController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}

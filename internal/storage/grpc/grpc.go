@@ -11,6 +11,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -63,13 +64,25 @@ func (g *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan 
 }
 
 // New sets up a new gRPC storage backend
-func New(ctx context.Context, c *types.Config) (*Storage, error) {
+func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, error) {
 	var err error
 	var g Storage
 
-	if c.Storage.GRPC.Cert != "" && c.Storage.GRPC.Key != "" {
+	// Load configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return &Storage{}, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	if cfgData.Storage.GRPC == nil {
+		return &Storage{}, fmt.Errorf("GRPC storage configuration is missing")
+	}
+
+	grpcConfig := cfgData.Storage.GRPC
+
+	if grpcConfig.Cert != "" && grpcConfig.Key != "" {
 		// Create the TLS credentials
-		creds, err := credentials.NewServerTLSFromFile(c.Storage.GRPC.Cert, c.Storage.GRPC.Key)
+		creds, err := credentials.NewServerTLSFromFile(grpcConfig.Cert, grpcConfig.Key)
 		if err != nil {
 			return &Storage{}, fmt.Errorf("could not create TLS server from keypair: %v", err)
 		}
@@ -78,18 +91,26 @@ func New(ctx context.Context, c *types.Config) (*Storage, error) {
 		g.Server = grpc.NewServer()
 	}
 
-	if c.Storage.GRPC.PullFromDevice == "" {
+	if grpcConfig.PullFromDevice == "" {
 		return &Storage{}, errors.New("you must configure a pull-from-device to specify the default station to pull data for")
 	}
 
 	// Store a reference to our configuration in our Storage object
-	g.GRPCConfig = &c.Storage.GRPC
+	// Convert to legacy config for compatibility
+	legacyGRPCConfig := &types.GRPCConfig{
+		Cert:           grpcConfig.Cert,
+		Key:            grpcConfig.Key,
+		ListenAddr:     grpcConfig.ListenAddr,
+		Port:           grpcConfig.Port,
+		PullFromDevice: grpcConfig.PullFromDevice,
+	}
+	g.GRPCConfig = legacyGRPCConfig
 
 	// Optionally, add gRPC reflection to our servers so that clients can self-discover
 	// our methods.
 	reflection.Register(g.Server)
 
-	listenAddr := fmt.Sprintf(":%v", c.Storage.GRPC.Port)
+	listenAddr := fmt.Sprintf(":%v", grpcConfig.Port)
 
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
@@ -97,8 +118,8 @@ func New(ctx context.Context, c *types.Config) (*Storage, error) {
 	}
 
 	// If a TimescaleDB database was configured, create a database client
-	if c.Storage.TimescaleDB.ConnectionString != "" {
-		g.DBClient = database.NewClient(c, log.GetZapLogger().Sugar())
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+		g.DBClient = database.NewClient(configProvider, log.GetZapLogger().Sugar())
 		err = g.DBClient.Connect()
 		if err != nil {
 			return &Storage{}, fmt.Errorf("gRPC storage could not connect to database: %v", err)

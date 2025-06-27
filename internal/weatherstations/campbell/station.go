@@ -13,6 +13,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/internal/weatherstations"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/chrissnell/remoteweather/pkg/solar"
 	serial "github.com/tarm/goserial"
 	"go.uber.org/zap"
@@ -25,6 +26,8 @@ type Station struct {
 	netConn            net.Conn
 	rwc                io.ReadWriteCloser
 	config             types.DeviceConfig
+	configProvider     config.ConfigProvider
+	deviceName         string
 	ReadingDistributor chan types.Reading
 	logger             *zap.SugaredLogger
 	connecting         bool
@@ -48,24 +51,61 @@ type Packet struct {
 }
 
 // NewStation creates a new Campbell Scientific weather station
-func NewStation(ctx context.Context, wg *sync.WaitGroup, config types.DeviceConfig, distributor chan types.Reading, logger *zap.SugaredLogger) weatherstations.WeatherStation {
+func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, deviceName string, distributor chan types.Reading, logger *zap.SugaredLogger) weatherstations.WeatherStation {
 	station := &Station{
 		ctx:                ctx,
 		wg:                 wg,
-		config:             config,
+		configProvider:     configProvider,
+		deviceName:         deviceName,
 		ReadingDistributor: distributor,
 		logger:             logger,
 	}
 
-	if config.SerialDevice == "" && (config.Hostname == "" || config.Port == "") {
-		logger.Fatalf("Campbell Scientific station [%s] must define either a serial device or hostname+port", config.Name)
+	// Load configuration to get device config
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		logger.Fatalf("Campbell Scientific station [%s] failed to load config: %v", deviceName, err)
 	}
 
-	if config.SerialDevice != "" {
+	// Find our device configuration
+	var deviceConfig *config.DeviceData
+	for _, device := range cfgData.Devices {
+		if device.Name == deviceName {
+			deviceConfig = &device
+			break
+		}
+	}
+
+	if deviceConfig == nil {
+		logger.Fatalf("Campbell Scientific station [%s] device not found in configuration", deviceName)
+	}
+
+	// Convert to legacy config format for internal use
+	station.config = types.DeviceConfig{
+		Name:              deviceConfig.Name,
+		Type:              deviceConfig.Type,
+		Hostname:          deviceConfig.Hostname,
+		Port:              deviceConfig.Port,
+		SerialDevice:      deviceConfig.SerialDevice,
+		Baud:              deviceConfig.Baud,
+		WindDirCorrection: deviceConfig.WindDirCorrection,
+		BaseSnowDistance:  deviceConfig.BaseSnowDistance,
+		Solar: types.SolarConfig{
+			Latitude:  deviceConfig.Solar.Latitude,
+			Longitude: deviceConfig.Solar.Longitude,
+			Altitude:  deviceConfig.Solar.Altitude,
+		},
+	}
+
+	if station.config.SerialDevice == "" && (station.config.Hostname == "" || station.config.Port == "") {
+		logger.Fatalf("Campbell Scientific station [%s] must define either a serial device or hostname+port", station.config.Name)
+	}
+
+	if station.config.SerialDevice != "" {
 		log.Info("Configuring Campbell Scientific station via serial port...")
 	}
 
-	if config.Hostname != "" && config.Port != "" {
+	if station.config.Hostname != "" && station.config.Port != "" {
 		log.Info("Configuring Campbell Scientific station via TCP/IP")
 	}
 

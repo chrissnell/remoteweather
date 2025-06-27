@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +18,7 @@ import (
 type Controller struct {
 	ctx              context.Context
 	wg               *sync.WaitGroup
-	config           *types.Config
+	configProvider   config.ConfigProvider
 	managementConfig types.ManagementAPIConfig
 	Server           http.Server
 	ConfigProvider   config.ConfigProvider
@@ -29,55 +27,42 @@ type Controller struct {
 }
 
 // NewController creates a new management API controller
-func NewController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, mc types.ManagementAPIConfig, logger *zap.SugaredLogger) (*Controller, error) {
+func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, mc config.ManagementAPIData, logger *zap.SugaredLogger) (*Controller, error) {
 	ctrl := &Controller{
-		ctx:              ctx,
-		wg:               wg,
-		config:           c,
-		managementConfig: mc,
-		logger:           logger,
+		ctx:            ctx,
+		wg:             wg,
+		configProvider: configProvider,
+		logger:         logger,
+	}
+
+	// Convert ManagementAPIData to ManagementAPIConfig for now (we can remove this later)
+	ctrl.managementConfig = types.ManagementAPIConfig{
+		Cert:       mc.Cert,
+		Key:        mc.Key,
+		Port:       mc.Port,
+		ListenAddr: mc.ListenAddr,
+		AuthToken:  mc.AuthToken,
+		EnableCORS: mc.EnableCORS,
 	}
 
 	// Set default values
-	if mc.Port == 0 {
+	if ctrl.managementConfig.Port == 0 {
 		logger.Info("management API port not specified; defaulting to 8081")
-		mc.Port = 8081
 		ctrl.managementConfig.Port = 8081
 	}
 
-	if mc.ListenAddr == "" {
+	if ctrl.managementConfig.ListenAddr == "" {
 		logger.Info("management API listen-addr not provided; defaulting to 127.0.0.1 (localhost only)")
-		mc.ListenAddr = "127.0.0.1"
 		ctrl.managementConfig.ListenAddr = "127.0.0.1"
 	}
 
-	if mc.AuthToken == "" {
+	if ctrl.managementConfig.AuthToken == "" {
 		return nil, fmt.Errorf("auth-token must be set in management API config for security")
 	}
 
-	// Initialize config provider based on what's available
-	// Try common config file patterns in the current directory
-	configFiles := []string{"config.yaml", "weather-station.yaml", "config.db", "weather-station.db"}
-
-	for _, filename := range configFiles {
-		if _, err := os.Stat(filename); err == nil {
-			// File exists, determine type and create provider
-			if strings.HasSuffix(filename, ".yaml") {
-				ctrl.ConfigProvider = config.NewYAMLProvider(filename)
-				logger.Infof("Management API using YAML config provider: %s", filename)
-				break
-			} else if strings.HasSuffix(filename, ".db") {
-				sqliteProvider, err := config.NewSQLiteProvider(filename)
-				if err != nil {
-					logger.Warnf("Failed to initialize SQLite config provider for %s: %v", filename, err)
-					continue
-				}
-				ctrl.ConfigProvider = sqliteProvider
-				logger.Infof("Management API using SQLite config provider: %s", filename)
-				break
-			}
-		}
-	}
+	// Config provider is already available from the parameter
+	ctrl.ConfigProvider = configProvider
+	logger.Info("Management API using provided config provider")
 
 	if ctrl.ConfigProvider == nil {
 		logger.Warn("No config provider available - configuration management will be limited")
@@ -88,7 +73,7 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, mc 
 
 	// Set up router
 	router := ctrl.setupRouter()
-	ctrl.Server.Addr = fmt.Sprintf("%v:%v", mc.ListenAddr, mc.Port)
+	ctrl.Server.Addr = fmt.Sprintf("%v:%v", ctrl.managementConfig.ListenAddr, ctrl.managementConfig.Port)
 	ctrl.Server.Handler = router
 
 	return ctrl, nil

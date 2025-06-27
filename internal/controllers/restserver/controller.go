@@ -10,7 +10,7 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -25,30 +25,36 @@ var (
 type Controller struct {
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
-	config              *types.Config
-	restConfig          types.RESTServerConfig
+	configProvider      config.ConfigProvider
+	restConfig          config.RESTServerData
 	Server              http.Server
 	DB                  *gorm.DB
 	DBEnabled           bool
 	FS                  *fs.FS
-	WeatherSiteConfig   *types.WeatherSiteConfig
-	Devices             []types.DeviceConfig
+	WeatherSiteConfig   *config.WeatherSiteData
+	Devices             []config.DeviceData
 	AerisWeatherEnabled bool
 	logger              *zap.SugaredLogger
 	handlers            *Handlers
 }
 
 // NewController creates a new REST server controller
-func NewController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, rc types.RESTServerConfig, logger *zap.SugaredLogger) (*Controller, error) {
+func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, rc config.RESTServerData, logger *zap.SugaredLogger) (*Controller, error) {
 	ctrl := &Controller{
-		ctx:        ctx,
-		wg:         wg,
-		config:     c,
-		restConfig: rc,
-		Devices:    c.Devices,
-		logger:     logger,
+		ctx:            ctx,
+		wg:             wg,
+		configProvider: configProvider,
+		restConfig:     rc,
+		logger:         logger,
 	}
 
+	// Load configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	ctrl.Devices = cfgData.Devices
 	ctrl.WeatherSiteConfig = &rc.WeatherSiteConfig
 
 	if rc.WeatherSiteConfig.SnowEnabled {
@@ -65,7 +71,7 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, rc 
 
 	// Look to see if the Aeris Weather controller has been configured.
 	// If we've configured it, we will enable the /forecast endpoint later on.
-	for _, con := range c.Controllers {
+	for _, con := range cfgData.Controllers {
 		if con.Type == "aerisweather" {
 			ctrl.AerisWeatherEnabled = true
 		}
@@ -87,9 +93,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, rc 
 
 	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
 	// handlers can retrieve data
-	if c.Storage.TimescaleDB.ConnectionString != "" {
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
 		var err error
-		ctrl.DB, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
+		ctrl.DB, err = database.CreateConnection(cfgData.Storage.TimescaleDB.ConnectionString)
 		if err != nil {
 			return nil, fmt.Errorf("REST server could not connect to database: %v", err)
 		}

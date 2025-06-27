@@ -11,6 +11,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/storage/grpc"
 	"github.com/chrissnell/remoteweather/internal/storage/timescaledb"
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 )
 
 // StorageManager holds our active storage backends
@@ -27,7 +28,7 @@ type StorageEngine struct {
 }
 
 // NewStorageManager creates a StorageManager object, populated with all configured StorageEngines
-func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *types.Config) (*StorageManager, error) {
+func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider) (*StorageManager, error) {
 	var err error
 
 	s := StorageManager{}
@@ -39,25 +40,31 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, c *types.Config)
 	// backends
 	go s.startReadingDistributor(ctx, wg)
 
+	// Load configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return &s, fmt.Errorf("could not load configuration: %v", err)
+	}
+
 	// Check the configuration file for various supported storage backends
 	// and enable them if found
 
-	if c.Storage.TimescaleDB.ConnectionString != "" {
-		err = s.AddEngine(ctx, wg, "timescaledb", c)
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+		err = s.AddEngine(ctx, wg, "timescaledb", configProvider)
 		if err != nil {
 			return &s, fmt.Errorf("could not add TimescaleDB storage backend: %v", err)
 		}
 	}
 
-	if c.Storage.GRPC.Port != 0 {
-		err = s.AddEngine(ctx, wg, "grpc", c)
+	if cfgData.Storage.GRPC != nil && cfgData.Storage.GRPC.Port != 0 {
+		err = s.AddEngine(ctx, wg, "grpc", configProvider)
 		if err != nil {
 			return &s, fmt.Errorf("could not add gRPC storage backend: %v", err)
 		}
 	}
 
-	if c.Storage.APRS.Callsign != "" {
-		err = s.AddEngine(ctx, wg, "aprs", c)
+	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Callsign != "" {
+		err = s.AddEngine(ctx, wg, "aprs", configProvider)
 		if err != nil {
 			return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
 		}
@@ -72,13 +79,13 @@ func (s *StorageManager) GetReadingDistributor() chan types.Reading {
 }
 
 // AddEngine adds a new StorageEngine of name engineName to our Storage object
-func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, c *types.Config) error {
+func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, configProvider config.ConfigProvider) error {
 	var err error
 
 	switch engineName {
 	case "timescaledb":
 		se := StorageEngine{}
-		se.Engine, err = timescaledb.New(ctx, c)
+		se.Engine, err = timescaledb.New(ctx, configProvider)
 		if err != nil {
 			return err
 		}
@@ -86,7 +93,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		s.Engines = append(s.Engines, se)
 	case "grpc":
 		se := StorageEngine{}
-		se.Engine, err = grpc.New(ctx, c)
+		se.Engine, err = grpc.New(ctx, configProvider)
 		if err != nil {
 			return err
 		}
@@ -94,7 +101,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		s.Engines = append(s.Engines, se)
 	case "aprs":
 		se := StorageEngine{}
-		se.Engine, err = aprs.New(c)
+		se.Engine, err = aprs.New(configProvider)
 		if err != nil {
 			return err
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/internal/weatherstations"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	snowgauge "github.com/chrissnell/remoteweather/protocols/snowgauge"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -25,21 +26,60 @@ type Station struct {
 	conn               *grpc.ClientConn
 	stream             snowgauge.SnowGaugeService_StreamReadingClient
 	config             types.DeviceConfig
+	configProvider     config.ConfigProvider
+	deviceName         string
 	ReadingDistributor chan types.Reading
 	logger             *zap.SugaredLogger
 }
 
-func NewStation(ctx context.Context, wg *sync.WaitGroup, config types.DeviceConfig, distributor chan types.Reading, logger *zap.SugaredLogger) weatherstations.WeatherStation {
+func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, deviceName string, distributor chan types.Reading, logger *zap.SugaredLogger) weatherstations.WeatherStation {
 	station := &Station{
 		ctx:                ctx,
 		wg:                 wg,
-		config:             config,
+		configProvider:     configProvider,
+		deviceName:         deviceName,
 		ReadingDistributor: distributor,
 		logger:             logger,
 	}
 
-	if config.Hostname == "" || config.Port == "" {
-		logger.Fatalf("SnowGauge station [%s] must define a hostname and port", config.Name)
+	// Load configuration to get device config
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		logger.Fatalf("SnowGauge station [%s] failed to load config: %v", deviceName, err)
+	}
+
+	// Find our device configuration
+	var deviceConfig *config.DeviceData
+	for _, device := range cfgData.Devices {
+		if device.Name == deviceName {
+			deviceConfig = &device
+			break
+		}
+	}
+
+	if deviceConfig == nil {
+		logger.Fatalf("SnowGauge station [%s] device not found in configuration", deviceName)
+	}
+
+	// Convert to legacy config format for internal use
+	station.config = types.DeviceConfig{
+		Name:              deviceConfig.Name,
+		Type:              deviceConfig.Type,
+		Hostname:          deviceConfig.Hostname,
+		Port:              deviceConfig.Port,
+		SerialDevice:      deviceConfig.SerialDevice,
+		Baud:              deviceConfig.Baud,
+		WindDirCorrection: deviceConfig.WindDirCorrection,
+		BaseSnowDistance:  deviceConfig.BaseSnowDistance,
+		Solar: types.SolarConfig{
+			Latitude:  deviceConfig.Solar.Latitude,
+			Longitude: deviceConfig.Solar.Longitude,
+			Altitude:  deviceConfig.Solar.Altitude,
+		},
+	}
+
+	if station.config.Hostname == "" || station.config.Port == "" {
+		logger.Fatalf("SnowGauge station [%s] must define a hostname and port", station.config.Name)
 	}
 
 	return station
