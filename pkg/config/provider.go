@@ -58,6 +58,7 @@ type ControllerData struct {
 	WeatherUnderground *WeatherUndergroundData `json:"weatherunderground,omitempty"`
 	AerisWeather       *AerisWeatherData       `json:"aerisweather,omitempty"`
 	RESTServer         *RESTServerData         `json:"rest,omitempty"`
+	ManagementAPI      *ManagementAPIData      `json:"management,omitempty"`
 }
 
 // Storage backend configuration structs
@@ -135,4 +136,13 @@ type WeatherSiteData struct {
 	SnowBaseDistance float32 `json:"snow_base_distance,omitempty"`
 	PageTitle        string  `json:"page_title,omitempty"`
 	AboutStationHTML string  `json:"about_station_html,omitempty"`
+}
+
+type ManagementAPIData struct {
+	Cert       string `json:"cert,omitempty"`
+	Key        string `json:"key,omitempty"`
+	Port       int    `json:"port,omitempty"`
+	ListenAddr string `json:"listen_addr,omitempty"`
+	AuthToken  string `json:"auth_token,omitempty"`
+	EnableCORS bool   `json:"enable_cors,omitempty"`
 }
