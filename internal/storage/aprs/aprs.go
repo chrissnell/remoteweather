@@ -15,6 +15,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 )
 
 // CurrentReading is a Reading + a mutex that maintains the most recent reading from
@@ -27,33 +28,45 @@ type CurrentReading struct {
 // Storage holds general configuration related to our APRS/CWOP transmissions
 type Storage struct {
 	ctx             context.Context
-	cfg             *types.Config
+	configProvider  config.ConfigProvider
 	APRSReadingChan chan types.Reading
 	currentReading  *CurrentReading
 }
 
 // New sets up a new APRS-IS storage backend
-func New(c *types.Config) (Storage, error) {
+func New(configProvider config.ConfigProvider) (Storage, error) {
 	a := Storage{}
 
-	if c.Storage.APRS.Callsign == "" {
+	// Load configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return a, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	if cfgData.Storage.APRS == nil {
+		return a, fmt.Errorf("APRS storage configuration is missing")
+	}
+
+	aprsConfig := cfgData.Storage.APRS
+
+	if aprsConfig.Callsign == "" {
 		return a, fmt.Errorf("you must provide a callsign in the configuration file")
 	}
 
-	if c.Storage.APRS.Location.Lat == 0 && c.Storage.APRS.Location.Lon == 0 {
+	if aprsConfig.Location.Lat == 0 && aprsConfig.Location.Lon == 0 {
 		return a, fmt.Errorf("you must provide a latitude and longitude for your station in the configuration file")
 	}
 
-	if c.Storage.APRS.Passcode == "" {
+	if aprsConfig.Passcode == "" {
 		return a, fmt.Errorf("you must provide an APRS-IS passcode in the configuration file")
 	}
 
-	if c.Storage.APRS.APRSISServer == "" {
-		c.Storage.APRS.APRSISServer = "noam.aprs2.net:14580"
+	if aprsConfig.APRSISServer == "" {
+		// Set default server if not provided
+		aprsConfig.APRSISServer = "noam.aprs2.net:14580"
 	}
 
-	a.cfg = c
-
+	a.configProvider = configProvider
 	a.APRSReadingChan = make(chan types.Reading, 10)
 
 	return a, nil
@@ -118,14 +131,26 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	pkt := a.CreateCompleteWeatherReport('/', '_')
 	log.Debugf("sending reading to APRS-IS: %+v", pkt)
 
+	// Load configuration
+	cfgData, err := a.configProvider.LoadConfig()
+	if err != nil {
+		log.Error("error loading configuration for APRS-IS: %v", err)
+		return
+	}
+
+	if cfgData.Storage.APRS == nil {
+		log.Error("APRS configuration is missing")
+		return
+	}
+
 	dialer := net.Dialer{
 		Timeout: connectionTimeout,
 	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", a.cfg.Storage.APRS.APRSISServer)
+	conn, err := dialer.DialContext(ctx, "tcp", cfgData.Storage.APRS.APRSISServer)
 	if err != nil {
 		log.Error("error dialing APRS-IS server %v: %v",
-			a.cfg.Storage.APRS.APRSISServer, err)
+			cfgData.Storage.APRS.APRSISServer, err)
 		return
 	}
 	defer conn.Close()
@@ -146,7 +171,7 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	login := fmt.Sprintf("user %v pass %v vers remoteweather-%v\r\n",
-		a.cfg.Storage.APRS.Callsign, a.cfg.Storage.APRS.Passcode, constants.Version)
+		cfgData.Storage.APRS.Callsign, cfgData.Storage.APRS.Passcode, constants.Version)
 
 	conn.Write([]byte(login))
 
@@ -202,11 +227,23 @@ func (a *Storage) StoreCurrentReading(r types.Reading) error {
 func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	var buffer bytes.Buffer
 
+	// Load configuration
+	cfgData, err := a.configProvider.LoadConfig()
+	if err != nil {
+		log.Error("error loading configuration for APRS weather report: %v", err)
+		return ""
+	}
+
+	if cfgData.Storage.APRS == nil {
+		log.Error("APRS configuration is missing")
+		return ""
+	}
+
 	// Lock our mutex for reading
 	a.currentReading.RLock()
 
 	// Our callsign comes first.
-	buffer.WriteString(a.cfg.Storage.APRS.Callsign)
+	buffer.WriteString(cfgData.Storage.APRS.Callsign)
 
 	// Then we add our APRS path
 	buffer.WriteString(">APRS,TCPIP:")
@@ -216,13 +253,13 @@ func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	buffer.WriteRune('!')
 
 	// Next, we write our latitude
-	buffer.WriteString(convertLatitudeToAPRSFormat(a.cfg.Storage.APRS.Location.Lat))
+	buffer.WriteString(convertLatitudeToAPRSFormat(cfgData.Storage.APRS.Location.Lat))
 
 	// Next byte is the symbol table selector
 	buffer.WriteRune(symTable)
 
 	// Then we write our longitude
-	buffer.WriteString(convertLongitudeToAPRSFormat(a.cfg.Storage.APRS.Location.Lon))
+	buffer.WriteString(convertLongitudeToAPRSFormat(cfgData.Storage.APRS.Location.Lon))
 
 	// Then our symbol code
 	buffer.WriteRune(symCode)

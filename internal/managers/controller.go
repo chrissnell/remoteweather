@@ -10,7 +10,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/controllers/pwsweather"
 	"github.com/chrissnell/remoteweather/internal/controllers/restserver"
 	"github.com/chrissnell/remoteweather/internal/controllers/wunderground"
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -25,17 +25,23 @@ type Controller interface {
 }
 
 // NewControllerManager creates a new controller manager
-func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, c *types.Config, logger *zap.SugaredLogger) (ControllerManager, error) {
+func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger) (ControllerManager, error) {
 	cm := &controllerManager{
-		ctx:         ctx,
-		wg:          wg,
-		config:      c,
-		logger:      logger,
-		controllers: make([]Controller, 0),
+		ctx:            ctx,
+		wg:             wg,
+		configProvider: configProvider,
+		logger:         logger,
+		controllers:    make([]Controller, 0),
+	}
+
+	// Load configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error loading configuration: %v", err)
 	}
 
 	// Create controllers based on configuration
-	for _, con := range c.Controllers {
+	for _, con := range cfgData.Controllers {
 		controller, err := cm.createController(con)
 		if err != nil {
 			return nil, fmt.Errorf("error creating controller: %v", err)
@@ -47,11 +53,11 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, c *types.Conf
 }
 
 type controllerManager struct {
-	ctx         context.Context
-	wg          *sync.WaitGroup
-	config      *types.Config
-	logger      *zap.SugaredLogger
-	controllers []Controller
+	ctx            context.Context
+	wg             *sync.WaitGroup
+	configProvider config.ConfigProvider
+	logger         *zap.SugaredLogger
+	controllers    []Controller
 }
 
 func (c *controllerManager) StartControllers() error {
@@ -69,18 +75,33 @@ func (c *controllerManager) StartControllers() error {
 }
 
 // createController creates a controller based on the controller configuration
-func (cm *controllerManager) createController(cc types.ControllerConfig) (Controller, error) {
+func (cm *controllerManager) createController(cc config.ControllerData) (Controller, error) {
 	switch cc.Type {
 	case "aerisweather":
-		return aerisweather.NewAerisWeatherController(cm.ctx, cm.wg, cm.config, cc.AerisWeather, cm.logger)
+		if cc.AerisWeather == nil {
+			return nil, fmt.Errorf("aerisweather controller config is nil")
+		}
+		return aerisweather.NewAerisWeatherController(cm.ctx, cm.wg, cm.configProvider, *cc.AerisWeather, cm.logger)
 	case "pwsweather":
-		return pwsweather.NewPWSWeatherController(cm.ctx, cm.wg, cm.config, cc.PWSWeather, cm.logger)
+		if cc.PWSWeather == nil {
+			return nil, fmt.Errorf("pwsweather controller config is nil")
+		}
+		return pwsweather.NewPWSWeatherController(cm.ctx, cm.wg, cm.configProvider, *cc.PWSWeather, cm.logger)
 	case "wunderground", "weatherunderground":
-		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.config, cc.WeatherUnderground, cm.logger)
+		if cc.WeatherUnderground == nil {
+			return nil, fmt.Errorf("weatherunderground controller config is nil")
+		}
+		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.configProvider, *cc.WeatherUnderground, cm.logger)
 	case "restserver", "rest":
-		return restserver.NewController(cm.ctx, cm.wg, cm.config, cc.RESTServer, cm.logger)
+		if cc.RESTServer == nil {
+			return nil, fmt.Errorf("restserver controller config is nil")
+		}
+		return restserver.NewController(cm.ctx, cm.wg, cm.configProvider, *cc.RESTServer, cm.logger)
 	case "management":
-		return management.NewController(cm.ctx, cm.wg, cm.config, cc.ManagementAPI, cm.logger)
+		if cc.ManagementAPI == nil {
+			return nil, fmt.Errorf("management controller config is nil")
+		}
+		return management.NewController(cm.ctx, cm.wg, cm.configProvider, *cc.ManagementAPI, cm.logger)
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", cc.Type)
 	}
