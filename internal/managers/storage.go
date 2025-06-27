@@ -23,6 +23,7 @@ type StorageManager struct {
 // StorageEngine holds a backend storage engine's interface as well as
 // a channel for passing readings to the engine
 type StorageEngine struct {
+	Name   string
 	Engine storage.StorageEngineInterface
 	C      chan<- types.Reading
 }
@@ -82,31 +83,105 @@ func (s *StorageManager) GetReadingDistributor() chan types.Reading {
 func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engineName string, configProvider config.ConfigProvider) error {
 	var err error
 
+	// Check if engine already exists
+	for _, engine := range s.Engines {
+		if engine.Name == engineName {
+			return fmt.Errorf("storage engine %s already exists", engineName)
+		}
+	}
+
 	switch engineName {
 	case "timescaledb":
-		se := StorageEngine{}
+		se := StorageEngine{Name: engineName}
 		se.Engine, err = timescaledb.New(ctx, configProvider)
 		if err != nil {
 			return err
 		}
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
+		log.Infof("Added TimescaleDB storage engine")
 	case "grpc":
-		se := StorageEngine{}
+		se := StorageEngine{Name: engineName}
 		se.Engine, err = grpc.New(ctx, configProvider)
 		if err != nil {
 			return err
 		}
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
+		log.Infof("Added gRPC storage engine")
 	case "aprs":
-		se := StorageEngine{}
+		se := StorageEngine{Name: engineName}
 		se.Engine, err = aprs.New(configProvider)
 		if err != nil {
 			return err
 		}
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
+		log.Infof("Added APRS storage engine")
+	}
+
+	return nil
+}
+
+// RemoveEngine removes a storage engine by name
+func (s *StorageManager) RemoveEngine(engineName string) error {
+	for i, engine := range s.Engines {
+		if engine.Name == engineName {
+			// Close the channel to signal shutdown
+			close(engine.C)
+
+			// Remove from slice
+			s.Engines = append(s.Engines[:i], s.Engines[i+1:]...)
+			log.Infof("Removed storage engine: %s", engineName)
+			return nil
+		}
+	}
+	return fmt.Errorf("storage engine %s not found", engineName)
+}
+
+// ReloadStorageConfig reloads storage configuration dynamically
+func (s *StorageManager) ReloadStorageConfig(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider) error {
+	// Load new configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("could not load configuration: %v", err)
+	}
+
+	// Track what engines should be active
+	shouldBeActive := make(map[string]bool)
+
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+		shouldBeActive["timescaledb"] = true
+	}
+	if cfgData.Storage.GRPC != nil && cfgData.Storage.GRPC.Port != 0 {
+		shouldBeActive["grpc"] = true
+	}
+	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Callsign != "" {
+		shouldBeActive["aprs"] = true
+	}
+
+	// Remove engines that should no longer be active
+	for i := len(s.Engines) - 1; i >= 0; i-- {
+		engine := s.Engines[i]
+		if !shouldBeActive[engine.Name] {
+			if err := s.RemoveEngine(engine.Name); err != nil {
+				log.Errorf("Failed to remove storage engine %s: %v", engine.Name, err)
+			}
+		}
+	}
+
+	// Add engines that should be active but aren't
+	currentEngines := make(map[string]bool)
+	for _, engine := range s.Engines {
+		currentEngines[engine.Name] = true
+	}
+
+	for engineName := range shouldBeActive {
+		if !currentEngines[engineName] {
+			if err := s.AddEngine(ctx, wg, engineName, configProvider); err != nil {
+				log.Errorf("Failed to add storage engine %s: %v", engineName, err)
+			}
+		}
 	}
 
 	return nil

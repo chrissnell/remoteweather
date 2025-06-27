@@ -18,6 +18,9 @@ import (
 // WeatherStationManager interface for the weather station manager
 type WeatherStationManager interface {
 	StartWeatherStations() error
+	AddWeatherStation(deviceName string) error
+	RemoveWeatherStation(deviceName string) error
+	ReloadWeatherStationsConfig() error
 }
 
 // NewWeatherStationManager creates a WeatherStationManager object, populated with all configured weather stations
@@ -34,6 +37,7 @@ func NewWeatherStationManager(ctx context.Context, wg *sync.WaitGroup, configPro
 		configProvider: configProvider,
 		distributor:    distributor,
 		logger:         logger,
+		stations:       make(map[string]weatherstations.WeatherStation),
 	}
 
 	// Create weather stations directly from config data
@@ -42,7 +46,7 @@ func NewWeatherStationManager(ctx context.Context, wg *sync.WaitGroup, configPro
 		if err != nil {
 			return nil, fmt.Errorf("error creating weather station [%s]: %w", deviceConfig.Name, err)
 		}
-		wsm.stations = append(wsm.stations, station)
+		wsm.stations[deviceConfig.Name] = station
 	}
 
 	return wsm, nil
@@ -54,17 +58,92 @@ type weatherStationManager struct {
 	configProvider config.ConfigProvider
 	distributor    chan types.Reading
 	logger         *zap.SugaredLogger
-	stations       []weatherstations.WeatherStation
+	stations       map[string]weatherstations.WeatherStation
 }
 
 func (w *weatherStationManager) StartWeatherStations() error {
 	w.logger.Info("Weather station manager started (clean orchestration)")
-	for _, station := range w.stations {
-		w.logger.Infof("Starting weather station [%v]...", station.StationName())
+	for name, station := range w.stations {
+		w.logger.Infof("Starting weather station [%v]...", name)
 		if err := station.StartWeatherStation(); err != nil {
-			return fmt.Errorf("failed to start weather station [%s]: %w", station.StationName(), err)
+			return fmt.Errorf("failed to start weather station [%s]: %w", name, err)
 		}
 	}
+	return nil
+}
+
+// AddWeatherStation adds a new weather station dynamically
+func (w *weatherStationManager) AddWeatherStation(deviceName string) error {
+	// Check if station already exists
+	if _, exists := w.stations[deviceName]; exists {
+		return fmt.Errorf("weather station %s already exists", deviceName)
+	}
+
+	station, err := createStationFromConfig(w.ctx, w.wg, w.configProvider, deviceName, w.distributor, w.logger)
+	if err != nil {
+		return fmt.Errorf("error creating weather station [%s]: %w", deviceName, err)
+	}
+
+	w.stations[deviceName] = station
+
+	// Start the station
+	if err := station.StartWeatherStation(); err != nil {
+		delete(w.stations, deviceName)
+		return fmt.Errorf("failed to start weather station [%s]: %w", deviceName, err)
+	}
+
+	w.logger.Infof("Added and started weather station: %s", deviceName)
+	return nil
+}
+
+// RemoveWeatherStation removes a weather station dynamically
+func (w *weatherStationManager) RemoveWeatherStation(deviceName string) error {
+	station, exists := w.stations[deviceName]
+	if !exists {
+		return fmt.Errorf("weather station %s not found", deviceName)
+	}
+
+	// For now, we can't cleanly stop a station since the interface doesn't have a Stop method
+	// The context cancellation will handle cleanup when the app shuts down
+	delete(w.stations, deviceName)
+
+	w.logger.Infof("Removed weather station: %s (will stop on next app restart)", deviceName)
+	_ = station // Keep reference to avoid "unused variable" warning
+	return nil
+}
+
+// ReloadWeatherStationsConfig reloads weather station configuration dynamically
+func (w *weatherStationManager) ReloadWeatherStationsConfig() error {
+	// Load new configuration
+	cfgData, err := w.configProvider.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("could not load configuration: %v", err)
+	}
+
+	// Track what stations should be active
+	shouldBeActive := make(map[string]bool)
+	for _, deviceConfig := range cfgData.Devices {
+		shouldBeActive[deviceConfig.Name] = true
+	}
+
+	// Remove stations that should no longer be active
+	for name := range w.stations {
+		if !shouldBeActive[name] {
+			if err := w.RemoveWeatherStation(name); err != nil {
+				w.logger.Errorf("Failed to remove weather station %s: %v", name, err)
+			}
+		}
+	}
+
+	// Add stations that should be active but aren't
+	for name := range shouldBeActive {
+		if _, exists := w.stations[name]; !exists {
+			if err := w.AddWeatherStation(name); err != nil {
+				w.logger.Errorf("Failed to add weather station %s: %v", name, err)
+			}
+		}
+	}
+
 	return nil
 }
 
