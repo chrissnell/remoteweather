@@ -154,6 +154,17 @@ func (y *YAMLProvider) LoadConfig() (*ConfigData, error) {
 				},
 			}
 		}
+
+		if controller.ManagementAPI != nil {
+			config.Controllers[i].ManagementAPI = &ManagementAPIData{
+				Cert:       controller.ManagementAPI.Cert,
+				Key:        controller.ManagementAPI.Key,
+				Port:       controller.ManagementAPI.Port,
+				ListenAddr: controller.ManagementAPI.ListenAddr,
+				AuthToken:  controller.ManagementAPI.AuthToken,
+				EnableCORS: controller.ManagementAPI.EnableCORS,
+			}
+		}
 	}
 
 	y.config = config
@@ -269,6 +280,7 @@ type ControllerYAML struct {
 	WeatherUnderground *WeatherUndergroundYAML `yaml:"weatherunderground,omitempty"`
 	AerisWeather       *AerisWeatherYAML       `yaml:"aerisweather,omitempty"`
 	RESTServer         *RESTServerYAML         `yaml:"rest,omitempty"`
+	ManagementAPI      *ManagementAPIYAML      `yaml:"management,omitempty"`
 }
 
 type PWSWeatherYAML struct {
@@ -310,4 +322,13 @@ type WeatherSiteYAML struct {
 	SnowBaseDistance float32 `yaml:"snow-base-distance,omitempty"`
 	PageTitle        string  `yaml:"page-title,omitempty"`
 	AboutStationHTML string  `yaml:"about-station-html,omitempty"`
+}
+
+type ManagementAPIYAML struct {
+	Cert       string `yaml:"cert,omitempty"`
+	Key        string `yaml:"key,omitempty"`
+	Port       int    `yaml:"port,omitempty"`
+	ListenAddr string `yaml:"listen-addr,omitempty"`
+	AuthToken  string `yaml:"auth-token,omitempty"`
+	EnableCORS bool   `yaml:"enable-cors,omitempty"`
 }
