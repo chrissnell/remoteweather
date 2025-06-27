@@ -51,6 +51,7 @@ type ControllerConfig struct {
 	WeatherUnderground WeatherUndergroundConfig `yaml:"weatherunderground,omitempty"`
 	AerisWeather       AerisWeatherConfig       `yaml:"aerisweather,omitempty"`
 	RESTServer         RESTServerConfig         `yaml:"rest,omitempty"`
+	ManagementAPI      ManagementAPIConfig      `yaml:"management,omitempty"`
 }
 
 // Storage backend configurations
@@ -118,6 +119,15 @@ type RESTServerConfig struct {
 	Port              int               `yaml:"port,omitempty"`
 	ListenAddr        string            `yaml:"listen-addr,omitempty"`
 	WeatherSiteConfig WeatherSiteConfig `yaml:"weather-site"`
+}
+
+type ManagementAPIConfig struct {
+	Cert       string `yaml:"cert,omitempty"`
+	Key        string `yaml:"key,omitempty"`
+	Port       int    `yaml:"port,omitempty"`
+	ListenAddr string `yaml:"listen-addr,omitempty"`
+	AuthToken  string `yaml:"auth-token,omitempty"`
+	EnableCORS bool   `yaml:"enable-cors,omitempty"`
 }
 
 type WeatherSiteConfig struct {

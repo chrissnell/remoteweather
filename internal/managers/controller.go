@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/chrissnell/remoteweather/internal/controllers/aerisweather"
+	"github.com/chrissnell/remoteweather/internal/controllers/management"
 	"github.com/chrissnell/remoteweather/internal/controllers/pwsweather"
 	"github.com/chrissnell/remoteweather/internal/controllers/restserver"
 	"github.com/chrissnell/remoteweather/internal/controllers/wunderground"
@@ -78,6 +79,8 @@ func (cm *controllerManager) createController(cc types.ControllerConfig) (Contro
 		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.config, cc.WeatherUnderground, cm.logger)
 	case "restserver", "rest":
 		return restserver.NewController(cm.ctx, cm.wg, cm.config, cc.RESTServer, cm.logger)
+	case "management":
+		return management.NewController(cm.ctx, cm.wg, cm.config, cc.ManagementAPI, cm.logger)
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", cc.Type)
 	}

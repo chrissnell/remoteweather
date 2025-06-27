@@ -206,6 +206,17 @@ func convertToLegacyConfig(cfgData *config.ConfigData) types.Config {
 				},
 			}
 		}
+
+		if controller.ManagementAPI != nil {
+			cfg.Controllers[i].ManagementAPI = types.ManagementAPIConfig{
+				Cert:       controller.ManagementAPI.Cert,
+				Key:        controller.ManagementAPI.Key,
+				Port:       controller.ManagementAPI.Port,
+				ListenAddr: controller.ManagementAPI.ListenAddr,
+				AuthToken:  controller.ManagementAPI.AuthToken,
+				EnableCORS: controller.ManagementAPI.EnableCORS,
+			}
+		}
 	}
 
 	return cfg
