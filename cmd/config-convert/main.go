@@ -186,9 +186,6 @@ func printConfigSummary(configData *config.ConfigData) {
 	}
 
 	fmt.Printf("\nStorage Backends:\n")
-	if configData.Storage.InfluxDB != nil {
-		fmt.Printf("  - InfluxDB: %s:%d/%s\n", configData.Storage.InfluxDB.Host, configData.Storage.InfluxDB.Port, configData.Storage.InfluxDB.Database)
-	}
 	if configData.Storage.TimescaleDB != nil {
 		fmt.Printf("  - TimescaleDB: %s\n", configData.Storage.TimescaleDB.ConnectionString)
 	}
