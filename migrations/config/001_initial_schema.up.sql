@@ -46,8 +46,8 @@ CREATE TABLE storage_configs (
     aprs_callsign TEXT,
     aprs_passcode TEXT,
     aprs_server TEXT,
-    aprs_latitude REAL,
-    aprs_longitude REAL,
+    aprs_location_lat REAL,
+    aprs_location_lon REAL,
     
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, backend_type)
@@ -85,6 +85,14 @@ CREATE TABLE controller_configs (
     rest_key TEXT,
     rest_port INTEGER,
     rest_listen_addr TEXT,
+    
+    -- Management API fields
+    management_cert TEXT,
+    management_key TEXT,
+    management_port INTEGER,
+    management_listen_addr TEXT,
+    management_auth_token TEXT,
+    management_enable_cors BOOLEAN DEFAULT FALSE,
     
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, controller_type)

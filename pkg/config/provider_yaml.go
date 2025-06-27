@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -193,7 +194,7 @@ func (y *YAMLProvider) GetControllers() ([]ControllerData, error) {
 	return y.config.Controllers, nil
 }
 
-// IsReadOnly returns true since YAML files are read-only through this interface
+// IsReadOnly returns true since YAML configuration cannot be modified
 func (y *YAMLProvider) IsReadOnly() bool {
 	return true
 }
@@ -201,6 +202,89 @@ func (y *YAMLProvider) IsReadOnly() bool {
 // Close is a no-op for YAML provider
 func (y *YAMLProvider) Close() error {
 	return nil
+}
+
+// Individual device management methods (read-only)
+
+// GetDevice retrieves a specific device by name
+func (y *YAMLProvider) GetDevice(name string) (*DeviceData, error) {
+	devices, err := y.GetDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, device := range devices {
+		if device.Name == name {
+			return &device, nil
+		}
+	}
+
+	return nil, fmt.Errorf("device %s not found", name)
+}
+
+// AddDevice returns an error since YAML is read-only
+func (y *YAMLProvider) AddDevice(device *DeviceData) error {
+	return fmt.Errorf("cannot add device: YAML configuration is read-only")
+}
+
+// UpdateDevice returns an error since YAML is read-only
+func (y *YAMLProvider) UpdateDevice(name string, device *DeviceData) error {
+	return fmt.Errorf("cannot update device: YAML configuration is read-only")
+}
+
+// DeleteDevice returns an error since YAML is read-only
+func (y *YAMLProvider) DeleteDevice(name string) error {
+	return fmt.Errorf("cannot delete device: YAML configuration is read-only")
+}
+
+// Individual storage management methods (read-only)
+
+// AddStorageConfig returns an error since YAML is read-only
+func (y *YAMLProvider) AddStorageConfig(storageType string, config interface{}) error {
+	return fmt.Errorf("cannot add storage config: YAML configuration is read-only")
+}
+
+// UpdateStorageConfig returns an error since YAML is read-only
+func (y *YAMLProvider) UpdateStorageConfig(storageType string, config interface{}) error {
+	return fmt.Errorf("cannot update storage config: YAML configuration is read-only")
+}
+
+// DeleteStorageConfig returns an error since YAML is read-only
+func (y *YAMLProvider) DeleteStorageConfig(storageType string) error {
+	return fmt.Errorf("cannot delete storage config: YAML configuration is read-only")
+}
+
+// Individual controller management methods (read-only)
+
+// GetController retrieves a specific controller by type
+func (y *YAMLProvider) GetController(controllerType string) (*ControllerData, error) {
+	controllers, err := y.GetControllers()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, controller := range controllers {
+		if controller.Type == controllerType {
+			return &controller, nil
+		}
+	}
+
+	return nil, fmt.Errorf("controller %s not found", controllerType)
+}
+
+// AddController returns an error since YAML is read-only
+func (y *YAMLProvider) AddController(controller *ControllerData) error {
+	return fmt.Errorf("cannot add controller: YAML configuration is read-only")
+}
+
+// UpdateController returns an error since YAML is read-only
+func (y *YAMLProvider) UpdateController(controllerType string, controller *ControllerData) error {
+	return fmt.Errorf("cannot update controller: YAML configuration is read-only")
+}
+
+// DeleteController returns an error since YAML is read-only
+func (y *YAMLProvider) DeleteController(controllerType string) error {
+	return fmt.Errorf("cannot delete controller: YAML configuration is read-only")
 }
 
 // YAML-specific structs with proper YAML tags for parsing the original format
