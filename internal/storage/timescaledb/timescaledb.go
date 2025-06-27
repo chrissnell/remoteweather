@@ -2,11 +2,13 @@ package timescaledb
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"gorm.io/gorm"
 )
 
@@ -62,13 +64,23 @@ func (t *Storage) StoreReading(r types.Reading) error {
 }
 
 // New sets up a new TimescaleDB storage backend
-func New(ctx context.Context, c *types.Config) (*Storage, error) {
+func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, error) {
 
 	var err error
 	t := Storage{}
 
+	// Load configuration
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return &Storage{}, err
+	}
+
+	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
+		return &Storage{}, fmt.Errorf("TimescaleDB connection string not configured")
+	}
+
 	log.Info("connecting to TimescaleDB...")
-	t.TimescaleDBConn, err = database.CreateConnection(c.Storage.TimescaleDB.ConnectionString)
+	t.TimescaleDBConn, err = database.CreateConnection(cfgData.Storage.TimescaleDB.ConnectionString)
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return &Storage{}, err

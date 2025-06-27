@@ -9,28 +9,38 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
 
 // Client holds the connection to a TimescaleDB database
 type Client struct {
-	config *types.Config
-	DB     *gorm.DB // Exported so it can be accessed from other packages
-	logger *zap.SugaredLogger
+	configProvider config.ConfigProvider
+	DB             *gorm.DB // Exported so it can be accessed from other packages
+	logger         *zap.SugaredLogger
 }
 
 // NewClient creates a new database client
-func NewClient(c *types.Config, logger *zap.SugaredLogger) *Client {
+func NewClient(configProvider config.ConfigProvider, logger *zap.SugaredLogger) *Client {
 	return &Client{
-		config: c,
-		logger: logger,
+		configProvider: configProvider,
+		logger:         logger,
 	}
 }
 
 // Connect connects to the TimescaleDB database
 func (c *Client) Connect() error {
 	var err error
+
+	// Load configuration
+	cfgData, err := c.configProvider.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
+		return fmt.Errorf("TimescaleDB connection string not configured")
+	}
 
 	// Create a logger for gorm
 	dbLogger := logger.New(
@@ -48,7 +58,7 @@ func (c *Client) Connect() error {
 	}
 
 	log.Info("connecting to TimescaleDB...")
-	c.DB, err = gorm.Open(postgres.Open(c.config.Storage.TimescaleDB.ConnectionString), config)
+	c.DB, err = gorm.Open(postgres.Open(cfgData.Storage.TimescaleDB.ConnectionString), config)
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return err
@@ -65,8 +75,14 @@ func (c *Client) ConnectToTimescaleDB() error {
 
 // ValidatePullFromStation validates that the station name exists in config
 func (c *Client) ValidatePullFromStation(pullFromDevice string) bool {
-	if len(c.config.Devices) > 0 {
-		for _, station := range c.config.Devices {
+	cfgData, err := c.configProvider.LoadConfig()
+	if err != nil {
+		c.logger.Errorf("error loading configuration for validation: %v", err)
+		return false
+	}
+
+	if len(cfgData.Devices) > 0 {
+		for _, station := range cfgData.Devices {
 			if station.Name == pullFromDevice {
 				return true
 			}
