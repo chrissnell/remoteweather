@@ -14,7 +14,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -22,22 +22,28 @@ import (
 type PWSWeatherController struct {
 	ctx              context.Context
 	wg               *sync.WaitGroup
-	config           *types.Config
-	PWSWeatherConfig types.PWSWeatherConfig
+	configProvider   config.ConfigProvider
+	PWSWeatherConfig config.PWSWeatherData
 	logger           *zap.SugaredLogger
 	DB               *database.Client
 }
 
-func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, pwc types.PWSWeatherConfig, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
+func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, pwc config.PWSWeatherData, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
 	pwsc := PWSWeatherController{
 		ctx:              ctx,
 		wg:               wg,
-		config:           c,
+		configProvider:   configProvider,
 		PWSWeatherConfig: pwc,
 		logger:           logger,
 	}
 
-	if pwsc.config.Storage.TimescaleDB.ConnectionString == "" {
+	// Load configuration to validate storage settings
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return &PWSWeatherController{}, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
 		return &PWSWeatherController{}, fmt.Errorf("TimescaleDB storage must be configured for the PWS Weather controller to function")
 	}
 
@@ -62,13 +68,13 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, c *types.C
 		pwsc.PWSWeatherConfig.UploadInterval = "60"
 	}
 
-	pwsc.DB = database.NewClient(c, logger)
+	pwsc.DB = database.NewClient(configProvider, logger)
 
 	if !pwsc.DB.ValidatePullFromStation(pwsc.PWSWeatherConfig.PullFromDevice) {
 		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.PWSWeatherConfig.PullFromDevice)
 	}
 
-	err := pwsc.DB.ConnectToTimescaleDB()
+	err = pwsc.DB.ConnectToTimescaleDB()
 	if err != nil {
 		return &PWSWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}

@@ -13,7 +13,7 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/jackc/pgtype"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -23,8 +23,8 @@ import (
 type AerisWeatherController struct {
 	ctx                context.Context
 	wg                 *sync.WaitGroup
-	config             *types.Config
-	AerisWeatherConfig types.AerisWeatherConfig
+	configProvider     config.ConfigProvider
+	AerisWeatherConfig config.AerisWeatherData
 	logger             *zap.SugaredLogger
 	DB                 *database.Client
 }
@@ -72,16 +72,22 @@ func (AerisWeatherForecastRecord) TableName() string {
 	return "aeris_weather_forecasts"
 }
 
-func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *types.Config, ac types.AerisWeatherConfig, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
+func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, ac config.AerisWeatherData, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
 	a := AerisWeatherController{
 		ctx:                ctx,
 		wg:                 wg,
-		config:             c,
+		configProvider:     configProvider,
 		AerisWeatherConfig: ac,
 		logger:             logger,
 	}
 
-	if a.config.Storage.TimescaleDB.ConnectionString == "" {
+	// Load configuration to validate storage settings
+	cfgData, err := configProvider.LoadConfig()
+	if err != nil {
+		return &AerisWeatherController{}, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
 		return &AerisWeatherController{}, fmt.Errorf("TimescaleDB storage must be configured for the Aeris controller to function")
 	}
 
@@ -102,10 +108,10 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, c *types
 		return &AerisWeatherController{}, fmt.Errorf("forecast location must be set")
 	}
 
-	a.DB = database.NewClient(c, logger)
+	a.DB = database.NewClient(configProvider, logger)
 
 	// Connect to TimescaleDB for purposes of storing Aeris data for future client requests
-	err := a.DB.ConnectToTimescaleDB()
+	err = a.DB.ConnectToTimescaleDB()
 	if err != nil {
 		return &AerisWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
 	}
