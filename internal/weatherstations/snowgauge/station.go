@@ -135,7 +135,15 @@ func (s *Station) ConnectToGauge() {
 			if err != nil {
 				log.Errorf("failed to initiate stream to snow gauge %v: %v", s.config.Name, err)
 				log.Errorf("attempting reconnection to snow gauge %v in %v seconds", s.config.Name, delay)
-				time.Sleep(delay)
+
+				// Use a select to respect cancellation during sleep
+				select {
+				case <-s.ctx.Done():
+					s.logger.Info("cancellation request received during stream retry")
+					return
+				case <-time.After(delay):
+					// Continue to next iteration
+				}
 				attempt++
 				continue
 			}
@@ -145,7 +153,15 @@ func (s *Station) ConnectToGauge() {
 		// Connection failed, so we'll retry with exponential backoff
 
 		log.Errorf("Attempt #%v to connect to snow gauge %v failed. Retrying in %v\n", attempt+1, s.config.Name, delay)
-		time.Sleep(delay)
+
+		// Use a select to respect cancellation during sleep
+		select {
+		case <-s.ctx.Done():
+			s.logger.Info("cancellation request received during connection retry")
+			return
+		case <-time.After(delay):
+			// Continue to next iteration
+		}
 		attempt++
 	}
 }
@@ -163,13 +179,29 @@ func (s *Station) StreamSnowGaugeReadings() {
 				if status.Code(err) == codes.Unavailable {
 					log.Errorf("snowgauge %v stream closed by server: %v", s.config.Name, err)
 					log.Errorln("sleeping for 5 seconds before reconnecting")
-					time.Sleep(5 * time.Second)
+
+					// Use a select to respect cancellation during sleep
+					select {
+					case <-s.ctx.Done():
+						s.logger.Info("cancellation request received during reconnection wait")
+						return
+					case <-time.After(5 * time.Second):
+						// Continue to reconnect
+					}
 					s.ConnectToGauge()
 					continue
 				}
 				log.Errorf("error receiving data from snowgauge %v stream: %v; reconnecting", s.config.Name, err)
 				log.Errorln("sleeping for 5 seconds before reconnecting")
-				time.Sleep(5 * time.Second)
+
+				// Use a select to respect cancellation during sleep
+				select {
+				case <-s.ctx.Done():
+					s.logger.Info("cancellation request received during reconnection wait")
+					return
+				case <-time.After(5 * time.Second):
+					// Continue to reconnect
+				}
 				s.ConnectToGauge()
 				continue
 			}
