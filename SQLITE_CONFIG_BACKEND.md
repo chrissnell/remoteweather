@@ -41,7 +41,7 @@ The SQLite schema consists of five main tables:
 
 - `configs`: Main configuration profiles (supports multiple named configs)
 - `devices`: Weather station and sensor device configurations
-- `storage_configs`: Storage backend configurations (InfluxDB, TimescaleDB, etc.)
+- `storage_configs`: Storage backend configurations (TimescaleDB, gRPC, APRS)
 - `controller_configs`: Controller configurations (PWS Weather, REST server, etc.)
 - `weather_site_configs`: Weather site-specific settings (nested under REST controllers)
 
@@ -129,7 +129,7 @@ Devices - YAML: 1, SQLite: 1
 ✓ Device weather-station-1 matches
 
 Storage Configuration:
-✓ InfluxDB: both nil
+
 ✓ TimescaleDB: both nil
 ✓ GRPC: both nil
 ✓ APRS: both nil
