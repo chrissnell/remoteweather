@@ -18,10 +18,16 @@ func NewHandlers(ctrl *Controller) *Handlers {
 	}
 }
 
-// sendJSON sends a JSON response
+// sendJSON sends a JSON response with optional status code
 func (h *Handlers) sendJSON(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(data)
+}
+
+// sendJSONWithStatus sends a JSON response with a specific status code
+func (h *Handlers) sendJSONWithStatus(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)
 }
 

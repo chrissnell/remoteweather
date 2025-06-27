@@ -1,5 +1,12 @@
 package config
 
+import (
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+)
+
 // ConfigProvider defines the interface for configuration data sources
 type ConfigProvider interface {
 	// Load complete configuration
@@ -10,9 +17,132 @@ type ConfigProvider interface {
 	GetStorageConfig() (*StorageData, error)
 	GetControllers() ([]ControllerData, error)
 
+	// Individual device management
+	AddDevice(device *DeviceData) error
+	UpdateDevice(name string, device *DeviceData) error
+	DeleteDevice(name string) error
+	GetDevice(name string) (*DeviceData, error)
+
+	// Individual storage management
+	AddStorageConfig(storageType string, config interface{}) error
+	UpdateStorageConfig(storageType string, config interface{}) error
+	DeleteStorageConfig(storageType string) error
+
+	// Individual controller management
+	AddController(controller *ControllerData) error
+	UpdateController(controllerType string, controller *ControllerData) error
+	DeleteController(controllerType string) error
+	GetController(controllerType string) (*ControllerData, error)
+
 	// Configuration management (for future SQLite-specific operations)
 	IsReadOnly() bool
 	Close() error
+}
+
+// CachedConfigProvider wraps any ConfigProvider with caching
+type CachedConfigProvider struct {
+	provider    ConfigProvider
+	cache       *ConfigData
+	cacheMutex  sync.RWMutex
+	lastLoaded  time.Time
+	cacheExpiry time.Duration
+}
+
+// NewCachedProvider creates a new cached config provider wrapper
+func NewCachedProvider(provider ConfigProvider, cacheExpiry time.Duration) *CachedConfigProvider {
+	if cacheExpiry == 0 {
+		cacheExpiry = 30 * time.Second // Default cache expiry
+	}
+
+	return &CachedConfigProvider{
+		provider:    provider,
+		cacheExpiry: cacheExpiry,
+	}
+}
+
+// LoadConfig loads configuration with caching
+func (c *CachedConfigProvider) LoadConfig() (*ConfigData, error) {
+	c.cacheMutex.RLock()
+	if c.cache != nil && time.Since(c.lastLoaded) < c.cacheExpiry {
+		defer c.cacheMutex.RUnlock()
+		return c.cache, nil
+	}
+	c.cacheMutex.RUnlock()
+
+	// Cache miss or expired, reload
+	c.cacheMutex.Lock()
+	defer c.cacheMutex.Unlock()
+
+	// Double-check in case another goroutine loaded while we waited
+	if c.cache != nil && time.Since(c.lastLoaded) < c.cacheExpiry {
+		return c.cache, nil
+	}
+
+	config, err := c.provider.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	// Validate the loaded configuration
+	if validationErrors := ValidateConfig(config); len(validationErrors) > 0 {
+		var errorMessages []string
+		for _, ve := range validationErrors {
+			errorMessages = append(errorMessages, ve.Error())
+		}
+		return nil, fmt.Errorf("configuration validation failed:\n  - %s",
+			strings.Join(errorMessages, "\n  - "))
+	}
+
+	c.cache = config
+	c.lastLoaded = time.Now()
+	return config, nil
+}
+
+// GetDevices returns cached device configurations
+func (c *CachedConfigProvider) GetDevices() ([]DeviceData, error) {
+	config, err := c.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	return config.Devices, nil
+}
+
+// GetStorageConfig returns cached storage configuration
+func (c *CachedConfigProvider) GetStorageConfig() (*StorageData, error) {
+	config, err := c.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	return &config.Storage, nil
+}
+
+// GetControllers returns cached controller configurations
+func (c *CachedConfigProvider) GetControllers() ([]ControllerData, error) {
+	config, err := c.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	return config.Controllers, nil
+}
+
+// IsReadOnly delegates to the underlying provider
+func (c *CachedConfigProvider) IsReadOnly() bool {
+	return c.provider.IsReadOnly()
+}
+
+// Close delegates to the underlying provider and clears cache
+func (c *CachedConfigProvider) Close() error {
+	c.cacheMutex.Lock()
+	c.cache = nil
+	c.cacheMutex.Unlock()
+	return c.provider.Close()
+}
+
+// InvalidateCache forces a reload on the next access
+func (c *CachedConfigProvider) InvalidateCache() {
+	c.cacheMutex.Lock()
+	c.cache = nil
+	c.cacheMutex.Unlock()
 }
 
 // ConfigData represents the complete configuration structure
@@ -45,7 +175,6 @@ type SolarData struct {
 
 // StorageData holds the configuration for various storage backends
 type StorageData struct {
-	InfluxDB    *InfluxDBData    `json:"influxdb,omitempty"`
 	TimescaleDB *TimescaleDBData `json:"timescaledb,omitempty"`
 	GRPC        *GRPCData        `json:"grpc,omitempty"`
 	APRS        *APRSData        `json:"aprs,omitempty"`
@@ -62,16 +191,6 @@ type ControllerData struct {
 }
 
 // Storage backend configuration structs
-type InfluxDBData struct {
-	Scheme   string `json:"scheme"`
-	Host     string `json:"host"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Database string `json:"database"`
-	Port     int    `json:"port,omitempty"`
-	Protocol string `json:"protocol,omitempty"`
-}
-
 type TimescaleDBData struct {
 	ConnectionString string `json:"connection_string"`
 }
@@ -145,4 +264,332 @@ type ManagementAPIData struct {
 	ListenAddr string `json:"listen_addr,omitempty"`
 	AuthToken  string `json:"auth_token,omitempty"`
 	EnableCORS bool   `json:"enable_cors,omitempty"`
+}
+
+// ValidateConfig performs comprehensive validation of configuration data
+func ValidateConfig(config *ConfigData) []ValidationError {
+	var errors []ValidationError
+
+	// Validate devices
+	deviceNames := make(map[string]bool)
+	for i, device := range config.Devices {
+		// Check for duplicate device names
+		if deviceNames[device.Name] {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("devices[%d].name", i),
+				Value:   device.Name,
+				Message: "duplicate device name",
+			})
+		}
+		deviceNames[device.Name] = true
+
+		// Validate device name
+		if device.Name == "" {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("devices[%d].name", i),
+				Value:   "",
+				Message: "device name is required",
+			})
+		}
+
+		// Validate device type
+		validTypes := []string{"campbellscientific", "davis", "snowgauge"}
+		if !contains(validTypes, device.Type) {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("devices[%d].type", i),
+				Value:   device.Type,
+				Message: fmt.Sprintf("invalid device type, must be one of: %v", validTypes),
+			})
+		}
+
+		// Validate connection settings
+		hasSerial := device.SerialDevice != ""
+		hasNetwork := device.Hostname != "" && device.Port != ""
+
+		if !hasSerial && !hasNetwork {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("devices[%d]", i),
+				Value:   device.Name,
+				Message: "device must have either serial_device or both hostname and port configured",
+			})
+		}
+
+		// Validate snow gauge specific settings
+		if device.Type == "snowgauge" {
+			if device.BaseSnowDistance <= 0 {
+				errors = append(errors, ValidationError{
+					Field:   fmt.Sprintf("devices[%d].base_snow_distance", i),
+					Value:   fmt.Sprintf("%d", device.BaseSnowDistance),
+					Message: "snow gauge must have base_snow_distance > 0",
+				})
+			}
+		}
+
+		// Validate solar configuration if present
+		if device.Solar.Latitude != 0 || device.Solar.Longitude != 0 {
+			if device.Solar.Latitude < -90 || device.Solar.Latitude > 90 {
+				errors = append(errors, ValidationError{
+					Field:   fmt.Sprintf("devices[%d].solar.latitude", i),
+					Value:   fmt.Sprintf("%.6f", device.Solar.Latitude),
+					Message: "latitude must be between -90 and 90 degrees",
+				})
+			}
+			if device.Solar.Longitude < -180 || device.Solar.Longitude > 180 {
+				errors = append(errors, ValidationError{
+					Field:   fmt.Sprintf("devices[%d].solar.longitude", i),
+					Value:   fmt.Sprintf("%.6f", device.Solar.Longitude),
+					Message: "longitude must be between -180 and 180 degrees",
+				})
+			}
+		}
+	}
+
+	// Validate controllers
+	for i, controller := range config.Controllers {
+		if controller.Type == "" {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("controllers[%d].type", i),
+				Value:   "",
+				Message: "controller type is required",
+			})
+			continue
+		}
+
+		// Validate controller-specific configurations
+		switch controller.Type {
+		case "rest":
+			if controller.RESTServer != nil {
+				if controller.RESTServer.Port <= 0 || controller.RESTServer.Port > 65535 {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].rest.port", i),
+						Value:   fmt.Sprintf("%d", controller.RESTServer.Port),
+						Message: "port must be between 1 and 65535",
+					})
+				}
+
+				// Validate pull-from-device exists
+				if controller.RESTServer.WeatherSiteConfig.PullFromDevice != "" {
+					if !deviceNames[controller.RESTServer.WeatherSiteConfig.PullFromDevice] {
+						errors = append(errors, ValidationError{
+							Field:   fmt.Sprintf("controllers[%d].rest.weather_site.pull_from_device", i),
+							Value:   controller.RESTServer.WeatherSiteConfig.PullFromDevice,
+							Message: "pull_from_device references non-existent device",
+						})
+					}
+				}
+
+				// Validate snow device if enabled
+				if controller.RESTServer.WeatherSiteConfig.SnowEnabled {
+					if controller.RESTServer.WeatherSiteConfig.SnowDevice == "" {
+						errors = append(errors, ValidationError{
+							Field:   fmt.Sprintf("controllers[%d].rest.weather_site.snow_device", i),
+							Value:   "",
+							Message: "snow_device is required when snow is enabled",
+						})
+					} else if !deviceNames[controller.RESTServer.WeatherSiteConfig.SnowDevice] {
+						errors = append(errors, ValidationError{
+							Field:   fmt.Sprintf("controllers[%d].rest.weather_site.snow_device", i),
+							Value:   controller.RESTServer.WeatherSiteConfig.SnowDevice,
+							Message: "snow_device references non-existent device",
+						})
+					}
+				}
+			}
+		case "management":
+			if controller.ManagementAPI != nil {
+				if controller.ManagementAPI.Port <= 0 || controller.ManagementAPI.Port > 65535 {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].management.port", i),
+						Value:   fmt.Sprintf("%d", controller.ManagementAPI.Port),
+						Message: "port must be between 1 and 65535",
+					})
+				}
+			}
+		case "pwsweather":
+			if controller.PWSWeather != nil {
+				if controller.PWSWeather.StationID == "" {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].pwsweather.station_id", i),
+						Value:   "",
+						Message: "PWS Weather station_id is required",
+					})
+				}
+				if controller.PWSWeather.APIKey == "" {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].pwsweather.api_key", i),
+						Value:   "",
+						Message: "PWS Weather api_key is required",
+					})
+				}
+				if controller.PWSWeather.PullFromDevice != "" && !deviceNames[controller.PWSWeather.PullFromDevice] {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].pwsweather.pull_from_device", i),
+						Value:   controller.PWSWeather.PullFromDevice,
+						Message: "pull_from_device references non-existent device",
+					})
+				}
+			}
+		case "weatherunderground":
+			if controller.WeatherUnderground != nil {
+				if controller.WeatherUnderground.StationID == "" {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].weatherunderground.station_id", i),
+						Value:   "",
+						Message: "Weather Underground station_id is required",
+					})
+				}
+				if controller.WeatherUnderground.APIKey == "" {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].weatherunderground.api_key", i),
+						Value:   "",
+						Message: "Weather Underground api_key is required",
+					})
+				}
+				if controller.WeatherUnderground.PullFromDevice != "" && !deviceNames[controller.WeatherUnderground.PullFromDevice] {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].weatherunderground.pull_from_device", i),
+						Value:   controller.WeatherUnderground.PullFromDevice,
+						Message: "pull_from_device references non-existent device",
+					})
+				}
+			}
+		case "aerisweather":
+			if controller.AerisWeather != nil {
+				if controller.AerisWeather.APIClientID == "" {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].aerisweather.api_client_id", i),
+						Value:   "",
+						Message: "Aeris Weather api_client_id is required",
+					})
+				}
+				if controller.AerisWeather.APIClientSecret == "" {
+					errors = append(errors, ValidationError{
+						Field:   fmt.Sprintf("controllers[%d].aerisweather.api_client_secret", i),
+						Value:   "",
+						Message: "Aeris Weather api_client_secret is required",
+					})
+				}
+			}
+		}
+	}
+
+	return errors
+}
+
+// ValidationError represents a configuration validation error
+type ValidationError struct {
+	Field   string `json:"field"`
+	Value   string `json:"value"`
+	Message string `json:"message"`
+}
+
+func (ve ValidationError) Error() string {
+	return fmt.Sprintf("%s: %s (value: %s)", ve.Field, ve.Message, ve.Value)
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// Individual device management methods
+
+// GetDevice retrieves a specific device by name
+func (c *CachedConfigProvider) GetDevice(name string) (*DeviceData, error) {
+	return c.provider.GetDevice(name)
+}
+
+// AddDevice adds a new device and invalidates cache
+func (c *CachedConfigProvider) AddDevice(device *DeviceData) error {
+	err := c.provider.AddDevice(device)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// UpdateDevice updates an existing device and invalidates cache
+func (c *CachedConfigProvider) UpdateDevice(name string, device *DeviceData) error {
+	err := c.provider.UpdateDevice(name, device)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// DeleteDevice removes a device and invalidates cache
+func (c *CachedConfigProvider) DeleteDevice(name string) error {
+	err := c.provider.DeleteDevice(name)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// Individual storage management methods
+
+// AddStorageConfig adds a new storage configuration and invalidates cache
+func (c *CachedConfigProvider) AddStorageConfig(storageType string, config interface{}) error {
+	err := c.provider.AddStorageConfig(storageType, config)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// UpdateStorageConfig updates an existing storage configuration and invalidates cache
+func (c *CachedConfigProvider) UpdateStorageConfig(storageType string, config interface{}) error {
+	err := c.provider.UpdateStorageConfig(storageType, config)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// DeleteStorageConfig removes a storage configuration and invalidates cache
+func (c *CachedConfigProvider) DeleteStorageConfig(storageType string) error {
+	err := c.provider.DeleteStorageConfig(storageType)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// Individual controller management methods
+
+// GetController retrieves a specific controller by type
+func (c *CachedConfigProvider) GetController(controllerType string) (*ControllerData, error) {
+	return c.provider.GetController(controllerType)
+}
+
+// AddController adds a new controller and invalidates cache
+func (c *CachedConfigProvider) AddController(controller *ControllerData) error {
+	err := c.provider.AddController(controller)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// UpdateController updates an existing controller and invalidates cache
+func (c *CachedConfigProvider) UpdateController(controllerType string, controller *ControllerData) error {
+	err := c.provider.UpdateController(controllerType, controller)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// DeleteController removes a controller and invalidates cache
+func (c *CachedConfigProvider) DeleteController(controllerType string) error {
+	err := c.provider.DeleteController(controllerType)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
 }
