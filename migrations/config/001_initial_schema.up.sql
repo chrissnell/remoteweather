@@ -32,15 +32,6 @@ CREATE TABLE storage_configs (
     backend_type TEXT NOT NULL,
     enabled BOOLEAN DEFAULT TRUE,
     
-    -- InfluxDB fields
-    influx_scheme TEXT,
-    influx_host TEXT,
-    influx_username TEXT,
-    influx_password TEXT,
-    influx_database TEXT,
-    influx_port INTEGER,
-    influx_protocol TEXT,
-    
     -- TimescaleDB fields
     timescale_connection_string TEXT,
     

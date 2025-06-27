@@ -109,15 +109,12 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 	query := `
 		SELECT backend_type, enabled,
-		       -- InfluxDB fields
-		       influx_scheme, influx_host, influx_username, influx_password,
-		       influx_database, influx_port, influx_protocol,
 		       -- TimescaleDB fields
 		       timescale_connection_string,
 		       -- gRPC fields
 		       grpc_cert, grpc_key, grpc_listen_addr, grpc_port, grpc_pull_from_device,
 		       -- APRS fields
-		       aprs_callsign, aprs_passcode, aprs_server, aprs_latitude, aprs_longitude
+		       aprs_callsign, aprs_passcode, aprs_server, aprs_location_lat, aprs_location_lon
 		FROM storage_configs 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default') AND enabled = 1
 	`
@@ -133,8 +130,6 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 	for rows.Next() {
 		var backendType string
 		var enabled bool
-		var influxScheme, influxHost, influxUsername, influxPassword, influxDatabase, influxProtocol sql.NullString
-		var influxPort sql.NullInt64
 		var timescaleConnectionString sql.NullString
 		var grpcCert, grpcKey, grpcListenAddr, grpcPullFromDevice sql.NullString
 		var grpcPort sql.NullInt64
@@ -143,8 +138,6 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 
 		err := rows.Scan(
 			&backendType, &enabled,
-			&influxScheme, &influxHost, &influxUsername, &influxPassword,
-			&influxDatabase, &influxPort, &influxProtocol,
 			&timescaleConnectionString,
 			&grpcCert, &grpcKey, &grpcListenAddr, &grpcPort, &grpcPullFromDevice,
 			&aprsCallsign, &aprsPasscode, &aprsServer, &aprsLat, &aprsLon,
@@ -154,18 +147,6 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 		}
 
 		switch backendType {
-		case "influxdb":
-			if influxHost.Valid && influxDatabase.Valid {
-				storage.InfluxDB = &InfluxDBData{
-					Scheme:   influxScheme.String,
-					Host:     influxHost.String,
-					Username: influxUsername.String,
-					Password: influxPassword.String,
-					Database: influxDatabase.String,
-					Port:     int(influxPort.Int64),
-					Protocol: influxProtocol.String,
-				}
-			}
 		case "timescaledb":
 			if timescaleConnectionString.Valid {
 				storage.TimescaleDB = &TimescaleDBData{
@@ -423,12 +404,6 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 }
 
 func (s *SQLiteProvider) insertStorageConfigs(tx *sql.Tx, configID int64, storage *StorageData) error {
-	if storage.InfluxDB != nil {
-		if err := s.insertInfluxDBConfig(tx, configID, storage.InfluxDB); err != nil {
-			return err
-		}
-	}
-
 	if storage.TimescaleDB != nil {
 		if err := s.insertTimescaleDBConfig(tx, configID, storage.TimescaleDB); err != nil {
 			return err
@@ -448,21 +423,6 @@ func (s *SQLiteProvider) insertStorageConfigs(tx *sql.Tx, configID int64, storag
 	}
 
 	return nil
-}
-
-func (s *SQLiteProvider) insertInfluxDBConfig(tx *sql.Tx, configID int64, influx *InfluxDBData) error {
-	query := `
-		INSERT INTO storage_configs (
-			config_id, backend_type, enabled,
-			influx_scheme, influx_host, influx_username, influx_password,
-			influx_database, influx_port, influx_protocol
-		) VALUES (?, 'influxdb', 1, ?, ?, ?, ?, ?, ?, ?)
-	`
-	_, err := tx.Exec(query, configID,
-		influx.Scheme, influx.Host, influx.Username, influx.Password,
-		influx.Database, influx.Port, influx.Protocol,
-	)
-	return err
 }
 
 func (s *SQLiteProvider) insertTimescaleDBConfig(tx *sql.Tx, configID int64, timescale *TimescaleDBData) error {
@@ -492,7 +452,7 @@ func (s *SQLiteProvider) insertAPRSConfig(tx *sql.Tx, configID int64, aprs *APRS
 	query := `
 		INSERT INTO storage_configs (
 			config_id, backend_type, enabled,
-			aprs_callsign, aprs_passcode, aprs_server, aprs_latitude, aprs_longitude
+			aprs_callsign, aprs_passcode, aprs_server, aprs_location_lat, aprs_location_lon
 		) VALUES (?, 'aprs', 1, ?, ?, ?, ?, ?)
 	`
 	_, err := tx.Exec(query, configID,

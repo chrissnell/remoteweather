@@ -37,7 +37,6 @@ type SolarConfig struct {
 // StorageConfig holds the configuration for various storage backends.
 // More than one storage backend can be used simultaneously
 type StorageConfig struct {
-	InfluxDB    InfluxDBConfig    `yaml:"influxdb,omitempty"`
 	TimescaleDB TimescaleDBConfig `yaml:"timescaledb,omitempty"`
 	GRPC        GRPCConfig        `yaml:"grpc,omitempty"`
 	APRS        APRSConfig        `yaml:"aprs,omitempty"`
@@ -55,15 +54,6 @@ type ControllerConfig struct {
 }
 
 // Storage backend configurations
-type InfluxDBConfig struct {
-	Scheme   string `yaml:"scheme,omitempty"`
-	Host     string `yaml:"host,omitempty"`
-	Port     int    `yaml:"port,omitempty"`
-	Username string `yaml:"username,omitempty"`
-	Password string `yaml:"password,omitempty"`
-	Database string `yaml:"database,omitempty"`
-	Protocol string `yaml:"protocol,omitempty"`
-}
 
 type TimescaleDBConfig struct {
 	ConnectionString string `yaml:"connection-string,omitempty"`

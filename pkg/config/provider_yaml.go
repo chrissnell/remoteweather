@@ -65,17 +65,6 @@ func (y *YAMLProvider) LoadConfig() (*ConfigData, error) {
 
 	// Convert storage
 	config.Storage = StorageData{}
-	if yamlConfig.Storage.InfluxDB != nil {
-		config.Storage.InfluxDB = &InfluxDBData{
-			Scheme:   yamlConfig.Storage.InfluxDB.Scheme,
-			Host:     yamlConfig.Storage.InfluxDB.Host,
-			Username: yamlConfig.Storage.InfluxDB.Username,
-			Password: yamlConfig.Storage.InfluxDB.Password,
-			Database: yamlConfig.Storage.InfluxDB.Database,
-			Port:     yamlConfig.Storage.InfluxDB.Port,
-			Protocol: yamlConfig.Storage.InfluxDB.Protocol,
-		}
-	}
 	if yamlConfig.Storage.TimescaleDB != nil {
 		config.Storage.TimescaleDB = &TimescaleDBData{
 			ConnectionString: yamlConfig.Storage.TimescaleDB.ConnectionString,
@@ -234,20 +223,9 @@ type SolarYAML struct {
 }
 
 type StorageYAML struct {
-	InfluxDB    *InfluxDBYAML    `yaml:"influxdb,omitempty"`
 	TimescaleDB *TimescaleDBYAML `yaml:"timescaledb,omitempty"`
 	GRPC        *GRPCYAML        `yaml:"grpc,omitempty"`
 	APRS        *APRSYAML        `yaml:"aprs,omitempty"`
-}
-
-type InfluxDBYAML struct {
-	Scheme   string `yaml:"scheme"`
-	Host     string `yaml:"host"`
-	Username string `yaml:"username,omitempty"`
-	Password string `yaml:"password,omitempty"`
-	Database string `yaml:"database"`
-	Port     int    `yaml:"port,omitempty"`
-	Protocol string `yaml:"protocol,omitempty"`
 }
 
 type TimescaleDBYAML struct {

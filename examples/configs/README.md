@@ -50,7 +50,7 @@ Configure your weather stations and sensors:
 ### Storage
 Choose your data storage backends:
 - **TimescaleDB**: Recommended for production (PostgreSQL + time-series)
-- **InfluxDB**: Alternative time-series database
+
 - **gRPC**: Real-time streaming for client applications
 - **APRS**: Automatic Packet Reporting System for ham radio
 
