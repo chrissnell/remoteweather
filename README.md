@@ -52,3 +52,12 @@ To use Dockerized **remoteweather**, follow these steps:
 remoteweather includes a built-in **gRPC** server that can serve up a stream of live weather readings to compatible clients.  I have written an example client, [grpc-weather-bar](https://github.com/chrissnell/grpc-weather-bar), that reads live weather from remoteweather over the network and display it within [Polybar](https://github.com/jaagr/polybar), a desktop stats bar for Linux.  
 
 If you would like to build your own client, have a look at the [protobuf spec](https://github.com/chrissnell/remoteweather/blob/master/protobuf/grpcweather.proto).
+
+## Documentation
+
+Additional documentation can be found in the [docs/](docs/) directory:
+
+- [Dynamic Configuration Reloading](docs/DYNAMIC_CONFIG.md) - How to reload configuration without restarting the service
+- [SQLite Configuration Backend](docs/SQLITE_CONFIG_BACKEND.md) - Using SQLite instead of YAML for configuration
+- [Commands](docs/COMMANDS.md) - Command-line utilities and tools
+- [Packaging](docs/PACKAGING.md) - Information about building and packaging
