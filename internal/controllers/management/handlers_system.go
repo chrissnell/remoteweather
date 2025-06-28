@@ -378,20 +378,6 @@ func (h *Handlers) readUSBInfoFromSysfs(sysfsPath string, port *SerialPortInfo) 
 	return port.VendorID != "" || port.ProductID != ""
 }
 
-func (h *Handlers) parseByIdDeviceName(device string, port *SerialPortInfo) {
-	// Extract info from /dev/serial/by-id/ device names
-	// Format is usually: usb-Vendor_Product_SerialNumber-if00-port0
-	name := filepath.Base(device)
-	if strings.HasPrefix(name, "usb-") {
-		parts := strings.Split(name, "-")
-		if len(parts) >= 2 {
-			vendorProduct := parts[1]
-			// Replace underscores with spaces for better readability
-			port.Description = strings.ReplaceAll(vendorProduct, "_", " ")
-		}
-	}
-}
-
 func (h *Handlers) getDarwinUSBInfo(port *SerialPortInfo) {
 	// Use ioreg to get USB device information
 	// This is a simplified version - full implementation would parse ioreg output
