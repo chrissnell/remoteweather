@@ -553,7 +553,13 @@ func (s *Station) GetDavisLoopPackets(n int) error {
 		}
 	}
 
-	time.Sleep(1 * time.Second)
+	// Wait for 1 second but respect context cancellation
+	select {
+	case <-time.After(1 * time.Second):
+	case <-s.ctx.Done():
+		s.logger.Info("cancellation request received. Cancelling GetDavisLoopPackets() during initial wait")
+		return nil
+	}
 
 	tries := 1
 
@@ -565,7 +571,13 @@ func (s *Station) GetDavisLoopPackets(n int) error {
 
 	for l := 0; l < n; l++ {
 
-		time.Sleep(1 * time.Second)
+		// Wait for 1 second but respect context cancellation
+		select {
+		case <-time.After(1 * time.Second):
+		case <-s.ctx.Done():
+			s.logger.Info("cancellation request received. Cancelling GetDavisLoopPackets() during loop wait")
+			return nil
+		}
 
 		if tries > maxTries {
 			s.logger.Error("max retries exceeded while getting loop data")
