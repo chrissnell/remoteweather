@@ -313,8 +313,27 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) {
 	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*h.controller.FS, "index.html.tmpl"))
 
+	// Create a template data structure with AboutStationHTML as safe HTML
+	templateData := struct {
+		StationName      string
+		PullFromDevice   string
+		SnowEnabled      bool
+		SnowDevice       string
+		SnowBaseDistance float32
+		PageTitle        string
+		AboutStationHTML htmltemplate.HTML // Convert to template.HTML to prevent escaping
+	}{
+		StationName:      h.controller.WeatherSiteConfig.StationName,
+		PullFromDevice:   h.controller.WeatherSiteConfig.PullFromDevice,
+		SnowEnabled:      h.controller.WeatherSiteConfig.SnowEnabled,
+		SnowDevice:       h.controller.WeatherSiteConfig.SnowDevice,
+		SnowBaseDistance: h.controller.WeatherSiteConfig.SnowBaseDistance,
+		PageTitle:        h.controller.WeatherSiteConfig.PageTitle,
+		AboutStationHTML: htmltemplate.HTML(h.controller.WeatherSiteConfig.AboutStationHTML),
+	}
+
 	w.Header().Set("Content-Type", "text/html")
-	err := view.Execute(w, h.controller.WeatherSiteConfig)
+	err := view.Execute(w, templateData)
 	if err != nil {
 		log.Error("error executing template:", err)
 		return
