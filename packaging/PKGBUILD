@@ -1,8 +1,8 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=remoteweather
 pkgver=5.0.0.rest_api
-pkgrel=1
-pkgdesc="Weather station data collection and distribution system with REST API and clean architecture"
+pkgrel=2
+pkgdesc="Weather station data collection and distribution system with REST API, management API, and dynamic configuration"
 arch=('x86_64' 'aarch64' 'armv7h')
 url="https://github.com/chrissnell/remoteweather"
 license=('Apache')
@@ -33,7 +33,10 @@ build() {
     go build -o config-convert ./cmd/config-convert/
     go build -o config-test ./cmd/config-test/
     go build -o migrate ./cmd/migrate/
+    
+    # Build emulators for development/testing
     go build -o campbell-emulator ./cmd/campbell-emulator/
+    go build -o davis-emulator ./cmd/davis-emulator/
 }
 
 check() {
@@ -56,6 +59,7 @@ package() {
     
     # Install development/testing tools
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
+    install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
     
     # Install systemd service
     install -Dm644 "$srcdir/remoteweather.service" "$pkgdir/usr/lib/systemd/system/remoteweather.service"
@@ -77,7 +81,10 @@ package() {
     
     # Install documentation
     install -Dm644 README.md "$pkgdir/usr/share/doc/remoteweather/README.md"
-    install -Dm644 SQLITE_CONFIG_BACKEND.md "$pkgdir/usr/share/doc/remoteweather/SQLITE_CONFIG_BACKEND.md"
+    
+    # Install docs directory
+    install -dm755 "$pkgdir/usr/share/doc/remoteweather/docs"
+    install -Dm644 docs/*.md "$pkgdir/usr/share/doc/remoteweather/docs/"
     
     # Install migration files
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
