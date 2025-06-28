@@ -16,6 +16,22 @@ const FORECAST_REFRESH_INTERVAL = 1000 * 60 * 60 * 4; // 4 hours
 // Debug flag based on URL parameter
 const debug = new URLSearchParams(window.location.search).get('debug') === '1';
 
+// DOM element cache for performance
+const domCache = new Map();
+
+// Optimized DOM element accessor with caching
+function getCachedElement(elementId) {
+    if (!domCache.has(elementId)) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            domCache.set(elementId, element);
+        } else if (debug) {
+            console.warn(`Element not found: ${elementId}`);
+        }
+    }
+    return domCache.get(elementId);
+}
+
 // Forecast tab configuration
 let forecastTabList = {
     "week": {
@@ -157,25 +173,38 @@ let chartList = {
 
 // Initialize on DOM content loaded
 document.addEventListener('DOMContentLoaded', function () {
-    forecastLastRefreshedElement = document.getElementById('observations-last-updated');
-    fetchAndCreateCharts("day");
+    forecastLastRefreshedElement = getCachedElement('observations-last-updated');
+    
+    // Start all initial data fetching in parallel for faster loading
+    Promise.all([
+        fetchAndCreateCharts("day"),
+        refreshLiveReadings(),
+        refreshWeekForecastData(),
+        refreshDayForecastData()
+    ]).catch(error => {
+        if (debug) console.error('Error during initial data loading:', error);
+    });
+    
+    // Set up event listeners for chart tabs
     for (let key in chartTabList) {
-        const element = document.getElementById(chartTabList[key].elementIdVal);
-        element.addEventListener("click", function () {
-            clearCharts();
-            fetchAndCreateCharts(key);
-        });
+        const element = getCachedElement(chartTabList[key].elementIdVal);
+        if (element) {
+            element.addEventListener("click", function () {
+                clearCharts();
+                fetchAndCreateCharts(key);
+            });
+        }
     }
-    refreshLiveReadings();
-    refreshWeekForecastData();
-    refreshDayForecastData();
+    
     setInterval(incrementObservationTimer, 1000);
 });
 
 // Increment timer for last refreshed display
 function incrementObservationTimer() {
     secondsSinceForecastRefreshed++;
-    forecastLastRefreshedElement.innerHTML = "Last refreshed " + secondsSinceForecastRefreshed + "s ago";
+    if (forecastLastRefreshedElement) {
+        forecastLastRefreshedElement.innerHTML = "Last refreshed " + secondsSinceForecastRefreshed + "s ago";
+    }
 }
 
 // Clear charts and timers
@@ -192,105 +221,155 @@ function clearCharts() {
     }
 }
 
-// Fetch data for a given tab and station
-async function fetchData(tabKey, station) {
+// Optimized fetch with error handling and timeout
+async function fetchWithTimeout(url, timeout = 10000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
     try {
-        const response = await fetch(`/span/${chartTabList[tabKey].spanHours}h?station=${station}`);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         return response.json();
     } catch (error) {
-        if (debug) console.error(`Failed to fetch data for ${tabKey}:`, error);
+        clearTimeout(timeoutId);
+        if (debug) console.error(`Failed to fetch ${url}:`, error);
         return null;
     }
 }
 
-// Process fetched data into chart series
+// Fetch data for a given tab and station
+async function fetchData(tabKey, station) {
+    return fetchWithTimeout(`/span/${chartTabList[tabKey].spanHours}h?station=${station}`);
+}
+
+// Process fetched data into chart series (optimized)
 function processData(data, chartList) {
-    if (!data) return;
-    const modVal = Math.floor(data.length / 50);
-    data.forEach((item, index) => {
+    if (!data || !Array.isArray(data)) return;
+    
+    const modVal = Math.max(1, Math.floor(data.length / 50));
+    const dataLength = data.length;
+    
+    // Pre-allocate arrays for better performance
+    chartList.temperature.initialSeries = new Array(dataLength);
+    chartList.humidity.initialSeries = new Array(dataLength);
+    chartList.barometer.initialSeries = new Array(dataLength);
+    chartList.windspeed.initialSeries = new Array(dataLength);
+    chartList.rainfall.initialSeries = new Array(dataLength);
+    chartList.voltage.initialSeries = new Array(dataLength);
+    chartList.solarwatts.initialSeries = new Array(dataLength);
+    
+    if (chartList.solarwatts.additionalSeries) {
+        chartList.solarwatts.additionalSeries[0].data = new Array(dataLength);
+    }
+    
+    let windDirectionIndex = 0;
+    chartList.winddirection.initialSeries = [];
+    
+    // Single loop to process all data
+    for (let i = 0; i < dataLength; i++) {
+        const item = data[i];
         const ts = item.ts;
-        chartList.temperature.initialSeries.push([ts, item.otemp]);
-        chartList.humidity.initialSeries.push([ts, item.outhumidity]);
-        chartList.barometer.initialSeries.push([ts, item.bar]);
-        chartList.windspeed.initialSeries.push([ts, item.winds]);
-        chartList.rainfall.initialSeries.push([ts, item.period_rain]);
-        chartList.voltage.initialSeries.push([ts, item.stationbatteryvoltage]);
-        chartList.solarwatts.initialSeries.push([ts, item.solarwatts]);
+        
+        chartList.temperature.initialSeries[i] = [ts, item.otemp];
+        chartList.humidity.initialSeries[i] = [ts, item.outhumidity];
+        chartList.barometer.initialSeries[i] = [ts, item.bar];
+        chartList.windspeed.initialSeries[i] = [ts, item.winds];
+        chartList.rainfall.initialSeries[i] = [ts, item.period_rain];
+        chartList.voltage.initialSeries[i] = [ts, item.stationbatteryvoltage];
+        chartList.solarwatts.initialSeries[i] = [ts, item.solarwatts];
+        
         if (chartList.solarwatts.additionalSeries) {
-            chartList.solarwatts.additionalSeries[0].data.push([ts, item.potentialsolarwatts]);
+            chartList.solarwatts.additionalSeries[0].data[i] = [ts, item.potentialsolarwatts];
         }
-        if (index % modVal === 0 || data.length < 50) {
+        
+        if (i % modVal === 0 || dataLength < 50) {
             chartList.winddirection.initialSeries.push([ts, 5, item.winds, item.windd]);
         }
-    });
+    }
 }
 
-// Create charts for all metrics
+// Create charts for all metrics (parallelized)
 function createCharts(tabKey, chartList) {
+    const chartPromises = [];
+    
     for (let key in chartList) {
-        const chartElement = document.getElementById(`${chartList[key].divId}${chartTabList[tabKey].graphDivSuffix}`);
-        const options = {
-            yAxisTitle: chartList[key].yAxisLabel,
-            chartType: chartList[key].chartType,
-            tooltipFormat: chartList[key].chartType === 'vector' ? {
-                pointFormat: '{date point.x}<br/>Speed: <b>{point.length:.1f} MPH</b><br/>Direction: <b>{point.direction:.0f}\u00B0</b>'
-            } : { valueDecimals: 2 },
-            ...(chartList[key].additionalSeries ? { additionalSeries: chartList[key].additionalSeries } : {})
-        };
-        chartList[key].chart = createChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, options);
+        const chartElement = getCachedElement(`${chartList[key].divId}${chartTabList[tabKey].graphDivSuffix}`);
+        if (chartElement) {
+            const options = {
+                yAxisTitle: chartList[key].yAxisLabel,
+                chartType: chartList[key].chartType,
+                tooltipFormat: chartList[key].chartType === 'vector' ? {
+                    pointFormat: '{date point.x}<br/>Speed: <b>{point.length:.1f} MPH</b><br/>Direction: <b>{point.direction:.0f}\u00B0</b>'
+                } : { valueDecimals: 2 },
+                ...(chartList[key].additionalSeries ? { additionalSeries: chartList[key].additionalSeries } : {})
+            };
+            
+            // Create charts in parallel using requestAnimationFrame for better performance
+            chartPromises.push(new Promise(resolve => {
+                requestAnimationFrame(() => {
+                    chartList[key].chart = createChart(key, chartElement, chartList[key].initialSeries, chartList[key].title, options);
+                    resolve();
+                });
+            }));
+        }
     }
+    
+    return Promise.all(chartPromises);
 }
 
-// Fetch data and create charts for a tab
+// Fetch data and create charts for a tab (optimized with parallel requests)
 async function fetchAndCreateCharts(tabKey) {
-    const data = await fetchData(tabKey, '{{ .PullFromDevice }}');
-    if (!data) return;
-    processData(data, chartList);
-    createCharts(tabKey, chartList);
-
+    const fetchPromises = [
+        fetchData(tabKey, '{{ .PullFromDevice }}')
+    ];
+    
     {{- if .SnowEnabled }}
-    const snowData = await fetchData(tabKey, '{{ .SnowDevice }}');
-    if (snowData) {
-        snowData.forEach(item => {
-            chartList.snowdepth.initialSeries.push([item.ts, item.snowdepth]);
-        });
-        const snowChartElement = document.getElementById(`${chartList.snowdepth.divId}${chartTabList[tabKey].graphDivSuffix}`);
-        chartList.snowdepth.chart = createChart('snowdepth', snowChartElement, chartList.snowdepth.initialSeries, chartList.snowdepth.title, {
-            yAxisTitle: chartList.snowdepth.yAxisLabel,
-            chartType: chartList.snowdepth.chartType,
-            tooltipFormat: { valueDecimals: 2 }
-        });
-    }
+    fetchPromises.push(fetchData(tabKey, '{{ .SnowDevice }}'));
     {{- end }}
-
-    refreshData();
-    refreshWindDirectionData();
+    
+    try {
+        const results = await Promise.all(fetchPromises);
+        const [data, snowData] = results;
+        
+        if (!data) return;
+        
+        processData(data, chartList);
+        await createCharts(tabKey, chartList);
+        
+        {{- if .SnowEnabled }}
+        if (snowData) {
+            snowData.forEach(item => {
+                chartList.snowdepth.initialSeries.push([item.ts, item.snowdepth]);
+            });
+            const snowChartElement = getCachedElement(`${chartList.snowdepth.divId}${chartTabList[tabKey].graphDivSuffix}`);
+            if (snowChartElement) {
+                chartList.snowdepth.chart = createChart('snowdepth', snowChartElement, chartList.snowdepth.initialSeries, chartList.snowdepth.title, {
+                    yAxisTitle: chartList.snowdepth.yAxisLabel,
+                    chartType: chartList.snowdepth.chartType,
+                    tooltipFormat: { valueDecimals: 2 }
+                });
+            }
+        }
+        {{- end }}
+        
+        // Start refresh cycles
+        refreshData();
+        refreshWindDirectionData();
+    } catch (error) {
+        if (debug) console.error('Error fetching and creating charts:', error);
+    }
 }
 
 // Fetch the latest general weather data
 async function fetchLatestData(station) {
-    try {
-        const response = await fetch(`/latest?station=${station}`);
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-        return response.json();
-    } catch (error) {
-        if (debug) console.error(`Failed to fetch latest data for station ${station}:`, error);
-        return null;
-    }
+    return fetchWithTimeout(`/latest?station=${station}`);
 }
 
 {{- if .SnowEnabled }}
 // Fetch the latest snow data
 async function fetchSnowData(station) {
-    try {
-        const response = await fetch(`/snow?station=${station}`);
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-        return response.json();
-    } catch (error) {
-        if (debug) console.error(`Failed to fetch snow data for station ${station}:`, error);
-        return null;
-    }
+    return fetchWithTimeout(`/snow?station=${station}`);
 }
 {{- end }}
 
@@ -352,51 +431,65 @@ async function refreshWindDirectionData() {
     windDataRefresherTimer = setTimeout(refreshWindDirectionData, WIND_DATA_REFRESH_INTERVAL);
 }
 
-// Update DOM element only if value changed
+// Optimized DOM update with caching and change detection
 function updateIfChanged(elementId, newValue) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        if (element.innerHTML !== newValue) {
-            element.innerHTML = newValue;
-        }
-    } else if (debug) {
-        console.warn(`Element not found: ${elementId}`);
+    const element = getCachedElement(elementId);
+    if (element && element.innerHTML !== newValue) {
+        element.innerHTML = newValue;
     }
 }
 
-// Refresh live readings periodically
+// Refresh live readings periodically (optimized with parallel requests)
 async function refreshLiveReadings() {
-    const data = await fetchLatestData('{{ .PullFromDevice }}');
-    if (data) {
-        updateIfChanged('rdg-temperature', data.otemp.toFixed(2) + '°');
-        updateIfChanged('rdg-humidity', data.outhumidity.toFixed(0));
-        updateIfChanged('rdg-barometer', data.bar.toFixed(2));
-        updateIfChanged('rdg-windspeed', data.winds.toFixed(0));
-        updateIfChanged('rdg-winddir-cardinal', data.windcard);
-        const windDirElement = document.getElementById('rdg-winddir');
-        if (windDirElement) windDirElement.style.transform = `rotate(${data.windd}deg)`;
-        updateIfChanged('rdg-combined-windspeed', data.winds.toFixed(0));
-        updateIfChanged('rdg-combined-cardinal', data.windcard);
-        updateIfChanged('rdg-rainfall', data.dayrain.toFixed(2));
-    } else if (debug) {
-        console.warn('No data received from {{ .PullFromDevice }}');
-    }
+    try {
+        const fetchPromises = [fetchLatestData('{{ .PullFromDevice }}')];
+        
+        {{- if .SnowEnabled }}
+        fetchPromises.push(fetchSnowData('{{ .SnowDevice }}'));
+        {{- end }}
+        
+        const results = await Promise.all(fetchPromises);
+        const [data, snowData] = results;
+        
+        if (data) {
+            // Batch DOM updates for better performance
+            requestAnimationFrame(() => {
+                updateIfChanged('rdg-temperature', data.otemp.toFixed(2) + '°');
+                updateIfChanged('rdg-humidity', data.outhumidity.toFixed(0));
+                updateIfChanged('rdg-barometer', data.bar.toFixed(2));
+                updateIfChanged('rdg-windspeed', data.winds.toFixed(0));
+                updateIfChanged('rdg-winddir-cardinal', data.windcard);
+                updateIfChanged('rdg-combined-windspeed', data.winds.toFixed(0));
+                updateIfChanged('rdg-combined-cardinal', data.windcard);
+                updateIfChanged('rdg-rainfall', data.dayrain.toFixed(2));
+                
+                const windDirElement = getCachedElement('rdg-winddir');
+                if (windDirElement) windDirElement.style.transform = `rotate(${data.windd}deg)`;
+            });
+        } else if (debug) {
+            console.warn('No data received from {{ .PullFromDevice }}');
+        }
 
-    {{- if .SnowEnabled }}
-    const snowData = await fetchSnowData('{{ .SnowDevice }}');
-    if (snowData) {
-        if (debug) console.log('Snow data received:', snowData);
-        updateIfChanged('rdg-snow-depth', snowData.snowdepth?.toFixed(2) ?? 'N/A');
-        updateIfChanged('rdg-snow-since-midnight', snowData.snowtoday?.toFixed(2) ?? 'N/A');
-        updateIfChanged('rdg-snow-last-24h', snowData.snowlast24?.toFixed(2) ?? 'N/A');
-        updateIfChanged('rdg-snow-last-72h', snowData.snowlast72?.toFixed(2) ?? 'N/A');
-        updateIfChanged('rdg-snow-season', snowData.snowdepth ? (parseFloat(snowData.snowdepth) + 51).toFixed(2) : 'N/A');
-    } else if (debug) {
-        console.warn('No snow data received from {{ .SnowDevice }}');
-    }
-    {{- end }}
+        {{- if .SnowEnabled }}
+        if (snowData) {
+            if (debug) console.log('Snow data received:', snowData);
+            requestAnimationFrame(() => {
+                updateIfChanged('rdg-snow-depth', snowData.snowdepth?.toFixed(2) ?? 'N/A');
+                updateIfChanged('rdg-snow-since-midnight', snowData.snowtoday?.toFixed(2) ?? 'N/A');
+                updateIfChanged('rdg-snow-last-24h', snowData.snowlast24?.toFixed(2) ?? 'N/A');
+                updateIfChanged('rdg-snow-last-72h', snowData.snowlast72?.toFixed(2) ?? 'N/A');
+                updateIfChanged('rdg-snow-season', snowData.snowdepth ? (parseFloat(snowData.snowdepth) + 51).toFixed(2) : 'N/A');
+            });
+        } else if (debug) {
+            console.warn('No snow data received from {{ .SnowDevice }}');
+        }
+        {{- end }}
 
-    secondsSinceForecastRefreshed = 0;
+        secondsSinceForecastRefreshed = 0;
+    } catch (error) {
+        if (debug) console.error('Error refreshing live readings:', error);
+    }
+    
     setTimeout(refreshLiveReadings, LIVE_READINGS_REFRESH_INTERVAL);
 }
 
@@ -404,60 +497,56 @@ async function refreshLiveReadings() {
 async function refreshWeekForecastData() {
     if (debug) console.log("Fetching week forecast data...");
     try {
-        const response = await fetch('/forecast/168');
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-        const data = await response.json();
+        const data = await fetchWithTimeout('/forecast/168');
+        if (!data) {
+            setTimeout(refreshWeekForecastData, 60000);
+            return;
+        }
+        
         if (debug) console.log("Week forecast data received:", data);
 
         const dayToDayName = {
-            0: "Sunday",
-            1: "Monday",
-            2: "Tuesday",
-            3: "Wednesday",
-            4: "Thursday",
-            5: "Friday",
-            6: "Saturday",
-            7: "Sunday"
+            0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
+            4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"
         };
 
-        let i = 0;
-        for (const interval of data.data) {
-            let intervalDate = new Date(interval.dateTimeISO);
-            let dateLabel;
-            if (i === 0) {
-                dateLabel = "Today";
-            } else {
-                dateLabel = dayToDayName[intervalDate.getDay()];
+        // Batch DOM updates
+        requestAnimationFrame(() => {
+            let i = 0;
+            for (const interval of data.data) {
+                let intervalDate = new Date(interval.dateTimeISO);
+                let dateLabel = i === 0 ? "Today" : dayToDayName[intervalDate.getDay()];
+                
+                updateIfChanged(`week-forecast-interval-${i}-title`, dateLabel);
+                updateIfChanged(`week-forecast-interval-${i}-high-temp`, interval.maxTempF);
+                updateIfChanged(`week-forecast-interval-${i}-low-temp`, interval.minTempF);
+                updateIfChanged(`week-forecast-interval-${i}-icon`, interval.weatherIcon);
+                updateIfChanged(`week-forecast-interval-${i}-weather`, interval.compactWeather);
+
+                const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
+                const snow = snowRegex.test(interval.weatherPrimaryCoded);
+                const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
+                const rain = rainRegex.test(interval.weatherPrimaryCoded);
+
+                if (snow) {
+                    if (debug) console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
+                    updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "❄");
+                    updateIfChanged(`week-forecast-interval-${i}-precip`, interval.snowIN + "\"");
+                } else if (rain) {
+                    if (debug) console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
+                    updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "⛆");
+                    updateIfChanged(`week-forecast-interval-${i}-precip`, interval.precipIN + "\"");
+                } else {
+                    if (debug) console.log(`Week forecast interval ${i} - no precip`);
+                    updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "");
+                    updateIfChanged(`week-forecast-interval-${i}-precip`, "");
+                }
+                i++;
             }
-            updateIfChanged(`week-forecast-interval-${i}-title`, dateLabel);
-            updateIfChanged(`week-forecast-interval-${i}-high-temp`, interval.maxTempF);
-            updateIfChanged(`week-forecast-interval-${i}-low-temp`, interval.minTempF);
-            updateIfChanged(`week-forecast-interval-${i}-icon`, interval.weatherIcon);
-            updateIfChanged(`week-forecast-interval-${i}-weather`, interval.compactWeather);
 
-            const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
-            const snow = snowRegex.test(interval.weatherPrimaryCoded);
-            const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
-            const rain = rainRegex.test(interval.weatherPrimaryCoded);
-
-            if (snow) {
-                if (debug) console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
-                updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "❄");
-                updateIfChanged(`week-forecast-interval-${i}-precip`, interval.snowIN + "\"");
-            } else if (rain) {
-                if (debug) console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
-                updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "⛆");
-                updateIfChanged(`week-forecast-interval-${i}-precip`, interval.precipIN + "\"");
-            } else {
-                if (debug) console.log(`Week forecast interval ${i} - no precip`);
-                updateIfChanged(`week-forecast-interval-${i}-precip-icon`, "");
-                updateIfChanged(`week-forecast-interval-${i}-precip`, "");
-            }
-            i++;
-        }
-
-        const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
-        updateIfChanged('forecast-week-last-updated', "Last Updated: " + lastUpdated);
+            const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
+            updateIfChanged('forecast-week-last-updated', "Last Updated: " + lastUpdated);
+        });
 
         setTimeout(refreshWeekForecastData, FORECAST_REFRESH_INTERVAL);
     } catch (error) {
@@ -470,22 +559,15 @@ async function refreshWeekForecastData() {
 async function refreshDayForecastData() {
     if (debug) console.log("Fetching day forecast data...");
     try {
-        const response = await fetch('/forecast/24');
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-        const data = await response.json();
+        const data = await fetchWithTimeout('/forecast/24');
+        if (!data) {
+            setTimeout(refreshDayForecastData, 60000);
+            return;
+        }
+        
         if (debug) console.log("Day forecast data received:", data);
 
-        const dayToDayName = {
-            0: "Sun",
-            1: "Mon",
-            2: "Tue",
-            3: "Wed",
-            4: "Thu",
-            5: "Fri",
-            6: "Sat",
-            7: "Sun"
-        };
-
+        // Pre-calculate temperature scaling
         let pixelsPerDegree = 0;
         const tempSpreadPixels = 70;
         const avgTemps = data.data.map((x) => x.avgTempF);
@@ -496,49 +578,48 @@ async function refreshDayForecastData() {
             pixelsPerDegree = tempSpreadPixels / tempSpread;
         }
 
-        let i = 0;
-        for (const interval of data.data) {
-            let intervalDate = moment(interval.dateTimeISO, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ");
-            let dateLabel;
-            if (intervalDate.hour() === 0 || i === 0) {
-                dateLabel = intervalDate.format("h A[<BR>]ddd");
-            } else {
-                dateLabel = intervalDate.format("h A");
+        // Batch DOM updates
+        requestAnimationFrame(() => {
+            let i = 0;
+            for (const interval of data.data) {
+                let intervalDate = moment(interval.dateTimeISO, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ");
+                let dateLabel = (intervalDate.hour() === 0 || i === 0) 
+                    ? intervalDate.format("h A[<BR>]ddd") 
+                    : intervalDate.format("h A");
+                
+                updateIfChanged(`day-forecast-interval-${i}-title`, dateLabel);
+                updateIfChanged(`day-forecast-interval-${i}-avg-temp`, interval.avgTempF + "°");
+                updateIfChanged(`day-forecast-interval-${i}-icon`, interval.weatherIcon);
+
+                const adjustableDiv = getCachedElement(`day-forecast-interval-${i}-adjustable-div`);
+                if (adjustableDiv) {
+                    adjustableDiv.style.paddingTop = pixelsPerDegree * (highTemp - interval.avgTempF) + "px";
+                }
+
+                const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
+                const snow = snowRegex.test(interval.weatherPrimaryCoded);
+                const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
+                const rain = rainRegex.test(interval.weatherPrimaryCoded);
+
+                if (snow) {
+                    if (debug) console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
+                    updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "❄");
+                    updateIfChanged(`day-forecast-interval-${i}-precip`, interval.snowIN + "\"");
+                } else if (rain) {
+                    if (debug) console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
+                    updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "⛆");
+                    updateIfChanged(`day-forecast-interval-${i}-precip`, interval.precipIN + "\"");
+                } else {
+                    if (debug) console.log(`Day forecast interval ${i} - no precip`);
+                    updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "");
+                    updateIfChanged(`day-forecast-interval-${i}-precip`, interval.pop + "%");
+                }
+                i++;
             }
-            updateIfChanged(`day-forecast-interval-${i}-title`, dateLabel);
-            updateIfChanged(`day-forecast-interval-${i}-avg-temp`, interval.avgTempF + "°");
-            updateIfChanged(`day-forecast-interval-${i}-icon`, interval.weatherIcon);
 
-            const adjustableDiv = document.getElementById(`day-forecast-interval-${i}-adjustable-div`);
-            if (adjustableDiv) {
-                adjustableDiv.style.paddingTop = pixelsPerDegree * (highTemp - interval.avgTempF) + "px";
-            } else if (debug) {
-                console.warn(`Adjustable div not found for day-forecast-interval-${i}`);
-            }
-
-            const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
-            const snow = snowRegex.test(interval.weatherPrimaryCoded);
-            const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
-            const rain = rainRegex.test(interval.weatherPrimaryCoded);
-
-            if (snow) {
-                if (debug) console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
-                updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "❄");
-                updateIfChanged(`day-forecast-interval-${i}-precip`, interval.snowIN + "\"");
-            } else if (rain) {
-                if (debug) console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
-                updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "⛆");
-                updateIfChanged(`day-forecast-interval-${i}-precip`, interval.precipIN + "\"");
-            } else {
-                if (debug) console.log(`Day forecast interval ${i} - no precip`);
-                updateIfChanged(`day-forecast-interval-${i}-precip-icon`, "");
-                updateIfChanged(`day-forecast-interval-${i}-precip`, interval.pop + "%");
-            }
-            i++;
-        }
-
-        const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
-        updateIfChanged('forecast-day-last-updated', "Last Updated: " + lastUpdated);
+            const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
+            updateIfChanged('forecast-day-last-updated', "Last Updated: " + lastUpdated);
+        });
 
         setTimeout(refreshDayForecastData, FORECAST_REFRESH_INTERVAL);
     } catch (error) {
