@@ -6,7 +6,8 @@ import (
 
 // transformSpanReadings converts database readings to WeatherReading slice for JSON output
 func (h *Handlers) transformSpanReadings(dbReadings *[]types.BucketReading) []*WeatherReading {
-	wr := make([]*WeatherReading, 0)
+	// Pre-allocate slice with exact capacity to avoid multiple reallocations
+	wr := make([]*WeatherReading, 0, len(*dbReadings))
 
 	for _, r := range *dbReadings {
 		wr = append(wr, &WeatherReading{

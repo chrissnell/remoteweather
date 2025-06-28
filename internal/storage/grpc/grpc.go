@@ -174,7 +174,8 @@ func (g *Storage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSp
 }
 
 func (g *Storage) transformReadings(dbReadings *[]types.BucketReading) []*weather.WeatherReading {
-	grpcReadings := make([]*weather.WeatherReading, 0)
+	// Pre-allocate slice with exact capacity to avoid multiple reallocations
+	grpcReadings := make([]*weather.WeatherReading, 0, len(*dbReadings))
 
 	for _, r := range *dbReadings {
 		grpcReadings = append(grpcReadings, &weather.WeatherReading{
