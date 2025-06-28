@@ -105,7 +105,7 @@ func (h *Handlers) testDeviceConnection(device *config.DeviceData, timeoutSecond
 }
 
 func (h *Handlers) testTCPConnection(device *config.DeviceData, timeout time.Duration, start time.Time) ConnectivityTestResult {
-	address := fmt.Sprintf("%s:%s", device.Hostname, device.Port)
+	address := net.JoinHostPort(device.Hostname, device.Port)
 
 	conn, err := net.DialTimeout("tcp", address, timeout)
 	if err != nil {
