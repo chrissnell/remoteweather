@@ -160,19 +160,6 @@ func printDeviceDiff(yaml, sqlite config.DeviceData) {
 }
 
 func compareStorage(yaml, sqlite config.StorageData) {
-	// Compare InfluxDB
-	if (yaml.InfluxDB == nil) != (sqlite.InfluxDB == nil) {
-		fmt.Println("✗ InfluxDB configuration presence mismatch")
-	} else if yaml.InfluxDB != nil && sqlite.InfluxDB != nil {
-		if reflect.DeepEqual(*yaml.InfluxDB, *sqlite.InfluxDB) {
-			fmt.Println("✓ InfluxDB configuration matches")
-		} else {
-			fmt.Println("✗ InfluxDB configuration differs")
-		}
-	} else {
-		fmt.Println("✓ InfluxDB: both nil")
-	}
-
 	// Compare TimescaleDB
 	if (yaml.TimescaleDB == nil) != (sqlite.TimescaleDB == nil) {
 		fmt.Println("✗ TimescaleDB configuration presence mismatch")
