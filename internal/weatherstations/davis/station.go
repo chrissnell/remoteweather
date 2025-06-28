@@ -11,8 +11,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -421,117 +421,6 @@ func (s *Station) sendData(d []byte) error {
 	return nil
 }
 
-// sendDataWithCRC16 sends data to the Davis station with CRC16 checksum
-func (s *Station) sendDataWithCRC16(d []byte) error {
-	// Calculate CRC16 for the data
-	crc := crc16.Crc16(d)
-
-	// Append CRC to data (big-endian)
-	dataWithCRC := append(d, byte(crc>>8), byte(crc&0xFF))
-
-	tries := 0
-	for tries < maxTries {
-		_, err := s.Write(dataWithCRC)
-		if err != nil {
-			return fmt.Errorf("error writing data with CRC: %w", err)
-		}
-
-		// Read the response
-		response := make([]byte, 1)
-		_, err = s.rwc.Read(response)
-		if err != nil {
-			return fmt.Errorf("error reading response: %w", err)
-		}
-
-		if string(response) == ACK {
-			return nil
-		} else if string(response) == RESEND {
-			tries++
-			s.logger.Debugf("received RESEND, retrying (attempt %d/%d)", tries, maxTries)
-			continue
-		} else {
-			return fmt.Errorf("unexpected response: %x", response)
-		}
-	}
-
-	return fmt.Errorf("max retries exceeded")
-}
-
-// sendCommand sends a command to the Davis station and returns the response lines
-func (s *Station) sendCommand(command []byte) ([]string, error) {
-	err := s.sendData(command)
-	if err != nil {
-		return nil, fmt.Errorf("error sending command: %w", err)
-	}
-
-	// Read response until we get the prompt
-	var response []byte
-	buffer := make([]byte, 1)
-
-	for {
-		n, err := s.rwc.Read(buffer)
-		if err != nil {
-			return nil, fmt.Errorf("error reading command response: %w", err)
-		}
-
-		if n > 0 {
-			response = append(response, buffer[0])
-			// Check if we've reached the end (look for prompt)
-			if len(response) >= 2 && string(response[len(response)-2:]) == "\n\r" {
-				break
-			}
-		}
-	}
-
-	// Split response into lines
-	responseStr := string(response)
-	lines := strings.Split(responseStr, "\n")
-
-	// Remove empty lines and trim whitespace
-	var cleanLines []string
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" && line != "\r" {
-			cleanLines = append(cleanLines, line)
-		}
-	}
-
-	return cleanLines, nil
-}
-
-// getDataWithCRC16 gets data from the Davis station and verifies CRC16
-func (s *Station) getDataWithCRC16(numBytes int64, prompt string) ([]byte, error) {
-	// Send the prompt/command
-	err := s.sendData([]byte(prompt))
-	if err != nil {
-		return nil, fmt.Errorf("error sending prompt: %w", err)
-	}
-
-	// Read the specified number of bytes plus 2 for CRC
-	totalBytes := numBytes + 2
-	data := make([]byte, totalBytes)
-
-	bytesRead := 0
-	for bytesRead < int(totalBytes) {
-		n, err := s.rwc.Read(data[bytesRead:])
-		if err != nil {
-			return nil, fmt.Errorf("error reading data: %w", err)
-		}
-		bytesRead += n
-	}
-
-	// Verify CRC16
-	payload := data[:numBytes]
-	receivedCRC := binary.BigEndian.Uint16(data[numBytes:])
-	calculatedCRC := crc16.Crc16(payload)
-
-	if receivedCRC != calculatedCRC {
-		return nil, fmt.Errorf("CRC mismatch: received %x, calculated %x", receivedCRC, calculatedCRC)
-	}
-
-	return payload, nil
-}
-
 // GetDavisLoopPackets gets n LOOP packets from the Davis station
 func (s *Station) GetDavisLoopPackets(n int) error {
 	var err error
@@ -881,11 +770,61 @@ func (s *Station) convLittleVal10(v uint8) float32 {
 }
 
 func (s *Station) calcWindChill(temp float32, windSpeed float32) float32 {
-	// Implementation of wind chill calculation
-	return 0 // Placeholder, actual implementation needed
+	// For wind speeds < 3 or temps > 50, wind chill is just the current temperature
+	if (temp > 50) || (windSpeed < 3) {
+		return temp
+	}
+
+	w64 := float64(windSpeed)
+	return (35.74 + (0.6215 * temp) - (35.75 * float32(math.Pow(w64, 0.16))) + (0.4275 * temp * float32(math.Pow(w64, 0.16))))
 }
 
 func (s *Station) calcHeatIndex(temp float32, humidity float32) float32 {
-	// Implementation of heat index calculation
-	return 0 // Placeholder, actual implementation needed
+	// Heat indices don't make much sense at temps below 77° F, so just return the current temperature
+	if temp < 77 {
+		return temp
+	}
+
+	// First, we try Steadman's method, which is valid for all heat indices
+	// below 80° F
+	hi := 0.5 * (temp + 61.0 + ((temp - 68.0) * 1.2) + (humidity + 0.094))
+	if hi < 80 {
+		// Only return heat index if it's greater than the temperature
+		if hi > temp {
+			return hi
+		}
+		return temp
+	}
+
+	// Our heat index is > 80, so we need to use the Rothfusz method instead
+	c1 := -42.379
+	c2 := 2.04901523
+	c3 := 10.14333127
+	c4 := 0.22475541
+	c5 := 0.00683783
+	c6 := 0.05481717
+	c7 := 0.00122874
+	c8 := 0.00085282
+	c9 := 0.00000199
+
+	t64 := float64(temp)
+	h64 := float64(humidity)
+
+	hi64 := c1 + (c2 * t64) + (c3 * h64) - (c4 * t64 * h64) - (c5 * math.Pow(t64, 2)) - (c6 * math.Pow(h64, 2)) + (c7 * math.Pow(t64, 2) * h64) + (c8 * t64 * math.Pow(h64, 2)) - (c9 * math.Pow(t64, 2) * math.Pow(h64, 2))
+
+	// If RH < 13% and temperature is between 80 and 112, we need to subtract an adjustment
+	if humidity < 13 && temp >= 80 && temp <= 112 {
+		adj := ((13 - h64) / 4) * math.Sqrt((17-math.Abs(t64-95.0))/17)
+		hi64 = hi64 - adj
+	} else if humidity > 80 && temp >= 80 && temp <= 87 {
+		// Likewise, if RH > 80% and temperature is between 80 and 87, we need to add an adjustment
+		adj := ((h64 - 85.0) / 10) * ((87.0 - t64) / 5)
+		hi64 = hi64 + adj
+	}
+
+	// Only return heat index if it's greater than the temperature
+	if hi64 > t64 {
+		return float32(hi64)
+	}
+	return temp
 }
