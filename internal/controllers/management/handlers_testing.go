@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/pkg/config"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	serial "github.com/tarm/goserial"
 )
 
@@ -175,16 +175,21 @@ func (h *Handlers) TestDatabaseConnectivity(w http.ResponseWriter, r *http.Reque
 		connected := false
 		errorMessage := ""
 
-		// Try to connect to TimescaleDB
-		db, err := sql.Open("postgres", storage.TimescaleDB.ConnectionString)
+		// Try to connect to TimescaleDB using internal database package
+		db, err := database.CreateConnection(storage.TimescaleDB.ConnectionString)
 		if err != nil {
 			errorMessage = err.Error()
 		} else {
-			defer db.Close()
-			if err := db.Ping(); err != nil {
+			sqlDB, err := db.DB()
+			if err != nil {
 				errorMessage = err.Error()
 			} else {
-				connected = true
+				defer sqlDB.Close()
+				if err := sqlDB.Ping(); err != nil {
+					errorMessage = err.Error()
+				} else {
+					connected = true
+				}
 			}
 		}
 
@@ -556,15 +561,20 @@ func (h *Handlers) getCurrentWeatherFromDatabase(deviceName string, maxStaleMinu
 		return nil, fmt.Errorf("TimescaleDB storage not configured - cannot retrieve weather readings")
 	}
 
-	// Connect to TimescaleDB using the connection string
-	db, err := sql.Open("postgres", storage.TimescaleDB.ConnectionString)
+	// Connect to TimescaleDB using internal database package
+	gormDB, err := database.CreateConnection(storage.TimescaleDB.ConnectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get underlying SQL database: %w", err)
+	}
+	defer sqlDB.Close()
 
 	// Test the connection
-	if err := db.Ping(); err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		return nil, fmt.Errorf("database connection test failed: %w", err)
 	}
 
@@ -591,7 +601,7 @@ func (h *Handlers) getCurrentWeatherFromDatabase(deviceName string, maxStaleMinu
 	var snowDistance, snowDepth sql.NullFloat64
 	var consBatteryVoltage, stationBatteryVoltage sql.NullFloat64
 
-	err = db.QueryRow(query, deviceName).Scan(
+	err = sqlDB.QueryRow(query, deviceName).Scan(
 		&timestamp, &stationName, &stationType,
 		&barometer, &inTemp, &inHumidity, &outTemp,
 		&windSpeed, &windSpeed10, &windDir, &windChill, &heatIndex,
