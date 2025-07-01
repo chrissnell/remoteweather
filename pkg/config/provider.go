@@ -192,6 +192,7 @@ type SolarData struct {
 type StorageData struct {
 	TimescaleDB *TimescaleDBData `json:"timescaledb,omitempty"`
 	GRPC        *GRPCData        `json:"grpc,omitempty"`
+	APRS        *APRSData        `json:"aprs,omitempty"`
 }
 
 // ControllerData holds the configuration for various controller backends

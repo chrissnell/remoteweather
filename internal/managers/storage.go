@@ -64,30 +64,19 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 		}
 	}
 
-	// Check for APRS configuration in the new schema
-	controllers, err := configProvider.GetControllers()
-	if err == nil {
-		var hasAPRSController bool
-		for _, controller := range controllers {
-			if controller.Type == "aprs" && controller.APRS != nil && controller.APRS.Server != "" {
-				hasAPRSController = true
-				break
-			}
-		}
-
-		if hasAPRSController {
-			// Also check if we have station APRS configs
-			stationConfigs, err := configProvider.GetStationAPRSConfigs()
-			if err == nil && len(stationConfigs) > 0 {
-				// Check if at least one station is enabled
-				for _, station := range stationConfigs {
-					if station.Enabled && station.Callsign != "" {
-						err = s.AddEngine(ctx, wg, "aprs", configProvider)
-						if err != nil {
-							return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
-						}
-						break
+	// Check for APRS configuration in storage configs + station configs
+	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Server != "" {
+		// Also check if we have station APRS configs
+		stationConfigs, err := configProvider.GetStationAPRSConfigs()
+		if err == nil && len(stationConfigs) > 0 {
+			// Check if at least one station is enabled
+			for _, station := range stationConfigs {
+				if station.Enabled && station.Callsign != "" {
+					err = s.AddEngine(ctx, wg, "aprs", configProvider)
+					if err != nil {
+						return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
 					}
+					break
 				}
 			}
 		}
@@ -179,27 +168,17 @@ func (s *StorageManager) ReloadStorageConfig(ctx context.Context, wg *sync.WaitG
 		shouldBeActive["grpc"] = true
 	}
 
-	// Check for APRS configuration in the new schema
-	controllers, err := configProvider.GetControllers()
-	if err == nil {
-		var hasAPRSController bool
-		for _, controller := range controllers {
-			if controller.Type == "aprs" && controller.APRS != nil && controller.APRS.Server != "" {
-				hasAPRSController = true
-				break
-			}
-		}
-
-		if hasAPRSController {
-			// Also check if we have station APRS configs
-			stationConfigs, err := configProvider.GetStationAPRSConfigs()
-			if err == nil && len(stationConfigs) > 0 {
-				// Check if at least one station is enabled
-				for _, station := range stationConfigs {
-					if station.Enabled && station.Callsign != "" {
-						shouldBeActive["aprs"] = true
-						break
-					}
+	// Check for APRS configuration in storage configs + station configs
+	storageConfig, err := configProvider.GetStorageConfig()
+	if err == nil && storageConfig.APRS != nil && storageConfig.APRS.Server != "" {
+		// Also check if we have station APRS configs
+		stationConfigs, err := configProvider.GetStationAPRSConfigs()
+		if err == nil && len(stationConfigs) > 0 {
+			// Check if at least one station is enabled
+			for _, station := range stationConfigs {
+				if station.Enabled && station.Callsign != "" {
+					shouldBeActive["aprs"] = true
+					break
 				}
 			}
 		}

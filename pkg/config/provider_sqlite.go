@@ -194,7 +194,12 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 					PullFromDevice: grpcPullFromDevice.String,
 				}
 			}
-			// APRS case removed - now handled by separate methods
+		case "aprs":
+			if aprsServer.Valid {
+				storage.APRS = &APRSData{
+					Server: aprsServer.String,
+				}
+			}
 		}
 	}
 
@@ -218,9 +223,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
 		       -- Management API fields
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
-		       cc.management_auth_token, cc.management_enable_cors,
-		       -- APRS Server field
-		       cc.aprs_server
+		       cc.management_auth_token, cc.management_enable_cors
 		FROM controller_configs cc
 		WHERE cc.config_id = (SELECT id FROM configs WHERE name = 'default') AND cc.enabled = 1
 		ORDER BY cc.controller_type
@@ -245,7 +248,6 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 		var mgmtPort sql.NullInt64
 		var mgmtEnableCORS sql.NullBool
-		var aprsServer sql.NullString
 
 		err := rows.Scan(
 			&controllerType, &enabled,
@@ -254,7 +256,6 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLocation,
 			&restCert, &restKey, &restPort, &restListenAddr,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
-			&aprsServer,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan controller config row: %w", err)
@@ -317,12 +318,6 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 					ListenAddr: mgmtListenAddr.String,
 					AuthToken:  mgmtAuthToken.String,
 					EnableCORS: mgmtEnableCORS.Bool,
-				}
-			}
-		case "aprs":
-			if aprsServer.Valid {
-				controller.APRS = &APRSData{
-					Server: aprsServer.String,
 				}
 			}
 		}
