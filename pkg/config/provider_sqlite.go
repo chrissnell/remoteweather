@@ -219,12 +219,9 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       -- Management API fields
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
-		       -- Weather Site fields
-		       wsc.station_name, wsc.pull_from_device, wsc.snow_enabled,
-		       wsc.snow_device, wsc.snow_base_distance, wsc.page_title,
-		       wsc.about_station_html
+		       -- APRS Server field
+		       cc.aprs_server
 		FROM controller_configs cc
-		LEFT JOIN weather_site_configs wsc ON cc.id = wsc.controller_config_id
 		WHERE cc.config_id = (SELECT id FROM configs WHERE name = 'default') AND cc.enabled = 1
 		ORDER BY cc.controller_type
 	`
@@ -248,9 +245,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 		var mgmtPort sql.NullInt64
 		var mgmtEnableCORS sql.NullBool
-		var wsStationName, wsPullFromDevice, wsSnowDevice, wsPageTitle, wsAboutHTML sql.NullString
-		var wsSnowEnabled sql.NullBool
-		var wsSnowBaseDistance sql.NullFloat64
+		var aprsServer sql.NullString
 
 		err := rows.Scan(
 			&controllerType, &enabled,
@@ -259,8 +254,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLocation,
 			&restCert, &restKey, &restPort, &restListenAddr,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
-			&wsStationName, &wsPullFromDevice, &wsSnowEnabled,
-			&wsSnowDevice, &wsSnowBaseDistance, &wsPageTitle, &wsAboutHTML,
+			&aprsServer,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan controller config row: %w", err)
@@ -301,10 +295,19 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 				}
 			}
 		case "rest":
-			controller.RESTServer = &RESTServerData{
-				DefaultListenAddr: restListenAddr.String,
+			if restPort.Valid || restListenAddr.Valid || restCert.Valid || restKey.Valid {
+				controller.RESTServer = &RESTServerData{
+					HTTPPort:          int(restPort.Int64),
+					DefaultListenAddr: restListenAddr.String,
+					TLSCertPath:       restCert.String,
+					TLSKeyPath:        restKey.String,
+				}
+				// Set HTTPS port if TLS is configured
+				if restCert.Valid && restKey.Valid {
+					httpsPort := int(restPort.Int64) + 1
+					controller.RESTServer.HTTPSPort = &httpsPort
+				}
 			}
-			// Note: Individual website port configurations are now handled via weather_websites table
 		case "management":
 			if mgmtPort.Valid {
 				controller.ManagementAPI = &ManagementAPIData{
@@ -314,6 +317,12 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 					ListenAddr: mgmtListenAddr.String,
 					AuthToken:  mgmtAuthToken.String,
 					EnableCORS: mgmtEnableCORS.Bool,
+				}
+			}
+		case "aprs":
+			if aprsServer.Valid {
+				controller.APRS = &APRSData{
+					Server: aprsServer.String,
 				}
 			}
 		}
@@ -396,7 +405,8 @@ func (s *SQLiteProvider) clearExistingConfig(tx *sql.Tx, configID int64) error {
 		"DELETE FROM devices WHERE config_id = ?",
 		"DELETE FROM storage_configs WHERE config_id = ?",
 		"DELETE FROM controller_configs WHERE config_id = ?",
-		"DELETE FROM weather_site_configs WHERE controller_config_id IN (SELECT id FROM controller_configs WHERE config_id = ?)",
+		"DELETE FROM weather_websites WHERE config_id = ?",
+		"DELETE FROM station_aprs_configs WHERE config_id = ?",
 	}
 
 	for _, query := range queries {
