@@ -39,22 +39,13 @@ func New(configProvider config.ConfigProvider) (Storage, error) {
 	a := Storage{}
 
 	// Load configuration to validate APRS is configured
-	controllers, err := configProvider.GetControllers()
+	storageConfig, err := configProvider.GetStorageConfig()
 	if err != nil {
-		return a, fmt.Errorf("error loading controllers configuration: %v", err)
+		return a, fmt.Errorf("error loading storage configuration: %v", err)
 	}
 
-	// Find APRS controller
-	var aprsController *config.ControllerData
-	for _, controller := range controllers {
-		if controller.Type == "aprs" {
-			aprsController = &controller
-			break
-		}
-	}
-
-	if aprsController == nil || aprsController.APRS == nil {
-		return a, fmt.Errorf("APRS controller configuration is missing")
+	if storageConfig.APRS == nil || storageConfig.APRS.Server == "" {
+		return a, fmt.Errorf("APRS storage configuration is missing")
 	}
 
 	// Check if we have at least one station APRS config
@@ -145,23 +136,15 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	pkt := a.CreateCompleteWeatherReport('/', '_')
 	log.Debugf("sending reading to APRS-IS: %+v", pkt)
 
-	// Load APRS controller configuration
-	controllers, err := a.configProvider.GetControllers()
+	// Load APRS storage configuration
+	storageConfig, err := a.configProvider.GetStorageConfig()
 	if err != nil {
-		log.Error("error loading controllers configuration for APRS-IS: %v", err)
+		log.Error("error loading storage configuration for APRS-IS: %v", err)
 		return
 	}
 
-	var aprsController *config.ControllerData
-	for _, controller := range controllers {
-		if controller.Type == "aprs" {
-			aprsController = &controller
-			break
-		}
-	}
-
-	if aprsController == nil || aprsController.APRS == nil || aprsController.APRS.Server == "" {
-		log.Error("APRS controller configuration is missing or incomplete")
+	if storageConfig.APRS == nil || storageConfig.APRS.Server == "" {
+		log.Error("APRS storage configuration is missing or incomplete")
 		return
 	}
 
@@ -189,10 +172,10 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 		Timeout: connectionTimeout,
 	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", aprsController.APRS.Server)
+	conn, err := dialer.DialContext(ctx, "tcp", storageConfig.APRS.Server)
 	if err != nil {
 		log.Error("error dialing APRS-IS server %v: %v",
-			aprsController.APRS.Server, err)
+			storageConfig.APRS.Server, err)
 		return
 	}
 	defer conn.Close()
