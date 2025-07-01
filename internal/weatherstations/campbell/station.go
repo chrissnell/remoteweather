@@ -25,7 +25,7 @@ type Station struct {
 	wg                 *sync.WaitGroup
 	netConn            net.Conn
 	rwc                io.ReadWriteCloser
-	config             types.DeviceConfig
+	config             config.DeviceData
 	configProvider     config.ConfigProvider
 	deviceName         string
 	ReadingDistributor chan types.Reading
@@ -80,22 +80,8 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 		logger.Fatalf("Campbell Scientific station [%s] device not found in configuration", deviceName)
 	}
 
-	// Convert to legacy config format for internal use
-	station.config = types.DeviceConfig{
-		Name:              deviceConfig.Name,
-		Type:              deviceConfig.Type,
-		Hostname:          deviceConfig.Hostname,
-		Port:              deviceConfig.Port,
-		SerialDevice:      deviceConfig.SerialDevice,
-		Baud:              deviceConfig.Baud,
-		WindDirCorrection: deviceConfig.WindDirCorrection,
-		BaseSnowDistance:  deviceConfig.BaseSnowDistance,
-		Solar: types.SolarConfig{
-			Latitude:  deviceConfig.Solar.Latitude,
-			Longitude: deviceConfig.Solar.Longitude,
-			Altitude:  deviceConfig.Solar.Altitude,
-		},
-	}
+	// Use the device configuration directly
+	station.config = *deviceConfig
 
 	if station.config.SerialDevice == "" && (station.config.Hostname == "" || station.config.Port == "") {
 		logger.Fatalf("Campbell Scientific station [%s] must define either a serial device or hostname+port", station.config.Name)
