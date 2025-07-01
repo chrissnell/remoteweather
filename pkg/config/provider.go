@@ -34,6 +34,20 @@ type ConfigProvider interface {
 	DeleteController(controllerType string) error
 	GetController(controllerType string) (*ControllerData, error)
 
+	// Weather website management
+	GetWeatherWebsites() ([]WeatherWebsiteData, error)
+	GetWeatherWebsite(id int) (*WeatherWebsiteData, error)
+	AddWeatherWebsite(website *WeatherWebsiteData) error
+	UpdateWeatherWebsite(id int, website *WeatherWebsiteData) error
+	DeleteWeatherWebsite(id int) error
+
+	// APRS management
+	GetStationAPRSConfigs() ([]StationAPRSData, error)
+	GetStationAPRSConfig(deviceName string) (*StationAPRSData, error)
+	AddStationAPRSConfig(config *StationAPRSData) error
+	UpdateStationAPRSConfig(deviceName string, config *StationAPRSData) error
+	DeleteStationAPRSConfig(deviceName string) error
+
 	// Configuration management (for future SQLite-specific operations)
 	IsReadOnly() bool
 	Close() error
@@ -163,6 +177,7 @@ type DeviceData struct {
 	Baud              int       `json:"baud,omitempty"`
 	WindDirCorrection int16     `json:"wind_dir_correction,omitempty"`
 	BaseSnowDistance  int16     `json:"base_snow_distance,omitempty"`
+	WebsiteID         *int      `json:"website_id,omitempty"`
 	Solar             SolarData `json:"solar,omitempty"`
 }
 
@@ -177,7 +192,6 @@ type SolarData struct {
 type StorageData struct {
 	TimescaleDB *TimescaleDBData `json:"timescaledb,omitempty"`
 	GRPC        *GRPCData        `json:"grpc,omitempty"`
-	APRS        *APRSData        `json:"aprs,omitempty"`
 }
 
 // ControllerData holds the configuration for various controller backends
@@ -188,6 +202,7 @@ type ControllerData struct {
 	AerisWeather       *AerisWeatherData       `json:"aerisweather,omitempty"`
 	RESTServer         *RESTServerData         `json:"rest,omitempty"`
 	ManagementAPI      *ManagementAPIData      `json:"management,omitempty"`
+	APRS               *APRSData               `json:"aprs,omitempty"`
 }
 
 // Storage backend configuration structs
@@ -203,11 +218,13 @@ type GRPCData struct {
 	PullFromDevice string `json:"pull_from_device,omitempty"`
 }
 
-type APRSData struct {
-	Callsign     string    `json:"callsign,omitempty"`
-	Passcode     string    `json:"passcode,omitempty"`
-	APRSISServer string    `json:"aprs_is_server,omitempty"`
-	Location     PointData `json:"location,omitempty"`
+// Per-station APRS configuration
+// APRS server is global (configured as 'aprs' controller), only callsign and location are per-station
+type StationAPRSData struct {
+	DeviceName string    `json:"device_name,omitempty"`
+	Enabled    bool      `json:"enabled,omitempty"`
+	Callsign   string    `json:"callsign,omitempty"`
+	Location   PointData `json:"location,omitempty"`
 }
 
 type PointData struct {
@@ -239,22 +256,33 @@ type AerisWeatherData struct {
 	Location        string `json:"location"`
 }
 
-type RESTServerData struct {
-	Cert              string          `json:"cert,omitempty"`
-	Key               string          `json:"key,omitempty"`
-	Port              int             `json:"port,omitempty"`
-	ListenAddr        string          `json:"listen_addr,omitempty"`
-	WeatherSiteConfig WeatherSiteData `json:"weather_site"`
+type APRSData struct {
+	Server string `json:"server,omitempty"`
 }
 
-type WeatherSiteData struct {
-	StationName      string  `json:"station_name,omitempty"`
-	PullFromDevice   string  `json:"pull_from_device,omitempty"`
-	SnowEnabled      bool    `json:"snow_enabled,omitempty"`
-	SnowDevice       string  `json:"snow_device,omitempty"`
-	SnowBaseDistance float32 `json:"snow_base_distance,omitempty"`
-	PageTitle        string  `json:"page_title,omitempty"`
-	AboutStationHTML string  `json:"about_station_html,omitempty"`
+// RESTServerData holds configuration for the REST server
+// The REST server serves both REST API endpoints and weather websites
+// It uses a single listener that routes based on Host header/SNI
+type RESTServerData struct {
+	HTTPPort          int    `json:"http_port,omitempty"`           // Single HTTP port for all websites
+	HTTPSPort         *int   `json:"https_port,omitempty"`          // Optional HTTPS port for all websites
+	DefaultListenAddr string `json:"default_listen_addr,omitempty"` // Listen address (default: 0.0.0.0)
+	TLSCertPath       string `json:"tls_cert_path,omitempty"`       // Default TLS cert path
+	TLSKeyPath        string `json:"tls_key_path,omitempty"`        // Default TLS key path
+}
+
+// WeatherWebsiteData represents a weather website configuration
+// Websites are served by the single REST server and routed by hostname
+type WeatherWebsiteData struct {
+	ID               int    `json:"id,omitempty"`
+	Name             string `json:"name"`
+	Hostname         string `json:"hostname,omitempty"` // Domain name for this website (e.g., weather.example.com)
+	PageTitle        string `json:"page_title,omitempty"`
+	AboutStationHTML string `json:"about_station_html,omitempty"`
+	SnowEnabled      bool   `json:"snow_enabled,omitempty"`
+	SnowDeviceName   string `json:"snow_device_name,omitempty"`
+	TLSCertPath      string `json:"tls_cert_path,omitempty"` // Optional per-site TLS cert (overrides server default)
+	TLSKeyPath       string `json:"tls_key_path,omitempty"`  // Optional per-site TLS key (overrides server default)
 }
 
 type ManagementAPIData struct {
@@ -359,41 +387,13 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		switch controller.Type {
 		case "rest":
 			if controller.RESTServer != nil {
-				if controller.RESTServer.Port <= 0 || controller.RESTServer.Port > 65535 {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].rest.port", i),
-						Value:   fmt.Sprintf("%d", controller.RESTServer.Port),
-						Message: "port must be between 1 and 65535",
-					})
+				// REST server now serves multiple websites, each with their own ports
+				// Basic validation for listen address format if provided
+				if controller.RESTServer.DefaultListenAddr != "" {
+					// Could add IP address validation here if needed
 				}
-
-				// Validate pull-from-device exists
-				if controller.RESTServer.WeatherSiteConfig.PullFromDevice != "" {
-					if !deviceNames[controller.RESTServer.WeatherSiteConfig.PullFromDevice] {
-						errors = append(errors, ValidationError{
-							Field:   fmt.Sprintf("controllers[%d].rest.weather_site.pull_from_device", i),
-							Value:   controller.RESTServer.WeatherSiteConfig.PullFromDevice,
-							Message: "pull_from_device references non-existent device",
-						})
-					}
-				}
-
-				// Validate snow device if enabled
-				if controller.RESTServer.WeatherSiteConfig.SnowEnabled {
-					if controller.RESTServer.WeatherSiteConfig.SnowDevice == "" {
-						errors = append(errors, ValidationError{
-							Field:   fmt.Sprintf("controllers[%d].rest.weather_site.snow_device", i),
-							Value:   "",
-							Message: "snow_device is required when snow is enabled",
-						})
-					} else if !deviceNames[controller.RESTServer.WeatherSiteConfig.SnowDevice] {
-						errors = append(errors, ValidationError{
-							Field:   fmt.Sprintf("controllers[%d].rest.weather_site.snow_device", i),
-							Value:   controller.RESTServer.WeatherSiteConfig.SnowDevice,
-							Message: "snow_device references non-existent device",
-						})
-					}
-				}
+				// Note: Website-specific validation will be handled separately
+				// since websites are now independent entities with their own validation
 			}
 		case "management":
 			if controller.ManagementAPI != nil {
@@ -588,6 +588,79 @@ func (c *CachedConfigProvider) UpdateController(controllerType string, controlle
 // DeleteController removes a controller and invalidates cache
 func (c *CachedConfigProvider) DeleteController(controllerType string) error {
 	err := c.provider.DeleteController(controllerType)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// Weather website management methods
+
+// GetWeatherWebsites retrieves all weather websites
+func (c *CachedConfigProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
+	return c.provider.GetWeatherWebsites()
+}
+
+// GetWeatherWebsite retrieves a specific weather website by ID
+func (c *CachedConfigProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) {
+	return c.provider.GetWeatherWebsite(id)
+}
+
+// AddWeatherWebsite adds a new weather website and invalidates cache
+func (c *CachedConfigProvider) AddWeatherWebsite(website *WeatherWebsiteData) error {
+	err := c.provider.AddWeatherWebsite(website)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// UpdateWeatherWebsite updates an existing weather website and invalidates cache
+func (c *CachedConfigProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteData) error {
+	err := c.provider.UpdateWeatherWebsite(id, website)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// DeleteWeatherWebsite removes a weather website and invalidates cache
+func (c *CachedConfigProvider) DeleteWeatherWebsite(id int) error {
+	err := c.provider.DeleteWeatherWebsite(id)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+// APRS management delegation methods
+
+func (c *CachedConfigProvider) GetStationAPRSConfigs() ([]StationAPRSData, error) {
+	return c.provider.GetStationAPRSConfigs()
+}
+
+func (c *CachedConfigProvider) GetStationAPRSConfig(deviceName string) (*StationAPRSData, error) {
+	return c.provider.GetStationAPRSConfig(deviceName)
+}
+
+func (c *CachedConfigProvider) AddStationAPRSConfig(config *StationAPRSData) error {
+	err := c.provider.AddStationAPRSConfig(config)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+func (c *CachedConfigProvider) UpdateStationAPRSConfig(deviceName string, config *StationAPRSData) error {
+	err := c.provider.UpdateStationAPRSConfig(deviceName, config)
+	if err == nil {
+		c.InvalidateCache()
+	}
+	return err
+}
+
+func (c *CachedConfigProvider) DeleteStationAPRSConfig(deviceName string) error {
+	err := c.provider.DeleteStationAPRSConfig(deviceName)
 	if err == nil {
 		c.InvalidateCache()
 	}
