@@ -40,8 +40,12 @@ func NewWeatherStationManager(ctx context.Context, wg *sync.WaitGroup, configPro
 		stations:       make(map[string]weatherstations.WeatherStation),
 	}
 
-	// Create weather stations directly from config data
+	// Create weather stations directly from config data (only for enabled devices)
 	for _, deviceConfig := range cfgData.Devices {
+		if !deviceConfig.Enabled {
+			logger.Infof("Skipping disabled device [%s]", deviceConfig.Name)
+			continue
+		}
 		station, err := createStationFromConfig(ctx, wg, configProvider, deviceConfig.Name, distributor, logger)
 		if err != nil {
 			return nil, fmt.Errorf("error creating weather station [%s]: %w", deviceConfig.Name, err)
@@ -77,6 +81,15 @@ func (w *weatherStationManager) AddWeatherStation(deviceName string) error {
 	// Check if station already exists
 	if _, exists := w.stations[deviceName]; exists {
 		return fmt.Errorf("weather station %s already exists", deviceName)
+	}
+
+	// Check if device is enabled
+	device, err := w.configProvider.GetDevice(deviceName)
+	if err != nil {
+		return fmt.Errorf("failed to get device %s: %w", deviceName, err)
+	}
+	if !device.Enabled {
+		return fmt.Errorf("cannot add disabled device %s", deviceName)
 	}
 
 	station, err := createStationFromConfig(w.ctx, w.wg, w.configProvider, deviceName, w.distributor, w.logger)
@@ -120,10 +133,12 @@ func (w *weatherStationManager) ReloadWeatherStationsConfig() error {
 		return fmt.Errorf("could not load configuration: %v", err)
 	}
 
-	// Track what stations should be active
+	// Track what stations should be active (only enabled devices)
 	shouldBeActive := make(map[string]bool)
 	for _, deviceConfig := range cfgData.Devices {
-		shouldBeActive[deviceConfig.Name] = true
+		if deviceConfig.Enabled {
+			shouldBeActive[deviceConfig.Name] = true
+		}
 	}
 
 	// Remove stations that should no longer be active
@@ -166,6 +181,11 @@ func createStationFromConfig(ctx context.Context, wg *sync.WaitGroup, configProv
 
 	if deviceConfig == nil {
 		return nil, fmt.Errorf("device [%s] not found in configuration", deviceName)
+	}
+
+	// Check if device is enabled
+	if !deviceConfig.Enabled {
+		return nil, fmt.Errorf("device [%s] is disabled", deviceName)
 	}
 
 	switch deviceConfig.Type {
