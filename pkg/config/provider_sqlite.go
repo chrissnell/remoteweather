@@ -79,16 +79,28 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	var devices []DeviceData
 	for rows.Next() {
 		var device DeviceData
+		var hostname, port, serialDevice sql.NullString
 		var websiteID sql.NullInt64
 		var solarLat, solarLon, solarAlt sql.NullFloat64
 
 		err := rows.Scan(
-			&device.Name, &device.Type, &device.Hostname, &device.Port,
-			&device.SerialDevice, &device.Baud, &device.WindDirCorrection,
+			&device.Name, &device.Type, &hostname, &port,
+			&serialDevice, &device.Baud, &device.WindDirCorrection,
 			&device.BaseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
+		}
+
+		// Convert nullable fields to empty strings if NULL
+		if hostname.Valid {
+			device.Hostname = hostname.String
+		}
+		if port.Valid {
+			device.Port = port.String
+		}
+		if serialDevice.Valid {
+			device.SerialDevice = serialDevice.String
 		}
 
 		// Set website ID if present
