@@ -10,6 +10,7 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -25,6 +26,36 @@ func NewHandlers(ctrl *Controller) *Handlers {
 	return &Handlers{
 		controller: ctrl,
 	}
+}
+
+// getWebsiteFromContext extracts the website from request context
+func (h *Handlers) getWebsiteFromContext(req *http.Request) *config.WeatherWebsiteData {
+	if website, ok := req.Context().Value("website").(*config.WeatherWebsiteData); ok {
+		return website
+	}
+	// Fallback to default website if context is missing
+	return h.controller.DefaultWebsite
+}
+
+// getPrimaryDeviceForWebsite returns the primary device associated with a website
+func (h *Handlers) getPrimaryDeviceForWebsite(website *config.WeatherWebsiteData) string {
+	devices := h.controller.DevicesByWebsite[website.ID]
+	if len(devices) > 0 {
+		return devices[0].Name // Return first device as primary
+	}
+	return ""
+}
+
+// getSnowBaseDistance returns the snow base distance from the snow device configuration for a website
+func (h *Handlers) getSnowBaseDistance(website *config.WeatherWebsiteData) float32 {
+	if website.SnowDeviceName != "" {
+		for _, device := range h.controller.Devices {
+			if device.Name == website.SnowDeviceName {
+				return float32(device.BaseSnowDistance)
+			}
+		}
+	}
+	return 0.0
 }
 
 // GetWeatherSpan handles requests for weather data over a time span
@@ -50,7 +81,9 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 		}
 
 		spanStart := time.Now().Add(-span)
-		baseDistance := h.controller.WeatherSiteConfig.SnowBaseDistance
+		// Get website from context and snow base distance
+		website := h.getWebsiteFromContext(req)
+		baseDistance := h.getSnowBaseDistance(website)
 
 		switch {
 		case span < 1*Day:
@@ -136,11 +169,15 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		stationName := req.URL.Query().Get("station")
 
+		// Get website from context and find primary device
+		website := h.getWebsiteFromContext(req)
+		primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
 		if stationName != "" {
 			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
 		} else {
-			// Client did not supply a station name, so pull from the configured PullFromDevice
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", h.controller.WeatherSiteConfig.PullFromDevice).Order("time DESC").Find(&dbFetchedReadings)
+			// Client did not supply a station name, so pull from the configured primary device
+			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", primaryDevice).Order("time DESC").Find(&dbFetchedReadings)
 		}
 
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
@@ -173,6 +210,13 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 // GetSnowLatest handles requests for the latest snow data
 func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
+	// Get website from context and check if snow is enabled
+	website := h.getWebsiteFromContext(req)
+	if !website.SnowEnabled {
+		http.Error(w, "snow data not enabled for this website", 404)
+		return
+	}
+
 	if h.controller.DBEnabled {
 		// Enable SQL debugging if RW-Debug header is set to "1"
 		if req.Header.Get("RW-Debug") == "1" {
@@ -188,8 +232,8 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		if stationName != "" {
 			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
 		} else {
-			// Client did not supply a station name, so pull from the configured SnowDevice
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", h.controller.WeatherSiteConfig.SnowDevice).Order("time DESC").Find(&dbFetchedReadings)
+			// Client did not supply a station name, so pull from the configured snow device
+			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", website.SnowDeviceName).Order("time DESC").Find(&dbFetchedReadings)
 		}
 
 		log.Debugf("returned rows: %v", len(dbFetchedReadings))
@@ -200,9 +244,12 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 
 		var result SnowDeltaResult
 
+		// Get snow base distance from the snow device
+		snowBaseDistance := h.getSnowBaseDistance(website)
+
 		// Get the snowfall since midnight
 		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
-		err := h.controller.DB.Raw(query, h.controller.WeatherSiteConfig.SnowDevice, h.controller.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		err := h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
 			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
 			http.Error(w, "error fetching readings from DB", 500)
@@ -213,7 +260,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 
 		// Get the snowfall in the last 24 hours
 		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, h.controller.WeatherSiteConfig.SnowDevice, h.controller.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
 			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
 			http.Error(w, "error fetching readings from DB", 500)
@@ -224,7 +271,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 
 		// Get the snowfall in the last 72 hours
 		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, h.controller.WeatherSiteConfig.SnowDevice, h.controller.WeatherSiteConfig.SnowBaseDistance).Scan(&result).Error
+		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
 			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
 			http.Error(w, "error fetching readings from DB", 500)
@@ -234,8 +281,8 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		snowLast72 := mmToInches(result.Snowfall)
 
 		snowReading := SnowReading{
-			StationName: h.controller.WeatherSiteConfig.SnowDevice,
-			SnowDepth:   mmToInches(h.controller.WeatherSiteConfig.SnowBaseDistance - dbFetchedReadings[0].SnowDistance),
+			StationName: website.SnowDeviceName,
+			SnowDepth:   mmToInches(snowBaseDistance - dbFetchedReadings[0].SnowDistance),
 			SnowToday:   float32(snowSinceMidnight),
 			SnowLast24:  float32(snowLast24),
 			SnowLast72:  float32(snowLast72),
@@ -311,6 +358,10 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 
 // ServeIndexTemplate serves the main HTML template
 func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
 	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*h.controller.FS, "index.html.tmpl"))
 
 	// Create a template data structure with AboutStationHTML as safe HTML
@@ -323,13 +374,13 @@ func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) 
 		PageTitle        string
 		AboutStationHTML htmltemplate.HTML // Convert to template.HTML to prevent escaping
 	}{
-		StationName:      h.controller.WeatherSiteConfig.StationName,
-		PullFromDevice:   h.controller.WeatherSiteConfig.PullFromDevice,
-		SnowEnabled:      h.controller.WeatherSiteConfig.SnowEnabled,
-		SnowDevice:       h.controller.WeatherSiteConfig.SnowDevice,
-		SnowBaseDistance: h.controller.WeatherSiteConfig.SnowBaseDistance,
-		PageTitle:        h.controller.WeatherSiteConfig.PageTitle,
-		AboutStationHTML: htmltemplate.HTML(h.controller.WeatherSiteConfig.AboutStationHTML),
+		StationName:      website.Name,
+		PullFromDevice:   primaryDevice,
+		SnowEnabled:      website.SnowEnabled,
+		SnowDevice:       website.SnowDeviceName,
+		SnowBaseDistance: h.getSnowBaseDistance(website),
+		PageTitle:        website.PageTitle,
+		AboutStationHTML: htmltemplate.HTML(website.AboutStationHTML),
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -342,10 +393,33 @@ func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) 
 
 // ServeJS serves the JavaScript template
 func (h *Handlers) ServeJS(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
 	view := template.Must(template.New("remoteweather.js.tmpl").ParseFS(*h.controller.FS, "remoteweather.js.tmpl"))
 
+	// Create JS template data structure compatible with the new website system
+	jsTemplateData := struct {
+		StationName      string
+		PullFromDevice   string
+		SnowEnabled      bool
+		SnowDevice       string
+		SnowBaseDistance float32
+		PageTitle        string
+		AboutStationHTML string
+	}{
+		StationName:      website.Name,
+		PullFromDevice:   primaryDevice,
+		SnowEnabled:      website.SnowEnabled,
+		SnowDevice:       website.SnowDeviceName,
+		SnowBaseDistance: h.getSnowBaseDistance(website),
+		PageTitle:        website.PageTitle,
+		AboutStationHTML: website.AboutStationHTML,
+	}
+
 	w.Header().Set("Content-Type", "text/javascript")
-	err := view.Execute(w, h.controller.WeatherSiteConfig)
+	err := view.Execute(w, jsTemplateData)
 	if err != nil {
 		log.Error("error executing template:", err)
 		return
