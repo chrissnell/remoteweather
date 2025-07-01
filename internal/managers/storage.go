@@ -64,10 +64,32 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 		}
 	}
 
-	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Callsign != "" {
-		err = s.AddEngine(ctx, wg, "aprs", configProvider)
-		if err != nil {
-			return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
+	// Check for APRS configuration in the new schema
+	controllers, err := configProvider.GetControllers()
+	if err == nil {
+		var hasAPRSController bool
+		for _, controller := range controllers {
+			if controller.Type == "aprs" && controller.APRS != nil && controller.APRS.Server != "" {
+				hasAPRSController = true
+				break
+			}
+		}
+
+		if hasAPRSController {
+			// Also check if we have station APRS configs
+			stationConfigs, err := configProvider.GetStationAPRSConfigs()
+			if err == nil && len(stationConfigs) > 0 {
+				// Check if at least one station is enabled
+				for _, station := range stationConfigs {
+					if station.Enabled && station.Callsign != "" {
+						err = s.AddEngine(ctx, wg, "aprs", configProvider)
+						if err != nil {
+							return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
+						}
+						break
+					}
+				}
+			}
 		}
 	}
 
@@ -156,8 +178,31 @@ func (s *StorageManager) ReloadStorageConfig(ctx context.Context, wg *sync.WaitG
 	if cfgData.Storage.GRPC != nil && cfgData.Storage.GRPC.Port != 0 {
 		shouldBeActive["grpc"] = true
 	}
-	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Callsign != "" {
-		shouldBeActive["aprs"] = true
+
+	// Check for APRS configuration in the new schema
+	controllers, err := configProvider.GetControllers()
+	if err == nil {
+		var hasAPRSController bool
+		for _, controller := range controllers {
+			if controller.Type == "aprs" && controller.APRS != nil && controller.APRS.Server != "" {
+				hasAPRSController = true
+				break
+			}
+		}
+
+		if hasAPRSController {
+			// Also check if we have station APRS configs
+			stationConfigs, err := configProvider.GetStationAPRSConfigs()
+			if err == nil && len(stationConfigs) > 0 {
+				// Check if at least one station is enabled
+				for _, station := range stationConfigs {
+					if station.Enabled && station.Callsign != "" {
+						shouldBeActive["aprs"] = true
+						break
+					}
+				}
+			}
+		}
 	}
 
 	// Remove engines that should no longer be active
