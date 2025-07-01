@@ -80,19 +80,19 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	for rows.Next() {
 		var device DeviceData
 		var hostname, port, serialDevice sql.NullString
-		var websiteID sql.NullInt64
+		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var solarLat, solarLon, solarAlt sql.NullFloat64
 
 		err := rows.Scan(
 			&device.Name, &device.Type, &hostname, &port,
-			&serialDevice, &device.Baud, &device.WindDirCorrection,
-			&device.BaseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
+			&serialDevice, &baud, &windDirCorrection,
+			&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
 		}
 
-		// Convert nullable fields to empty strings if NULL
+		// Convert nullable string fields to empty strings if NULL
 		if hostname.Valid {
 			device.Hostname = hostname.String
 		}
@@ -101,6 +101,17 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if serialDevice.Valid {
 			device.SerialDevice = serialDevice.String
+		}
+
+		// Convert nullable integer fields to zero if NULL
+		if baud.Valid {
+			device.Baud = int(baud.Int64)
+		}
+		if windDirCorrection.Valid {
+			device.WindDirCorrection = int16(windDirCorrection.Int64)
+		}
+		if baseSnowDistance.Valid {
+			device.BaseSnowDistance = int16(baseSnowDistance.Int64)
 		}
 
 		// Set website ID if present
@@ -557,13 +568,14 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	`
 
 	var device DeviceData
-	var websiteID sql.NullInt64
-	var solar SolarData
+	var hostname, port, serialDevice sql.NullString
+	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
+	var solarLat, solarLon, solarAlt sql.NullFloat64
 
 	err := s.db.QueryRow(query, name).Scan(
-		&device.Name, &device.Type, &device.Hostname, &device.Port,
-		&device.SerialDevice, &device.Baud, &device.WindDirCorrection,
-		&device.BaseSnowDistance, &websiteID, &solar.Latitude, &solar.Longitude, &solar.Altitude,
+		&device.Name, &device.Type, &hostname, &port,
+		&serialDevice, &baud, &windDirCorrection,
+		&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
 	)
 
 	if err != nil {
@@ -573,13 +585,43 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		return nil, fmt.Errorf("failed to get device %s: %w", name, err)
 	}
 
+	// Convert nullable string fields to empty strings if NULL
+	if hostname.Valid {
+		device.Hostname = hostname.String
+	}
+	if port.Valid {
+		device.Port = port.String
+	}
+	if serialDevice.Valid {
+		device.SerialDevice = serialDevice.String
+	}
+
+	// Convert nullable integer fields to zero if NULL
+	if baud.Valid {
+		device.Baud = int(baud.Int64)
+	}
+	if windDirCorrection.Valid {
+		device.WindDirCorrection = int16(windDirCorrection.Int64)
+	}
+	if baseSnowDistance.Valid {
+		device.BaseSnowDistance = int16(baseSnowDistance.Int64)
+	}
+
 	// Set website ID if present
 	if websiteID.Valid {
 		websiteIDInt := int(websiteID.Int64)
 		device.WebsiteID = &websiteIDInt
 	}
 
-	device.Solar = solar
+	// Set solar data if present
+	if solarLat.Valid && solarLon.Valid && solarAlt.Valid {
+		device.Solar = SolarData{
+			Latitude:  solarLat.Float64,
+			Longitude: solarLon.Float64,
+			Altitude:  solarAlt.Float64,
+		}
+	}
+
 	return &device, nil
 }
 
