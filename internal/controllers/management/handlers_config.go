@@ -407,12 +407,12 @@ func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) e
 			return fmt.Errorf("either hostname/port or serial_device must be specified")
 		}
 	case "snowgauge":
-		// Snow gauge typically uses serial connection
-		if device.SerialDevice == "" {
-			return fmt.Errorf("serial_device is required for snow gauge")
+		// Snow gauge uses TCP/IP connection (gRPC)
+		if device.Hostname == "" {
+			return fmt.Errorf("hostname is required for snow gauge")
 		}
-		if device.Baud <= 0 {
-			return fmt.Errorf("baud rate is required for snow gauge")
+		if device.Port == "" {
+			return fmt.Errorf("port is required for snow gauge")
 		}
 		if device.BaseSnowDistance <= 0 {
 			return fmt.Errorf("base_snow_distance is required for snow gauge")
