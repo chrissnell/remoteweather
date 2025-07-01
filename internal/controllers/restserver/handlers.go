@@ -38,12 +38,22 @@ func (h *Handlers) getWebsiteFromContext(req *http.Request) *config.WeatherWebsi
 }
 
 // getPrimaryDeviceForWebsite returns the primary device associated with a website
+// Prefers enabled devices, but falls back to disabled devices if no enabled devices are available
 func (h *Handlers) getPrimaryDeviceForWebsite(website *config.WeatherWebsiteData) string {
 	devices := h.controller.DevicesByWebsite[website.ID]
-	if len(devices) > 0 {
-		return devices[0].Name // Return first device as primary
+	if len(devices) == 0 {
+		return ""
 	}
-	return ""
+
+	// First, try to find an enabled device
+	for _, device := range devices {
+		if device.Enabled {
+			return device.Name
+		}
+	}
+
+	// If no enabled devices, fall back to first device (for historical data access)
+	return devices[0].Name
 }
 
 // getSnowBaseDistance returns the snow base distance from the snow device configuration for a website
