@@ -78,7 +78,6 @@ This directory contains packaging files for distributing RemoteWeather on variou
 └── examples/                        # Example configurations
 
 /usr/share/remoteweather/
-├── assets/                          # Web interface assets
 └── migrations/                      # Database migration files
 ```
 

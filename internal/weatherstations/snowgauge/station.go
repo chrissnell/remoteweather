@@ -25,7 +25,7 @@ type Station struct {
 	wg                 *sync.WaitGroup
 	conn               *grpc.ClientConn
 	stream             snowgauge.SnowGaugeService_StreamReadingClient
-	config             types.DeviceConfig
+	config             config.DeviceData
 	configProvider     config.ConfigProvider
 	deviceName         string
 	ReadingDistributor chan types.Reading
@@ -61,22 +61,8 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 		logger.Fatalf("SnowGauge station [%s] device not found in configuration", deviceName)
 	}
 
-	// Convert to legacy config format for internal use
-	station.config = types.DeviceConfig{
-		Name:              deviceConfig.Name,
-		Type:              deviceConfig.Type,
-		Hostname:          deviceConfig.Hostname,
-		Port:              deviceConfig.Port,
-		SerialDevice:      deviceConfig.SerialDevice,
-		Baud:              deviceConfig.Baud,
-		WindDirCorrection: deviceConfig.WindDirCorrection,
-		BaseSnowDistance:  deviceConfig.BaseSnowDistance,
-		Solar: types.SolarConfig{
-			Latitude:  deviceConfig.Solar.Latitude,
-			Longitude: deviceConfig.Solar.Longitude,
-			Altitude:  deviceConfig.Solar.Altitude,
-		},
-	}
+	// Use the device configuration directly
+	station.config = *deviceConfig
 
 	if station.config.Hostname == "" || station.config.Port == "" {
 		logger.Fatalf("SnowGauge station [%s] must define a hostname and port", station.config.Name)

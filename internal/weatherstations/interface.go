@@ -1,7 +1,7 @@
 package weatherstations
 
 import (
-	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/config"
 )
 
 // WeatherStation is an interface that provides standard methods for various
@@ -13,5 +13,5 @@ type WeatherStation interface {
 
 // StationFactory creates weather stations based on configuration
 type StationFactory interface {
-	CreateStation(config types.DeviceConfig) (WeatherStation, error)
+	CreateStation(config config.DeviceData) (WeatherStation, error)
 }

@@ -63,7 +63,7 @@ func (s *SQLiteProvider) LoadConfig() (*ConfigData, error) {
 func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	query := `
 		SELECT name, type, hostname, port, serial_device, baud, 
-		       wind_dir_correction, base_snow_distance,
+		       wind_dir_correction, base_snow_distance, website_id,
 		       solar_latitude, solar_longitude, solar_altitude
 		FROM devices 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
@@ -79,15 +79,22 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	var devices []DeviceData
 	for rows.Next() {
 		var device DeviceData
+		var websiteID sql.NullInt64
 		var solarLat, solarLon, solarAlt sql.NullFloat64
 
 		err := rows.Scan(
 			&device.Name, &device.Type, &device.Hostname, &device.Port,
 			&device.SerialDevice, &device.Baud, &device.WindDirCorrection,
-			&device.BaseSnowDistance, &solarLat, &solarLon, &solarAlt,
+			&device.BaseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
+		}
+
+		// Set website ID if present
+		if websiteID.Valid {
+			websiteIDInt := int(websiteID.Int64)
+			device.WebsiteID = &websiteIDInt
 		}
 
 		// Set solar data if present
@@ -133,6 +140,7 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 		var timescaleConnectionString sql.NullString
 		var grpcCert, grpcKey, grpcListenAddr, grpcPullFromDevice sql.NullString
 		var grpcPort sql.NullInt64
+		// Note: APRS fields removed - now handled by separate APRS tables
 		var aprsCallsign, aprsPasscode, aprsServer sql.NullString
 		var aprsLat, aprsLon sql.NullFloat64
 
@@ -163,18 +171,7 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 					PullFromDevice: grpcPullFromDevice.String,
 				}
 			}
-		case "aprs":
-			if aprsCallsign.Valid {
-				storage.APRS = &APRSData{
-					Callsign:     aprsCallsign.String,
-					Passcode:     aprsPasscode.String,
-					APRSISServer: aprsServer.String,
-					Location: PointData{
-						Lat: aprsLat.Float64,
-						Lon: aprsLon.Float64,
-					},
-				}
-			}
+			// APRS case removed - now handled by separate methods
 		}
 	}
 
@@ -281,27 +278,10 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 				}
 			}
 		case "rest":
-			if restPort.Valid {
-				controller.RESTServer = &RESTServerData{
-					Cert:       restCert.String,
-					Key:        restKey.String,
-					Port:       int(restPort.Int64),
-					ListenAddr: restListenAddr.String,
-				}
-
-				// Add weather site config if present
-				if wsStationName.Valid {
-					controller.RESTServer.WeatherSiteConfig = WeatherSiteData{
-						StationName:      wsStationName.String,
-						PullFromDevice:   wsPullFromDevice.String,
-						SnowEnabled:      wsSnowEnabled.Bool,
-						SnowDevice:       wsSnowDevice.String,
-						SnowBaseDistance: float32(wsSnowBaseDistance.Float64),
-						PageTitle:        wsPageTitle.String,
-						AboutStationHTML: wsAboutHTML.String,
-					}
-				}
+			controller.RESTServer = &RESTServerData{
+				DefaultListenAddr: restListenAddr.String,
 			}
+			// Note: Individual website port configurations are now handled via weather_websites table
 		case "management":
 			if mgmtPort.Valid {
 				controller.ManagementAPI = &ManagementAPIData{
@@ -408,15 +388,20 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 	query := `
 		INSERT INTO devices (
 			config_id, name, type, hostname, port, serial_device,
-			baud, wind_dir_correction, base_snow_distance,
+			baud, wind_dir_correction, base_snow_distance, website_id,
 			solar_latitude, solar_longitude, solar_altitude
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
+
+	var websiteID sql.NullInt64
+	if device.WebsiteID != nil {
+		websiteID = sql.NullInt64{Int64: int64(*device.WebsiteID), Valid: true}
+	}
 
 	_, err := tx.Exec(query,
 		configID, device.Name, device.Type, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
 	)
 	return err
 }
@@ -434,11 +419,7 @@ func (s *SQLiteProvider) insertStorageConfigs(tx *sql.Tx, configID int64, storag
 		}
 	}
 
-	if storage.APRS != nil {
-		if err := s.insertAPRSConfig(tx, configID, storage.APRS); err != nil {
-			return err
-		}
-	}
+	// APRS configs now handled separately via APRS management methods
 
 	return nil
 }
@@ -466,19 +447,7 @@ func (s *SQLiteProvider) insertGRPCConfig(tx *sql.Tx, configID int64, grpc *GRPC
 	return err
 }
 
-func (s *SQLiteProvider) insertAPRSConfig(tx *sql.Tx, configID int64, aprs *APRSData) error {
-	query := `
-		INSERT INTO storage_configs (
-			config_id, backend_type, enabled,
-			aprs_callsign, aprs_passcode, aprs_server, aprs_location_lat, aprs_location_lon
-		) VALUES (?, 'aprs', 1, ?, ?, ?, ?, ?)
-	`
-	_, err := tx.Exec(query, configID,
-		aprs.Callsign, aprs.Passcode, aprs.APRSISServer,
-		aprs.Location.Lat, aprs.Location.Lon,
-	)
-	return err
-}
+// insertAPRSConfig removed - APRS is now handled by separate APRS management methods
 
 func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller *ControllerData) error {
 	// Insert controller record
@@ -490,8 +459,8 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 			aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_location,
 			rest_cert, rest_key, rest_port, rest_listen_addr,
 			management_cert, management_key, management_port, management_listen_addr,
-			management_auth_token, management_enable_cors
-		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			management_auth_token, management_enable_cors, aprs_server
+		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
@@ -502,6 +471,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 	var mgmtPort sql.NullInt64
 	var mgmtEnableCORS sql.NullBool
+	var aprsServer sql.NullString
 
 	if controller.PWSWeather != nil {
 		pwsStationID = sql.NullString{String: controller.PWSWeather.StationID, Valid: controller.PWSWeather.StationID != ""}
@@ -527,10 +497,10 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	}
 
 	if controller.RESTServer != nil {
-		restCert = sql.NullString{String: controller.RESTServer.Cert, Valid: controller.RESTServer.Cert != ""}
-		restKey = sql.NullString{String: controller.RESTServer.Key, Valid: controller.RESTServer.Key != ""}
-		restPort = sql.NullInt64{Int64: int64(controller.RESTServer.Port), Valid: controller.RESTServer.Port != 0}
-		restListenAddr = sql.NullString{String: controller.RESTServer.ListenAddr, Valid: controller.RESTServer.ListenAddr != ""}
+		restCert = sql.NullString{String: controller.RESTServer.TLSCertPath, Valid: controller.RESTServer.TLSCertPath != ""}
+		restKey = sql.NullString{String: controller.RESTServer.TLSKeyPath, Valid: controller.RESTServer.TLSKeyPath != ""}
+		restPort = sql.NullInt64{Int64: int64(controller.RESTServer.HTTPPort), Valid: controller.RESTServer.HTTPPort != 0}
+		restListenAddr = sql.NullString{String: controller.RESTServer.DefaultListenAddr, Valid: controller.RESTServer.DefaultListenAddr != ""}
 	}
 
 	if controller.ManagementAPI != nil {
@@ -542,43 +512,23 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 		mgmtEnableCORS = sql.NullBool{Bool: controller.ManagementAPI.EnableCORS, Valid: true}
 	}
 
-	result, err := tx.Exec(query, configID, controller.Type,
+	if controller.APRS != nil {
+		aprsServer = sql.NullString{String: controller.APRS.Server, Valid: controller.APRS.Server != ""}
+	}
+
+	_, err := tx.Exec(query, configID, controller.Type,
 		pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint,
 		wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint,
 		aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLocation,
 		restCert, restKey, restPort, restListenAddr,
-		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS,
+		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS, aprsServer,
 	)
 	if err != nil {
 		return err
 	}
 
-	// Insert weather site config if this is a REST server controller
-	if controller.RESTServer != nil {
-		controllerID, err := result.LastInsertId()
-		if err != nil {
-			return err
-		}
-
-		return s.insertWeatherSiteConfig(tx, controllerID, &controller.RESTServer.WeatherSiteConfig)
-	}
-
+	// Note: Weather site config is now handled separately via weather_websites table
 	return nil
-}
-
-func (s *SQLiteProvider) insertWeatherSiteConfig(tx *sql.Tx, controllerConfigID int64, site *WeatherSiteData) error {
-	query := `
-		INSERT INTO weather_site_configs (
-			controller_config_id, station_name, pull_from_device, snow_enabled,
-			snow_device, snow_base_distance, page_title, about_station_html
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`
-
-	_, err := tx.Exec(query, controllerConfigID,
-		site.StationName, site.PullFromDevice, site.SnowEnabled,
-		site.SnowDevice, site.SnowBaseDistance, site.PageTitle, site.AboutStationHTML,
-	)
-	return err
 }
 
 // Individual device management methods
@@ -587,7 +537,7 @@ func (s *SQLiteProvider) insertWeatherSiteConfig(tx *sql.Tx, controllerConfigID 
 func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	query := `
 		SELECT d.name, d.type, d.hostname, d.port, d.serial_device, d.baud,
-		       d.wind_dir_correction, d.base_snow_distance,
+		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
 		       d.solar_latitude, d.solar_longitude, d.solar_altitude
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
@@ -595,12 +545,13 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	`
 
 	var device DeviceData
+	var websiteID sql.NullInt64
 	var solar SolarData
 
 	err := s.db.QueryRow(query, name).Scan(
 		&device.Name, &device.Type, &device.Hostname, &device.Port,
 		&device.SerialDevice, &device.Baud, &device.WindDirCorrection,
-		&device.BaseSnowDistance, &solar.Latitude, &solar.Longitude, &solar.Altitude,
+		&device.BaseSnowDistance, &websiteID, &solar.Latitude, &solar.Longitude, &solar.Altitude,
 	)
 
 	if err != nil {
@@ -608,6 +559,12 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 			return nil, fmt.Errorf("device %s not found", name)
 		}
 		return nil, fmt.Errorf("failed to get device %s: %w", name, err)
+	}
+
+	// Set website ID if present
+	if websiteID.Valid {
+		websiteIDInt := int(websiteID.Int64)
+		device.WebsiteID = &websiteIDInt
 	}
 
 	device.Solar = solar
@@ -658,15 +615,20 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 	query := `
 		UPDATE devices SET
 			name = ?, type = ?, hostname = ?, port = ?, serial_device = ?,
-			baud = ?, wind_dir_correction = ?, base_snow_distance = ?,
+			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
 			solar_latitude = ?, solar_longitude = ?, solar_altitude = ?
 		WHERE name = ?
 	`
 
+	var websiteID sql.NullInt64
+	if device.WebsiteID != nil {
+		websiteID = sql.NullInt64{Int64: int64(*device.WebsiteID), Valid: true}
+	}
+
 	_, err = tx.Exec(query,
 		device.Name, device.Type, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
 		name,
 	)
 
@@ -752,11 +714,7 @@ func (s *SQLiteProvider) AddStorageConfig(storageType string, config interface{}
 		}
 		return s.insertGRPCConfig(tx, configID, grpc)
 	case "aprs":
-		aprs, ok := config.(*APRSData)
-		if !ok {
-			return fmt.Errorf("invalid config type for APRS")
-		}
-		return s.insertAPRSConfig(tx, configID, aprs)
+		return fmt.Errorf("APRS configuration is now managed separately via APRS management endpoints")
 	default:
 		return fmt.Errorf("unsupported storage type: %s", storageType)
 	}
@@ -802,13 +760,7 @@ func (s *SQLiteProvider) UpdateStorageConfig(storageType string, config interfac
 			return err
 		}
 	case "aprs":
-		aprs, ok := config.(*APRSData)
-		if !ok {
-			return fmt.Errorf("invalid config type for APRS")
-		}
-		if err := s.insertAPRSConfig(tx, configID, aprs); err != nil {
-			return err
-		}
+		return fmt.Errorf("APRS configuration is now managed separately via APRS management endpoints")
 	default:
 		return fmt.Errorf("unsupported storage type: %s", storageType)
 	}
@@ -858,7 +810,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		       pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
 		       wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
 		       aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_location,
-		       rest_cert, rest_key, rest_port, rest_listen_addr
+		       rest_cert, rest_key, rest_port, rest_listen_addr, aprs_server
 		FROM controller_configs cc
 		JOIN configs c ON cc.config_id = c.id
 		WHERE cc.controller_type = ?
@@ -870,13 +822,14 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 	var aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLocation sql.NullString
 	var restCert, restKey, restListenAddr sql.NullString
 	var restPort sql.NullInt64
+	var aprsServer sql.NullString
 
 	err := s.db.QueryRow(query, controllerType).Scan(
 		&controller.Type,
 		&pwsStationID, &pwsAPIKey, &pwsUploadInterval, &pwsPullFromDevice, &pwsAPIEndpoint,
 		&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
 		&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLocation,
-		&restCert, &restKey, &restPort, &restListenAddr,
+		&restCert, &restKey, &restPort, &restListenAddr, &aprsServer,
 	)
 
 	if err != nil {
@@ -916,12 +869,29 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		}
 	}
 
-	if restCert.Valid {
+	if restListenAddr.Valid || restPort.Valid || restCert.Valid {
 		controller.RESTServer = &RESTServerData{
-			Cert:       restCert.String,
-			Key:        restKey.String,
-			Port:       int(restPort.Int64),
-			ListenAddr: restListenAddr.String,
+			HTTPPort:          int(restPort.Int64),
+			DefaultListenAddr: restListenAddr.String,
+			TLSCertPath:       restCert.String,
+			TLSKeyPath:        restKey.String,
+		}
+
+		// Set HTTPS port if configured (would come from a separate field in future)
+		// For now, we assume HTTPS is on HTTPPort + 1 if TLS is configured
+		if restCert.Valid && restKey.Valid {
+			httpsPort := int(restPort.Int64) + 1
+			controller.RESTServer.HTTPSPort = &httpsPort
+		}
+	}
+
+	if aprsServer.Valid || controllerType == "aprs" {
+		server := aprsServer.String
+		if server == "" {
+			server = "noam.aprs2.net:14580" // default APRS-IS server
+		}
+		controller.APRS = &APRSData{
+			Server: server,
 		}
 	}
 
@@ -1044,12 +1014,478 @@ func (s *SQLiteProvider) getConfigID(tx *sql.Tx) (int64, error) {
 
 // getOrCreateConfigID gets existing config ID or creates a new one
 func (s *SQLiteProvider) getOrCreateConfigID(tx *sql.Tx) (int64, error) {
-	// Try to get existing config
 	configID, err := s.getConfigID(tx)
-	if err == nil {
-		return configID, nil
+	if err != nil {
+		// Create default config if it doesn't exist
+		configID, err = s.insertConfig(tx, "default")
+		if err != nil {
+			return 0, fmt.Errorf("failed to create default config: %w", err)
+		}
+	}
+	return configID, nil
+}
+
+// Weather website management methods
+
+// GetWeatherWebsites retrieves all weather websites
+func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
+	query := `
+		SELECT id, name, hostname, page_title, about_station_html, snow_enabled, 
+		       snow_device_name, tls_cert_path, tls_key_path
+		FROM weather_websites 
+		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
+		ORDER BY name
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query weather websites: %w", err)
+	}
+	defer rows.Close()
+
+	var websites []WeatherWebsiteData
+	for rows.Next() {
+		var website WeatherWebsiteData
+		var hostname, pageTitle, aboutHTML, snowDeviceName sql.NullString
+		var tlsCertPath, tlsKeyPath sql.NullString
+
+		err := rows.Scan(
+			&website.ID,
+			&website.Name,
+			&hostname,
+			&pageTitle,
+			&aboutHTML,
+			&website.SnowEnabled,
+			&snowDeviceName,
+			&tlsCertPath,
+			&tlsKeyPath,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan website row: %w", err)
+		}
+
+		website.Hostname = hostname.String
+		website.PageTitle = pageTitle.String
+		website.AboutStationHTML = aboutHTML.String
+		website.SnowDeviceName = snowDeviceName.String
+		website.TLSCertPath = tlsCertPath.String
+		website.TLSKeyPath = tlsKeyPath.String
+
+		websites = append(websites, website)
 	}
 
-	// Create new config if none exists
-	return s.insertConfig(tx, "default")
+	return websites, nil
+}
+
+// GetWeatherWebsite retrieves a specific weather website by ID
+func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) {
+	query := `
+		SELECT id, name, hostname, page_title, about_station_html, snow_enabled,
+		       snow_device_name, tls_cert_path, tls_key_path
+		FROM weather_websites 
+		WHERE id = ? AND config_id = (SELECT id FROM configs WHERE name = 'default')
+	`
+
+	var website WeatherWebsiteData
+	var hostname, pageTitle, aboutHTML, snowDeviceName sql.NullString
+	var tlsCertPath, tlsKeyPath sql.NullString
+
+	err := s.db.QueryRow(query, id).Scan(
+		&website.ID,
+		&website.Name,
+		&hostname,
+		&pageTitle,
+		&aboutHTML,
+		&website.SnowEnabled,
+		&snowDeviceName,
+		&tlsCertPath,
+		&tlsKeyPath,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("weather website %d not found", id)
+		}
+		return nil, fmt.Errorf("failed to get weather website %d: %w", id, err)
+	}
+
+	website.Hostname = hostname.String
+	website.PageTitle = pageTitle.String
+	website.AboutStationHTML = aboutHTML.String
+	website.SnowDeviceName = snowDeviceName.String
+	website.TLSCertPath = tlsCertPath.String
+	website.TLSKeyPath = tlsKeyPath.String
+
+	return &website, nil
+}
+
+// AddWeatherWebsite adds a new weather website to the configuration
+func (s *SQLiteProvider) AddWeatherWebsite(website *WeatherWebsiteData) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get or create config ID
+	configID, err := s.getOrCreateConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Check if website name already exists
+	checkQuery := `
+		SELECT COUNT(*) FROM weather_websites 
+		WHERE config_id = ? AND name = ?
+	`
+	var count int
+	err = tx.QueryRow(checkQuery, configID, website.Name).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check existing website: %w", err)
+	}
+
+	if count > 0 {
+		return fmt.Errorf("weather website %s already exists", website.Name)
+	}
+
+	// Insert website
+	insertQuery := `
+		INSERT INTO weather_websites (
+			config_id, name, hostname, page_title, about_station_html, 
+			snow_enabled, snow_device_name, tls_cert_path, tls_key_path
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	result, err := tx.Exec(insertQuery,
+		configID,
+		website.Name,
+		nullString(website.Hostname),
+		nullString(website.PageTitle),
+		nullString(website.AboutStationHTML),
+		website.SnowEnabled,
+		nullString(website.SnowDeviceName),
+		nullString(website.TLSCertPath),
+		nullString(website.TLSKeyPath),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert weather website: %w", err)
+	}
+
+	// Get the inserted ID
+	websiteID, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get inserted website ID: %w", err)
+	}
+	website.ID = int(websiteID)
+
+	return tx.Commit()
+}
+
+// UpdateWeatherWebsite updates an existing weather website
+func (s *SQLiteProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteData) error {
+	// Validate website exists
+	if _, err := s.GetWeatherWebsite(id); err != nil {
+		return fmt.Errorf("weather website %d not found: %w", id, err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update website
+	query := `
+		UPDATE weather_websites SET
+			name = ?, hostname = ?, page_title = ?, about_station_html = ?,
+			snow_enabled = ?, snow_device_name = ?, tls_cert_path = ?, tls_key_path = ?
+		WHERE id = ?
+	`
+
+	_, err = tx.Exec(query,
+		website.Name,
+		nullString(website.Hostname),
+		nullString(website.PageTitle),
+		nullString(website.AboutStationHTML),
+		website.SnowEnabled,
+		nullString(website.SnowDeviceName),
+		nullString(website.TLSCertPath),
+		nullString(website.TLSKeyPath),
+		id,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update weather website: %w", err)
+	}
+
+	website.ID = id
+	return tx.Commit()
+}
+
+// DeleteWeatherWebsite removes a weather website from the configuration
+func (s *SQLiteProvider) DeleteWeatherWebsite(id int) error {
+	// Validate website exists
+	if _, err := s.GetWeatherWebsite(id); err != nil {
+		return fmt.Errorf("weather website %d not found: %w", id, err)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Check if any devices reference this website
+	deviceCheckQuery := "SELECT COUNT(*) FROM devices WHERE website_id = ?"
+	var deviceCount int
+	err = tx.QueryRow(deviceCheckQuery, id).Scan(&deviceCount)
+	if err != nil {
+		return fmt.Errorf("failed to check device references: %w", err)
+	}
+
+	if deviceCount > 0 {
+		return fmt.Errorf("cannot delete website %d: %d device(s) still reference it", id, deviceCount)
+	}
+
+	// Delete website
+	deleteQuery := "DELETE FROM weather_websites WHERE id = ?"
+	result, err := tx.Exec(deleteQuery, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete weather website: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("weather website %d not found", id)
+	}
+
+	return tx.Commit()
+}
+
+// Helper functions for handling nullable fields
+func nullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
+func nullFloat64(f float64) sql.NullFloat64 {
+	if f == 0 {
+		return sql.NullFloat64{Valid: false}
+	}
+	return sql.NullFloat64{Float64: f, Valid: true}
+}
+
+// Station APRS Configuration Management
+func (s *SQLiteProvider) GetStationAPRSConfigs() ([]StationAPRSData, error) {
+	query := `
+		SELECT device_name, enabled, callsign, latitude, longitude
+		FROM station_aprs_configs 
+		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
+		ORDER BY device_name
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query station APRS configs: %w", err)
+	}
+	defer rows.Close()
+
+	var configs []StationAPRSData
+	for rows.Next() {
+		var config StationAPRSData
+		var callsign sql.NullString
+		var latitude, longitude sql.NullFloat64
+
+		err := rows.Scan(
+			&config.DeviceName,
+			&config.Enabled,
+			&callsign,
+			&latitude,
+			&longitude,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan station APRS config row: %w", err)
+		}
+
+		config.Callsign = callsign.String
+		config.Location.Lat = latitude.Float64
+		config.Location.Lon = longitude.Float64
+
+		configs = append(configs, config)
+	}
+
+	return configs, nil
+}
+
+func (s *SQLiteProvider) GetStationAPRSConfig(deviceName string) (*StationAPRSData, error) {
+	query := `
+		SELECT device_name, enabled, callsign, latitude, longitude
+		FROM station_aprs_configs 
+		WHERE device_name = ? AND config_id = (SELECT id FROM configs WHERE name = 'default')
+	`
+
+	var config StationAPRSData
+	var callsign sql.NullString
+	var latitude, longitude sql.NullFloat64
+
+	err := s.db.QueryRow(query, deviceName).Scan(
+		&config.DeviceName,
+		&config.Enabled,
+		&callsign,
+		&latitude,
+		&longitude,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("station APRS config for device '%s' not found", deviceName)
+		}
+		return nil, fmt.Errorf("failed to get station APRS config: %w", err)
+	}
+
+	config.Callsign = callsign.String
+	config.Location.Lat = latitude.Float64
+	config.Location.Lon = longitude.Float64
+
+	return &config, nil
+}
+
+func (s *SQLiteProvider) AddStationAPRSConfig(config *StationAPRSData) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get or create config ID
+	configID, err := s.getOrCreateConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Verify the device exists
+	deviceCheckQuery := "SELECT COUNT(*) FROM devices WHERE name = ? AND config_id = ?"
+	var deviceCount int
+	err = tx.QueryRow(deviceCheckQuery, config.DeviceName, configID).Scan(&deviceCount)
+	if err != nil {
+		return fmt.Errorf("failed to check device existence: %w", err)
+	}
+	if deviceCount == 0 {
+		return fmt.Errorf("device '%s' does not exist", config.DeviceName)
+	}
+
+	// Check if station APRS config already exists
+	existingQuery := "SELECT COUNT(*) FROM station_aprs_configs WHERE device_name = ? AND config_id = ?"
+	var count int
+	err = tx.QueryRow(existingQuery, config.DeviceName, configID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check existing station APRS config: %w", err)
+	}
+	if count > 0 {
+		return fmt.Errorf("station APRS config for device '%s' already exists", config.DeviceName)
+	}
+
+	// Insert new station APRS config
+	insertQuery := `
+		INSERT INTO station_aprs_configs (
+			config_id, device_name, enabled, callsign, latitude, longitude
+		) VALUES (?, ?, ?, ?, ?, ?)
+	`
+
+	_, err = tx.Exec(insertQuery,
+		configID,
+		config.DeviceName,
+		config.Enabled,
+		nullString(config.Callsign),
+		nullFloat64(config.Location.Lat),
+		nullFloat64(config.Location.Lon),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert station APRS config: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+func (s *SQLiteProvider) UpdateStationAPRSConfig(deviceName string, config *StationAPRSData) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get config ID
+	configID, err := s.getConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Update station APRS config
+	updateQuery := `
+		UPDATE station_aprs_configs SET
+			enabled = ?, callsign = ?, latitude = ?, longitude = ?,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE device_name = ? AND config_id = ?
+	`
+
+	result, err := tx.Exec(updateQuery,
+		config.Enabled,
+		nullString(config.Callsign),
+		nullFloat64(config.Location.Lat),
+		nullFloat64(config.Location.Lon),
+		deviceName,
+		configID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update station APRS config: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("station APRS config for device '%s' not found", deviceName)
+	}
+
+	return tx.Commit()
+}
+
+func (s *SQLiteProvider) DeleteStationAPRSConfig(deviceName string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get config ID
+	configID, err := s.getConfigID(tx)
+	if err != nil {
+		return fmt.Errorf("failed to get config ID: %w", err)
+	}
+
+	// Delete station APRS config
+	deleteQuery := "DELETE FROM station_aprs_configs WHERE device_name = ? AND config_id = ?"
+	result, err := tx.Exec(deleteQuery, deviceName, configID)
+	if err != nil {
+		return fmt.Errorf("failed to delete station APRS config: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("station APRS config for device '%s' not found", deviceName)
+	}
+
+	return tx.Commit()
 }

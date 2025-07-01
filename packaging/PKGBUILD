@@ -90,7 +90,5 @@ package() {
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
     install -Dm644 migrations/config/*.sql "$pkgdir/usr/share/remoteweather/migrations/config/"
     
-    # Install web assets
-    install -dm755 "$pkgdir/usr/share/remoteweather/assets"
-    cp -r assets/* "$pkgdir/usr/share/remoteweather/assets/"
+
 } 

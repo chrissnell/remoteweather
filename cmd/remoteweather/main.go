@@ -17,8 +17,7 @@ import (
 const version = "5.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
 func main() {
-	cfgFile := flag.String("config", "config.yaml", "Path to configuration source:\n\t\t\t  YAML: config.yaml, weather-station.yaml\n\t\t\t  SQLite: config.db, weather-station.db\n\t\t\t  Use 'config-convert' tool to convert YAML→SQLite")
-	cfgBackend := flag.String("config-backend", "yaml", "Configuration backend type: 'yaml' for YAML files, 'sqlite' for SQLite databases")
+	cfgFile := flag.String("config", "config.db", "Path to SQLite configuration database")
 	debug := flag.Bool("debug", false, "Turn on debugging output")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
@@ -36,7 +35,7 @@ func main() {
 	defer log.Sync()
 
 	// Create and run the application
-	configProvider, err := createConfigProvider(*cfgFile, *cfgBackend)
+	configProvider, err := createConfigProvider(*cfgFile)
 	if err != nil {
 		log.Errorf("Failed to create config provider: %v", err)
 		os.Exit(1)
@@ -50,32 +49,58 @@ func main() {
 	}
 }
 
-func createConfigProvider(cfgFile, cfgBackend string) (config.ConfigProvider, error) {
+func createConfigProvider(cfgFile string) (config.ConfigProvider, error) {
 	filename, _ := filepath.Abs(cfgFile)
 
-	var provider config.ConfigProvider
-	var err error
-
-	switch cfgBackend {
-	case "yaml":
-		provider = config.NewYAMLProvider(filename)
-	case "sqlite":
-		provider, err = config.NewSQLiteProvider(filename)
-		if err != nil {
-			return nil, fmt.Errorf("error creating SQLite provider: %w", err)
+	// Check if database file exists
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		log.Infof("Configuration database does not exist. Creating bootstrap database at: %s", filename)
+		if err := createBootstrapDatabase(filename); err != nil {
+			return nil, fmt.Errorf("failed to create bootstrap database: %w", err)
 		}
-	default:
-		return nil, fmt.Errorf("unsupported configuration backend: %s. Use 'yaml' or 'sqlite'", cfgBackend)
+		log.Infof("Bootstrap database created successfully!")
+		log.Infof("You can now configure your weather stations and websites using the management API at http://localhost:8081")
+	}
+
+	provider, err := config.NewSQLiteProvider(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error creating SQLite provider: %w", err)
 	}
 
 	// Test that we can load the config
 	_, err = provider.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("error reading config file. Did you pass the -config flag? Run with -h for help: %w", err)
+		return nil, fmt.Errorf("error reading config database: %w", err)
 	}
 
 	// Wrap with caching layer for performance (30 second cache)
 	cachedProvider := config.NewCachedProvider(provider, 30*time.Second)
 
 	return cachedProvider, nil
+}
+
+func createBootstrapDatabase(dbPath string) error {
+	// Create the database with basic structure
+	provider, err := config.NewSQLiteProvider(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to create database: %w", err)
+	}
+	defer provider.Close()
+
+	// Bootstrap with minimal management API configuration
+	managementController := &config.ControllerData{
+		Type: "management",
+		ManagementAPI: &config.ManagementAPIData{
+			Port:       8081,
+			ListenAddr: "localhost",
+			EnableCORS: true,
+		},
+	}
+
+	err = provider.AddController(managementController)
+	if err != nil {
+		return fmt.Errorf("failed to add management API controller: %w", err)
+	}
+
+	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -19,7 +18,7 @@ type Controller struct {
 	ctx              context.Context
 	wg               *sync.WaitGroup
 	configProvider   config.ConfigProvider
-	managementConfig types.ManagementAPIConfig
+	managementConfig config.ManagementAPIData
 	Server           http.Server
 	ConfigProvider   config.ConfigProvider
 	logger           *zap.SugaredLogger
@@ -42,15 +41,8 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		app:            app,
 	}
 
-	// Convert ManagementAPIData to ManagementAPIConfig for now (we can remove this later)
-	ctrl.managementConfig = types.ManagementAPIConfig{
-		Cert:       mc.Cert,
-		Key:        mc.Key,
-		Port:       mc.Port,
-		ListenAddr: mc.ListenAddr,
-		AuthToken:  mc.AuthToken,
-		EnableCORS: mc.EnableCORS,
-	}
+	// Use ManagementAPIData directly
+	ctrl.managementConfig = mc
 
 	// Set default values
 	if ctrl.managementConfig.Port == 0 {
@@ -155,11 +147,19 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/config/storage/{id}", c.handlers.UpdateStorageConfig).Methods("PUT")
 	api.HandleFunc("/config/storage/{id}", c.handlers.DeleteStorageConfig).Methods("DELETE")
 
+	// Weather website management endpoints
+	api.HandleFunc("/config/websites", c.handlers.GetWeatherWebsites).Methods("GET")
+	api.HandleFunc("/config/websites", c.handlers.CreateWeatherWebsite).Methods("POST")
+	api.HandleFunc("/config/websites/{id}", c.handlers.GetWeatherWebsite).Methods("GET")
+	api.HandleFunc("/config/websites/{id}", c.handlers.UpdateWeatherWebsite).Methods("PUT")
+	api.HandleFunc("/config/websites/{id}", c.handlers.DeleteWeatherWebsite).Methods("DELETE")
+
 	// Testing/connectivity endpoints
 	api.HandleFunc("/test/device", c.handlers.TestDeviceConnectivity).Methods("POST")
 	api.HandleFunc("/test/database", c.handlers.TestDatabaseConnectivity).Methods("GET")
 	api.HandleFunc("/test/serial-port", c.handlers.TestSerialPortConnectivity).Methods("GET")
 	api.HandleFunc("/test/api", c.handlers.TestAPIConnectivity).Methods("POST")
+	api.HandleFunc("/test/current-reading", c.handlers.GetCurrentWeatherReading).Methods("POST")
 
 	// Web interface routes (without authentication for now)
 	router.HandleFunc("/", c.handlers.ServeIndex).Methods("GET")

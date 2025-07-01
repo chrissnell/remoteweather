@@ -27,7 +27,7 @@ type Storage struct {
 	DBClient        *database.Client
 	DBEnabled       bool
 	Server          *grpc.Server
-	GRPCConfig      *types.GRPCConfig
+	GRPCConfig      *config.GRPCData
 
 	weather.UnimplementedWeatherServer
 }
@@ -96,15 +96,7 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	}
 
 	// Store a reference to our configuration in our Storage object
-	// Convert to legacy config for compatibility
-	legacyGRPCConfig := &types.GRPCConfig{
-		Cert:           grpcConfig.Cert,
-		Key:            grpcConfig.Key,
-		ListenAddr:     grpcConfig.ListenAddr,
-		Port:           grpcConfig.Port,
-		PullFromDevice: grpcConfig.PullFromDevice,
-	}
-	g.GRPCConfig = legacyGRPCConfig
+	g.GRPCConfig = grpcConfig
 
 	// Optionally, add gRPC reflection to our servers so that clients can self-discover
 	// our methods.
