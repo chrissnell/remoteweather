@@ -214,9 +214,6 @@ func (h *Handlers) GetStorageConfigs(w http.ResponseWriter, r *http.Request) {
 	if storageConfig.GRPC != nil {
 		storageMap["grpc"] = storageConfig.GRPC
 	}
-	if storageConfig.APRS != nil {
-		storageMap["aprs"] = storageConfig.APRS
-	}
 
 	h.sendJSON(w, map[string]interface{}{
 		"storage": storageMap,
@@ -247,7 +244,7 @@ func (h *Handlers) CreateStorageConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate storage type
-	validTypes := []string{"timescaledb", "grpc", "aprs"}
+	validTypes := []string{"timescaledb", "grpc"}
 	if !contains(validTypes, requestData.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid storage type. Must be one of: %v", validTypes), nil)
 		return
@@ -297,7 +294,7 @@ func (h *Handlers) UpdateStorageConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate storage type
-	validTypes := []string{"timescaledb", "grpc", "aprs"}
+	validTypes := []string{"timescaledb", "grpc"}
 	if !contains(validTypes, storageType) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid storage type. Must be one of: %v", validTypes), nil)
 		return
@@ -353,7 +350,7 @@ func (h *Handlers) DeleteStorageConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate storage type
-	validTypes := []string{"timescaledb", "grpc", "aprs"}
+	validTypes := []string{"timescaledb", "grpc"}
 	if !contains(validTypes, storageType) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid storage type. Must be one of: %v", validTypes), nil)
 		return
@@ -448,12 +445,6 @@ func (h *Handlers) convertStorageConfig(storageType string, configData interface
 			return nil, fmt.Errorf("failed to unmarshal GRPC config: %w", err)
 		}
 		return &grpcConfig, nil
-	case "aprs":
-		var aprsConfig config.APRSData
-		if err := json.Unmarshal(jsonData, &aprsConfig); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal APRS config: %w", err)
-		}
-		return &aprsConfig, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
 	}
@@ -480,20 +471,6 @@ func (h *Handlers) validateStorageConfig(storageType string, configData interfac
 		}
 		if grpc.PullFromDevice == "" {
 			return fmt.Errorf("pull_from_device is required for GRPC")
-		}
-	case "aprs":
-		aprs, ok := configData.(*config.APRSData)
-		if !ok {
-			return fmt.Errorf("invalid APRS config type")
-		}
-		if aprs.Callsign == "" {
-			return fmt.Errorf("callsign is required for APRS")
-		}
-		if aprs.Passcode == "" {
-			return fmt.Errorf("passcode is required for APRS")
-		}
-		if aprs.APRSISServer == "" {
-			return fmt.Errorf("aprs_is_server is required for APRS")
 		}
 	default:
 		return fmt.Errorf("unsupported storage type: %s", storageType)
