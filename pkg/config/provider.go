@@ -171,6 +171,7 @@ type ConfigData struct {
 type DeviceData struct {
 	Name              string    `json:"name"`
 	Type              string    `json:"type,omitempty"`
+	Enabled           bool      `json:"enabled"`
 	Hostname          string    `json:"hostname,omitempty"`
 	Port              string    `json:"port,omitempty"`
 	SerialDevice      string    `json:"serial_device,omitempty"`

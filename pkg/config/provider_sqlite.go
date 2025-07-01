@@ -62,7 +62,7 @@ func (s *SQLiteProvider) LoadConfig() (*ConfigData, error) {
 // GetDevices returns device configurations from the database
 func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	query := `
-		SELECT name, type, hostname, port, serial_device, baud, 
+		SELECT name, type, enabled, hostname, port, serial_device, baud, 
 		       wind_dir_correction, base_snow_distance, website_id,
 		       solar_latitude, solar_longitude, solar_altitude
 		FROM devices 
@@ -84,7 +84,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		var solarLat, solarLon, solarAlt sql.NullFloat64
 
 		err := rows.Scan(
-			&device.Name, &device.Type, &hostname, &port,
+			&device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
 		)
@@ -415,10 +415,10 @@ func (s *SQLiteProvider) clearExistingConfig(tx *sql.Tx, configID int64) error {
 func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *DeviceData) error {
 	query := `
 		INSERT INTO devices (
-			config_id, name, type, hostname, port, serial_device,
+			config_id, name, type, enabled, hostname, port, serial_device,
 			baud, wind_dir_correction, base_snow_distance, website_id,
 			solar_latitude, solar_longitude, solar_altitude
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var websiteID sql.NullInt64
@@ -427,7 +427,7 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 	}
 
 	_, err := tx.Exec(query,
-		configID, device.Name, device.Type, device.Hostname, device.Port,
+		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
 		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
 	)
@@ -564,7 +564,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 // GetDevice retrieves a specific device by name
 func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	query := `
-		SELECT d.name, d.type, d.hostname, d.port, d.serial_device, d.baud,
+		SELECT d.name, d.type, d.enabled, d.hostname, d.port, d.serial_device, d.baud,
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
 		       d.solar_latitude, d.solar_longitude, d.solar_altitude
 		FROM devices d
@@ -578,7 +578,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var solarLat, solarLon, solarAlt sql.NullFloat64
 
 	err := s.db.QueryRow(query, name).Scan(
-		&device.Name, &device.Type, &hostname, &port,
+		&device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
 		&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
 	)
@@ -673,7 +673,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 	// Update device
 	query := `
 		UPDATE devices SET
-			name = ?, type = ?, hostname = ?, port = ?, serial_device = ?,
+			name = ?, type = ?, enabled = ?, hostname = ?, port = ?, serial_device = ?,
 			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
 			solar_latitude = ?, solar_longitude = ?, solar_altitude = ?
 		WHERE name = ?
@@ -685,7 +685,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 	}
 
 	_, err = tx.Exec(query,
-		device.Name, device.Type, device.Hostname, device.Port,
+		device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
 		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
 		name,
