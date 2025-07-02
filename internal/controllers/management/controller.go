@@ -56,9 +56,44 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		ctrl.managementConfig.ListenAddr = "127.0.0.1"
 	}
 
-	token := generateAuthToken()
-	logger.Infof("Generated management API auth token: %s", token)
-	ctrl.managementConfig.AuthToken = token
+	// Use existing token from database or generate a new one if none exists
+	if mc.AuthToken != "" {
+		ctrl.managementConfig.AuthToken = mc.AuthToken
+		logger.Info("═══════════════════════════════════════════════════════════════")
+		logger.Info("                MANAGEMENT API ACCESS TOKEN                    ")
+		logger.Info("═══════════════════════════════════════════════════════════════")
+		logger.Infof("   Token: %s", mc.AuthToken)
+		logger.Info("   Use this token for API authentication")
+		logger.Info("═══════════════════════════════════════════════════════════════")
+	} else {
+		// No token in database, generate a new one and save it
+		newToken := generateAuthToken()
+		ctrl.managementConfig.AuthToken = newToken
+
+		// Save the new token to the database
+		err := configProvider.UpdateController("management", &config.ControllerData{
+			Type: "management",
+			ManagementAPI: &config.ManagementAPIData{
+				Cert:       mc.Cert,
+				Key:        mc.Key,
+				Port:       mc.Port,
+				ListenAddr: mc.ListenAddr,
+				EnableCORS: mc.EnableCORS,
+				AuthToken:  newToken,
+			},
+		})
+		if err != nil {
+			logger.Errorf("Failed to save auth token to database: %v", err)
+		}
+
+		logger.Info("═══════════════════════════════════════════════════════════════")
+		logger.Info("        NEW MANAGEMENT API ACCESS TOKEN GENERATED             ")
+		logger.Info("═══════════════════════════════════════════════════════════════")
+		logger.Infof("   Token: %s", newToken)
+		logger.Info("   *** SAVE THIS TOKEN - IT WILL NOT CHANGE ON RESTART ***")
+		logger.Info("   Use this token for API authentication")
+		logger.Info("═══════════════════════════════════════════════════════════════")
+	}
 
 	// Config provider is already available from the parameter
 	ctrl.ConfigProvider = configProvider
@@ -164,6 +199,11 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/test/serial-port", c.handlers.TestSerialPortConnectivity).Methods("GET")
 	api.HandleFunc("/test/api", c.handlers.TestAPIConnectivity).Methods("POST")
 	api.HandleFunc("/test/current-reading", c.handlers.GetCurrentWeatherReading).Methods("POST")
+	api.HandleFunc("/test/storage", c.handlers.TestStorageConnectivity).Methods("GET")
+
+	// Storage health monitoring endpoints
+	api.HandleFunc("/health/storage", c.handlers.GetStorageHealthStatus).Methods("GET")
+	api.HandleFunc("/health/storage/{type}", c.handlers.GetSingleStorageHealth).Methods("GET")
 
 	return router
 }
@@ -180,6 +220,11 @@ func (c *Controller) setupManagementInterface(router *mux.Router) {
 	// Serve the main management interface
 	router.HandleFunc("/", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/management", c.serveManagementInterface).Methods("GET")
+
+	// Serve tab-specific URLs (all serve the same interface, JavaScript handles routing)
+	router.HandleFunc("/weather-stations", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/controllers", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/storage", c.serveManagementInterface).Methods("GET")
 }
 
 // serveManagementInterface serves the main management interface HTML
