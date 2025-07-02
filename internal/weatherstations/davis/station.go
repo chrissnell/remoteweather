@@ -355,6 +355,10 @@ func (s *Station) Write(p []byte) (nn int, err error) {
 		s.logger.Debugf("writing to Davis station: %s", hex.EncodeToString(p))
 	}
 
+	if s.rwc == nil {
+		return 0, fmt.Errorf("connection not established")
+	}
+
 	nn, err = s.rwc.Write(p)
 	if err != nil {
 		s.logger.Errorf("error writing to Davis station: %v", err)
