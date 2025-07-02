@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RemoteWeather Management</title>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Core stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header-bar">
+    <h1 class="app-title">RemoteWeather Management</h1>
+  </header>
+
+  <main class="main-layout">
+    <!-- Vertical tab navigation -->
+    <nav class="side-nav" id="side-nav">
+      <button class="tab-button active" data-target="ws-pane">Weather Stations</button>
+      <button class="tab-button" data-target="ctrl-pane">Controllers</button>
+      <button class="tab-button" data-target="storage-pane">Storage</button>
+    </nav>
+
+    <!-- Content area -->
+    <section class="content-area">
+      <!-- Weather Stations Pane -->
+      <div class="tab-pane" id="ws-pane">
+        <header class="pane-header">
+          <h2>Weather Stations</h2>
+          <button id="add-station-btn" class="primary-btn">+ Add Station</button>
+        </header>
+        <div id="ws-list" class="card-container">Loading…</div>
+
+        <!-- Modal for add/edit station -->
+        <div id="station-modal" class="modal hidden">
+          <div class="modal-content">
+            <header class="modal-header">
+              <h3 id="modal-title">Add Station</h3>
+              <button class="close-btn" id="modal-close">×</button>
+            </header>
+
+            <form id="station-form" class="station-form">
+              <input type="hidden" id="form-mode" value="add" />
+
+              <label>
+                Name
+                <input type="text" id="station-name" required />
+              </label>
+
+              <label>
+                Type
+                <select id="station-type" required>
+                  <option value="davis">Davis Instruments</option>
+                  <option value="campbellscientific">Campbell Scientific</option>
+                  <option value="snowgauge">Snow Gauge</option>
+                </select>
+              </label>
+
+              <label>
+                Connection
+                <select id="connection-type" required>
+                  <option value="serial">Serial</option>
+                  <option value="network">Network</option>
+                </select>
+              </label>
+
+              <fieldset id="serial-fieldset" class="conn-fieldset hidden">
+                <legend>Serial Connection</legend>
+                <label>
+                  Device Path
+                  <input type="text" id="serial-device" placeholder="/dev/ttyUSB0" />
+                </label>
+                <label>
+                  Baud
+                  <input type="number" id="serial-baud" placeholder="9600" />
+                </label>
+              </fieldset>
+
+              <fieldset id="network-fieldset" class="conn-fieldset hidden">
+                <legend>Network Connection</legend>
+                <label>
+                  Hostname
+                  <input type="text" id="net-hostname" placeholder="192.168.1.50" />
+                </label>
+                <label>
+                  Port
+                  <input type="text" id="net-port" placeholder="3001" />
+                </label>
+              </fieldset>
+
+              <div id="snow-options" class="snow-options hidden">
+                <label>
+                  Base Snow Distance (mm)
+                  <input type="number" id="snow-distance" />
+                </label>
+              </div>
+
+              <label class="checkbox-label">
+                <input type="checkbox" id="station-enabled" checked /> Enabled
+              </label>
+
+              <footer class="modal-footer">
+                <button type="submit" class="primary-btn" id="save-station-btn">Save</button>
+                <button type="button" class="secondary-btn" id="cancel-station-btn">Cancel</button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controllers Pane -->
+      <div class="tab-pane hidden" id="ctrl-pane">
+        <h2>Controllers</h2>
+        <p>Coming soon…</p>
+      </div>
+
+      <!-- Storage Pane -->
+      <div class="tab-pane hidden" id="storage-pane">
+        <h2>Storage</h2>
+        <div id="storage-list" class="list-container">Loading…</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/management.js"></script>
+</body>
+</html> 
