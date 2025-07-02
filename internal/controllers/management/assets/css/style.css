@@ -294,4 +294,24 @@ h2 {
   max-height: 140px;
   overflow: auto;
   margin-bottom: 0.5rem;
+}
+
+/* Age / staleness badges */
+.age-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: #6c757d;
+  color: #fff;
+}
+
+.age-badge.fresh {
+  background: #28a745; /* green */
+}
+
+.age-badge.stale {
+  background: #ffc107; /* yellow */
+  color: #000;
 } 
