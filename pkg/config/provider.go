@@ -28,6 +28,11 @@ type ConfigProvider interface {
 	UpdateStorageConfig(storageType string, config interface{}) error
 	DeleteStorageConfig(storageType string) error
 
+	// Storage health management
+	UpdateStorageHealth(storageType string, health *StorageHealthData) error
+	GetStorageHealth(storageType string) (*StorageHealthData, error)
+	GetAllStorageHealth() (map[string]*StorageHealthData, error)
+
 	// Individual controller management
 	AddController(controller *ControllerData) error
 	UpdateController(controllerType string, controller *ControllerData) error
@@ -207,17 +212,27 @@ type ControllerData struct {
 	APRS               *APRSData               `json:"aprs,omitempty"`
 }
 
+// StorageHealthData holds health status information for storage backends
+type StorageHealthData struct {
+	LastCheck time.Time `json:"last_check,omitempty"`
+	Status    string    `json:"status,omitempty"` // "healthy", "unhealthy", "stale", "unknown"
+	Message   string    `json:"message,omitempty"`
+	Error     string    `json:"error,omitempty"`
+}
+
 // Storage backend configuration structs
 type TimescaleDBData struct {
-	ConnectionString string `json:"connection_string"`
+	ConnectionString string             `json:"connection_string"`
+	Health           *StorageHealthData `json:"health,omitempty"`
 }
 
 type GRPCData struct {
-	Cert           string `json:"cert,omitempty"`
-	Key            string `json:"key,omitempty"`
-	ListenAddr     string `json:"listen_addr,omitempty"`
-	Port           int    `json:"port,omitempty"`
-	PullFromDevice string `json:"pull_from_device,omitempty"`
+	Cert           string             `json:"cert,omitempty"`
+	Key            string             `json:"key,omitempty"`
+	ListenAddr     string             `json:"listen_addr,omitempty"`
+	Port           int                `json:"port,omitempty"`
+	PullFromDevice string             `json:"pull_from_device,omitempty"`
+	Health         *StorageHealthData `json:"health,omitempty"`
 }
 
 // Per-station APRS configuration
@@ -259,7 +274,8 @@ type AerisWeatherData struct {
 }
 
 type APRSData struct {
-	Server string `json:"server,omitempty"`
+	Server string             `json:"server,omitempty"`
+	Health *StorageHealthData `json:"health,omitempty"`
 }
 
 // RESTServerData holds configuration for the REST server
@@ -667,4 +683,21 @@ func (c *CachedConfigProvider) DeleteStationAPRSConfig(deviceName string) error 
 		c.InvalidateCache()
 	}
 	return err
+}
+
+// Storage health management methods
+
+// UpdateStorageHealth updates the health status of a storage backend (no cache invalidation needed for health)
+func (c *CachedConfigProvider) UpdateStorageHealth(storageType string, health *StorageHealthData) error {
+	return c.provider.UpdateStorageHealth(storageType, health)
+}
+
+// GetStorageHealth retrieves the health status of a specific storage backend
+func (c *CachedConfigProvider) GetStorageHealth(storageType string) (*StorageHealthData, error) {
+	return c.provider.GetStorageHealth(storageType)
+}
+
+// GetAllStorageHealth retrieves health status for all storage backends
+func (c *CachedConfigProvider) GetAllStorageHealth() (map[string]*StorageHealthData, error) {
+	return c.provider.GetAllStorageHealth()
 }
