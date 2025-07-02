@@ -324,6 +324,10 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	// Start health monitoring
+	log.Info("starting TimescaleDB health monitor")
+	t.startHealthMonitor(ctx, configProvider)
+
 	log.Info("TimescaleDB connection successful")
 
 	return &t, nil
