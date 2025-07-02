@@ -3,6 +3,7 @@ package management
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"sync"
 	"time"
@@ -55,9 +56,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		ctrl.managementConfig.ListenAddr = "127.0.0.1"
 	}
 
-	if ctrl.managementConfig.AuthToken == "" {
-		return nil, fmt.Errorf("auth-token must be set in management API config for security")
-	}
+	token := generateAuthToken()
+	logger.Infof("Generated management API auth token: %s", token)
+	ctrl.managementConfig.AuthToken = token
 
 	// Config provider is already available from the parameter
 	ctrl.ConfigProvider = configProvider
@@ -121,6 +122,9 @@ func (c *Controller) setupRouter() *mux.Router {
 		router.Use(c.corsMiddleware)
 	}
 
+	// Management interface routes (no auth required for UI assets)
+	c.setupManagementInterface(router)
+
 	// API routes (with authentication)
 	api := router.PathPrefix("/api").Subrouter()
 	api.Use(c.authMiddleware)
@@ -161,10 +165,39 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/test/api", c.handlers.TestAPIConnectivity).Methods("POST")
 	api.HandleFunc("/test/current-reading", c.handlers.GetCurrentWeatherReading).Methods("POST")
 
-	// Web interface routes (without authentication for now)
-	router.HandleFunc("/", c.handlers.ServeIndex).Methods("GET")
-
 	return router
+}
+
+// setupManagementInterface sets up routes for the management web interface
+func (c *Controller) setupManagementInterface(router *mux.Router) {
+	assets := GetAssets()
+
+	// Serve static assets
+	router.PathPrefix("/css/").Handler(http.StripPrefix("/", http.FileServer(http.FS(assets))))
+	router.PathPrefix("/js/").Handler(http.StripPrefix("/", http.FileServer(http.FS(assets))))
+	router.PathPrefix("/images/").Handler(http.StripPrefix("/", http.FileServer(http.FS(assets))))
+
+	// Serve the main management interface
+	router.HandleFunc("/", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/management", c.serveManagementInterface).Methods("GET")
+}
+
+// serveManagementInterface serves the main management interface HTML
+func (c *Controller) serveManagementInterface(w http.ResponseWriter, r *http.Request) {
+	assets := GetAssets()
+
+	// Read the index.html file content
+	content, err := fs.ReadFile(assets, "index.html")
+	if err != nil {
+		c.logger.Errorf("Failed to read index.html: %v", err)
+		http.Error(w, "Management interface not available", http.StatusInternalServerError)
+		return
+	}
+
+	// Set content type and write response
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write(content)
 }
 
 // loggingMiddleware logs all requests

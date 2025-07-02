@@ -12,6 +12,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/app"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
+	"github.com/google/uuid"
 )
 
 const version = "5.0-" + runtime.GOOS + "/" + runtime.GOARCH
@@ -87,6 +88,9 @@ func createBootstrapDatabase(dbPath string) error {
 	}
 	defer provider.Close()
 
+	// Generate UUID token (with hyphens for readability)
+	token := uuid.New().String()
+
 	// Bootstrap with minimal management API configuration
 	managementController := &config.ControllerData{
 		Type: "management",
@@ -94,6 +98,7 @@ func createBootstrapDatabase(dbPath string) error {
 			Port:       8081,
 			ListenAddr: "localhost",
 			EnableCORS: true,
+			AuthToken:  token,
 		},
 	}
 
@@ -101,6 +106,8 @@ func createBootstrapDatabase(dbPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to add management API controller: %w", err)
 	}
+
+	log.Infof("Bootstrap management API auth token: %s", token)
 
 	return nil
 }

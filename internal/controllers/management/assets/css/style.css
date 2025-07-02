@@ -1,0 +1,297 @@
+/* RemoteWeather Management UI Styles */
+
+:root {
+  --primary-bg: #edf2f4; /* light grey similar to restserver tabs */
+  --accent: #1a8ca7;      /* cyan accent used for active elements */
+  --danger: #c1121f;      /* red accent used in headers */
+  --text: #000;
+  --font-family: 'Inconsolata', monospace;
+}
+
+/* Reset margin for body */
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: #fff;
+  color: var(--text);
+}
+
+.header-bar {
+  background: var(--primary-bg);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #ccc;
+}
+
+.app-title {
+  margin: 0;
+  color: var(--danger);
+  font-size: 1.75rem;
+  text-align: center;
+}
+
+/* Main layout */
+.main-layout {
+  display: flex;
+  height: calc(100vh - 60px);
+}
+
+.side-nav {
+  background: var(--primary-bg);
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ccc;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 1rem;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--text);
+  border-left: 4px solid transparent;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-button:hover {
+  background: #d9e2e5;
+}
+
+.tab-button.active {
+  background: var(--accent);
+  color: #fff;
+  border-left-color: var(--danger);
+}
+
+.content-area {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.tab-pane {
+  display: block;
+}
+
+.tab-pane.hidden {
+  display: none;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  color: var(--accent);
+}
+
+.list-container {
+  margin-top: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.5rem;
+  background: #fafafa;
+  overflow-x: auto;
+}
+
+/* Table styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.table th {
+  background: var(--primary-bg);
+}
+
+/* Buttons */
+.primary-btn, .secondary-btn, .close-btn {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #fff;
+}
+
+.primary-btn:hover {
+  background: #14768c;
+}
+
+.secondary-btn {
+  background: #ccc;
+  color: #000;
+}
+
+.secondary-btn:hover {
+  background: #b3b3b3;
+}
+
+.close-btn {
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+}
+
+/* Pane header */
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Cards layout */
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: var(--danger);
+}
+
+.card .meta {
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.card .actions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 6px;
+  width: 420px;
+  max-width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Form controls */
+.station-form label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.station-form input,
+.station-form select {
+  padding: 0.45rem 0.55rem;
+  font-family: var(--font-family);
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 0.35rem; /* adds space between label text and field */
+}
+
+.conn-fieldset {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0; /* more breathing room above and below */
+}
+
+.conn-fieldset legend {
+  font-size: 0.9rem;
+  padding: 0 0.25rem;
+}
+
+.checkbox-label {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Hide helper */
+.hidden {
+  display: none !important;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: #666;
+}
+
+.status-online {
+  background: #28a745;
+}
+
+.status-offline {
+  background: #dc3545;
+}
+
+.reading-box {
+  background: #f5f7f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  max-height: 140px;
+  overflow: auto;
+  margin-bottom: 0.5rem;
+} 
