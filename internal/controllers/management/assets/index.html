@@ -117,11 +117,55 @@
 
       <!-- Storage Pane -->
       <div class="tab-pane hidden" id="storage-pane">
-        <h2>Storage</h2>
+        <div class="pane-header">
+          <h2>Storage</h2>
+          <button class="primary-btn" id="add-storage-btn">Add Storage</button>
+        </div>
         <div id="storage-list" class="list-container">Loading…</div>
       </div>
     </section>
   </main>
+
+  <!-- Storage Modal -->
+  <div id="storage-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="storage-modal-title">Add Storage Backend</h3>
+        <button class="close-btn" id="storage-modal-close">×</button>
+      </div>
+      <form id="storage-form" class="station-form">
+        <input type="hidden" id="storage-form-mode" value="add" />
+        <label>
+          Storage Type
+          <select id="storage-type">
+            <option value="timescaledb">TimescaleDB</option>
+            <option value="grpc">gRPC</option>
+          </select>
+        </label>
+        <div id="timescaledb-fields">
+          <label>
+            Connection String
+            <input type="text" id="timescale-conn" placeholder="host=localhost port=5432 dbname=..." />
+          </label>
+        </div>
+        <div id="grpc-fields" class="hidden">
+          <label>
+            Listen Port
+            <input type="number" id="grpc-port" placeholder="5555" />
+          </label>
+          <label>
+            Pull From Device
+            <select id="grpc-device-select"></select>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-storage-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-storage-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end storage modal -->
 
   <script src="js/management.js"></script>
 </body>

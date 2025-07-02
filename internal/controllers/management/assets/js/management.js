@@ -166,7 +166,33 @@
 
     try {
       const readingRes = await apiPost('/test/current-reading', { device_name: deviceName, max_stale_minutes: 60 });
+
+      // Human-readable render of reading JSON
       readingBox.textContent = JSON.stringify(readingRes.reading || readingRes, null, 2);
+
+      // Age / staleness indicator (stale if >30 s)
+      if (typeof readingRes.timestamp === 'number') {
+        const ageSec = Math.floor(Date.now() / 1000 - readingRes.timestamp);
+        const stale = ageSec > 30;
+
+        // Remove any previous age badge
+        const existing = statusEl.parentElement.querySelector('.age-badge');
+        if (existing) existing.remove();
+
+        const ageBadge = document.createElement('span');
+        ageBadge.className = 'age-badge';
+        ageBadge.textContent = `${ageSec}s`;
+
+        if (stale) {
+          ageBadge.classList.add('stale');
+          ageBadge.title = 'Reading is stale';
+        } else {
+          ageBadge.classList.add('fresh');
+          ageBadge.title = 'Reading is fresh';
+        }
+
+        statusEl.parentElement.appendChild(ageBadge);
+      }
     } catch (err) {
       readingBox.textContent = 'No reading data';
     }
@@ -189,25 +215,67 @@
         return;
       }
 
-      const table = document.createElement('table');
-      table.className = 'table';
-      const thead = document.createElement('thead');
-      thead.innerHTML = '<tr><th>Type</th><th>Details</th></tr>';
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      keys.forEach(type => {
-        const cfg = storageMap[type];
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${type}</td><td>${JSON.stringify(cfg)}</td>`;
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-
       container.innerHTML = '';
-      container.appendChild(table);
+
+      // Fetch overall storage status map once
+      let statusMap = {};
+      try {
+        const statusRes = await apiGet('/test/storage');
+        (statusRes.storage || []).forEach(s => { statusMap[s.name] = s.connected; });
+      } catch (_) {}
+
+      keys.forEach(type => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const h3 = document.createElement('h3');
+        h3.textContent = type;
+
+        const statusEl = document.createElement('span');
+        statusEl.className = 'status-badge';
+        statusEl.textContent = 'Checking…';
+        h3.appendChild(document.createTextNode(' '));
+        h3.appendChild(statusEl);
+
+        card.appendChild(h3);
+
+        const pre = document.createElement('pre');
+        pre.className = 'reading-box';
+        pre.textContent = JSON.stringify(storageMap[type], null, 2);
+        card.appendChild(pre);
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const delBtn = document.createElement('button');
+        delBtn.className = 'secondary-btn';
+        delBtn.textContent = 'Delete';
+        delBtn.addEventListener('click', () => deleteStorage(type));
+        actions.appendChild(delBtn);
+        card.appendChild(actions);
+
+        container.appendChild(card);
+
+        // Status check (only timescaledb for now)
+        if (statusMap.hasOwnProperty(type)) {
+          const ok = statusMap[type];
+          statusEl.textContent = ok ? 'Online' : 'Offline';
+          statusEl.classList.add(ok ? 'status-online' : 'status-offline');
+        } else {
+          statusEl.textContent = 'Unknown';
+        }
+      });
     } catch (err) {
       container.textContent = 'Failed to load storage configurations. ' + err.message;
+    }
+  }
+
+  async function deleteStorage(type) {
+    if (!confirm('Delete storage backend ' + type + '?')) return;
+    try {
+      await apiDelete('/config/storage/' + type);
+      loadStorageConfigs();
+    } catch (err) {
+      alert('Failed to delete: ' + err.message);
     }
   }
 
@@ -433,6 +501,111 @@
     }
     return res.json().catch(() => ({}));
   }
+
+  /* ---------------------------------------------------
+     Storage Modal helpers (Add/update backend)
+  --------------------------------------------------- */
+
+  // Elements
+  const storageModal = document.getElementById('storage-modal');
+  const storageModalClose = document.getElementById('storage-modal-close');
+  const storageCancelBtn = document.getElementById('cancel-storage-btn');
+  const storageForm = document.getElementById('storage-form');
+  const addStorageBtn = document.getElementById('add-storage-btn');
+  const storageTypeSelect = document.getElementById('storage-type');
+
+  const tsFields = document.getElementById('timescaledb-fields');
+  const grpcFields = document.getElementById('grpc-fields');
+
+  function updateStorageFieldVisibility() {
+    const sel = storageTypeSelect.value;
+    if (sel === 'timescaledb') {
+      tsFields.classList.remove('hidden');
+      grpcFields.classList.add('hidden');
+    } else if (sel === 'grpc') {
+      grpcFields.classList.remove('hidden');
+      tsFields.classList.add('hidden');
+    }
+  }
+
+  if (storageTypeSelect) storageTypeSelect.addEventListener('change', updateStorageFieldVisibility);
+
+  async function openStorageModal() {
+    // reset form
+    storageForm.reset();
+    document.getElementById('storage-form-mode').value = 'add';
+    // Fetch devices to populate dropdown
+    try {
+      const data = await apiGet('/config/weather-stations');
+      const devSel = document.getElementById('grpc-device-select');
+      devSel.innerHTML = '';
+      (data.devices || []).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        devSel.appendChild(opt);
+      });
+    } catch (err) {
+      console.warn('Failed to load stations for dropdown', err);
+    }
+
+    updateStorageFieldVisibility();
+    storageModal.classList.remove('hidden');
+  }
+
+  function closeStorageModal() {
+    storageModal.classList.add('hidden');
+  }
+
+  if (addStorageBtn) addStorageBtn.addEventListener('click', openStorageModal);
+  if (storageModalClose) storageModalClose.addEventListener('click', closeStorageModal);
+  if (storageCancelBtn) storageCancelBtn.addEventListener('click', closeStorageModal);
+
+  if (storageForm) {
+    storageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const mode = document.getElementById('storage-form-mode').value;
+      const storageType = document.getElementById('storage-type').value;
+
+      let configObj = {};
+      if (storageType === 'timescaledb') {
+        const connStr = document.getElementById('timescale-conn').value.trim();
+        if (!connStr) {
+          alert('Connection string is required');
+          return;
+        }
+        configObj = { connection_string: connStr };
+      } else if (storageType === 'grpc') {
+        const portVal = parseInt(document.getElementById('grpc-port').value, 10);
+        const deviceName = document.getElementById('grpc-device-select').value;
+        if (!portVal || portVal <= 0) {
+          alert('Valid port is required');
+          return;
+        }
+        if (!deviceName) {
+          alert('Pull From Device is required');
+          return;
+        }
+        configObj = { port: portVal, pull_from_device: deviceName };
+      }
+
+      try {
+        if (mode === 'add') {
+          await apiPost('/config/storage', { type: storageType, config: configObj });
+        } else {
+          await apiPut(`/config/storage/${storageType}`, configObj);
+        }
+        closeStorageModal();
+        loadStorageConfigs();
+      } catch (err) {
+        alert('Failed to save storage backend: ' + err.message);
+      }
+    });
+  }
+
+  // initial vis
+  updateStorageFieldVisibility();
 
   /* ---------------------------------------------------
      Init
