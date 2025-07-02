@@ -193,7 +193,7 @@ func (h *Handlers) DeleteWeatherStation(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// GetStorageConfigs returns all configured storage backends
+// GetStorageConfigs returns all configured storage backends (sanitized for security)
 func (h *Handlers) GetStorageConfigs(w http.ResponseWriter, r *http.Request) {
 	if h.controller.ConfigProvider == nil {
 		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
@@ -206,13 +206,32 @@ func (h *Handlers) GetStorageConfigs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to a map for easier API consumption
+	// Convert to a map for easier API consumption, sanitizing sensitive data
 	storageMap := make(map[string]interface{})
 	if storageConfig.TimescaleDB != nil {
-		storageMap["timescaledb"] = storageConfig.TimescaleDB
+		// Sanitize TimescaleDB connection string
+		sanitized := h.sanitizeTimescaleDBConfig(storageConfig.TimescaleDB)
+		storageMap["timescaledb"] = sanitized
 	}
 	if storageConfig.GRPC != nil {
-		storageMap["grpc"] = storageConfig.GRPC
+		// GRPC config doesn't contain sensitive data, but include health if available
+		grpcMap := map[string]interface{}{
+			"port":             storageConfig.GRPC.Port,
+			"pull_from_device": storageConfig.GRPC.PullFromDevice,
+		}
+		if storageConfig.GRPC.ListenAddr != "" {
+			grpcMap["listen_addr"] = storageConfig.GRPC.ListenAddr
+		}
+		if storageConfig.GRPC.Cert != "" {
+			grpcMap["cert"] = "[CONFIGURED]"
+		}
+		if storageConfig.GRPC.Key != "" {
+			grpcMap["key"] = "[CONFIGURED]"
+		}
+		if storageConfig.GRPC.Health != nil {
+			grpcMap["health"] = storageConfig.GRPC.Health
+		}
+		storageMap["grpc"] = grpcMap
 	}
 
 	h.sendJSON(w, map[string]interface{}{
@@ -372,6 +391,62 @@ func (h *Handlers) DeleteStorageConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper functions for validation and conversion
+
+// sanitizeTimescaleDBConfig removes sensitive information from TimescaleDB config for API responses
+func (h *Handlers) sanitizeTimescaleDBConfig(config *config.TimescaleDBData) map[string]interface{} {
+	sanitized := make(map[string]interface{})
+
+	// Parse connection string to extract non-sensitive parts
+	connStr := config.ConnectionString
+	sanitized["connection_info"] = h.parseConnectionString(connStr)
+
+	// Include health information if available
+	if config.Health != nil {
+		sanitized["health"] = config.Health
+	}
+
+	return sanitized
+}
+
+// parseConnectionString extracts non-sensitive connection information
+func (h *Handlers) parseConnectionString(connStr string) map[string]interface{} {
+	info := make(map[string]interface{})
+
+	// Split connection string by spaces and extract key=value pairs
+	parts := strings.Fields(connStr)
+	for _, part := range parts {
+		if strings.Contains(part, "=") {
+			kv := strings.SplitN(part, "=", 2)
+			if len(kv) == 2 {
+				key := kv[0]
+				value := kv[1]
+
+				// Include non-sensitive parameters only
+				switch key {
+				case "host", "hostname":
+					info["host"] = value
+				case "port":
+					info["port"] = value
+				case "dbname", "database":
+					info["database"] = value
+				case "user", "username":
+					info["user"] = value
+				case "sslmode":
+					info["ssl_mode"] = value
+				case "TimeZone", "timezone":
+					info["timezone"] = value
+				case "connect_timeout":
+					info["connect_timeout"] = value
+				// Skip sensitive fields like password, passcode, etc.
+				case "password", "passcode", "passwd":
+					info["password"] = "[HIDDEN]"
+				}
+			}
+		}
+	}
+
+	return info
+}
 
 // validateDeviceConnectionSettings validates device connection settings based on type
 func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) error {
