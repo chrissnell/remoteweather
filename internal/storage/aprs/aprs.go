@@ -88,6 +88,11 @@ func (a Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) cha
 	a.currentReading.r = types.Reading{}
 	go a.processMetrics(ctx, wg, readingChan)
 	go a.sendReports(ctx, wg)
+
+	// Start health monitoring
+	log.Info("starting APRS health monitor")
+	a.startHealthMonitor(ctx, a.configProvider)
+
 	return readingChan
 }
 
