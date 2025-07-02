@@ -122,6 +122,10 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	weather.RegisterWeatherServer(g.Server, &g)
 	go g.Server.Serve(l)
 
+	// Start health monitoring
+	log.Info("starting gRPC health monitor")
+	g.startHealthMonitor(ctx, configProvider)
+
 	return &g, nil
 }
 
