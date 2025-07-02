@@ -12,3 +12,4 @@ test-config*.yaml
 test-config*.db
 *.db
 config.yaml
+config-conversion/
