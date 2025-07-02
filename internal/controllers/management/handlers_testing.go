@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/database"
@@ -709,4 +710,160 @@ func (h *Handlers) getCurrentWeatherFromDatabase(deviceName string, maxStaleMinu
 		AgeMinutes: ageMinutes,
 		IsStale:    isStale,
 	}, nil
+}
+
+// GetStorageHealthStatus returns the health status of all storage backends
+func (h *Handlers) GetStorageHealthStatus(w http.ResponseWriter, r *http.Request) {
+	if h.controller.ConfigProvider == nil {
+		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
+		return
+	}
+
+	// Get all storage health statuses
+	healthMap, err := h.controller.ConfigProvider.GetAllStorageHealth()
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, "Failed to get storage health status", err)
+		return
+	}
+
+	// Convert to response format with calculated staleness
+	var healthStatuses []map[string]interface{}
+	for storageType, health := range healthMap {
+		status := map[string]interface{}{
+			"storage_type": storageType,
+			"health":       health,
+		}
+
+		if health != nil {
+			// Calculate if health data is stale (older than 5 minutes)
+			if !health.LastCheck.IsZero() {
+				ageMinutes := int(time.Since(health.LastCheck).Minutes())
+				status["age_minutes"] = ageMinutes
+				status["is_stale"] = ageMinutes > 5
+			} else {
+				status["age_minutes"] = nil
+				status["is_stale"] = true
+			}
+
+			// Determine overall health status
+			if health.Status == "" {
+				status["overall_status"] = "unknown"
+			} else if health.Status == "healthy" && status["is_stale"].(bool) {
+				status["overall_status"] = "stale"
+			} else {
+				status["overall_status"] = health.Status
+			}
+		} else {
+			status["overall_status"] = "unknown"
+			status["age_minutes"] = nil
+			status["is_stale"] = true
+		}
+
+		healthStatuses = append(healthStatuses, status)
+	}
+
+	response := map[string]interface{}{
+		"storage_health": healthStatuses,
+		"timestamp":      time.Now().Unix(),
+	}
+
+	h.sendJSON(w, response)
+}
+
+// GetSingleStorageHealth returns the health status of a specific storage backend
+func (h *Handlers) GetSingleStorageHealth(w http.ResponseWriter, r *http.Request) {
+	if h.controller.ConfigProvider == nil {
+		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
+		return
+	}
+
+	// Get storage type from URL path
+	storageType := strings.TrimPrefix(r.URL.Path, "/api/health/storage/")
+	if storageType == "" {
+		h.sendError(w, http.StatusBadRequest, "Storage type is required in URL path", nil)
+		return
+	}
+
+	// Get health status for specific storage type
+	health, err := h.controller.ConfigProvider.GetStorageHealth(storageType)
+	if err != nil {
+		h.sendError(w, http.StatusNotFound, fmt.Sprintf("Failed to get health for storage type '%s'", storageType), err)
+		return
+	}
+
+	status := map[string]interface{}{
+		"storage_type": storageType,
+		"health":       health,
+	}
+
+	if health != nil {
+		// Calculate if health data is stale (older than 5 minutes)
+		if !health.LastCheck.IsZero() {
+			ageMinutes := int(time.Since(health.LastCheck).Minutes())
+			status["age_minutes"] = ageMinutes
+			status["is_stale"] = ageMinutes > 5
+		} else {
+			status["age_minutes"] = nil
+			status["is_stale"] = true
+		}
+
+		// Determine overall health status
+		if health.Status == "" {
+			status["overall_status"] = "unknown"
+		} else if health.Status == "healthy" && status["is_stale"].(bool) {
+			status["overall_status"] = "stale"
+		} else {
+			status["overall_status"] = health.Status
+		}
+	} else {
+		status["overall_status"] = "unknown"
+		status["age_minutes"] = nil
+		status["is_stale"] = true
+	}
+
+	response := map[string]interface{}{
+		"storage_health": status,
+		"timestamp":      time.Now().Unix(),
+	}
+
+	h.sendJSON(w, response)
+}
+
+// TestStorageConnectivity tests connectivity to storage backends (compatibility endpoint for frontend)
+func (h *Handlers) TestStorageConnectivity(w http.ResponseWriter, r *http.Request) {
+	if h.controller.ConfigProvider == nil {
+		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
+		return
+	}
+
+	// Get all storage health statuses
+	healthMap, err := h.controller.ConfigProvider.GetAllStorageHealth()
+	if err != nil {
+		h.sendError(w, http.StatusInternalServerError, "Failed to get storage health status", err)
+		return
+	}
+
+	// Convert to frontend-compatible format
+	var storageResults []map[string]interface{}
+	for storageType, health := range healthMap {
+		connected := false
+		if health != nil && health.Status == "healthy" {
+			// Consider healthy and not stale as connected
+			ageMinutes := int(time.Since(health.LastCheck).Minutes())
+			connected = ageMinutes <= 5
+		}
+
+		storageResults = append(storageResults, map[string]interface{}{
+			"name":      storageType,
+			"connected": connected,
+			"status":    health,
+		})
+	}
+
+	response := map[string]interface{}{
+		"storage":   storageResults,
+		"timestamp": time.Now().Unix(),
+	}
+
+	h.sendJSON(w, response)
 }
