@@ -83,6 +83,14 @@ func (h *Handlers) CreateWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Validate device exists if specified
+	if website.DeviceID != "" {
+		if _, err := h.controller.ConfigProvider.GetDevice(website.DeviceID); err != nil {
+			h.sendError(w, http.StatusBadRequest, "Specified device does not exist", err)
+			return
+		}
+	}
+
 	// Add the website
 	if err := h.controller.ConfigProvider.AddWeatherWebsite(&website); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
@@ -129,6 +137,14 @@ func (h *Handlers) UpdateWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 	if website.Name == "" {
 		h.sendError(w, http.StatusBadRequest, "Website name is required", nil)
 		return
+	}
+
+	// Validate device exists if specified
+	if website.DeviceID != "" {
+		if _, err := h.controller.ConfigProvider.GetDevice(website.DeviceID); err != nil {
+			h.sendError(w, http.StatusBadRequest, "Specified device does not exist", err)
+			return
+		}
 	}
 
 	// Update the website
