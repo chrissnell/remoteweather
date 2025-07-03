@@ -290,7 +290,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	query := `
 		SELECT name, type, enabled, hostname, port, serial_device, baud, 
 		       wind_dir_correction, base_snow_distance, website_id,
-		       solar_latitude, solar_longitude, solar_altitude
+		       latitude, longitude, altitude, aprs_enabled, aprs_callsign, aprs_passcode
 		FROM devices 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY name
@@ -305,14 +305,16 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	var devices []DeviceData
 	for rows.Next() {
 		var device DeviceData
-		var hostname, port, serialDevice sql.NullString
+		var hostname, port, serialDevice, aprsCallsign, aprsPasscode sql.NullString
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var solarLat, solarLon, solarAlt sql.NullFloat64
+		var aprsEnabled sql.NullBool
 
 		err := rows.Scan(
 			&device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
+			&aprsEnabled, &aprsCallsign, &aprsPasscode,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
@@ -354,6 +356,11 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 				Altitude:  solarAlt.Float64,
 			}
 		}
+
+		// Set APRS data
+		device.APRSEnabled = aprsEnabled.Bool
+		device.APRSCallsign = aprsCallsign.String
+		device.APRSPasscode = aprsPasscode.String
 
 		devices = append(devices, device)
 	}
@@ -461,7 +468,9 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
 		       -- Management API fields
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
-		       cc.management_auth_token, cc.management_enable_cors
+		       cc.management_auth_token, cc.management_enable_cors,
+		       -- APRS fields
+		       cc.aprs_server
 		FROM controller_configs cc
 		WHERE cc.config_id = (SELECT id FROM configs WHERE name = 'default') AND cc.enabled = 1
 		ORDER BY cc.controller_type
@@ -487,6 +496,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 		var mgmtPort sql.NullInt64
 		var mgmtEnableCORS sql.NullBool
+		var aprsServer sql.NullString
 
 		err := rows.Scan(
 			&controllerType, &enabled,
@@ -495,6 +505,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLatitude, &aerisLongitude,
 			&restCert, &restKey, &restPort, &restListenAddr,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
+			&aprsServer,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan controller config row: %w", err)
@@ -557,6 +568,12 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 					Port:       int(mgmtPort.Int64),
 					ListenAddr: mgmtListenAddr.String,
 					AuthToken:  mgmtAuthToken.String,
+				}
+			}
+		case "aprs":
+			if aprsServer.Valid {
+				controller.APRS = &APRSData{
+					Server: aprsServer.String,
 				}
 			}
 		}
@@ -656,8 +673,8 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 		INSERT INTO devices (
 			config_id, name, type, enabled, hostname, port, serial_device,
 			baud, wind_dir_correction, base_snow_distance, website_id,
-			solar_latitude, solar_longitude, solar_altitude
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			latitude, longitude, altitude, aprs_enabled, aprs_callsign, aprs_passcode
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var websiteID sql.NullInt64
@@ -669,6 +686,7 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
 		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		device.APRSEnabled, device.APRSCallsign, device.APRSPasscode,
 	)
 	return err
 }
@@ -807,21 +825,23 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	query := `
 		SELECT d.name, d.type, d.enabled, d.hostname, d.port, d.serial_device, d.baud,
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
-		       d.solar_latitude, d.solar_longitude, d.solar_altitude
+		       d.latitude, d.longitude, d.altitude, d.aprs_enabled, d.aprs_callsign, d.aprs_passcode
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
 		WHERE d.name = ?
 	`
 
 	var device DeviceData
-	var hostname, port, serialDevice sql.NullString
+	var hostname, port, serialDevice, aprsCallsign, aprsPasscode sql.NullString
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 	var solarLat, solarLon, solarAlt sql.NullFloat64
+	var aprsEnabled sql.NullBool
 
 	err := s.db.QueryRow(query, name).Scan(
 		&device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
 		&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
+		&aprsEnabled, &aprsCallsign, &aprsPasscode,
 	)
 
 	if err != nil {
@@ -867,6 +887,11 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 			Altitude:  solarAlt.Float64,
 		}
 	}
+
+	// Set APRS data
+	device.APRSEnabled = aprsEnabled.Bool
+	device.APRSCallsign = aprsCallsign.String
+	device.APRSPasscode = aprsPasscode.String
 
 	return &device, nil
 }
@@ -916,7 +941,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 		UPDATE devices SET
 			name = ?, type = ?, enabled = ?, hostname = ?, port = ?, serial_device = ?,
 			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
-			solar_latitude = ?, solar_longitude = ?, solar_altitude = ?
+			latitude = ?, longitude = ?, altitude = ?, aprs_enabled = ?, aprs_callsign = ?, aprs_passcode = ?
 		WHERE name = ?
 	`
 
@@ -929,6 +954,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 		device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
 		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		device.APRSEnabled, device.APRSCallsign, device.APRSPasscode,
 		name,
 	)
 
@@ -1598,215 +1624,6 @@ func createHealthData(lastCheck sql.NullTime, status, message, error sql.NullStr
 		health.Error = error.String
 	}
 	return health
-}
-
-// Station APRS Configuration Management
-func (s *SQLiteProvider) GetStationAPRSConfigs() ([]StationAPRSData, error) {
-	query := `
-		SELECT device_name, enabled, callsign, latitude, longitude
-		FROM station_aprs_configs 
-		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
-		ORDER BY device_name
-	`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query station APRS configs: %w", err)
-	}
-	defer rows.Close()
-
-	var configs []StationAPRSData
-	for rows.Next() {
-		var config StationAPRSData
-		var callsign sql.NullString
-		var latitude, longitude sql.NullFloat64
-
-		err := rows.Scan(
-			&config.DeviceName,
-			&config.Enabled,
-			&callsign,
-			&latitude,
-			&longitude,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan station APRS config row: %w", err)
-		}
-
-		config.Callsign = callsign.String
-		config.Location.Lat = latitude.Float64
-		config.Location.Lon = longitude.Float64
-
-		configs = append(configs, config)
-	}
-
-	return configs, nil
-}
-
-func (s *SQLiteProvider) GetStationAPRSConfig(deviceName string) (*StationAPRSData, error) {
-	query := `
-		SELECT device_name, enabled, callsign, latitude, longitude
-		FROM station_aprs_configs 
-		WHERE device_name = ? AND config_id = (SELECT id FROM configs WHERE name = 'default')
-	`
-
-	var config StationAPRSData
-	var callsign sql.NullString
-	var latitude, longitude sql.NullFloat64
-
-	err := s.db.QueryRow(query, deviceName).Scan(
-		&config.DeviceName,
-		&config.Enabled,
-		&callsign,
-		&latitude,
-		&longitude,
-	)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("station APRS config for device '%s' not found", deviceName)
-		}
-		return nil, fmt.Errorf("failed to get station APRS config: %w", err)
-	}
-
-	config.Callsign = callsign.String
-	config.Location.Lat = latitude.Float64
-	config.Location.Lon = longitude.Float64
-
-	return &config, nil
-}
-
-func (s *SQLiteProvider) AddStationAPRSConfig(config *StationAPRSData) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Get or create config ID
-	configID, err := s.getOrCreateConfigID(tx)
-	if err != nil {
-		return fmt.Errorf("failed to get config ID: %w", err)
-	}
-
-	// Verify the device exists
-	deviceCheckQuery := "SELECT COUNT(*) FROM devices WHERE name = ? AND config_id = ?"
-	var deviceCount int
-	err = tx.QueryRow(deviceCheckQuery, config.DeviceName, configID).Scan(&deviceCount)
-	if err != nil {
-		return fmt.Errorf("failed to check device existence: %w", err)
-	}
-	if deviceCount == 0 {
-		return fmt.Errorf("device '%s' does not exist", config.DeviceName)
-	}
-
-	// Check if station APRS config already exists
-	existingQuery := "SELECT COUNT(*) FROM station_aprs_configs WHERE device_name = ? AND config_id = ?"
-	var count int
-	err = tx.QueryRow(existingQuery, config.DeviceName, configID).Scan(&count)
-	if err != nil {
-		return fmt.Errorf("failed to check existing station APRS config: %w", err)
-	}
-	if count > 0 {
-		return fmt.Errorf("station APRS config for device '%s' already exists", config.DeviceName)
-	}
-
-	// Insert new station APRS config
-	insertQuery := `
-		INSERT INTO station_aprs_configs (
-			config_id, device_name, enabled, callsign, latitude, longitude
-		) VALUES (?, ?, ?, ?, ?, ?)
-	`
-
-	_, err = tx.Exec(insertQuery,
-		configID,
-		config.DeviceName,
-		config.Enabled,
-		nullString(config.Callsign),
-		nullFloat64(config.Location.Lat),
-		nullFloat64(config.Location.Lon),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to insert station APRS config: %w", err)
-	}
-
-	return tx.Commit()
-}
-
-func (s *SQLiteProvider) UpdateStationAPRSConfig(deviceName string, config *StationAPRSData) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Get config ID
-	configID, err := s.getConfigID(tx)
-	if err != nil {
-		return fmt.Errorf("failed to get config ID: %w", err)
-	}
-
-	// Update station APRS config
-	updateQuery := `
-		UPDATE station_aprs_configs SET
-			enabled = ?, callsign = ?, latitude = ?, longitude = ?,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE device_name = ? AND config_id = ?
-	`
-
-	result, err := tx.Exec(updateQuery,
-		config.Enabled,
-		nullString(config.Callsign),
-		nullFloat64(config.Location.Lat),
-		nullFloat64(config.Location.Lon),
-		deviceName,
-		configID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update station APRS config: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("station APRS config for device '%s' not found", deviceName)
-	}
-
-	return tx.Commit()
-}
-
-func (s *SQLiteProvider) DeleteStationAPRSConfig(deviceName string) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Get config ID
-	configID, err := s.getConfigID(tx)
-	if err != nil {
-		return fmt.Errorf("failed to get config ID: %w", err)
-	}
-
-	// Delete station APRS config
-	deleteQuery := "DELETE FROM station_aprs_configs WHERE device_name = ? AND config_id = ?"
-	result, err := tx.Exec(deleteQuery, deviceName, configID)
-	if err != nil {
-		return fmt.Errorf("failed to delete station APRS config: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("station APRS config for device '%s' not found", deviceName)
-	}
-
-	return tx.Commit()
 }
 
 // Storage Health Management Implementation

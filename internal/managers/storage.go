@@ -64,14 +64,14 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 		}
 	}
 
-	// Check for APRS configuration in storage configs + station configs
+	// Check for APRS configuration in storage configs + device configs
 	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Server != "" {
-		// Also check if we have station APRS configs
-		stationConfigs, err := configProvider.GetStationAPRSConfigs()
-		if err == nil && len(stationConfigs) > 0 {
-			// Check if at least one station is enabled
-			for _, station := range stationConfigs {
-				if station.Enabled && station.Callsign != "" {
+		// Also check if we have devices with APRS enabled
+		devices, err := configProvider.GetDevices()
+		if err == nil && len(devices) > 0 {
+			// Check if at least one device has APRS enabled
+			for _, device := range devices {
+				if device.APRSEnabled && device.APRSCallsign != "" {
 					err = s.AddEngine(ctx, wg, "aprs", configProvider)
 					if err != nil {
 						return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
@@ -168,15 +168,15 @@ func (s *StorageManager) ReloadStorageConfig(ctx context.Context, wg *sync.WaitG
 		shouldBeActive["grpc"] = true
 	}
 
-	// Check for APRS configuration in storage configs + station configs
+	// Check for APRS configuration in storage configs + device configs
 	storageConfig, err := configProvider.GetStorageConfig()
 	if err == nil && storageConfig.APRS != nil && storageConfig.APRS.Server != "" {
-		// Also check if we have station APRS configs
-		stationConfigs, err := configProvider.GetStationAPRSConfigs()
-		if err == nil && len(stationConfigs) > 0 {
-			// Check if at least one station is enabled
-			for _, station := range stationConfigs {
-				if station.Enabled && station.Callsign != "" {
+		// Also check if we have devices with APRS enabled
+		devices, err := configProvider.GetDevices()
+		if err == nil && len(devices) > 0 {
+			// Check if at least one device has APRS enabled
+			for _, device := range devices {
+				if device.APRSEnabled && device.APRSCallsign != "" {
 					shouldBeActive["aprs"] = true
 					break
 				}
