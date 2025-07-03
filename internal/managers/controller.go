@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/chrissnell/remoteweather/internal/controllers/aerisweather"
+	"github.com/chrissnell/remoteweather/internal/controllers/aprs"
 	"github.com/chrissnell/remoteweather/internal/controllers/pwsweather"
 	"github.com/chrissnell/remoteweather/internal/controllers/restserver"
 	"github.com/chrissnell/remoteweather/internal/controllers/wunderground"
@@ -197,6 +198,8 @@ func (cm *controllerManager) createController(cc config.ControllerData) (Control
 			return nil, fmt.Errorf("restserver controller config is nil")
 		}
 		return restserver.NewController(cm.ctx, cm.wg, cm.configProvider, *cc.RESTServer, cm.logger)
+	case "aprs":
+		return aprs.New(cm.configProvider)
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", cc.Type)
 	}

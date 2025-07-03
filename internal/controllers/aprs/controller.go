@@ -26,72 +26,187 @@ type CurrentReading struct {
 	sync.RWMutex
 }
 
-// Storage holds general configuration related to our APRS/CWOP transmissions
-type Storage struct {
+// Controller holds general configuration related to our APRS/CWOP transmissions
+type Controller struct {
 	ctx             context.Context
+	cancel          context.CancelFunc
 	configProvider  config.ConfigProvider
 	APRSReadingChan chan types.Reading
 	currentReading  *CurrentReading
+	wg              *sync.WaitGroup
+	running         bool
+	runningMutex    sync.RWMutex
 }
 
-// New sets up a new APRS-IS storage backend
-func New(configProvider config.ConfigProvider) (*Storage, error) {
-	a := &Storage{}
+// New creates a new APRS controller
+func New(configProvider config.ConfigProvider) (*Controller, error) {
+	a := &Controller{}
 
-	// Load configuration to validate APRS is configured
-	storageConfig, err := configProvider.GetStorageConfig()
+	// Load all controllers to find APRS controller configuration
+	cfg, err := configProvider.LoadConfig()
 	if err != nil {
-		return a, fmt.Errorf("error loading storage configuration: %v", err)
+		return nil, fmt.Errorf("error loading configuration: %v", err)
 	}
 
-	if storageConfig.APRS == nil || storageConfig.APRS.Server == "" {
-		return a, fmt.Errorf("APRS storage configuration is missing")
+	// Find APRS controller configuration
+	var aprsConfig *config.APRSData
+	for _, controller := range cfg.Controllers {
+		if controller.Type == "aprs" && controller.APRS != nil {
+			aprsConfig = controller.APRS
+			break
+		}
 	}
 
-	// Check if we have at least one station APRS config
-	stationConfigs, err := configProvider.GetStationAPRSConfigs()
+	if aprsConfig == nil || aprsConfig.Server == "" {
+		return nil, fmt.Errorf("APRS controller configuration is missing or incomplete")
+	}
+
+	// Check if we have at least one device with APRS enabled
+	devices, err := configProvider.GetDevices()
 	if err != nil {
-		return a, fmt.Errorf("error loading station APRS configurations: %v", err)
+		return nil, fmt.Errorf("error loading device configurations: %v", err)
 	}
 
-	if len(stationConfigs) == 0 {
-		return a, fmt.Errorf("you must configure at least one station APRS configuration")
-	}
-
-	// Validate at least one station has a callsign and location
+	// Validate at least one device has APRS enabled with callsign and location
 	validStation := false
-	for _, station := range stationConfigs {
-		if station.Callsign != "" && station.Location.Lat != 0 && station.Location.Lon != 0 {
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" &&
+			device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
 			validStation = true
 			break
 		}
 	}
 
 	if !validStation {
-		return a, fmt.Errorf("you must provide a callsign and location for at least one station in the APRS configuration")
+		return nil, fmt.Errorf("you must configure at least one weather station with APRS enabled, callsign, and location")
 	}
 
 	a.configProvider = configProvider
 	a.APRSReadingChan = make(chan types.Reading, 10)
+	a.wg = &sync.WaitGroup{}
 
 	return a, nil
 }
 
-// StartStorageEngine creates a goroutine loop to receive readings and send
-// them off to APRS-IS when needed
-func (a Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
-	log.Info("starting APRS-IS storage engine...")
-	a.ctx = ctx
-	readingChan := make(chan types.Reading)
+// StartController starts the APRS controller (controller manager interface)
+func (a *Controller) StartController() error {
+	a.runningMutex.Lock()
+	defer a.runningMutex.Unlock()
 
+	if a.running {
+		return fmt.Errorf("APRS controller is already running")
+	}
+
+	log.Info("Starting APRS controller...")
+	a.ctx, a.cancel = context.WithCancel(context.Background())
 	a.currentReading = &CurrentReading{}
 	a.currentReading.r = types.Reading{}
-	go a.processMetrics(ctx, wg, readingChan)
-	go a.sendReports(ctx, wg)
-	return readingChan
+
+	// Create a dummy reading channel for now - readings will come from weather stations
+	readingChan := make(chan types.Reading, 10)
+	go a.processMetrics(a.ctx, a.wg, readingChan)
+	go a.sendReports(a.ctx, a.wg)
+
+	// Start health monitoring
+	log.Info("starting APRS health monitor")
+	a.startHealthMonitor(a.ctx, a.configProvider)
+
+	a.running = true
+	log.Info("APRS controller started")
+	return nil
 }
 
-func (a *Storage) sendReports(ctx context.Context, wg *sync.WaitGroup) {
+// Start starts the APRS controller with a reading channel
+func (a *Controller) Start(ctx context.Context, readingChan <-chan types.Reading) error {
+	a.runningMutex.Lock()
+	defer a.runningMutex.Unlock()
+
+	if a.running {
+		return fmt.Errorf("APRS controller is already running")
+	}
+
+	log.Info("Starting APRS controller...")
+	a.ctx, a.cancel = context.WithCancel(ctx)
+	a.currentReading = &CurrentReading{}
+	a.currentReading.r = types.Reading{}
+
+	go a.processMetrics(a.ctx, a.wg, readingChan)
+	go a.sendReports(a.ctx, a.wg)
+
+	// Start health monitoring
+	log.Info("starting APRS health monitor")
+	a.startHealthMonitor(a.ctx, a.configProvider)
+
+	a.running = true
+	log.Info("APRS controller started")
+	return nil
+}
+
+// Stop stops the APRS controller
+func (a *Controller) Stop() error {
+	a.runningMutex.Lock()
+	defer a.runningMutex.Unlock()
+
+	if !a.running {
+		return fmt.Errorf("APRS controller is not running")
+	}
+
+	log.Info("Stopping APRS controller...")
+	if a.cancel != nil {
+		a.cancel()
+	}
+	a.wg.Wait()
+	a.running = false
+	log.Info("APRS controller stopped")
+	return nil
+}
+
+// IsRunning returns whether the controller is running
+func (a *Controller) IsRunning() bool {
+	a.runningMutex.RLock()
+	defer a.runningMutex.RUnlock()
+	return a.running
+}
+
+// GetHealth returns the health status of the controller
+func (a *Controller) GetHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"name":    "APRS",
+		"running": a.IsRunning(),
+	}
+
+	// Get health from config provider if available
+	if a.configProvider != nil {
+		if healthData, err := a.configProvider.GetStorageHealth("aprs"); err == nil {
+			health["status"] = healthData.Status
+			health["message"] = healthData.Message
+			health["last_check"] = healthData.LastCheck
+			if healthData.Error != "" {
+				health["error"] = healthData.Error
+			}
+		}
+	}
+
+	return health
+}
+
+// getAPRSConfig retrieves the APRS controller configuration
+func (a *Controller) getAPRSConfig() (*config.APRSData, error) {
+	cfg, err := a.configProvider.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error loading configuration: %v", err)
+	}
+
+	for _, controller := range cfg.Controllers {
+		if controller.Type == "aprs" && controller.APRS != nil {
+			return controller.APRS, nil
+		}
+	}
+
+	return nil, fmt.Errorf("APRS controller configuration not found")
+}
+
+func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -127,7 +242,7 @@ func (a *Storage) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 
 }
 
-func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
+func (a *Controller) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -136,35 +251,30 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	pkt := a.CreateCompleteWeatherReport('/', '_')
 	log.Debugf("sending reading to APRS-IS: %+v", pkt)
 
-	// Load APRS storage configuration
-	storageConfig, err := a.configProvider.GetStorageConfig()
+	// Load APRS controller configuration
+	aprsConfig, err := a.getAPRSConfig()
 	if err != nil {
-		log.Error("error loading storage configuration for APRS-IS: %v", err)
+		log.Error("error loading APRS controller configuration: %v", err)
 		return
 	}
 
-	if storageConfig.APRS == nil || storageConfig.APRS.Server == "" {
-		log.Error("APRS storage configuration is missing or incomplete")
-		return
-	}
-
-	// Get station APRS configurations
-	stationConfigs, err := a.configProvider.GetStationAPRSConfigs()
+	// Get devices with APRS enabled
+	devices, err := a.configProvider.GetDevices()
 	if err != nil {
-		log.Error("error loading station APRS configurations: %v", err)
+		log.Error("error loading device configurations: %v", err)
 		return
 	}
 
-	var stationConfig *config.StationAPRSData
-	for _, station := range stationConfigs {
-		if station.Enabled && station.Callsign != "" {
-			stationConfig = &station
+	var aprsCallsign string
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
 			break
 		}
 	}
 
-	if stationConfig == nil {
-		log.Error("no enabled station APRS configuration found")
+	if aprsCallsign == "" {
+		log.Error("no enabled APRS device found")
 		return
 	}
 
@@ -172,10 +282,10 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 		Timeout: connectionTimeout,
 	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", storageConfig.APRS.Server)
+	conn, err := dialer.DialContext(ctx, "tcp", aprsConfig.Server)
 	if err != nil {
 		log.Error("error dialing APRS-IS server %v: %v",
-			storageConfig.APRS.Server, err)
+			aprsConfig.Server, err)
 		return
 	}
 	defer conn.Close()
@@ -196,10 +306,10 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	// Calculate passcode from callsign
-	passcode := aprspkg.CalculatePasscode(stationConfig.Callsign)
+	passcode := aprspkg.CalculatePasscode(aprsCallsign)
 
 	login := fmt.Sprintf("user %v pass %v vers remoteweather-%v\r\n",
-		stationConfig.Callsign, passcode, constants.Version)
+		aprsCallsign, passcode, constants.Version)
 
 	conn.Write([]byte(login))
 
@@ -224,7 +334,7 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	conn.Write([]byte(pkt + "\r\n"))
 }
 
-func (a *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
+func (a *Controller) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -243,7 +353,7 @@ func (a *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan 
 }
 
 // StoreCurrentReading stores the latest reading in our object
-func (a *Storage) StoreCurrentReading(r types.Reading) error {
+func (a *Controller) StoreCurrentReading(r types.Reading) error {
 	a.currentReading.Lock()
 	a.currentReading.r = r
 	a.currentReading.Unlock()
@@ -252,26 +362,29 @@ func (a *Storage) StoreCurrentReading(r types.Reading) error {
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
 // report included.
-func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
+func (a *Controller) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	var buffer bytes.Buffer
 
-	// Get station APRS configurations
-	stationConfigs, err := a.configProvider.GetStationAPRSConfigs()
+	// Get devices with APRS enabled
+	devices, err := a.configProvider.GetDevices()
 	if err != nil {
-		log.Error("error loading station APRS configurations for weather report: %v", err)
+		log.Error("error loading device configurations for weather report: %v", err)
 		return ""
 	}
 
-	var stationConfig *config.StationAPRSData
-	for _, station := range stationConfigs {
-		if station.Enabled && station.Callsign != "" {
-			stationConfig = &station
+	var aprsCallsign string
+	var lat, lon float64
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
+			lat = device.Solar.Latitude
+			lon = device.Solar.Longitude
 			break
 		}
 	}
 
-	if stationConfig == nil {
-		log.Error("no enabled station APRS configuration found for weather report")
+	if aprsCallsign == "" {
+		log.Error("no enabled APRS device found for weather report")
 		return ""
 	}
 
@@ -279,9 +392,7 @@ func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	defer a.currentReading.RUnlock()
 
 	// Build callsign and position
-	callsign := strings.ToUpper(stationConfig.Callsign)
-	lat := stationConfig.Location.Lat
-	lon := stationConfig.Location.Lon
+	callsign := strings.ToUpper(aprsCallsign)
 
 	latAPRS := convertLatitudeToAPRSFormat(lat)
 	lonAPRS := convertLongitudeToAPRSFormat(lon)
@@ -477,69 +588,137 @@ func round(x float64) float64 {
 	return math.Ceil(x - 0.5)
 }
 
-// HealthCheck implements storage.StorageEngineInterface.
-// For APRS it currently performs no external connectivity test and simply returns nil.
-func (a *Storage) HealthCheck(ctx context.Context) error {
-	// Load storage config
-	storageCfg, err := a.configProvider.GetStorageConfig()
-	if err != nil {
-		return err
-	}
-	if storageCfg.APRS == nil || storageCfg.APRS.Server == "" {
-		return fmt.Errorf("APRS storage not configured")
+// startHealthMonitor starts a goroutine that periodically updates the health status
+func (a *Controller) startHealthMonitor(ctx context.Context, configProvider config.ConfigProvider) {
+	go func() {
+		// Run initial health check immediately
+		a.updateHealthStatus(configProvider)
+
+		ticker := time.NewTicker(90 * time.Second) // Update health every 90 seconds (less frequent due to network calls)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				a.updateHealthStatus(configProvider)
+			case <-ctx.Done():
+				log.Info("stopping APRS health monitor")
+				return
+			}
+		}
+	}()
+}
+
+// updateHealthStatus performs a health check and updates the status in the config database
+func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
+	health := &config.StorageHealthData{
+		LastCheck: time.Now(),
+		Status:    "healthy",
+		Message:   "APRS-IS connection available",
 	}
 
-	// Get first enabled station with callsign
-	stationConfigs, err := a.configProvider.GetStationAPRSConfigs()
+	// Test APRS-IS server connectivity and authentication
+	err := a.testAPRSISLogin(configProvider)
 	if err != nil {
-		return err
+		health.Status = "unhealthy"
+		health.Message = "APRS-IS login test failed"
+		health.Error = err.Error()
+	} else {
+		health.Status = "healthy"
+		health.Message = "APRS-IS login test successful"
 	}
-	var cs *config.StationAPRSData
-	for _, s := range stationConfigs {
-		if s.Enabled && s.Callsign != "" {
-			cs = &s
+
+	// Update health status in configuration database
+	err = configProvider.UpdateStorageHealth("aprs", health)
+	if err != nil {
+		log.Errorf("Failed to update APRS health status: %v", err)
+	} else {
+		log.Infof("Updated APRS health status: %s", health.Status)
+	}
+}
+
+// testAPRSISLogin performs a test login to the APRS-IS server to verify connectivity and authentication
+func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error {
+	connectionTimeout := 10 * time.Second
+
+	// Load APRS controller configuration
+	aprsConfig, err := a.getAPRSConfig()
+	if err != nil {
+		return fmt.Errorf("error loading APRS controller configuration: %v", err)
+	}
+
+	// Get devices with APRS enabled
+	devices, err := configProvider.GetDevices()
+	if err != nil {
+		return fmt.Errorf("error loading device configurations: %v", err)
+	}
+
+	var aprsCallsign string
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
 			break
 		}
 	}
-	if cs == nil {
-		return fmt.Errorf("no enabled station APRS config with callsign found")
+
+	if aprsCallsign == "" {
+		return fmt.Errorf("no enabled APRS device found")
 	}
 
-	pass := aprspkg.CalculatePasscode(cs.Callsign)
+	// Test connection to APRS-IS server
+	dialer := net.Dialer{
+		Timeout: connectionTimeout,
+	}
 
-	d := net.Dialer{}
-	ctx2, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	conn, err := d.DialContext(ctx2, "tcp", storageCfg.APRS.Server)
+	conn, err := dialer.Dial("tcp", aprsConfig.Server)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to APRS-IS server %s: %v", aprsConfig.Server, err)
 	}
 	defer conn.Close()
 
-	// Read greeting line
-	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-	buf := make([]byte, 256)
-	n, err := conn.Read(buf)
+	buffCon := bufio.NewReader(conn)
+
+	// Set read deadline for server greeting
+	conn.SetReadDeadline(time.Now().Add(connectionTimeout))
+
+	// Read server greeting
+	resp, err := buffCon.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("failed reading greeting: %w", err)
-	}
-	if n == 0 || buf[0] != '#' {
-		return fmt.Errorf("invalid greeting from APRS-IS")
+		return fmt.Errorf("failed to read APRS-IS server greeting: %v", err)
 	}
 
-	loginStr := fmt.Sprintf("user %s pass %d vers remoteweather 1.0\n", cs.Callsign, pass)
-	if _, err := conn.Write([]byte(loginStr)); err != nil {
-		return fmt.Errorf("login write failed: %w", err)
+	// Verify proper greeting format
+	if len(resp) == 0 || resp[0] != '#' {
+		return fmt.Errorf("APRS-IS server responded with invalid greeting: %s", strings.TrimSpace(resp))
+	}
+
+	// Calculate passcode from callsign
+	passcode := aprspkg.CalculatePasscode(aprsCallsign)
+
+	// Send login command
+	loginCmd := fmt.Sprintf("user %s pass %d vers remoteweather-healthcheck 1.0\r\n",
+		aprsCallsign, passcode)
+
+	conn.SetWriteDeadline(time.Now().Add(connectionTimeout))
+	_, err = conn.Write([]byte(loginCmd))
+	if err != nil {
+		return fmt.Errorf("failed to send login command: %v", err)
 	}
 
 	// Read login response
-	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-	n, err = conn.Read(buf)
+	conn.SetReadDeadline(time.Now().Add(connectionTimeout))
+	loginResp, err := buffCon.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("login response read failed: %w", err)
+		return fmt.Errorf("failed to read login response: %v", err)
 	}
-	if !bytes.Contains(buf[:n], []byte("verified")) && !bytes.Contains(buf[:n], []byte("logresp")) {
-		return fmt.Errorf("login not verified: %s", string(buf[:n]))
+
+	// Check if login was successful
+	// APRS-IS typically responds with a line starting with '#' containing "verified" for successful logins
+	loginResp = strings.TrimSpace(loginResp)
+	if !strings.Contains(strings.ToLower(loginResp), "verified") {
+		return fmt.Errorf("APRS-IS login failed, server response: %s", loginResp)
 	}
+
+	log.Debugf("APRS-IS health check successful for callsign %s", aprsCallsign)
 	return nil
 }

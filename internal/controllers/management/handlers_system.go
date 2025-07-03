@@ -150,6 +150,8 @@ func (h *Handlers) enumerateLinuxSerialPorts() ([]SerialPortInfo, error) {
 // enumerateDarwinSerialPorts finds serial ports on macOS systems
 func (h *Handlers) enumerateDarwinSerialPorts() ([]SerialPortInfo, error) {
 	var ports []SerialPortInfo
+	var cuPorts []SerialPortInfo
+	var ttyPorts []SerialPortInfo
 
 	// macOS device patterns
 	patterns := []string{
@@ -180,8 +182,34 @@ func (h *Handlers) enumerateDarwinSerialPorts() ([]SerialPortInfo, error) {
 				// Try to get USB device info using ioreg
 				h.enrichDarwinPortInfo(&port)
 
-				ports = append(ports, port)
+				// Separate cu.* and tty.* devices
+				if strings.HasPrefix(filepath.Base(device), "cu.") {
+					cuPorts = append(cuPorts, port)
+				} else if strings.HasPrefix(filepath.Base(device), "tty.") {
+					ttyPorts = append(ttyPorts, port)
+				}
 			}
+		}
+	}
+
+	// Add cu.* devices first (preferred)
+	ports = append(ports, cuPorts...)
+
+	// Add tty.* devices only if there's no corresponding cu.* device
+	for _, ttyPort := range ttyPorts {
+		ttyBaseName := strings.TrimPrefix(filepath.Base(ttyPort.Device), "tty.")
+		hasCorrespondingCu := false
+
+		for _, cuPort := range cuPorts {
+			cuBaseName := strings.TrimPrefix(filepath.Base(cuPort.Device), "cu.")
+			if cuBaseName == ttyBaseName {
+				hasCorrespondingCu = true
+				break
+			}
+		}
+
+		if !hasCorrespondingCu {
+			ports = append(ports, ttyPort)
 		}
 	}
 
