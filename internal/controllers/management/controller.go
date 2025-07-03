@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/interfaces"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/gorilla/mux"
@@ -24,16 +25,11 @@ type Controller struct {
 	ConfigProvider   config.ConfigProvider
 	logger           *zap.SugaredLogger
 	handlers         *Handlers
-	app              AppReloader // Interface to trigger app configuration reload
-}
-
-// AppReloader interface for triggering application configuration reloads
-type AppReloader interface {
-	ReloadConfiguration(ctx context.Context) error
+	app              interfaces.AppReloader // Interface to trigger app configuration reload
 }
 
 // NewController creates a new management API controller
-func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, mc config.ManagementAPIData, logger *zap.SugaredLogger, app AppReloader) (*Controller, error) {
+func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, mc config.ManagementAPIData, logger *zap.SugaredLogger, app interfaces.AppReloader) (*Controller, error) {
 	ctrl := &Controller{
 		ctx:            ctx,
 		wg:             wg,
@@ -78,7 +74,6 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 				Key:        mc.Key,
 				Port:       mc.Port,
 				ListenAddr: mc.ListenAddr,
-				EnableCORS: mc.EnableCORS,
 				AuthToken:  newToken,
 			},
 		})
@@ -153,9 +148,7 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// Apply middleware
 	router.Use(c.loggingMiddleware)
-	if c.managementConfig.EnableCORS {
-		router.Use(c.corsMiddleware)
-	}
+	router.Use(c.corsMiddleware) // CORS is always enabled
 
 	// Management interface routes (no auth required for UI assets)
 	c.setupManagementInterface(router)
@@ -185,6 +178,13 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/config/storage", c.handlers.CreateStorageConfig).Methods("POST")
 	api.HandleFunc("/config/storage/{id}", c.handlers.UpdateStorageConfig).Methods("PUT")
 	api.HandleFunc("/config/storage/{id}", c.handlers.DeleteStorageConfig).Methods("DELETE")
+
+	// Controller management endpoints
+	api.HandleFunc("/config/controllers", c.handlers.GetControllers).Methods("GET")
+	api.HandleFunc("/config/controllers", c.handlers.CreateController).Methods("POST")
+	api.HandleFunc("/config/controllers/{type}", c.handlers.GetController).Methods("GET")
+	api.HandleFunc("/config/controllers/{type}", c.handlers.UpdateController).Methods("PUT")
+	api.HandleFunc("/config/controllers/{type}", c.handlers.DeleteController).Methods("DELETE")
 
 	// Weather website management endpoints
 	api.HandleFunc("/config/websites", c.handlers.GetWeatherWebsites).Methods("GET")
@@ -225,6 +225,7 @@ func (c *Controller) setupManagementInterface(router *mux.Router) {
 	router.HandleFunc("/weather-stations", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/controllers", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/storage", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/websites", c.serveManagementInterface).Methods("GET")
 }
 
 // serveManagementInterface serves the main management interface HTML
