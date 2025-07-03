@@ -49,6 +49,7 @@ body {
   padding: 1rem;
   text-align: left;
   font-size: 1rem;
+  font-family: var(--font-family);
   cursor: pointer;
   color: var(--text);
   border-left: 4px solid transparent;
@@ -87,11 +88,10 @@ h2 {
 
 .list-container {
   margin-top: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.5rem;
-  background: #fafafa;
   overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
 }
 
 /* Table styles */
@@ -312,6 +312,112 @@ h2 {
 }
 
 .age-badge.stale {
-  background: #ffc107; /* yellow */
-  color: #000;
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Configuration display styles */
+.config-display {
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.config-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.config-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--accent);
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.25rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.config-grid:last-child {
+  margin-bottom: 0;
+}
+
+.config-grid div {
+  font-size: 0.9rem;
+}
+
+.config-stack {
+  margin-bottom: 0.75rem;
+}
+
+.config-stack:last-child {
+  margin-bottom: 0;
+}
+
+.config-stack div {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.config-stack div:last-child {
+  margin-bottom: 0;
+}
+
+.config-error {
+  color: var(--danger);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.config-raw {
+  background: #f5f7f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  max-height: 120px;
+  overflow: auto;
+  margin: 0;
+}
+
+/* Health status styling */
+.health-info {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  padding: 0.5rem;
+}
+
+.health-info div {
+  margin-bottom: 0.25rem;
+}
+
+.health-info div:last-child {
+  margin-bottom: 0;
+}
+
+.health-healthy {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.health-unhealthy {
+  color: var(--danger);
+  font-weight: bold;
+}
+
+.health-unknown {
+  color: #6c757d;
+  font-weight: bold;
+}
+
+.health-stale {
+  color: #ffc107;
+  font-weight: bold;
 } 
