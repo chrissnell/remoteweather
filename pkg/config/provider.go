@@ -267,10 +267,11 @@ type WeatherUndergroundData struct {
 }
 
 type AerisWeatherData struct {
-	APIClientID     string `json:"api_client_id"`
-	APIClientSecret string `json:"api_client_secret"`
-	APIEndpoint     string `json:"api_endpoint,omitempty"`
-	Location        string `json:"location"`
+	APIClientID     string  `json:"api_client_id"`
+	APIClientSecret string  `json:"api_client_secret"`
+	APIEndpoint     string  `json:"api_endpoint,omitempty"`
+	Latitude        float64 `json:"latitude,omitempty"`
+	Longitude       float64 `json:"longitude,omitempty"`
 }
 
 type APRSData struct {
@@ -294,7 +295,8 @@ type RESTServerData struct {
 type WeatherWebsiteData struct {
 	ID               int    `json:"id,omitempty"`
 	Name             string `json:"name"`
-	Hostname         string `json:"hostname,omitempty"` // Domain name for this website (e.g., weather.example.com)
+	DeviceID         string `json:"device_id,omitempty"` // Device name that provides data for this website
+	Hostname         string `json:"hostname,omitempty"`  // Domain name for this website (e.g., weather.example.com)
 	PageTitle        string `json:"page_title,omitempty"`
 	AboutStationHTML string `json:"about_station_html,omitempty"`
 	SnowEnabled      bool   `json:"snow_enabled,omitempty"`
@@ -309,7 +311,6 @@ type ManagementAPIData struct {
 	Port       int    `json:"port,omitempty"`
 	ListenAddr string `json:"listen_addr,omitempty"`
 	AuthToken  string `json:"auth_token,omitempty"`
-	EnableCORS bool   `json:"enable_cors,omitempty"`
 }
 
 // ValidateConfig performs comprehensive validation of configuration data
