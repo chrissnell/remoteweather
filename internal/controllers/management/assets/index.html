@@ -20,6 +20,7 @@
       <button class="tab-button active" data-target="ws-pane">Weather Stations</button>
       <button class="tab-button" data-target="ctrl-pane">Controllers</button>
       <button class="tab-button" data-target="storage-pane">Storage</button>
+      <button class="tab-button" data-target="websites-pane">Weather Websites</button>
     </nav>
 
     <!-- Content area -->
@@ -111,8 +112,11 @@
 
       <!-- Controllers Pane -->
       <div class="tab-pane hidden" id="ctrl-pane">
-        <h2>Controllers</h2>
-        <p>Coming soon…</p>
+        <div class="pane-header">
+          <h2>Controllers</h2>
+          <button class="primary-btn" id="add-controller-btn">+ Add Controller</button>
+        </div>
+        <div id="controller-list" class="list-container">Loading…</div>
       </div>
 
       <!-- Storage Pane -->
@@ -122,6 +126,15 @@
           <button class="primary-btn" id="add-storage-btn">Add Storage</button>
         </div>
         <div id="storage-list" class="list-container">Loading…</div>
+      </div>
+
+      <!-- Weather Websites Pane -->
+      <div class="tab-pane hidden" id="websites-pane">
+        <div class="pane-header">
+          <h2>Weather Websites</h2>
+          <button class="primary-btn" id="add-website-btn">Add Website</button>
+        </div>
+        <div id="website-list" class="list-container">Loading…</div>
       </div>
     </section>
   </main>
@@ -166,6 +179,226 @@
     </div>
   </div>
   <!-- end storage modal -->
+
+  <!-- Controller Modal -->
+  <div id="controller-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="controller-modal-title">Add Controller</h3>
+        <button class="close-btn" id="controller-modal-close">×</button>
+      </div>
+      <form id="controller-form" class="station-form">
+        <input type="hidden" id="controller-form-mode" value="add" />
+        <label>
+          Controller Type
+          <select id="controller-type">
+            <option value="pwsweather">PWS Weather</option>
+            <option value="weatherunderground">Weather Underground</option>
+            <option value="aerisweather">Aeris Weather</option>
+            <option value="rest">REST Server</option>
+            <option value="management">Management API</option>
+            <option value="aprs">APRS</option>
+          </select>
+        </label>
+        
+        <!-- PWS Weather fields -->
+        <div id="pwsweather-fields" class="controller-fields hidden">
+          <label>
+            Station ID
+            <input type="text" id="pws-station-id" placeholder="STATION123" />
+          </label>
+          <label>
+            API Key
+            <input type="password" id="pws-api-key" placeholder="your-api-key" />
+          </label>
+          <label>
+            API Endpoint
+            <input type="text" id="pws-api-endpoint" value="https://www.pwsweather.com/pwsweather/restapi" />
+          </label>
+          <label>
+            Upload Interval
+            <input type="text" id="pws-upload-interval" value="5m" />
+          </label>
+          <label>
+            Pull From Device
+            <select id="pws-device-select"></select>
+          </label>
+        </div>
+        
+        <!-- Weather Underground fields -->
+        <div id="weatherunderground-fields" class="controller-fields hidden">
+          <label>
+            Station ID
+            <input type="text" id="wu-station-id" placeholder="STATION123" />
+          </label>
+          <label>
+            API Key
+            <input type="password" id="wu-api-key" placeholder="your-api-key" />
+          </label>
+          <label>
+            API Endpoint
+            <input type="text" id="wu-api-endpoint" value="https://rtupdate.wunderground.com/weatherstation/updateweatherstation.php" />
+          </label>
+          <label>
+            Upload Interval
+            <input type="text" id="wu-upload-interval" placeholder="5m" />
+          </label>
+          <label>
+            Pull From Device
+            <select id="wu-device-select"></select>
+          </label>
+        </div>
+        
+        <!-- Aeris Weather fields -->
+        <div id="aerisweather-fields" class="controller-fields hidden">
+          <label>
+            API Client ID
+            <input type="text" id="aeris-client-id" placeholder="your-client-id" />
+          </label>
+          <label>
+            API Client Secret
+            <input type="password" id="aeris-client-secret" placeholder="your-client-secret" />
+          </label>
+          <label>
+            API Endpoint
+            <input type="text" id="aeris-api-endpoint" value="https://api.aerisapi.com" />
+          </label>
+          <label>
+            Latitude
+            <input type="number" step="0.000001" id="aeris-latitude" placeholder="44.9778" />
+          </label>
+          <label>
+            Longitude
+            <input type="number" step="0.000001" id="aeris-longitude" placeholder="-93.2650" />
+          </label>
+        </div>
+        
+        <!-- REST Server fields -->
+        <div id="rest-fields" class="controller-fields hidden">
+          <label>
+            HTTP Port
+            <input type="number" id="rest-http-port" value="80" />
+          </label>
+          <label>
+            HTTPS Port (optional)
+            <input type="number" id="rest-https-port" value="443" />
+          </label>
+          <label>
+            Listen Address (optional)
+            <input type="text" id="rest-listen-addr" value="0.0.0.0" />
+          </label>
+          <label>
+            TLS Certificate Path (optional)
+            <input type="text" id="rest-tls-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path (optional)
+            <input type="text" id="rest-tls-key" placeholder="/path/to/key.pem" />
+          </label>
+        </div>
+        
+        <!-- Management API fields -->
+        <div id="management-fields" class="controller-fields hidden">
+          <label>
+            Port
+            <input type="number" id="mgmt-port" placeholder="8081" />
+          </label>
+          <label>
+            Listen Address
+            <input type="text" id="mgmt-listen-addr" value="127.0.0.1" />
+          </label>
+          <label>
+            TLS Certificate Path (optional)
+            <input type="text" id="mgmt-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path (optional)
+            <input type="text" id="mgmt-key" placeholder="/path/to/key.pem" />
+          </label>
+        </div>
+        
+        <!-- APRS fields -->
+        <div id="aprs-fields" class="controller-fields hidden">
+          <label>
+            APRS-IS Server
+            <input type="text" id="aprs-server" value="noam.aprs2.net:14580" />
+          </label>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-controller-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-controller-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end controller modal -->
+
+  <!-- Weather Website Modal -->
+  <div id="website-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="website-modal-title">Add Weather Website</h3>
+        <button class="close-btn" id="website-modal-close">×</button>
+      </div>
+      <form id="website-form" class="station-form">
+        <input type="hidden" id="website-form-mode" value="add" />
+        <input type="hidden" id="website-edit-id" value="" />
+        
+        <label>
+          Website Name
+          <input type="text" id="website-name" placeholder="Weather Station Website" required />
+        </label>
+        
+        <label>
+          Page Title
+          <input type="text" id="website-page-title" placeholder="My Weather Station" />
+        </label>
+        
+        <label>
+          About Station HTML
+          <textarea id="website-about-html" rows="4" placeholder="<p>Welcome to my weather station...</p>"></textarea>
+        </label>
+        
+        <label>
+          Weather Station Device
+          <select id="website-device" required>
+            <option value="">Select a device...</option>
+          </select>
+        </label>
+        
+        <label>
+          Snow Device
+          <select id="website-snow-device">
+            <option value="">None</option>
+          </select>
+        </label>
+        
+        <label>
+          Hostname
+          <input type="text" id="website-hostname" placeholder="weather.example.com" required />
+        </label>
+        
+        <fieldset>
+          <legend>TLS Configuration (Optional)</legend>
+          <label>
+            TLS Certificate Path
+            <input type="text" id="website-tls-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path
+            <input type="text" id="website-tls-key" placeholder="/path/to/key.pem" />
+          </label>
+        </fieldset>
+        
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-website-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-website-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end website modal -->
 
   <script src="js/management.js"></script>
 </body>

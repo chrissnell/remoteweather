@@ -95,9 +95,13 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 
 		// Build device associations for this website
 		var websiteDevices []config.DeviceData
-		for _, device := range ctrl.Devices {
-			if device.WebsiteID != nil && *device.WebsiteID == website.ID {
-				websiteDevices = append(websiteDevices, device)
+		if website.DeviceID != "" {
+			// Find the device by name from the website's device_id field
+			for _, device := range ctrl.Devices {
+				if device.Name == website.DeviceID {
+					websiteDevices = append(websiteDevices, device)
+					break // Only one device per website's device_id
+				}
 			}
 		}
 		ctrl.DevicesByWebsite[website.ID] = websiteDevices
