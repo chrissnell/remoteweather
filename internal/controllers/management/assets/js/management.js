@@ -118,6 +118,38 @@
   }
 
   /* ---------------------------------------------------
+     Checkbox Helpers
+  --------------------------------------------------- */
+  function createEnabledCheckbox(initialState, onToggle) {
+    const label = document.createElement('label');
+    label.className = 'checkbox-label';
+    
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = initialState;
+    
+    const textNode = document.createTextNode(' Enabled');
+    
+    label.appendChild(input);
+    label.appendChild(textNode);
+    
+    // Add event listener for checkbox changes
+    input.addEventListener('change', async () => {
+      const newState = input.checked;
+      try {
+        await onToggle(newState);
+      } catch (error) {
+        console.error('Checkbox update failed:', error);
+        // Revert the checkbox state on error
+        input.checked = !newState;
+        alert('Failed to update enabled state: ' + error.message);
+      }
+    });
+    
+    return label;
+  }
+
+  /* ---------------------------------------------------
      Weather Stations
   --------------------------------------------------- */
   async function loadWeatherStations() {
@@ -143,33 +175,37 @@
         h3.textContent = dev.name || '';
         card.appendChild(h3);
 
-        // Placeholder for status and readings
+        // Placeholder for status
         const statusEl = document.createElement('span');
         statusEl.className = 'status-badge';
         statusEl.textContent = 'Checking…';
         h3.appendChild(document.createTextNode(' '));
         h3.appendChild(statusEl);
 
-        const readingBox = document.createElement('pre');
-        readingBox.className = 'reading-box';
-        readingBox.textContent = 'Loading readings…';
-        card.insertBefore(readingBox, h3);
+        // Create configuration display like controllers
+        const configDiv = document.createElement('div');
+        configDiv.className = 'config-display';
+        configDiv.innerHTML = formatWeatherStationConfig(dev);
+        card.appendChild(configDiv);
 
-        loadDeviceStatusAndReading(dev.name, statusEl, readingBox);
-
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.innerHTML = `<strong>Type:</strong> ${dev.type || ''}<br/><strong>Conn:</strong> ${formatConnection(dev)}<br/><strong>Enabled:</strong> ${dev.enabled ? 'Yes' : 'No'}`;
-        card.appendChild(meta);
+        // Add checkbox for enabled/disabled state
+        const enabledCheckbox = createEnabledCheckbox(dev.enabled, async (newEnabled) => {
+          const updatedDevice = { ...dev, enabled: newEnabled };
+          const nameEncoded = encodeURIComponent(dev.name);
+          await apiPut(`/config/weather-stations/${nameEncoded}`, updatedDevice);
+          // Update local copy for future toggles
+          dev.enabled = newEnabled;
+        });
+        card.appendChild(enabledCheckbox);
 
         const actions = document.createElement('div');
         actions.className = 'actions';
         const editBtn = document.createElement('button');
-        editBtn.className = 'primary-btn';
+        editBtn.className = 'edit-btn';
         editBtn.textContent = 'Edit';
         editBtn.addEventListener('click', () => openEditModal(dev));
         const delBtn = document.createElement('button');
-        delBtn.className = 'secondary-btn';
+        delBtn.className = 'delete-btn';
         delBtn.textContent = 'Delete';
         delBtn.addEventListener('click', () => deleteStation(dev));
         actions.appendChild(editBtn);
@@ -177,6 +213,9 @@
         card.appendChild(actions);
 
         container.appendChild(card);
+
+        // Load status in background
+        loadDeviceStatus(dev.name, statusEl);
       });
     } catch (err) {
       container.textContent = 'Failed to load weather stations. ' + err.message;
@@ -193,11 +232,53 @@
     return '';
   }
 
+  function formatWeatherStationConfig(dev) {
+    let html = '<div class="config-section">';
+    html += `<h4>${getDeviceTypeDisplayName(dev.type)}</h4>`;
+    html += '<div class="config-grid">';
+    
+    if (dev.type) html += `<div><strong>Type:</strong> ${dev.type}</div>`;
+    
+    // Connection information
+    if (dev.serial_device) {
+      html += `<div><strong>Serial Device:</strong> ${dev.serial_device}</div>`;
+      if (dev.baud) html += `<div><strong>Baud Rate:</strong> ${dev.baud}</div>`;
+    }
+    if (dev.hostname) {
+      html += `<div><strong>Hostname:</strong> ${dev.hostname}</div>`;
+      if (dev.port) html += `<div><strong>Port:</strong> ${dev.port}</div>`;
+    }
+    
+    // Snow gauge specific fields
+    if (dev.type === 'snowgauge' && dev.base_snow_distance) {
+      html += `<div><strong>Base Snow Distance:</strong> ${dev.base_snow_distance}</div>`;
+    }
+    
+    // Station location
+    if (dev.solar) {
+      html += `<div><strong>Latitude:</strong> ${dev.solar.latitude || 'Not set'}</div>`;
+      html += `<div><strong>Longitude:</strong> ${dev.solar.longitude || 'Not set'}</div>`;
+      html += `<div><strong>Altitude:</strong> ${dev.solar.altitude || 'Not set'}</div>`;
+    }
+    
+    html += '</div></div>';
+    return html;
+  }
+
+  function getDeviceTypeDisplayName(type) {
+    const names = {
+      'campbellscientific': 'Campbell Scientific',
+      'davis': 'Davis Instruments',
+      'snowgauge': 'Snow Gauge'
+    };
+    return names[type] || type;
+  }
+
   /* ---------------------------------------------------
-     Device status & readings
+     Device status
   --------------------------------------------------- */
 
-  async function loadDeviceStatusAndReading(deviceName, statusEl, readingBox) {
+  async function loadDeviceStatus(deviceName, statusEl) {
     try {
       // Connectivity test
       const statusRes = await apiPost('/test/device', { device_name: deviceName, timeout_seconds: 5 });
@@ -211,39 +292,6 @@
     } catch (err) {
       statusEl.textContent = 'Error';
       statusEl.classList.add('status-offline');
-    }
-
-    try {
-      const readingRes = await apiPost('/test/current-reading', { device_name: deviceName, max_stale_minutes: 60 });
-
-      // Human-readable render of reading JSON
-      readingBox.textContent = JSON.stringify(readingRes.reading || readingRes, null, 2);
-
-      // Age / staleness indicator (stale if >30 s)
-      if (typeof readingRes.timestamp === 'number') {
-        const ageSec = Math.floor(Date.now() / 1000 - readingRes.timestamp);
-        const stale = ageSec > 30;
-
-        // Remove any previous age badge
-        const existing = statusEl.parentElement.querySelector('.age-badge');
-        if (existing) existing.remove();
-
-        const ageBadge = document.createElement('span');
-        ageBadge.className = 'age-badge';
-        ageBadge.textContent = `${ageSec}s`;
-
-        if (stale) {
-          ageBadge.classList.add('stale');
-          ageBadge.title = 'Reading is stale';
-        } else {
-          ageBadge.classList.add('fresh');
-          ageBadge.title = 'Reading is fresh';
-        }
-
-        statusEl.parentElement.appendChild(ageBadge);
-      }
-    } catch (err) {
-      readingBox.textContent = 'No reading data';
     }
   }
 
@@ -467,7 +515,7 @@
         const actions = document.createElement('div');
         actions.className = 'actions';
         const delBtn = document.createElement('button');
-        delBtn.className = 'secondary-btn';
+        delBtn.className = 'delete-btn';
         delBtn.textContent = 'Delete';
         delBtn.addEventListener('click', () => deleteStorage(type));
         actions.appendChild(delBtn);
@@ -653,14 +701,21 @@
         configDiv.innerHTML = formatControllerConfig(type, controller.config);
         card.appendChild(configDiv);
 
+        // TODO: Add toggle switch for enabled/disabled state
+        // The enabled field exists in the database but is not currently exposed by the API
+        // The GetControllers query filters by enabled=1, so only enabled controllers are returned
+        // To implement toggles, the API would need to be updated to:
+        // 1. Include the enabled field in controller responses
+        // 2. Allow updating just the enabled field without requiring full config
+
         const actions = document.createElement('div');
         actions.className = 'actions';
         const editBtn = document.createElement('button');
-        editBtn.className = 'secondary-btn';
+        editBtn.className = 'edit-btn';
         editBtn.textContent = 'Edit';
         editBtn.addEventListener('click', () => openEditControllerModal(type, controller));
         const delBtn = document.createElement('button');
-        delBtn.className = 'secondary-btn';
+        delBtn.className = 'delete-btn';
         delBtn.textContent = 'Delete';
         delBtn.addEventListener('click', () => deleteController(type));
         actions.appendChild(editBtn);
@@ -705,6 +760,16 @@
   const addBtn = document.getElementById('add-station-btn');
 
   function openModal() {
+    resetForm();
+    document.getElementById('modal-title').textContent = 'Add Station';
+    document.getElementById('form-mode').value = 'add';
+    document.getElementById('station-type').disabled = false;
+    
+    // Load serial ports if serial is selected by default
+    if (connSelect.value === 'serial') {
+      loadSerialPorts();
+    }
+    
     modal.classList.remove('hidden');
   }
 
@@ -722,14 +787,13 @@
     openModal();
   });
 
-  function openEditModal(dev) {
+  async function openEditModal(dev) {
     resetForm();
     document.getElementById('modal-title').textContent = 'Edit Station';
     document.getElementById('form-mode').value = 'edit';
     document.getElementById('station-name').value = dev.name || '';
     document.getElementById('station-type').value = dev.type || '';
     document.getElementById('station-type').disabled = true; // Can't change type on edit
-    document.getElementById('station-enabled').checked = dev.enabled;
 
     // Determine connection type
     if (dev.serial_device) {
@@ -739,7 +803,10 @@
     }
     updateConnVisibility();
 
+    // Populate fields after connection visibility is updated
     if (dev.serial_device) {
+      // Wait for serial ports to be loaded, then set the value
+      await loadSerialPorts();
       document.getElementById('serial-device').value = dev.serial_device;
       document.getElementById('serial-baud').value = dev.baud || '';
     }
@@ -752,13 +819,39 @@
       document.getElementById('snow-options').classList.remove('hidden');
     }
 
-    openModal();
+    // Populate solar fields
+    if (dev.solar) {
+      document.getElementById('solar-latitude').value = dev.solar.latitude || '';
+      document.getElementById('solar-longitude').value = dev.solar.longitude || '';
+      document.getElementById('solar-altitude').value = dev.solar.altitude || '';
+    }
+
+    // Populate APRS fields
+    populateAPRSFields(dev);
+
+    modal.classList.remove('hidden');
+  }
+
+  // Helper function to populate APRS fields for a device
+  function populateAPRSFields(device) {
+    document.getElementById('aprs-enabled').checked = device.aprs_enabled || false;
+    document.getElementById('aprs-callsign').value = device.aprs_callsign || '';
+    document.getElementById('aprs-passcode').value = device.aprs_passcode || '';
+    
+    // Show/hide APRS fields based on enabled status
+    const aprsFields = document.getElementById('aprs-config-fields');
+    if (device.aprs_enabled) {
+      aprsFields.classList.remove('hidden');
+    } else {
+      aprsFields.classList.add('hidden');
+    }
   }
 
   function resetForm() {
     document.getElementById('station-form').reset();
     document.getElementById('station-type').disabled = false;
     document.getElementById('snow-options').classList.add('hidden');
+    document.getElementById('aprs-config-fields').classList.add('hidden');
     connSelect.value = 'serial';
     updateConnVisibility();
   }
@@ -771,6 +864,16 @@
     }
   });
 
+  // APRS configuration toggle
+  document.getElementById('aprs-enabled').addEventListener('change', (e) => {
+    const aprsFields = document.getElementById('aprs-config-fields');
+    if (e.target.checked) {
+      aprsFields.classList.remove('hidden');
+    } else {
+      aprsFields.classList.add('hidden');
+    }
+  });
+
   /* Connection type handler */
   const connSelect = document.getElementById('connection-type');
   const serialFieldset = document.getElementById('serial-fieldset');
@@ -779,12 +882,82 @@
   connSelect.addEventListener('change', updateConnVisibility);
 
   function updateConnVisibility() {
-    if (connSelect.value === 'serial') {
+    const selected = connSelect.value;
+    
+    const serialFieldset = document.getElementById('serial-fieldset');
+    const networkFieldset = document.getElementById('network-fieldset');
+    const snowOptions = document.getElementById('snow-options');
+    
+    if (selected === 'serial') {
       serialFieldset.classList.remove('hidden');
       networkFieldset.classList.add('hidden');
-    } else {
-      networkFieldset.classList.remove('hidden');
+      // Load available serial ports when serial is selected
+      loadSerialPorts();
+    } else if (selected === 'network') {
       serialFieldset.classList.add('hidden');
+      networkFieldset.classList.remove('hidden');
+    }
+    
+    // Show snow gauge options if appropriate
+    const stationType = document.getElementById('station-type').value;
+    if (stationType === 'snowgauge') {
+      snowOptions.classList.remove('hidden');
+    } else {
+      snowOptions.classList.add('hidden');
+    }
+  }
+
+  let isLoadingSerialPorts = false;
+
+  async function loadSerialPorts() {
+    if (isLoadingSerialPorts) {
+      return; // Prevent concurrent calls
+    }
+    
+    isLoadingSerialPorts = true;
+    const serialSelect = document.getElementById('serial-device');
+    const currentValue = serialSelect.value;
+    
+    // Clear existing options except the first one
+    serialSelect.innerHTML = '<option value="">Select a serial port...</option>';
+    
+    try {
+      const response = await apiGet('/system/serial-ports');
+      const ports = response.ports || [];
+      
+      if (ports.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No serial ports detected';
+        option.disabled = true;
+        serialSelect.appendChild(option);
+      } else {
+        ports.forEach(port => {
+          const option = document.createElement('option');
+          option.value = port.device;
+          // Create a descriptive label
+          if (port.description && port.description !== port.device) {
+            option.textContent = `${port.device} (${port.description})`;
+          } else {
+            option.textContent = port.device;
+          }
+          serialSelect.appendChild(option);
+        });
+        
+        // Restore the previously selected value if it still exists
+        if (currentValue && [...serialSelect.options].some(opt => opt.value === currentValue)) {
+          serialSelect.value = currentValue;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load serial ports:', error);
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'Failed to load serial ports';
+      option.disabled = true;
+      serialSelect.appendChild(option);
+    } finally {
+      isLoadingSerialPorts = false;
     }
   }
 
@@ -809,6 +982,7 @@
       } else {
         await apiPut(`/config/weather-stations/${nameEncoded}`, devObj);
       }
+      
       closeModal();
       loadWeatherStations();
     } catch (err) {
@@ -831,13 +1005,15 @@
   function collectFormData() {
     const name = document.getElementById('station-name').value.trim();
     const type = document.getElementById('station-type').value;
-    const enabled = document.getElementById('station-enabled').checked;
     const connType = connSelect.value;
     const serialDevice = document.getElementById('serial-device').value.trim();
     const serialBaud = parseInt(document.getElementById('serial-baud').value, 10);
     const hostname = document.getElementById('net-hostname').value.trim();
     const port = document.getElementById('net-port').value.trim();
     const snowDistanceVal = document.getElementById('snow-distance').value.trim();
+    const solarLat = document.getElementById('solar-latitude').value.trim();
+    const solarLon = document.getElementById('solar-longitude').value.trim();
+    const solarAlt = document.getElementById('solar-altitude').value.trim();
 
     if (!name) {
       alert('Name is required');
@@ -847,7 +1023,7 @@
     const device = {
       name,
       type,
-      enabled,
+      enabled: true,
     };
 
     if (connType === 'serial') {
@@ -875,8 +1051,34 @@
       device.base_snow_distance = parseInt(snowDistanceVal, 10);
     }
 
+    // Add solar data if any fields are filled
+    if (solarLat || solarLon || solarAlt) {
+      device.solar = {
+        latitude: solarLat ? parseFloat(solarLat) : 0,
+        longitude: solarLon ? parseFloat(solarLon) : 0,
+        altitude: solarAlt ? parseFloat(solarAlt) : 0
+      };
+    }
+
+    // Add APRS configuration
+    const aprsEnabled = document.getElementById('aprs-enabled').checked;
+    const aprsCallsign = document.getElementById('aprs-callsign').value.trim();
+    const aprsPasscode = document.getElementById('aprs-passcode').value.trim();
+
+    device.aprs_enabled = aprsEnabled;
+    device.aprs_callsign = aprsCallsign;
+    device.aprs_passcode = aprsPasscode;
+
+    // Validate APRS configuration
+    if (aprsEnabled && !aprsCallsign) {
+      alert('APRS Callsign is required when APRS is enabled');
+      return null;
+    }
+
     return device;
   }
+
+
 
   /* ---------------------------------------------------
      API write helpers
@@ -1271,11 +1473,11 @@
         const actions = document.createElement('div');
         actions.className = 'actions';
         const editBtn = document.createElement('button');
-        editBtn.className = 'secondary-btn';
+        editBtn.className = 'edit-btn';
         editBtn.textContent = 'Edit';
         editBtn.addEventListener('click', () => editWebsite(website.id));
         const delBtn = document.createElement('button');
-        delBtn.className = 'secondary-btn';
+        delBtn.className = 'delete-btn';
         delBtn.textContent = 'Delete';
         delBtn.addEventListener('click', () => deleteWebsite(website.id));
         actions.appendChild(editBtn);

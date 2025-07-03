@@ -76,22 +76,22 @@ func (a *Storage) testAPRSISLogin(configProvider config.ConfigProvider) error {
 		return fmt.Errorf("APRS storage configuration is missing or incomplete")
 	}
 
-	// Get station APRS configurations
-	stationConfigs, err := configProvider.GetStationAPRSConfigs()
+	// Get devices with APRS enabled
+	devices, err := configProvider.GetDevices()
 	if err != nil {
-		return fmt.Errorf("error loading station APRS configurations: %v", err)
+		return fmt.Errorf("error loading device configurations: %v", err)
 	}
 
-	var stationConfig *config.StationAPRSData
-	for _, station := range stationConfigs {
-		if station.Enabled && station.Callsign != "" {
-			stationConfig = &station
+	var aprsCallsign string
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
 			break
 		}
 	}
 
-	if stationConfig == nil {
-		return fmt.Errorf("no enabled station APRS configuration found")
+	if aprsCallsign == "" {
+		return fmt.Errorf("no enabled APRS device found")
 	}
 
 	// Test connection to APRS-IS server
@@ -122,11 +122,11 @@ func (a *Storage) testAPRSISLogin(configProvider config.ConfigProvider) error {
 	}
 
 	// Calculate passcode from callsign
-	passcode := aprs.CalculatePasscode(stationConfig.Callsign)
+	passcode := aprs.CalculatePasscode(aprsCallsign)
 
 	// Send login command
 	loginCmd := fmt.Sprintf("user %s pass %d vers remoteweather-healthcheck 1.0\r\n",
-		stationConfig.Callsign, passcode)
+		aprsCallsign, passcode)
 
 	conn.SetWriteDeadline(time.Now().Add(connectionTimeout))
 	_, err = conn.Write([]byte(loginCmd))
@@ -148,6 +148,6 @@ func (a *Storage) testAPRSISLogin(configProvider config.ConfigProvider) error {
 		return fmt.Errorf("APRS-IS login failed, server response: %s", loginResp)
 	}
 
-	log.Debugf("APRS-IS health check successful for callsign %s", stationConfig.Callsign)
+	log.Debugf("APRS-IS health check successful for callsign %s", aprsCallsign)
 	return nil
 }

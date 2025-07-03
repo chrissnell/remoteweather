@@ -453,6 +453,25 @@ func (h *Handlers) validateControllerConfig(controllerType string, controller *c
 		if controller.APRS.Server == "" {
 			return fmt.Errorf("APRS server is required")
 		}
+
+		// Check if at least one device has APRS enabled with callsign and location
+		devices, err := h.controller.ConfigProvider.GetDevices()
+		if err != nil {
+			return fmt.Errorf("failed to check device configurations: %w", err)
+		}
+
+		validStation := false
+		for _, device := range devices {
+			if device.APRSEnabled && device.APRSCallsign != "" &&
+				device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
+				validStation = true
+				break
+			}
+		}
+
+		if !validStation {
+			return fmt.Errorf("APRS controller requires at least one weather station to have APRS enabled with a callsign and location configured. Please enable APRS on a weather station first.")
+		}
 	}
 
 	return nil

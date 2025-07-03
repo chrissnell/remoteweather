@@ -90,7 +90,7 @@ h2 {
   margin-top: 1rem;
   overflow-x: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
   gap: 1.5rem;
 }
 
@@ -112,13 +112,14 @@ h2 {
 }
 
 /* Buttons */
-.primary-btn, .secondary-btn, .close-btn {
+.primary-btn, .secondary-btn, .close-btn, .edit-btn, .delete-btn {
   font-family: var(--font-family);
   cursor: pointer;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 4px;
   font-size: 0.95rem;
+  color: #fff;
 }
 
 .primary-btn {
@@ -139,11 +140,90 @@ h2 {
   background: #b3b3b3;
 }
 
+.edit-btn {
+  background: rgb(26, 140, 167);
+}
+
+.edit-btn:hover {
+  background: rgb(20, 118, 140);
+}
+
+.delete-btn {
+  background: rgb(193, 18, 31);
+}
+
+.delete-btn:hover {
+  background: rgb(160, 15, 25);
+}
+
 .close-btn {
   background: transparent;
   font-size: 1.25rem;
   line-height: 1;
   padding: 0;
+}
+
+/* Toggle switch - Square design */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.toggle-label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #ccc;
+  box-sizing: border-box;
+  background-color: transparent;
+  transition: 0.3s;
+  border-radius: 0;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 0;
+}
+
+input:checked + .slider {
+  border-color: rgb(26, 140, 167);
+}
+
+input:checked + .slider:before {
+  background-color: rgb(26, 140, 167);
+  transform: translate(18px, -50%); /* Adjusted to stop 2px from the right */
 }
 
 /* Pane header */
@@ -186,6 +266,17 @@ h2 {
   margin-top: auto;
   display: flex;
   gap: 0.5rem;
+}
+
+/* Checkbox styling within cards */
+.card .checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 /* Modal */
@@ -234,6 +325,13 @@ h2 {
   font-size: 0.9rem;
 }
 
+/* Override for checkbox labels - make them row instead of column */
+.station-form label.checkbox-label {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
 .station-form input,
 .station-form select {
   padding: 0.45rem 0.55rem;
@@ -251,6 +349,13 @@ h2 {
   margin: 1rem 0; /* more breathing room above and below */
 }
 
+/* Override for checkbox labels in fieldsets */
+.conn-fieldset label.checkbox-label {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
 .conn-fieldset legend {
   font-size: 0.9rem;
   padding: 0 0.25rem;
@@ -261,6 +366,24 @@ h2 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+/* Ensure checkboxes and their containers are left-aligned */
+.station-form .checkbox-label {
+  justify-content: flex-start !important;
+}
+
+.conn-fieldset .checkbox-label {
+  justify-content: flex-start !important;
+}
+
+.help-text {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin: 0.5rem 0;
+  font-style: italic;
 }
 
 /* Hide helper */
@@ -285,16 +408,7 @@ h2 {
   background: #dc3545;
 }
 
-.reading-box {
-  background: #f5f7f8;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 0.5rem;
-  font-size: 0.8rem;
-  max-height: 140px;
-  overflow: auto;
-  margin-bottom: 0.5rem;
-}
+
 
 /* Age / staleness badges */
 .age-badge {

@@ -31,7 +31,7 @@
           <h2>Weather Stations</h2>
           <button id="add-station-btn" class="primary-btn">+ Add Station</button>
         </header>
-        <div id="ws-list" class="card-container">Loading…</div>
+        <div id="ws-list" class="list-container">Loading…</div>
 
         <!-- Modal for add/edit station -->
         <div id="station-modal" class="modal hidden">
@@ -70,7 +70,9 @@
                 <legend>Serial Connection</legend>
                 <label>
                   Device Path
-                  <input type="text" id="serial-device" placeholder="/dev/ttyUSB0" />
+                  <select id="serial-device">
+                    <option value="">Select a serial port...</option>
+                  </select>
                 </label>
                 <label>
                   Baud
@@ -97,9 +99,39 @@
                 </label>
               </div>
 
-              <label class="checkbox-label">
-                <input type="checkbox" id="station-enabled" checked /> Enabled
-              </label>
+              <fieldset class="conn-fieldset">
+                <legend>Station Location</legend>
+                <label>
+                  Latitude
+                  <input type="number" id="solar-latitude" step="0.0001" placeholder="40.7128" />
+                </label>
+                <label>
+                  Longitude
+                  <input type="number" id="solar-longitude" step="0.0001" placeholder="-74.0060" />
+                </label>
+                <label>
+                  Altitude (meters)
+                  <input type="number" id="solar-altitude" placeholder="10" />
+                </label>
+              </fieldset>
+
+              <fieldset class="conn-fieldset">
+                <legend>APRS Configuration</legend>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="aprs-enabled" /> Enable APRS
+                </label>
+                <div id="aprs-config-fields" class="hidden">
+                  <label>
+                    APRS Callsign
+                    <input type="text" id="aprs-callsign" placeholder="N0CALL" />
+                  </label>
+                  <label>
+                    APRS Passcode
+                    <input type="text" id="aprs-passcode" placeholder="12345" />
+                  </label>
+                  <p class="help-text">APRS will use the latitude and longitude from Station Location above.</p>
+                </div>
+              </fieldset>
 
               <footer class="modal-footer">
                 <button type="submit" class="primary-btn" id="save-station-btn">Save</button>
