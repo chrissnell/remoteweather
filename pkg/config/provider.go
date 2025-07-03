@@ -46,13 +46,6 @@ type ConfigProvider interface {
 	UpdateWeatherWebsite(id int, website *WeatherWebsiteData) error
 	DeleteWeatherWebsite(id int) error
 
-	// APRS management
-	GetStationAPRSConfigs() ([]StationAPRSData, error)
-	GetStationAPRSConfig(deviceName string) (*StationAPRSData, error)
-	AddStationAPRSConfig(config *StationAPRSData) error
-	UpdateStationAPRSConfig(deviceName string, config *StationAPRSData) error
-	DeleteStationAPRSConfig(deviceName string) error
-
 	// Configuration management (for future SQLite-specific operations)
 	IsReadOnly() bool
 	Close() error
@@ -185,6 +178,9 @@ type DeviceData struct {
 	BaseSnowDistance  int16     `json:"base_snow_distance,omitempty"`
 	WebsiteID         *int      `json:"website_id,omitempty"`
 	Solar             SolarData `json:"solar,omitempty"`
+	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
+	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
+	APRSPasscode      string    `json:"aprs_passcode,omitempty"`
 }
 
 // SolarData holds configuration specific to solar calculations
@@ -233,20 +229,6 @@ type GRPCData struct {
 	Port           int                `json:"port,omitempty"`
 	PullFromDevice string             `json:"pull_from_device,omitempty"`
 	Health         *StorageHealthData `json:"health,omitempty"`
-}
-
-// Per-station APRS configuration
-// APRS server is global (configured as 'aprs' controller), only callsign and location are per-station
-type StationAPRSData struct {
-	DeviceName string    `json:"device_name,omitempty"`
-	Enabled    bool      `json:"enabled,omitempty"`
-	Callsign   string    `json:"callsign,omitempty"`
-	Location   PointData `json:"location,omitempty"`
-}
-
-type PointData struct {
-	Lat float64 `json:"latitude,omitempty"`
-	Lon float64 `json:"longitude,omitempty"`
 }
 
 // Controller configuration structs
@@ -646,40 +628,6 @@ func (c *CachedConfigProvider) UpdateWeatherWebsite(id int, website *WeatherWebs
 // DeleteWeatherWebsite removes a weather website and invalidates cache
 func (c *CachedConfigProvider) DeleteWeatherWebsite(id int) error {
 	err := c.provider.DeleteWeatherWebsite(id)
-	if err == nil {
-		c.InvalidateCache()
-	}
-	return err
-}
-
-// APRS management delegation methods
-
-func (c *CachedConfigProvider) GetStationAPRSConfigs() ([]StationAPRSData, error) {
-	return c.provider.GetStationAPRSConfigs()
-}
-
-func (c *CachedConfigProvider) GetStationAPRSConfig(deviceName string) (*StationAPRSData, error) {
-	return c.provider.GetStationAPRSConfig(deviceName)
-}
-
-func (c *CachedConfigProvider) AddStationAPRSConfig(config *StationAPRSData) error {
-	err := c.provider.AddStationAPRSConfig(config)
-	if err == nil {
-		c.InvalidateCache()
-	}
-	return err
-}
-
-func (c *CachedConfigProvider) UpdateStationAPRSConfig(deviceName string, config *StationAPRSData) error {
-	err := c.provider.UpdateStationAPRSConfig(deviceName, config)
-	if err == nil {
-		c.InvalidateCache()
-	}
-	return err
-}
-
-func (c *CachedConfigProvider) DeleteStationAPRSConfig(deviceName string) error {
-	err := c.provider.DeleteStationAPRSConfig(deviceName)
 	if err == nil {
 		c.InvalidateCache()
 	}

@@ -48,27 +48,24 @@ func New(configProvider config.ConfigProvider) (Storage, error) {
 		return a, fmt.Errorf("APRS storage configuration is missing")
 	}
 
-	// Check if we have at least one station APRS config
-	stationConfigs, err := configProvider.GetStationAPRSConfigs()
+	// Check if we have at least one device with APRS enabled
+	devices, err := configProvider.GetDevices()
 	if err != nil {
-		return a, fmt.Errorf("error loading station APRS configurations: %v", err)
+		return a, fmt.Errorf("error loading device configurations: %v", err)
 	}
 
-	if len(stationConfigs) == 0 {
-		return a, fmt.Errorf("you must configure at least one station APRS configuration")
-	}
-
-	// Validate at least one station has a callsign and location
+	// Validate at least one device has APRS enabled with callsign and location
 	validStation := false
-	for _, station := range stationConfigs {
-		if station.Callsign != "" && station.Location.Lat != 0 && station.Location.Lon != 0 {
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" &&
+			device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
 			validStation = true
 			break
 		}
 	}
 
 	if !validStation {
-		return a, fmt.Errorf("you must provide a callsign and location for at least one station in the APRS configuration")
+		return a, fmt.Errorf("you must configure at least one weather station with APRS enabled, callsign, and location")
 	}
 
 	a.configProvider = configProvider
@@ -153,23 +150,23 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 		return
 	}
 
-	// Get station APRS configurations
-	stationConfigs, err := a.configProvider.GetStationAPRSConfigs()
+	// Get devices with APRS enabled
+	devices, err := a.configProvider.GetDevices()
 	if err != nil {
-		log.Error("error loading station APRS configurations: %v", err)
+		log.Error("error loading device configurations: %v", err)
 		return
 	}
 
-	var stationConfig *config.StationAPRSData
-	for _, station := range stationConfigs {
-		if station.Enabled && station.Callsign != "" {
-			stationConfig = &station
+	var aprsCallsign string
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
 			break
 		}
 	}
 
-	if stationConfig == nil {
-		log.Error("no enabled station APRS configuration found")
+	if aprsCallsign == "" {
+		log.Error("no enabled APRS device found")
 		return
 	}
 
@@ -201,10 +198,10 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	// Calculate passcode from callsign
-	passcode := aprspkg.CalculatePasscode(stationConfig.Callsign)
+	passcode := aprspkg.CalculatePasscode(aprsCallsign)
 
 	login := fmt.Sprintf("user %v pass %v vers remoteweather-%v\r\n",
-		stationConfig.Callsign, passcode, constants.Version)
+		aprsCallsign, passcode, constants.Version)
 
 	conn.Write([]byte(login))
 
@@ -260,23 +257,26 @@ func (a *Storage) StoreCurrentReading(r types.Reading) error {
 func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	var buffer bytes.Buffer
 
-	// Get station APRS configurations
-	stationConfigs, err := a.configProvider.GetStationAPRSConfigs()
+	// Get devices with APRS enabled
+	devices, err := a.configProvider.GetDevices()
 	if err != nil {
-		log.Error("error loading station APRS configurations for weather report: %v", err)
+		log.Error("error loading device configurations for weather report: %v", err)
 		return ""
 	}
 
-	var stationConfig *config.StationAPRSData
-	for _, station := range stationConfigs {
-		if station.Enabled && station.Callsign != "" {
-			stationConfig = &station
+	var aprsCallsign string
+	var lat, lon float64
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
+			lat = device.Solar.Latitude
+			lon = device.Solar.Longitude
 			break
 		}
 	}
 
-	if stationConfig == nil {
-		log.Error("no enabled station APRS configuration found for weather report")
+	if aprsCallsign == "" {
+		log.Error("no enabled APRS device found for weather report")
 		return ""
 	}
 
@@ -284,9 +284,7 @@ func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	defer a.currentReading.RUnlock()
 
 	// Build callsign and position
-	callsign := strings.ToUpper(stationConfig.Callsign)
-	lat := stationConfig.Location.Lat
-	lon := stationConfig.Location.Lon
+	callsign := strings.ToUpper(aprsCallsign)
 
 	latAPRS := convertLatitudeToAPRSFormat(lat)
 	lonAPRS := convertLongitudeToAPRSFormat(lon)
