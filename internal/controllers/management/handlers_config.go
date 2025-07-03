@@ -102,6 +102,17 @@ func (h *Handlers) CreateWeatherStation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Dynamically start the weather station if enabled
+	if device.Enabled && h.controller.app != nil {
+		if err := h.controller.app.AddWeatherStation(device.Name); err != nil {
+			h.controller.logger.Errorf("Failed to start weather station %s: %v", device.Name, err)
+			// Don't fail the API call since the config was saved successfully
+			// The weather station will start on next app restart
+		} else {
+			h.controller.logger.Infof("Weather station %s started successfully", device.Name)
+		}
+	}
+
 	h.sendJSONWithStatus(w, http.StatusCreated, map[string]interface{}{
 		"message": "Weather station created successfully",
 		"device":  device,
@@ -186,6 +197,17 @@ func (h *Handlers) DeleteWeatherStation(w http.ResponseWriter, r *http.Request) 
 			h.sendError(w, http.StatusInternalServerError, "Failed to delete device", err)
 		}
 		return
+	}
+
+	// Dynamically stop the weather station
+	if h.controller.app != nil {
+		if err := h.controller.app.RemoveWeatherStation(deviceName); err != nil {
+			h.controller.logger.Errorf("Failed to stop weather station %s: %v", deviceName, err)
+			// Don't fail the API call since the config was deleted successfully
+			// The weather station will stop on next app restart
+		} else {
+			h.controller.logger.Infof("Weather station %s stopped successfully", deviceName)
+		}
 	}
 
 	h.sendJSON(w, map[string]interface{}{
