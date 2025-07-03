@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
+	"github.com/chrissnell/remoteweather/internal/controllers/management"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/managers"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -15,11 +17,14 @@ import (
 
 // App represents the main application
 type App struct {
-	configProvider    config.ConfigProvider
-	logger            *zap.SugaredLogger
-	storageManager    *managers.StorageManager
-	weatherManager    managers.WeatherStationManager
-	controllerManager managers.ControllerManager
+	configProvider       config.ConfigProvider
+	logger               *zap.SugaredLogger
+	storageManager       *managers.StorageManager
+	weatherManager       managers.WeatherStationManager
+	controllerManager    managers.ControllerManager
+	managementController *management.Controller // Direct reference to management controller
+	ctx                  context.Context        // App context for dynamic operations
+	wg                   *sync.WaitGroup        // App wait group for dynamic operations
 }
 
 // New creates a new application instance
@@ -37,6 +42,10 @@ func (a *App) Run(ctx context.Context) error {
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// Store context and wait group for dynamic operations
+	a.ctx = ctx
+	a.wg = &wg
 
 	// Initialize the storage manager
 	a.storageManager, err = managers.NewStorageManager(ctx, &wg, a.configProvider)
@@ -59,6 +68,27 @@ func (a *App) Run(ctx context.Context) error {
 	err = a.controllerManager.StartControllers()
 	if err != nil {
 		return err
+	}
+
+	// Create and start management controller separately
+	cfgData, err := a.configProvider.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	// Find management controller configuration
+	for _, controller := range cfgData.Controllers {
+		if controller.Type == "management" && controller.ManagementAPI != nil {
+			a.managementController, err = management.NewController(ctx, &wg, a.configProvider, *controller.ManagementAPI, a.logger, a)
+			if err != nil {
+				return err
+			}
+			err = a.managementController.StartController()
+			if err != nil {
+				return err
+			}
+			break
+		}
 	}
 
 	log.Info("Application started successfully")
@@ -112,4 +142,59 @@ func (a *App) ReloadConfiguration(ctx context.Context) error {
 
 	a.logger.Info("Configuration reloaded successfully")
 	return nil
+}
+
+// AddController adds a new controller dynamically
+func (a *App) AddController(controllerConfig *config.ControllerData) error {
+	a.logger.Infof("Adding controller: %s", controllerConfig.Type)
+
+	// Handle management controller separately
+	if controllerConfig.Type == "management" && controllerConfig.ManagementAPI != nil {
+		if a.managementController != nil {
+			return fmt.Errorf("management controller already exists")
+		}
+
+		var err error
+		a.managementController, err = management.NewController(a.ctx, a.wg, a.configProvider, *controllerConfig.ManagementAPI, a.logger, a)
+		if err != nil {
+			return err
+		}
+		return a.managementController.StartController()
+	}
+
+	// Handle regular controllers through controller manager
+	return a.controllerManager.AddController(*controllerConfig)
+}
+
+// RemoveController removes a controller dynamically
+func (a *App) RemoveController(controllerType string) error {
+	a.logger.Infof("Removing controller: %s", controllerType)
+
+	// Handle management controller separately
+	if controllerType == "management" {
+		if a.managementController == nil {
+			return fmt.Errorf("management controller not found")
+		}
+
+		// Note: We can't cleanly stop the management controller since it doesn't have a Stop method
+		// The context cancellation on app shutdown will handle cleanup
+		a.managementController = nil
+		a.logger.Infof("Management controller marked for removal (will stop on app shutdown)")
+		return nil
+	}
+
+	// Handle regular controllers through controller manager
+	return a.controllerManager.RemoveController(controllerType)
+}
+
+// AddWeatherStation adds a new weather station dynamically
+func (a *App) AddWeatherStation(deviceName string) error {
+	a.logger.Infof("Adding weather station: %s", deviceName)
+	return a.weatherManager.AddWeatherStation(deviceName)
+}
+
+// RemoveWeatherStation removes a weather station dynamically
+func (a *App) RemoveWeatherStation(deviceName string) error {
+	a.logger.Infof("Removing weather station: %s", deviceName)
+	return a.weatherManager.RemoveWeatherStation(deviceName)
 }
