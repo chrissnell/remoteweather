@@ -6,10 +6,10 @@ import (
 	"sync"
 
 	"github.com/chrissnell/remoteweather/internal/controllers/aerisweather"
-	"github.com/chrissnell/remoteweather/internal/controllers/management"
 	"github.com/chrissnell/remoteweather/internal/controllers/pwsweather"
 	"github.com/chrissnell/remoteweather/internal/controllers/restserver"
 	"github.com/chrissnell/remoteweather/internal/controllers/wunderground"
+	"github.com/chrissnell/remoteweather/internal/interfaces"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
@@ -28,7 +28,7 @@ type Controller interface {
 }
 
 // NewControllerManager creates a new controller manager
-func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger, appReloader management.AppReloader) (ControllerManager, error) {
+func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger, appReloader interfaces.AppReloader) (ControllerManager, error) {
 	cm := &controllerManager{
 		ctx:            ctx,
 		wg:             wg,
@@ -46,6 +46,11 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvide
 
 	// Create controllers based on configuration
 	for _, con := range cfgData.Controllers {
+		// Skip management controllers - they are handled separately in the app
+		if con.Type == "management" {
+			continue
+		}
+
 		controller, err := cm.createController(con)
 		if err != nil {
 			return nil, fmt.Errorf("error creating controller: %v", err)
@@ -62,7 +67,7 @@ type controllerManager struct {
 	configProvider config.ConfigProvider
 	logger         *zap.SugaredLogger
 	controllers    map[string]Controller
-	appReloader    management.AppReloader
+	appReloader    interfaces.AppReloader
 }
 
 func (c *controllerManager) StartControllers() error {
@@ -82,6 +87,11 @@ func (c *controllerManager) StartControllers() error {
 
 // AddController adds a new controller dynamically
 func (cm *controllerManager) AddController(controllerConfig config.ControllerData) error {
+	// Skip management controllers - they are handled separately in the app
+	if controllerConfig.Type == "management" {
+		return fmt.Errorf("management controllers are handled separately by the app")
+	}
+
 	// Check if controller already exists
 	if _, exists := cm.controllers[controllerConfig.Type]; exists {
 		return fmt.Errorf("controller %s already exists", controllerConfig.Type)
@@ -106,6 +116,11 @@ func (cm *controllerManager) AddController(controllerConfig config.ControllerDat
 
 // RemoveController removes a controller dynamically
 func (cm *controllerManager) RemoveController(controllerType string) error {
+	// Skip management controllers - they are handled separately in the app
+	if controllerType == "management" {
+		return fmt.Errorf("management controllers are handled separately by the app")
+	}
+
 	controller, exists := cm.controllers[controllerType]
 	if !exists {
 		return fmt.Errorf("controller %s not found", controllerType)
@@ -131,6 +146,10 @@ func (cm *controllerManager) ReloadControllersConfig() error {
 	// Track what controllers should be active
 	shouldBeActive := make(map[string]config.ControllerData)
 	for _, controllerConfig := range cfgData.Controllers {
+		// Skip management controllers - they are handled separately in the app
+		if controllerConfig.Type == "management" {
+			continue
+		}
 		shouldBeActive[controllerConfig.Type] = controllerConfig
 	}
 
@@ -178,11 +197,6 @@ func (cm *controllerManager) createController(cc config.ControllerData) (Control
 			return nil, fmt.Errorf("restserver controller config is nil")
 		}
 		return restserver.NewController(cm.ctx, cm.wg, cm.configProvider, *cc.RESTServer, cm.logger)
-	case "management":
-		if cc.ManagementAPI == nil {
-			return nil, fmt.Errorf("management controller config is nil")
-		}
-		return management.NewController(cm.ctx, cm.wg, cm.configProvider, *cc.ManagementAPI, cm.logger, cm.appReloader)
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", cc.Type)
 	}
