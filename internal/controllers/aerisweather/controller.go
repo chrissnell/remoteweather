@@ -104,8 +104,8 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 		a.AerisWeatherConfig.APIEndpoint = "https://api.aerisapi.com"
 	}
 
-	if a.AerisWeatherConfig.Location == "" {
-		return &AerisWeatherController{}, fmt.Errorf("forecast location must be set")
+	if a.AerisWeatherConfig.Latitude == 0 || a.AerisWeatherConfig.Longitude == 0 {
+		return &AerisWeatherController{}, fmt.Errorf("forecast latitude and longitude must be set")
 	}
 
 	a.DB = database.NewClient(configProvider, logger)
@@ -204,7 +204,9 @@ func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodH
 		Timeout: 5 * time.Second,
 	}
 
-	url := fmt.Sprint(a.AerisWeatherConfig.APIEndpoint + "/forecasts/" + a.AerisWeatherConfig.Location + "?" + v.Encode())
+	// Format coordinates as "latitude,longitude" for Aeris Weather API
+	location := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+	url := fmt.Sprint(a.AerisWeatherConfig.APIEndpoint + "/forecasts/" + location + "?" + v.Encode())
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return &AerisWeatherForecastRecord{}, fmt.Errorf("error creating Aeris Weather API HTTP request: %v", err)
@@ -331,9 +333,10 @@ func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodH
 	// The request was succesful, so we need to add timespan and location information that will be stored
 	// along side the forecast data in the database.  Together, these constitute a composite primary key
 	// for the table.  Only one combination of span hours + location will be permitted.
+	locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
 	record := AerisWeatherForecastRecord{
 		ForecastSpanHours: numPeriods * periodHours,
-		Location:          a.AerisWeatherConfig.Location,
+		Location:          locationStr,
 	}
 	record.Data.Set(forecastPeriodsJSON)
 
