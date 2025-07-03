@@ -81,9 +81,12 @@ CREATE TABLE devices (
     wind_dir_correction INTEGER,
     base_snow_distance INTEGER,
     website_id INTEGER,
-    solar_latitude REAL,
-    solar_longitude REAL,
-    solar_altitude REAL,
+    latitude REAL,
+    longitude REAL,
+    altitude REAL,
+    aprs_enabled BOOLEAN DEFAULT FALSE,
+    aprs_callsign TEXT,
+    aprs_passcode TEXT,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, name)
 );
@@ -171,56 +174,26 @@ CREATE TABLE controller_configs (
     UNIQUE(config_id, controller_type)
 );
 
--- Weather site configuration (nested within REST server)
-CREATE TABLE weather_site_configs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    controller_config_id INTEGER NOT NULL,
-    station_name TEXT,
-    pull_from_device TEXT,
-    snow_enabled BOOLEAN DEFAULT FALSE,
-    snow_device TEXT,
-    snow_base_distance REAL,
-    page_title TEXT,
-    about_station_html TEXT,
-    
-    FOREIGN KEY (controller_config_id) REFERENCES controller_configs(id) ON DELETE CASCADE
-);
 
 -- Weather websites table (from migration 003)
 CREATE TABLE weather_websites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     config_id INTEGER NOT NULL,
     name TEXT NOT NULL,
-    station_name TEXT,
-    pull_from_device TEXT,
-    snow_enabled BOOLEAN DEFAULT FALSE,
-    snow_device TEXT,
+    device_id TEXT,
+    hostname TEXT,
     page_title TEXT,
     about_station_html TEXT,
-    server_port INTEGER,
-    server_listen_addr TEXT,
-    server_cert TEXT,
-    server_key TEXT,
+    snow_enabled BOOLEAN DEFAULT FALSE,
+    snow_device_name TEXT,
+    tls_cert_path TEXT,
+    tls_key_path TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, name)
 );
 
--- Per-station APRS configuration table (from migration 005)
-CREATE TABLE station_aprs_configs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    config_id INTEGER NOT NULL,
-    device_name TEXT NOT NULL,
-    enabled BOOLEAN DEFAULT FALSE,
-    callsign TEXT,
-    latitude REAL,
-    longitude REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
-    UNIQUE(config_id, device_name)
-);
 
 -- Create indexes for better query performance
 CREATE INDEX idx_devices_config_id ON devices(config_id);
@@ -231,10 +204,7 @@ CREATE INDEX idx_storage_configs_health_status ON storage_configs(health_status)
 CREATE INDEX idx_storage_configs_health_last_check ON storage_configs(health_last_check);
 CREATE INDEX idx_controller_configs_config_id ON controller_configs(config_id);
 CREATE INDEX idx_controller_configs_type ON controller_configs(config_id, controller_type);
-CREATE INDEX idx_weather_site_configs_controller_id ON weather_site_configs(controller_config_id);
 CREATE INDEX idx_weather_websites_config_id ON weather_websites(config_id);
-CREATE INDEX idx_station_aprs_configs_device_name ON station_aprs_configs(device_name);
-CREATE INDEX idx_station_aprs_configs_enabled ON station_aprs_configs(enabled);
 
 -- Trigger to update updated_at timestamp
 CREATE TRIGGER update_configs_timestamp 
@@ -657,7 +627,6 @@ func (s *SQLiteProvider) clearExistingConfig(tx *sql.Tx, configID int64) error {
 		"DELETE FROM storage_configs WHERE config_id = ?",
 		"DELETE FROM controller_configs WHERE config_id = ?",
 		"DELETE FROM weather_websites WHERE config_id = ?",
-		"DELETE FROM station_aprs_configs WHERE config_id = ?",
 	}
 
 	for _, query := range queries {
