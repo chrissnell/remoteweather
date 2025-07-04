@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -84,26 +85,22 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 		logger:             logger,
 	}
 
-	// Load configuration to validate storage settings
-	cfgData, err := configProvider.LoadConfig()
-	if err != nil {
-		return &AerisWeatherController{}, fmt.Errorf("error loading configuration: %v", err)
+	// Validate TimescaleDB configuration
+	if err := controllers.ValidateTimescaleDBConfig(configProvider, "Aeris Weather"); err != nil {
+		return &AerisWeatherController{}, err
 	}
 
-	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
-		return &AerisWeatherController{}, fmt.Errorf("TimescaleDB storage must be configured for the Aeris controller to function")
+	// Validate required fields
+	fields := map[string]string{
+		"API client ID":     a.AerisWeatherConfig.APIClientID,
+		"API client secret": a.AerisWeatherConfig.APIClientSecret,
+	}
+	if err := controllers.ValidateRequiredFields(fields); err != nil {
+		return &AerisWeatherController{}, err
 	}
 
-	if a.AerisWeatherConfig.APIClientID == "" {
-		return &AerisWeatherController{}, fmt.Errorf("API client id must be set (this is provided by Aeris Weather)")
-	}
-
-	if a.AerisWeatherConfig.APIClientSecret == "" {
-		return &AerisWeatherController{}, fmt.Errorf("API client secret must be set (this is provided by Aeris Weather)")
-	}
-
+	// Set defaults
 	if a.AerisWeatherConfig.APIEndpoint == "" {
-		// Set a default API endpoint if not provided
 		a.AerisWeatherConfig.APIEndpoint = "https://api.aerisapi.com"
 	}
 
@@ -111,13 +108,12 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 		return &AerisWeatherController{}, fmt.Errorf("forecast latitude and longitude must be set")
 	}
 
-	a.DB = database.NewClient(configProvider, logger)
-
-	// Connect to TimescaleDB for purposes of storing Aeris data for future client requests
-	err = a.DB.ConnectToTimescaleDB()
+	// Setup database connection
+	db, err := controllers.SetupDatabaseConnection(configProvider, logger)
 	if err != nil {
-		return &AerisWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
+		return &AerisWeatherController{}, err
 	}
+	a.DB = db
 
 	err = a.CreateTables()
 	if err != nil {
