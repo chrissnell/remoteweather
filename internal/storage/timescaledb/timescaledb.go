@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/storage"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"gorm.io/gorm"
@@ -30,27 +32,8 @@ type Tabler interface {
 func (t *Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting TimescaleDB storage engine...")
 	readingChan := make(chan types.Reading, 10)
-	go t.processMetrics(ctx, wg, readingChan)
+	go storage.ProcessReadings(ctx, wg, readingChan, t.StoreReading, "TimescaleDB")
 	return readingChan
-}
-
-func (t *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
-	wg.Add(1)
-	defer wg.Done()
-
-	for {
-		select {
-		case r := <-rchan:
-			err := t.StoreReading(r)
-			if err != nil {
-				log.Info("cancellation request recieved.  Cancelling readings processor.")
-				return
-			}
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling readings processor.")
-			return
-		}
-	}
 }
 
 // StoreReading stores a reading value in TimescaleDB
@@ -60,7 +43,30 @@ func (t *Storage) StoreReading(r types.Reading) error {
 		log.Error("could not store reading:", err)
 		return err
 	}
+	log.Debugf("TimescaleDB stored reading for station %s", r.StationName)
 	return nil
+}
+
+func (t *Storage) CheckHealth(configProvider config.ConfigProvider) *config.StorageHealthData {
+	if t.TimescaleDBConn == nil {
+		return storage.CreateHealthData("unhealthy", "No database connection", fmt.Errorf("TimescaleDB connection is nil"))
+	}
+
+	sqlDB, err := t.TimescaleDBConn.DB()
+	if err != nil {
+		return storage.CreateHealthData("unhealthy", "Failed to get underlying database connection", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return storage.CreateHealthData("unhealthy", "Database ping failed", err)
+	}
+
+	var result int
+	if err := t.TimescaleDBConn.Raw("SELECT 1").Scan(&result).Error; err != nil {
+		return storage.CreateHealthData("unhealthy", "Database query test failed", err)
+	}
+
+	return storage.CreateHealthData("healthy", "TimescaleDB operational - ping: OK, query test: OK", nil)
 }
 
 // New sets up a new TimescaleDB storage backend
@@ -325,8 +331,7 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	}
 
 	// Start health monitoring
-	log.Info("starting TimescaleDB health monitor")
-	t.startHealthMonitor(ctx, configProvider)
+	storage.StartHealthMonitor(ctx, configProvider, "timescaledb", &t, 60*time.Second)
 
 	log.Info("TimescaleDB connection successful")
 
