@@ -86,7 +86,6 @@ CREATE TABLE devices (
     altitude REAL,
     aprs_enabled BOOLEAN DEFAULT FALSE,
     aprs_callsign TEXT,
-    aprs_passcode TEXT,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, name)
 );
@@ -110,7 +109,6 @@ CREATE TABLE storage_configs (
     
     -- APRS fields
     aprs_callsign TEXT,
-    aprs_passcode TEXT,
     aprs_server TEXT,
     aprs_location_lat REAL,
     aprs_location_lon REAL,
@@ -260,7 +258,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	query := `
 		SELECT name, type, enabled, hostname, port, serial_device, baud, 
 		       wind_dir_correction, base_snow_distance, website_id,
-		       latitude, longitude, altitude, aprs_enabled, aprs_callsign, aprs_passcode
+		       latitude, longitude, altitude, aprs_enabled, aprs_callsign
 		FROM devices 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY name
@@ -275,7 +273,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	var devices []DeviceData
 	for rows.Next() {
 		var device DeviceData
-		var hostname, port, serialDevice, aprsCallsign, aprsPasscode sql.NullString
+		var hostname, port, serialDevice, aprsCallsign sql.NullString
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var solarLat, solarLon, solarAlt sql.NullFloat64
 		var aprsEnabled sql.NullBool
@@ -284,7 +282,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 			&device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
-			&aprsEnabled, &aprsCallsign, &aprsPasscode,
+			&aprsEnabled, &aprsCallsign,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
@@ -330,7 +328,6 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		// Set APRS data
 		device.APRSEnabled = aprsEnabled.Bool
 		device.APRSCallsign = aprsCallsign.String
-		device.APRSPasscode = aprsPasscode.String
 
 		devices = append(devices, device)
 	}
@@ -347,7 +344,7 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 		       -- gRPC fields
 		       grpc_cert, grpc_key, grpc_listen_addr, grpc_port, grpc_pull_from_device,
 		       -- APRS fields
-		       aprs_callsign, aprs_passcode, aprs_server, aprs_location_lat, aprs_location_lon,
+		       aprs_callsign, aprs_server, aprs_location_lat, aprs_location_lon,
 		       -- Health fields
 		       health_last_check, health_status, health_message, health_error
 		FROM storage_configs 
@@ -369,7 +366,7 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 		var grpcCert, grpcKey, grpcListenAddr, grpcPullFromDevice sql.NullString
 		var grpcPort sql.NullInt64
 		// Note: APRS fields removed - now handled by separate APRS tables
-		var aprsCallsign, aprsPasscode, aprsServer sql.NullString
+		var aprsCallsign, aprsServer sql.NullString
 		var aprsLat, aprsLon sql.NullFloat64
 		// Health fields
 		var healthLastCheck sql.NullTime
@@ -379,7 +376,7 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 			&backendType, &enabled,
 			&timescaleConnectionString,
 			&grpcCert, &grpcKey, &grpcListenAddr, &grpcPort, &grpcPullFromDevice,
-			&aprsCallsign, &aprsPasscode, &aprsServer, &aprsLat, &aprsLon,
+			&aprsCallsign, &aprsServer, &aprsLat, &aprsLon,
 			&healthLastCheck, &healthStatus, &healthMessage, &healthError,
 		)
 		if err != nil {
@@ -642,8 +639,8 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 		INSERT INTO devices (
 			config_id, name, type, enabled, hostname, port, serial_device,
 			baud, wind_dir_correction, base_snow_distance, website_id,
-			latitude, longitude, altitude, aprs_enabled, aprs_callsign, aprs_passcode
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			latitude, longitude, altitude, aprs_enabled, aprs_callsign
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var websiteID sql.NullInt64
@@ -655,7 +652,7 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
 		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
-		device.APRSEnabled, device.APRSCallsign, device.APRSPasscode,
+		device.APRSEnabled, device.APRSCallsign,
 	)
 	return err
 }
@@ -794,14 +791,14 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	query := `
 		SELECT d.name, d.type, d.enabled, d.hostname, d.port, d.serial_device, d.baud,
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
-		       d.latitude, d.longitude, d.altitude, d.aprs_enabled, d.aprs_callsign, d.aprs_passcode
+		       d.latitude, d.longitude, d.altitude, d.aprs_enabled, d.aprs_callsign
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
 		WHERE d.name = ?
 	`
 
 	var device DeviceData
-	var hostname, port, serialDevice, aprsCallsign, aprsPasscode sql.NullString
+	var hostname, port, serialDevice, aprsCallsign sql.NullString
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 	var solarLat, solarLon, solarAlt sql.NullFloat64
 	var aprsEnabled sql.NullBool
@@ -810,7 +807,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		&device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
 		&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
-		&aprsEnabled, &aprsCallsign, &aprsPasscode,
+		&aprsEnabled, &aprsCallsign,
 	)
 
 	if err != nil {
@@ -860,7 +857,6 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	// Set APRS data
 	device.APRSEnabled = aprsEnabled.Bool
 	device.APRSCallsign = aprsCallsign.String
-	device.APRSPasscode = aprsPasscode.String
 
 	return &device, nil
 }
@@ -910,7 +906,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 		UPDATE devices SET
 			name = ?, type = ?, enabled = ?, hostname = ?, port = ?, serial_device = ?,
 			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
-			latitude = ?, longitude = ?, altitude = ?, aprs_enabled = ?, aprs_callsign = ?, aprs_passcode = ?
+			latitude = ?, longitude = ?, altitude = ?, aprs_enabled = ?, aprs_callsign = ?
 		WHERE name = ?
 	`
 
@@ -923,7 +919,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 		device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
 		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
-		device.APRSEnabled, device.APRSCallsign, device.APRSPasscode,
+		device.APRSEnabled, device.APRSCallsign,
 		name,
 	)
 
@@ -1001,18 +997,24 @@ func (s *SQLiteProvider) AddStorageConfig(storageType string, config interface{}
 		if !ok {
 			return fmt.Errorf("invalid config type for TimescaleDB")
 		}
-		return s.insertTimescaleDBConfig(tx, configID, timescale)
+		if err := s.insertTimescaleDBConfig(tx, configID, timescale); err != nil {
+			return err
+		}
 	case "grpc":
 		grpc, ok := config.(*GRPCData)
 		if !ok {
 			return fmt.Errorf("invalid config type for GRPC")
 		}
-		return s.insertGRPCConfig(tx, configID, grpc)
+		if err := s.insertGRPCConfig(tx, configID, grpc); err != nil {
+			return err
+		}
 	case "aprs":
 		return fmt.Errorf("APRS configuration is now managed separately via APRS management endpoints")
 	default:
 		return fmt.Errorf("unsupported storage type: %s", storageType)
 	}
+
+	return tx.Commit()
 }
 
 // UpdateStorageConfig updates an existing storage configuration
