@@ -88,6 +88,11 @@ func (h *Handlers) testDeviceConnection(device *config.DeviceData, timeoutSecond
 	start := time.Now()
 	timeout := time.Duration(timeoutSeconds) * time.Second
 
+	// Special handling for ambient-customized devices
+	if device.Type == "ambient-customized" {
+		return h.testAmbientCustomizedConnection(device, timeout, start)
+	}
+
 	// Test based on connection type
 	if device.Hostname != "" && device.Port != "" {
 		// Network connection (TCP)
@@ -152,6 +157,32 @@ func (h *Handlers) testSerialConnection(device *config.DeviceData, timeout time.
 	return ConnectivityTestResult{
 		Success:    true,
 		Message:    fmt.Sprintf("Successfully opened serial port %s at %d baud (%s)", device.SerialDevice, baud, device.Type),
+		DurationMs: time.Since(start).Milliseconds(),
+	}
+}
+
+func (h *Handlers) testAmbientCustomizedConnection(device *config.DeviceData, timeout time.Duration, start time.Time) ConnectivityTestResult {
+	// For ambient-customized devices, we can't test connectivity in the traditional sense
+	// since they run as HTTP servers waiting for incoming requests
+	// Instead, we'll validate the configuration
+
+	if device.Port == "" {
+		return ConnectivityTestResult{
+			Success:    false,
+			Message:    "Port is required for Ambient Weather Customized Server",
+			Error:      "Missing port configuration",
+			DurationMs: time.Since(start).Milliseconds(),
+		}
+	}
+
+	listenAddr := "0.0.0.0"
+	if device.Hostname != "" {
+		listenAddr = device.Hostname
+	}
+
+	return ConnectivityTestResult{
+		Success:    true,
+		Message:    fmt.Sprintf("Ambient Weather Customized Server configured to listen on %s:%s", listenAddr, device.Port),
 		DurationMs: time.Since(start).Milliseconds(),
 	}
 }
@@ -450,6 +481,8 @@ func (h *Handlers) getCurrentWeatherFromDevice(device *config.DeviceData, timeou
 		return h.getCampbellCurrentWeather(device, timeout)
 	case "snowgauge":
 		return h.getSnowGaugeCurrentReading(device, timeout)
+	case "ambient-customized":
+		return h.getAmbientCustomizedStatus(device, timeout)
 	default:
 		return nil, fmt.Errorf("unsupported device type: %s", device.Type)
 	}
@@ -511,6 +544,37 @@ func (h *Handlers) getCampbellCurrentWeather(device *config.DeviceData, timeout 
 			"rainfall":            "inches",
 		},
 		"status": "Device is accessible and ready for data collection",
+	}
+
+	return reading, nil
+}
+
+// getAmbientCustomizedStatus gets status for an Ambient Weather customized server
+func (h *Handlers) getAmbientCustomizedStatus(device *config.DeviceData, timeout time.Duration) (map[string]interface{}, error) {
+	// For ambient-customized devices, we can't "test" them in the traditional sense
+	// since they run as HTTP servers waiting for incoming requests from the weather station
+	// Instead, we'll return information about the configured HTTP server
+
+	listenAddr := "0.0.0.0"
+	if device.Hostname != "" {
+		listenAddr = device.Hostname
+	}
+
+	reading := map[string]interface{}{
+		"device_type": "ambient-customized",
+		"note":        "Ambient Weather Customized Server - receives HTTP GET requests from weather station",
+		"server_config": map[string]interface{}{
+			"listen_address": listenAddr,
+			"port":           device.Port,
+			"endpoint":       fmt.Sprintf("http://%s:%s/", listenAddr, device.Port),
+		},
+		"expected_parameters": []string{
+			"ID", "PASSWORD", "dateutc", "tempf", "humidity", "dewptf",
+			"winddir", "windspeedmph", "windgustmph", "rainin", "dailyrainin",
+			"solarradiation", "UV", "indoortempf", "indoorhumidity", "baromin",
+			"lowbatt", "softwaretype", "action",
+		},
+		"status": "HTTP server configuration ready - configure weather station to send data to this endpoint",
 	}
 
 	return reading, nil
