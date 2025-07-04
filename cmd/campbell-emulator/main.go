@@ -66,17 +66,14 @@ func handleConnection(conn net.Conn, interval time.Duration) {
 		return
 	}
 
-	for {
-		select {
-		case <-ticker.C:
-			packet := generateRealisticReading()
-			if err := encoder.Encode(packet); err != nil {
-				log.Printf("Failed to send packet: %v", err)
-				return
-			}
-			log.Printf("Sent: temp=%.1f°F, humidity=%.1f%%, wind=%.1f@%d°",
-				packet.OutTemp, packet.OutHumidity, packet.WindSpeed, packet.WindDir)
+	for range ticker.C {
+		packet := generateRealisticReading()
+		if err := encoder.Encode(packet); err != nil {
+			log.Printf("Failed to send packet: %v", err)
+			return
 		}
+		log.Printf("Sent: temp=%.1f°F, humidity=%.1f%%, wind=%.1f@%d°",
+			packet.OutTemp, packet.OutHumidity, packet.WindSpeed, packet.WindDir)
 	}
 }
 
