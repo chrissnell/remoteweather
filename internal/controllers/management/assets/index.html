@@ -103,11 +103,11 @@
                 <legend>Station Location</legend>
                 <label>
                   Latitude
-                  <input type="number" id="solar-latitude" step="0.0001" placeholder="40.7128" />
+                  <input type="number" id="solar-latitude" step="0.000001" placeholder="40.712800" />
                 </label>
                 <label>
                   Longitude
-                  <input type="number" id="solar-longitude" step="0.0001" placeholder="-74.0060" />
+                  <input type="number" id="solar-longitude" step="0.000001" placeholder="-74.006000" />
                 </label>
                 <label>
                   Altitude (meters)
@@ -125,11 +125,7 @@
                     APRS Callsign
                     <input type="text" id="aprs-callsign" placeholder="N0CALL" />
                   </label>
-                  <label>
-                    APRS Passcode
-                    <input type="text" id="aprs-passcode" placeholder="12345" />
-                  </label>
-                  <p class="help-text">APRS will use the latitude and longitude from Station Location above.</p>
+                  <p class="help-text">APRS will use the latitude and longitude from Station Location above. The passcode will be calculated automatically from your callsign.</p>
                 </div>
               </fieldset>
 
@@ -431,6 +427,32 @@
     </div>
   </div>
   <!-- end website modal -->
+
+  <!-- Login Modal -->
+  <div id="login-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Login to RemoteWeather Management</h3>
+      </div>
+      <form id="login-form" class="station-form">
+        <p>Please enter your management API token to access the interface.</p>
+        <label>
+          Management API Token
+          <input type="password" id="login-token" placeholder="Enter your API token" required />
+        </label>
+        <div class="modal-footer">
+          <button type="submit" class="primary-btn" id="login-btn">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end login modal -->
+
+  <!-- Auth Status Container -->
+  <div id="auth-status" class="auth-status hidden">
+    <span id="auth-message">Not authenticated</span>
+    <button id="logout-btn" class="secondary-btn">Logout</button>
+  </div>
 
   <script src="js/management.js"></script>
 </body>
