@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"bytes"
+	"io"
+
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -142,14 +145,18 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 
 	// time.Ticker's only begin to fire *after* the interval has elapsed.  Since we're dealing with
 	// very long intervals, we will fire the fetcher now, before we start the ticker.
+	log.Debugf("Starting initial forecast fetch for %d periods of %d hours", numPeriods, periodHours)
 	forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
 	if err != nil {
 		log.Error("error fetching forecast from Aeris Weather:", err)
 	} else {
 		// Only save to database if fetch was successful
+		log.Debugf("Attempting to save forecast to database for span %d hours", numPeriods*periodHours)
 		err = a.DB.DB.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
 		if err != nil {
 			log.Errorf("error saving forecast to database: %v", err)
+		} else {
+			log.Debugf("Successfully saved forecast to database for span %d hours", numPeriods*periodHours)
 		}
 	}
 
@@ -177,9 +184,12 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 				log.Error("error fetching forecast from Aeris Weather:", err)
 			} else {
 				// Only save to database if fetch was successful
+				log.Debugf("Attempting to save updated forecast to database for span %d hours", numPeriods*periodHours)
 				err = a.DB.DB.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
 				if err != nil {
 					log.Errorf("error saving forecast to database: %v", err)
+				} else {
+					log.Debugf("Successfully saved updated forecast to database for span %d hours", numPeriods*periodHours)
 				}
 			}
 
@@ -216,12 +226,25 @@ func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodH
 	req = req.WithContext(a.ctx)
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Debugf("HTTP request failed: %v", err)
 		return &AerisWeatherForecastRecord{}, fmt.Errorf("error making request to Aeris Weather: %v", err)
 	}
+	defer resp.Body.Close()
+
+	log.Debugf("Aeris Weather API responded with status: %s", resp.Status)
+
+	// Read the response body for debugging
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Debugf("Failed to read response body: %v", err)
+		return &AerisWeatherForecastRecord{}, fmt.Errorf("error reading response body: %v", err)
+	}
+
+	log.Debugf("Aeris Weather API response body: %s", string(bodyBytes))
 
 	response := &AerisWeatherForecastResponse{}
 
-	decoder := json.NewDecoder(resp.Body)
+	decoder := json.NewDecoder(bytes.NewReader(bodyBytes))
 
 	err = decoder.Decode(response)
 	if err != nil {
