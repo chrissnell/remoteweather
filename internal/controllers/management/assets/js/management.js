@@ -77,77 +77,98 @@
      API helpers
   --------------------------------------------------- */
   const API_BASE = '/api';
-  const TOKEN_KEY = 'rw_mgmt_token';
 
-  function getAuthToken() {
-    return localStorage.getItem(TOKEN_KEY) || '';
-  }
+  // Authentication state
+  let isAuthenticated = false;
+  let isCheckingAuth = false;
 
-  function setAuthToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  }
-
-  function promptForToken(msg) {
-    const promptMsg = msg || 'Enter management API auth token:';
-    const token = prompt(promptMsg);
-    if (token) {
-      setAuthToken(token.trim());
-      return true;
+  // Check authentication status
+  async function checkAuthStatus() {
+    if (isCheckingAuth) return isAuthenticated;
+    isCheckingAuth = true;
+    
+    try {
+      const res = await fetch('/auth/status', {
+        credentials: 'include' // Include cookies
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        isAuthenticated = data.authenticated;
+      } else {
+        isAuthenticated = false;
+      }
+    } catch (err) {
+      console.error('Auth check failed:', err);
+      isAuthenticated = false;
     }
-    return false;
+    
+    isCheckingAuth = false;
+    return isAuthenticated;
+  }
+
+  // Login with token
+  async function login(token) {
+    try {
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ token }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        isAuthenticated = true;
+        hideLoginModal();
+        return { success: true, message: data.message };
+      } else {
+        const errorData = await res.json();
+        return { success: false, message: errorData.error || 'Login failed' };
+      }
+    } catch (err) {
+      return { success: false, message: 'Network error: ' + err.message };
+    }
+  }
+
+  // Logout
+  async function logout() {
+    try {
+      await fetch('/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+    
+    isAuthenticated = false;
+    showLoginModal();
   }
 
   async function apiGet(path, retry = true) {
     const res = await fetch(API_BASE + path, {
-      headers: {
-        'Authorization': 'Bearer ' + getAuthToken(),
-      },
+      credentials: 'include' // Include cookies
     });
 
     if (res.status === 401 && retry) {
-      if (promptForToken('Auth token invalid or expired.  Enter new token:')) {
-        return apiGet(path, false);
-      }
+      // Authentication failed, show login modal
+      isAuthenticated = false;
+      showLoginModal();
+      throw new Error('Authentication required');
     }
 
     if (!res.ok) {
-      throw new Error('Request failed: ' + res.status);
+      const errorText = await res.text().catch(() => res.statusText);
+      throw new Error(`Request failed (${res.status}): ${errorText}`);
     }
 
     return res.json();
   }
 
-  /* ---------------------------------------------------
-     Checkbox Helpers
-  --------------------------------------------------- */
-  function createEnabledCheckbox(initialState, onToggle) {
-    const label = document.createElement('label');
-    label.className = 'checkbox-label';
-    
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = initialState;
-    
-    const textNode = document.createTextNode(' Enabled');
-    
-    label.appendChild(input);
-    label.appendChild(textNode);
-    
-    // Add event listener for checkbox changes
-    input.addEventListener('change', async () => {
-      const newState = input.checked;
-      try {
-        await onToggle(newState);
-      } catch (error) {
-        console.error('Checkbox update failed:', error);
-        // Revert the checkbox state on error
-        input.checked = !newState;
-        alert('Failed to update enabled state: ' + error.message);
-      }
-    });
-    
-    return label;
-  }
+
 
   /* ---------------------------------------------------
      Weather Stations
@@ -187,16 +208,6 @@
         configDiv.className = 'config-display';
         configDiv.innerHTML = formatWeatherStationConfig(dev);
         card.appendChild(configDiv);
-
-        // Add checkbox for enabled/disabled state
-        const enabledCheckbox = createEnabledCheckbox(dev.enabled, async (newEnabled) => {
-          const updatedDevice = { ...dev, enabled: newEnabled };
-          const nameEncoded = encodeURIComponent(dev.name);
-          await apiPut(`/config/weather-stations/${nameEncoded}`, updatedDevice);
-          // Update local copy for future toggles
-          dev.enabled = newEnabled;
-        });
-        card.appendChild(enabledCheckbox);
 
         const actions = document.createElement('div');
         actions.className = 'actions';
@@ -836,7 +847,6 @@
   function populateAPRSFields(device) {
     document.getElementById('aprs-enabled').checked = device.aprs_enabled || false;
     document.getElementById('aprs-callsign').value = device.aprs_callsign || '';
-    document.getElementById('aprs-passcode').value = device.aprs_passcode || '';
     
     // Show/hide APRS fields based on enabled status
     const aprsFields = document.getElementById('aprs-config-fields');
@@ -913,6 +923,8 @@
     if (isLoadingSerialPorts) {
       return; // Prevent concurrent calls
     }
+    
+    if (!isAuthenticated) return; // Don't make API calls without authentication
     
     isLoadingSerialPorts = true;
     const serialSelect = document.getElementById('serial-device');
@@ -1063,11 +1075,9 @@
     // Add APRS configuration
     const aprsEnabled = document.getElementById('aprs-enabled').checked;
     const aprsCallsign = document.getElementById('aprs-callsign').value.trim();
-    const aprsPasscode = document.getElementById('aprs-passcode').value.trim();
 
     device.aprs_enabled = aprsEnabled;
     device.aprs_callsign = aprsCallsign;
-    device.aprs_passcode = aprsPasscode;
 
     // Validate APRS configuration
     if (aprsEnabled && !aprsCallsign) {
@@ -1099,9 +1109,9 @@
     const options = {
       method,
       headers: {
-        'Authorization': 'Bearer ' + getAuthToken(),
         'Content-Type': 'application/json',
       },
+      credentials: 'include' // Include cookies
     };
     if (body) {
       options.body = JSON.stringify(body);
@@ -1109,14 +1119,15 @@
     const res = await fetch(API_BASE + path, options);
 
     if (res.status === 401 && retry) {
-      if (promptForToken('Auth token invalid or expired.  Enter new token:')) {
-        return apiWrite(method, path, body, false);
-      }
+      // Authentication failed, show login modal
+      isAuthenticated = false;
+      showLoginModal();
+      throw new Error('Authentication required');
     }
 
     if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || res.status);
+      const txt = await res.text().catch(() => res.statusText);
+      throw new Error(`Request failed (${res.status}): ${txt}`);
     }
     return res.json().catch(() => ({}));
   }
@@ -1153,19 +1164,22 @@
     // reset form
     storageForm.reset();
     document.getElementById('storage-form-mode').value = 'add';
-    // Fetch devices to populate dropdown
-    try {
-      const data = await apiGet('/config/weather-stations');
-      const devSel = document.getElementById('grpc-device-select');
-      devSel.innerHTML = '';
-      (data.devices || []).forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = d.name;
-        devSel.appendChild(opt);
-      });
-    } catch (err) {
-      console.warn('Failed to load stations for dropdown', err);
+    
+    // Fetch devices to populate dropdown only if we have authentication
+    if (isAuthenticated) {
+      try {
+        const data = await apiGet('/config/weather-stations');
+        const devSel = document.getElementById('grpc-device-select');
+        devSel.innerHTML = '';
+        (data.devices || []).forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.name;
+          opt.textContent = d.name;
+          devSel.appendChild(opt);
+        });
+      } catch (err) {
+        console.warn('Failed to load stations for dropdown', err);
+      }
     }
 
     updateStorageFieldVisibility();
@@ -1333,6 +1347,8 @@
   }
   
   async function loadDeviceSelectsForController() {
+    if (!isAuthenticated) return; // Don't make API calls without authentication
+    
     try {
       const data = await apiGet('/config/weather-stations');
       const devices = data.devices || [];
@@ -1451,7 +1467,7 @@
       const websites = data.websites || [];
       
       if (websites.length === 0) {
-        container.innerHTML = '<div class="empty-state">No weather websites configured. Add one to enable the REST server.</div>';
+        container.innerHTML = '<div class="empty-state">No weather websites configured.<br><br>Add one and then enable the REST controller in the Controllers tab.</div>';
         return;
       }
 
@@ -1600,6 +1616,8 @@
   }
 
   async function loadDeviceSelectsForWebsite() {
+    if (!isAuthenticated) return; // Don't make API calls without authentication
+    
     try {
       const data = await apiGet('/config/weather-stations');
       const devices = data.devices || [];
@@ -1682,18 +1700,94 @@
   /* ---------------------------------------------------
      Init
   --------------------------------------------------- */
-  function init() {
-    // Prompt for token if not stored
-    if (!getAuthToken()) {
-      const token = prompt('Enter management API auth token:');
-      if (token) setAuthToken(token.trim());
+  
+  /* ---------------------------------------------------
+     Login Modal Management
+  --------------------------------------------------- */
+  function showLoginModal() {
+    const modal = document.getElementById('login-modal');
+    modal.classList.remove('hidden');
+    
+    // Focus on the token input
+    const tokenInput = document.getElementById('login-token');
+    if (tokenInput) {
+      tokenInput.focus();
+    }
+  }
+
+  function hideLoginModal() {
+    const modal = document.getElementById('login-modal');
+    modal.classList.add('hidden');
+    
+    // Clear the token input
+    const tokenInput = document.getElementById('login-token');
+    if (tokenInput) {
+      tokenInput.value = '';
+    }
+  }
+
+  /* ---------------------------------------------------
+     Authentication Event Handlers
+  --------------------------------------------------- */
+  function setupAuthEventHandlers() {
+    const loginForm = document.getElementById('login-form');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const token = document.getElementById('login-token').value.trim();
+        
+        if (!token) {
+          alert('Please enter your API token');
+          return;
+        }
+
+        const result = await login(token);
+        if (result.success) {
+          await loadInitialData();
+        } else {
+          alert(result.message);
+        }
+      });
     }
 
-    // Load initial data
-    loadWeatherStations();
-    loadStorageConfigs();
-    loadControllers();
-    loadWeatherWebsites();
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await logout();
+      });
+    }
+  }
+
+  /* ---------------------------------------------------
+     Initialization
+  --------------------------------------------------- */
+  async function init() {
+    // Set up authentication event handlers
+    setupAuthEventHandlers();
+    
+    // Check if user is already authenticated
+    const authenticated = await checkAuthStatus();
+    
+    if (authenticated) {
+      hideLoginModal();
+      await loadInitialData();
+    } else {
+      showLoginModal();
+    }
+  }
+  
+  async function loadInitialData() {
+    try {
+      // Load data sequentially to avoid overwhelming the server
+      await loadWeatherStations();
+      await loadStorageConfigs();
+      await loadControllers();
+      await loadWeatherWebsites();
+    } catch (err) {
+      console.error('Failed to load initial data:', err);
+      // If data loading fails due to auth, the individual API calls will show login modal
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
