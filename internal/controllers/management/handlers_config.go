@@ -80,7 +80,7 @@ func (h *Handlers) CreateWeatherStation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate device type
-	validTypes := []string{"campbellscientific", "davis", "snowgauge"}
+	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized"}
 	if !contains(validTypes, device.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid device type. Must be one of: %v", validTypes), nil)
 		return
@@ -148,7 +148,7 @@ func (h *Handlers) UpdateWeatherStation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate device type
-	validTypes := []string{"campbellscientific", "davis", "snowgauge"}
+	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized"}
 	if !contains(validTypes, device.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid device type. Must be one of: %v", validTypes), nil)
 		return
@@ -547,6 +547,12 @@ func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) e
 		if device.BaseSnowDistance <= 0 {
 			return fmt.Errorf("base_snow_distance is required for snow gauge")
 		}
+	case "ambient-customized":
+		// Ambient Weather stations use HTTP server - only port is required
+		if device.Port == "" {
+			return fmt.Errorf("port is required for ambient-customized device")
+		}
+		// Hostname is optional (defaults to 0.0.0.0 for listen address)
 	default:
 		return fmt.Errorf("unsupported device type: %s", device.Type)
 	}

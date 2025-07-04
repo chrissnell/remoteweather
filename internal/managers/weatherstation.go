@@ -8,6 +8,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/internal/weatherstations"
+	"github.com/chrissnell/remoteweather/internal/weatherstations/ambientcustomized"
 	"github.com/chrissnell/remoteweather/internal/weatherstations/campbell"
 	"github.com/chrissnell/remoteweather/internal/weatherstations/davis"
 	"github.com/chrissnell/remoteweather/internal/weatherstations/snowgauge"
@@ -198,6 +199,9 @@ func createStationFromConfig(ctx context.Context, wg *sync.WaitGroup, configProv
 	case "snowgauge":
 		log.Infof("Initializing snow gauge [%v]", deviceName)
 		return snowgauge.NewStation(ctx, wg, configProvider, deviceName, distributor, logger), nil
+	case "ambient-customized":
+		log.Infof("Initializing ambient-customized weather station [%v]", deviceName)
+		return ambientcustomized.NewStation(ctx, wg, configProvider, deviceName, distributor, logger), nil
 	default:
 		return nil, fmt.Errorf("unknown weather station type: %s", deviceConfig.Type)
 	}

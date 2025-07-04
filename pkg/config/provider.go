@@ -321,7 +321,7 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		}
 
 		// Validate device type
-		validTypes := []string{"campbellscientific", "davis", "snowgauge"}
+		validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized"}
 		if !contains(validTypes, device.Type) {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("devices[%d].type", i),
@@ -333,8 +333,9 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		// Validate connection settings
 		hasSerial := device.SerialDevice != ""
 		hasNetwork := device.Hostname != "" && device.Port != ""
+		hasAmbientCustomized := device.Type == "ambient-customized" && device.Port != ""
 
-		if !hasSerial && !hasNetwork {
+		if !hasSerial && !hasNetwork && !hasAmbientCustomized {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("devices[%d]", i),
 				Value:   device.Name,

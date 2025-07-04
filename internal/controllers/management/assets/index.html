@@ -43,6 +43,7 @@
 
             <form id="station-form" class="station-form">
               <input type="hidden" id="form-mode" value="add" />
+              <input type="hidden" id="original-name" value="" />
 
               <label>
                 Name
@@ -55,6 +56,7 @@
                   <option value="davis">Davis Instruments</option>
                   <option value="campbellscientific">Campbell Scientific</option>
                   <option value="snowgauge">Snow Gauge</option>
+                  <option value="ambient-customized">Ambient Weather (Customized Server)</option>
                 </select>
               </label>
 
@@ -85,10 +87,12 @@
                 <label>
                   Hostname
                   <input type="text" id="net-hostname" placeholder="192.168.1.50" />
+                  <span class="help-text" id="hostname-help">IP address or hostname of the device</span>
                 </label>
                 <label>
                   Port
                   <input type="text" id="net-port" placeholder="3001" />
+                  <span class="help-text" id="port-help">Port number for the connection</span>
                 </label>
               </fieldset>
 

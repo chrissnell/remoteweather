@@ -280,7 +280,8 @@
     const names = {
       'campbellscientific': 'Campbell Scientific',
       'davis': 'Davis Instruments',
-      'snowgauge': 'Snow Gauge'
+      'snowgauge': 'Snow Gauge',
+      'ambient-customized': 'Ambient Weather (Customized Server)'
     };
     return names[type] || type;
   }
@@ -357,7 +358,7 @@
       html += '<h4>gRPC Server</h4>';
       html += '<div class="config-grid">';
       
-      if (config.port) html += `<div><strong>Port:</strong> ${config.port}</div>`;
+      if (config.port) html += `<div><strong>Listen Port:</strong> ${config.port}</div>`;
       if (config.pull_from_device) html += `<div><strong>Source Device:</strong> ${config.pull_from_device}</div>`;
       
       html += '</div>';
@@ -588,7 +589,6 @@
     
     if (config.station_id) html += `<div><strong>Station ID:</strong> ${config.station_id}</div>`;
     if (config.api_key) html += `<div><strong>API Key:</strong> ${config.api_key}</div>`;
-    if (config.api_endpoint) html += `<div><strong>API Endpoint:</strong> ${config.api_endpoint}</div>`;
     if (config.upload_interval) html += `<div><strong>Upload Interval:</strong> ${config.upload_interval}</div>`;
     if (config.pull_from_device) html += `<div><strong>Source Device:</strong> ${config.pull_from_device}</div>`;
     
@@ -603,7 +603,6 @@
     
     if (config.station_id) html += `<div><strong>Station ID:</strong> ${config.station_id}</div>`;
     if (config.api_key) html += `<div><strong>API Key:</strong> ${config.api_key}</div>`;
-    if (config.api_endpoint) html += `<div><strong>API Endpoint:</strong> ${config.api_endpoint}</div>`;
     if (config.upload_interval) html += `<div><strong>Upload Interval:</strong> ${config.upload_interval}</div>`;
     if (config.pull_from_device) html += `<div><strong>Source Device:</strong> ${config.pull_from_device}</div>`;
     
@@ -618,7 +617,6 @@
     
     if (config.api_client_id) html += `<div><strong>Client ID:</strong> ${config.api_client_id}</div>`;
     if (config.api_client_secret) html += `<div><strong>Client Secret:</strong> ${config.api_client_secret}</div>`;
-    if (config.api_endpoint) html += `<div><strong>API Endpoint:</strong> ${config.api_endpoint}</div>`;
     if (config.latitude) html += `<div><strong>Latitude:</strong> ${config.latitude}</div>`;
     if (config.longitude) html += `<div><strong>Longitude:</strong> ${config.longitude}</div>`;
     
@@ -631,8 +629,8 @@
     html += '<h4>REST Server</h4>';
     html += '<div class="config-grid">';
     
-    if (config.http_port) html += `<div><strong>HTTP Port:</strong> ${config.http_port}</div>`;
-    if (config.https_port) html += `<div><strong>HTTPS Port:</strong> ${config.https_port}</div>`;
+    if (config.http_port) html += `<div><strong>Listen Port (HTTP):</strong> ${config.http_port}</div>`;
+    if (config.https_port) html += `<div><strong>Listen Port (HTTPS):</strong> ${config.https_port}</div>`;
     if (config.default_listen_addr) html += `<div><strong>Listen Address:</strong> ${config.default_listen_addr}</div>`;
     if (config.tls_cert) html += `<div><strong>TLS Certificate:</strong> ${config.tls_cert}</div>`;
     if (config.tls_key) html += `<div><strong>TLS Key:</strong> ${config.tls_key}</div>`;
@@ -646,7 +644,7 @@
     html += '<h4>Management API</h4>';
     html += '<div class="config-grid">';
     
-    if (config.port) html += `<div><strong>Port:</strong> ${config.port}</div>`;
+    if (config.port) html += `<div><strong>Listen Port:</strong> ${config.port}</div>`;
     if (config.listen_addr) html += `<div><strong>Listen Address:</strong> ${config.listen_addr}</div>`;
     if (config.auth_token) html += `<div><strong>Auth Token:</strong> ${config.auth_token}</div>`;
     if (config.cert) html += `<div><strong>Certificate:</strong> ${config.cert}</div>`;
@@ -802,6 +800,7 @@
     resetForm();
     document.getElementById('modal-title').textContent = 'Edit Station';
     document.getElementById('form-mode').value = 'edit';
+    document.getElementById('original-name').value = dev.name || ''; // Store original name for API call
     document.getElementById('station-name').value = dev.name || '';
     document.getElementById('station-type').value = dev.type || '';
     document.getElementById('station-type').disabled = true; // Can't change type on edit
@@ -812,6 +811,14 @@
     } else {
       connSelect.value = 'network';
     }
+    
+    // For ambient-customized, disable connection type selector
+    if (dev.type === 'ambient-customized') {
+      connSelect.disabled = true;
+    } else {
+      connSelect.disabled = false;
+    }
+    
     updateConnVisibility();
 
     // Populate fields after connection visibility is updated
@@ -859,19 +866,34 @@
 
   function resetForm() {
     document.getElementById('station-form').reset();
+    document.getElementById('original-name').value = ''; // Clear original name
     document.getElementById('station-type').disabled = false;
     document.getElementById('snow-options').classList.add('hidden');
     document.getElementById('aprs-config-fields').classList.add('hidden');
     connSelect.value = 'serial';
+    connSelect.disabled = false;
     updateConnVisibility();
   }
 
   document.getElementById('station-type').addEventListener('change', (e) => {
-    if (e.target.value === 'snowgauge') {
+    const stationType = e.target.value;
+    
+    if (stationType === 'snowgauge') {
       document.getElementById('snow-options').classList.remove('hidden');
     } else {
       document.getElementById('snow-options').classList.add('hidden');
     }
+    
+    // For ambient-customized, force network connection and hide the connection type selector
+    if (stationType === 'ambient-customized') {
+      connSelect.value = 'network';
+      connSelect.disabled = true;
+    } else {
+      connSelect.disabled = false;
+    }
+    
+    // Update connection visibility and help text
+    updateConnVisibility();
   });
 
   // APRS configuration toggle
@@ -893,6 +915,7 @@
 
   function updateConnVisibility() {
     const selected = connSelect.value;
+    const stationType = document.getElementById('station-type').value;
     
     const serialFieldset = document.getElementById('serial-fieldset');
     const networkFieldset = document.getElementById('network-fieldset');
@@ -906,10 +929,27 @@
     } else if (selected === 'network') {
       serialFieldset.classList.add('hidden');
       networkFieldset.classList.remove('hidden');
+      
+      // Update help text and placeholders for ambient-customized
+      const hostnameInput = document.getElementById('net-hostname');
+      const portInput = document.getElementById('net-port');
+      const hostnameHelp = document.getElementById('hostname-help');
+      const portHelp = document.getElementById('port-help');
+      
+      if (stationType === 'ambient-customized') {
+        hostnameInput.placeholder = '0.0.0.0 or leave blank';
+        portInput.value = '8080';
+        hostnameHelp.textContent = 'Listen address (optional, defaults to 0.0.0.0)';
+        portHelp.textContent = 'HTTP server port for receiving weather data';
+      } else {
+        hostnameInput.placeholder = '192.168.1.50';
+        portInput.placeholder = '3001';
+        hostnameHelp.textContent = 'IP address or hostname of the device';
+        portHelp.textContent = 'Port number for the connection';
+      }
     }
     
     // Show snow gauge options if appropriate
-    const stationType = document.getElementById('station-type').value;
     if (stationType === 'snowgauge') {
       snowOptions.classList.remove('hidden');
     } else {
@@ -987,12 +1027,15 @@
     const devObj = collectFormData();
     if (!devObj) return; // Validation failed
 
-    const nameEncoded = encodeURIComponent(devObj.name);
     try {
       if (mode === 'add') {
+        const nameEncoded = encodeURIComponent(devObj.name);
         await apiPost('/config/weather-stations', devObj);
       } else {
-        await apiPut(`/config/weather-stations/${nameEncoded}`, devObj);
+        // For edit mode, use the original name to identify the device to update
+        const originalName = document.getElementById('original-name').value;
+        const originalNameEncoded = encodeURIComponent(originalName);
+        await apiPut(`/config/weather-stations/${originalNameEncoded}`, devObj);
       }
       
       closeModal();
@@ -1047,12 +1090,23 @@
       if (serialBaud) device.baud = serialBaud;
     }
     if (connType === 'network') {
-      if (!(hostname && port)) {
-        alert('Hostname and port are required for network connection');
-        return null;
+      if (type === 'ambient-customized') {
+        // For ambient-customized, only port is required (hostname is optional for listen address)
+        if (!port) {
+          alert('Port is required for Ambient Weather (Customized Server) - this is the HTTP server port');
+          return null;
+        }
+        if (hostname) device.hostname = hostname;
+        device.port = port;
+      } else {
+        // For other network devices, both hostname and port are required
+        if (!(hostname && port)) {
+          alert('Hostname and port are required for network connection');
+          return null;
+        }
+        device.hostname = hostname;
+        device.port = port;
       }
-      device.hostname = hostname;
-      device.port = port;
     }
 
     if (type === 'snowgauge') {
