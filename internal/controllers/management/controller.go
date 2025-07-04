@@ -153,6 +153,11 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Management interface routes (no auth required for UI assets)
 	c.setupManagementInterface(router)
 
+	// Authentication routes (no auth required)
+	router.HandleFunc("/login", c.handlers.Login).Methods("POST")
+	router.HandleFunc("/logout", c.handlers.Logout).Methods("POST")
+	router.HandleFunc("/auth/status", c.handlers.GetAuthStatus).Methods("GET")
+
 	// API routes (with authentication)
 	api := router.PathPrefix("/api").Subrouter()
 	api.Use(c.authMiddleware)
@@ -271,21 +276,27 @@ func (c *Controller) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// authMiddleware validates the bearer token
+// authMiddleware validates the bearer token or session cookie
 func (c *Controller) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check for Bearer token first
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Missing Authorization header", http.StatusUnauthorized)
+		if authHeader != "" {
+			expectedAuth := "Bearer " + c.managementConfig.AuthToken
+			if authHeader == expectedAuth {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		// Check for session cookie
+		cookie, err := r.Cookie("rw_session")
+		if err == nil && cookie.Value == c.managementConfig.AuthToken {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		expectedAuth := "Bearer " + c.managementConfig.AuthToken
-		if authHeader != expectedAuth {
-			http.Error(w, "Invalid authorization token", http.StatusUnauthorized)
-			return
-		}
-
-		next.ServeHTTP(w, r)
+		// Neither authentication method worked
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
 	})
 }
