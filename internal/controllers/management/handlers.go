@@ -48,3 +48,87 @@ func (h *Handlers) sendError(w http.ResponseWriter, statusCode int, message stri
 
 	json.NewEncoder(w).Encode(errorResponse)
 }
+
+// Login handles the login request and sets a session cookie
+func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		Token string `json:"token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		h.sendError(w, http.StatusBadRequest, "Invalid JSON payload", err)
+		return
+	}
+
+	if request.Token == "" {
+		h.sendError(w, http.StatusBadRequest, "Token is required", nil)
+		return
+	}
+
+	// Validate the token
+	if request.Token != h.controller.managementConfig.AuthToken {
+		h.sendError(w, http.StatusUnauthorized, "Invalid token", nil)
+		return
+	}
+
+	// Set session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "rw_session",
+		Value:    request.Token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.TLS != nil, // Only set Secure flag if using HTTPS
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7, // 7 days
+	})
+
+	h.sendJSON(w, map[string]interface{}{
+		"success": true,
+		"message": "Login successful",
+	})
+}
+
+// Logout handles the logout request and clears the session cookie
+func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
+	// Clear session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "rw_session",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1, // Expire immediately
+	})
+
+	h.sendJSON(w, map[string]interface{}{
+		"success": true,
+		"message": "Logout successful",
+	})
+}
+
+// GetAuthStatus checks if the current session is authenticated
+func (h *Handlers) GetAuthStatus(w http.ResponseWriter, r *http.Request) {
+	authenticated := false
+
+	// Check for Bearer token
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		expectedAuth := "Bearer " + h.controller.managementConfig.AuthToken
+		if authHeader == expectedAuth {
+			authenticated = true
+		}
+	}
+
+	// Check for session cookie
+	if !authenticated {
+		cookie, err := r.Cookie("rw_session")
+		if err == nil && cookie.Value == h.controller.managementConfig.AuthToken {
+			authenticated = true
+		}
+	}
+
+	h.sendJSON(w, map[string]interface{}{
+		"authenticated": authenticated,
+	})
+}
