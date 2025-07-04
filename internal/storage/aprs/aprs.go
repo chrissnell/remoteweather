@@ -14,6 +14,7 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/storage"
 	"github.com/chrissnell/remoteweather/internal/types"
 	aprspkg "github.com/chrissnell/remoteweather/pkg/aprs"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -83,14 +84,120 @@ func (a Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) cha
 
 	a.currentReading = &CurrentReading{}
 	a.currentReading.r = types.Reading{}
-	go a.processMetrics(ctx, wg, readingChan)
+	go storage.ProcessReadings(ctx, wg, readingChan, a.processReading, "APRS")
 	go a.sendReports(ctx, wg)
 
 	// Start health monitoring
-	log.Info("starting APRS health monitor")
-	a.startHealthMonitor(ctx, a.configProvider)
+	storage.StartHealthMonitor(ctx, a.configProvider, "aprs", a, 90*time.Second)
 
 	return readingChan
+}
+
+func (a Storage) processReading(r types.Reading) error {
+	err := a.StoreCurrentReading(r)
+	if err != nil {
+		return err
+	}
+	log.Debugf("APRS stored reading for station %s", r.StationName)
+	return nil
+}
+
+func (a Storage) CheckHealth(configProvider config.ConfigProvider) *config.StorageHealthData {
+	err := a.testAPRSISLogin(configProvider)
+	if err != nil {
+		return storage.CreateHealthData("unhealthy", "APRS-IS login test failed", err)
+	}
+	return storage.CreateHealthData("healthy", "APRS-IS login test successful", nil)
+}
+
+// testAPRSISLogin performs a test login to the APRS-IS server to verify connectivity and authentication
+func (a Storage) testAPRSISLogin(configProvider config.ConfigProvider) error {
+	connectionTimeout := 10 * time.Second
+
+	// Load APRS storage configuration
+	storageConfig, err := configProvider.GetStorageConfig()
+	if err != nil {
+		return fmt.Errorf("error loading storage configuration: %v", err)
+	}
+
+	if storageConfig.APRS == nil || storageConfig.APRS.Server == "" {
+		return fmt.Errorf("APRS storage configuration is missing or incomplete")
+	}
+
+	// Get devices with APRS enabled
+	devices, err := configProvider.GetDevices()
+	if err != nil {
+		return fmt.Errorf("error loading device configurations: %v", err)
+	}
+
+	var aprsCallsign string
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" {
+			aprsCallsign = device.APRSCallsign
+			break
+		}
+	}
+
+	if aprsCallsign == "" {
+		return fmt.Errorf("no enabled APRS device found")
+	}
+
+	// Test connection to APRS-IS server
+	dialer := net.Dialer{
+		Timeout: connectionTimeout,
+	}
+
+	conn, err := dialer.Dial("tcp", storageConfig.APRS.Server)
+	if err != nil {
+		return fmt.Errorf("failed to connect to APRS-IS server %s: %v", storageConfig.APRS.Server, err)
+	}
+	defer conn.Close()
+
+	buffCon := bufio.NewReader(conn)
+
+	// Set read deadline for server greeting
+	conn.SetReadDeadline(time.Now().Add(connectionTimeout))
+
+	// Read server greeting
+	resp, err := buffCon.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read APRS-IS server greeting: %v", err)
+	}
+
+	// Verify proper greeting format
+	if len(resp) == 0 || resp[0] != '#' {
+		return fmt.Errorf("APRS-IS server responded with invalid greeting: %s", strings.TrimSpace(resp))
+	}
+
+	// Calculate passcode from callsign
+	passcode := aprspkg.CalculatePasscode(aprsCallsign)
+
+	// Send login command
+	loginCmd := fmt.Sprintf("user %s pass %d vers remoteweather-healthcheck 1.0\r\n",
+		aprsCallsign, passcode)
+
+	conn.SetWriteDeadline(time.Now().Add(connectionTimeout))
+	_, err = conn.Write([]byte(loginCmd))
+	if err != nil {
+		return fmt.Errorf("failed to send login command: %v", err)
+	}
+
+	// Read login response
+	conn.SetReadDeadline(time.Now().Add(connectionTimeout))
+	loginResp, err := buffCon.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read login response: %v", err)
+	}
+
+	// Check if login was successful
+	// APRS-IS typically responds with a line starting with '#' containing "verified" for successful logins
+	loginResp = strings.TrimSpace(loginResp)
+	if !strings.Contains(strings.ToLower(loginResp), "verified") {
+		return fmt.Errorf("APRS-IS login failed, server response: %s", loginResp)
+	}
+
+	log.Debugf("APRS-IS health check successful for callsign %s", aprsCallsign)
+	return nil
 }
 
 func (a *Storage) sendReports(ctx context.Context, wg *sync.WaitGroup) {
@@ -224,24 +331,6 @@ func (a *Storage) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	conn.Write([]byte(pkt + "\r\n"))
-}
-
-func (a *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
-	wg.Add(1)
-	defer wg.Done()
-
-	for {
-		select {
-		case r := <-rchan:
-			err := a.StoreCurrentReading(r)
-			if err != nil {
-				log.Error(err)
-			}
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling processMetrics().")
-			return
-		}
-	}
 }
 
 // StoreCurrentReading stores the latest reading in our object
