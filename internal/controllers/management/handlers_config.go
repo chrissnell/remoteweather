@@ -314,6 +314,17 @@ func (h *Handlers) CreateStorageConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Dynamically reload storage configuration to start the new storage engine
+	if h.controller.app != nil {
+		if err := h.controller.app.ReloadConfiguration(h.controller.ctx); err != nil {
+			h.controller.logger.Errorf("Failed to reload storage configuration after adding %s: %v", requestData.Type, err)
+			// Don't fail the API call since the config was saved successfully
+			// The storage engine will start on next app restart
+		} else {
+			h.controller.logger.Infof("Storage configuration reloaded successfully after adding %s", requestData.Type)
+		}
+	}
+
 	h.sendJSONWithStatus(w, http.StatusCreated, map[string]interface{}{
 		"message": "Storage configuration created successfully",
 		"type":    requestData.Type,
@@ -370,6 +381,17 @@ func (h *Handlers) UpdateStorageConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Dynamically reload storage configuration to restart the updated storage engine
+	if h.controller.app != nil {
+		if err := h.controller.app.ReloadConfiguration(h.controller.ctx); err != nil {
+			h.controller.logger.Errorf("Failed to reload storage configuration after updating %s: %v", storageType, err)
+			// Don't fail the API call since the config was saved successfully
+			// The storage engine will restart on next app restart
+		} else {
+			h.controller.logger.Infof("Storage configuration reloaded successfully after updating %s", storageType)
+		}
+	}
+
 	h.sendJSON(w, map[string]interface{}{
 		"message": "Storage configuration updated successfully",
 		"type":    storageType,
@@ -405,6 +427,17 @@ func (h *Handlers) DeleteStorageConfig(w http.ResponseWriter, r *http.Request) {
 			h.sendError(w, http.StatusInternalServerError, "Failed to delete storage config", err)
 		}
 		return
+	}
+
+	// Dynamically reload storage configuration to stop the deleted storage engine
+	if h.controller.app != nil {
+		if err := h.controller.app.ReloadConfiguration(h.controller.ctx); err != nil {
+			h.controller.logger.Errorf("Failed to reload storage configuration after deleting %s: %v", storageType, err)
+			// Don't fail the API call since the config was deleted successfully
+			// The storage engine will stop on next app restart
+		} else {
+			h.controller.logger.Infof("Storage configuration reloaded successfully after deleting %s", storageType)
+		}
 	}
 
 	h.sendJSON(w, map[string]interface{}{
