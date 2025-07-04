@@ -21,6 +21,7 @@ func main() {
 	cfgFile := flag.String("config", "config.db", "Path to SQLite configuration database")
 	debug := flag.Bool("debug", false, "Turn on debugging output")
 	showVersion := flag.Bool("version", false, "Show version and exit")
+	enableManagementAPI := flag.Bool("enable-management-api", false, "Enable management API with default configuration even if not in config")
 	flag.Parse()
 
 	if *showVersion {
@@ -44,7 +45,7 @@ func main() {
 	defer configProvider.Close()
 
 	application := app.New(configProvider, log.GetSugaredLogger())
-	if err := application.Run(context.Background()); err != nil {
+	if err := application.Run(context.Background(), *enableManagementAPI); err != nil {
 		log.Errorf("Application error: %v", err)
 		os.Exit(1)
 	}
