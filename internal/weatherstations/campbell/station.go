@@ -202,6 +202,10 @@ func (s *Station) ParseCampbellScientificPackets() error {
 	scanner := bufio.NewScanner(s.rwc)
 
 	for scanner.Scan() {
+		// Update read deadline for network connections to prevent timeout
+		if s.netConn != nil {
+			s.netConn.SetReadDeadline(time.Now().Add(time.Second * 30))
+		}
 		select {
 		case <-s.ctx.Done():
 			log.Info("cancellation request received. Cancelling ParseCampbellPackets()")
