@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/storage"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
@@ -37,30 +39,63 @@ type Storage struct {
 func (g *Storage) StartStorageEngine(ctx context.Context, wg *sync.WaitGroup) chan<- types.Reading {
 	log.Info("starting gRPC storage engine...")
 	readingChan := make(chan types.Reading)
-	go g.processMetrics(ctx, wg, readingChan)
+	go storage.ProcessReadings(ctx, wg, readingChan, g.processReading, "gRPC")
 	return readingChan
 }
 
-func (g *Storage) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
-	wg.Add(1)
-	defer wg.Done()
+func (g *Storage) processReading(r types.Reading) error {
+	g.ClientChanMutex.RLock()
+	defer g.ClientChanMutex.RUnlock()
 
-	for {
+	for _, v := range g.ClientChans {
 		select {
-		case r := <-rchan:
-			g.ClientChanMutex.RLock()
-			// Send the Reading we just received to all client channels.
-			// If there are no clients connected, it gets discarded.
-			for _, v := range g.ClientChans {
-				v <- r
-			}
-			g.ClientChanMutex.RUnlock()
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling readings processor.")
-			g.Server.Stop()
-			return
+		case v <- r:
+		default:
+			log.Debugf("gRPC client channel full, dropping reading")
 		}
 	}
+
+	log.Debugf("gRPC distributed reading to %d clients", len(g.ClientChans))
+	return nil
+}
+
+func (g *Storage) CheckHealth(configProvider config.ConfigProvider) *config.StorageHealthData {
+	if g.Server == nil {
+		return storage.CreateHealthData("unhealthy", "gRPC server not initialized", errors.New("server instance is nil"))
+	}
+
+	var details []string
+	details = append(details, "server: running")
+
+	if g.GRPCConfig != nil {
+		details = append(details, fmt.Sprintf("port %d: configured", g.GRPCConfig.Port))
+	}
+
+	if g.DBEnabled && g.DBClient != nil {
+		if g.DBClient.DB == nil {
+			return storage.CreateHealthData("unhealthy", "Database client not connected", errors.New("DB client connection is nil"))
+		}
+
+		sqlDB, err := g.DBClient.DB.DB()
+		if err != nil {
+			return storage.CreateHealthData("unhealthy", "Failed to get underlying database connection", err)
+		}
+
+		if err := sqlDB.Ping(); err != nil {
+			return storage.CreateHealthData("unhealthy", "Database ping failed", err)
+		}
+
+		details = append(details, "database: connected")
+	} else {
+		details = append(details, "database: disabled")
+	}
+
+	g.ClientChanMutex.RLock()
+	clientCount := len(g.ClientChans)
+	g.ClientChanMutex.RUnlock()
+	details = append(details, fmt.Sprintf("clients: %d connected", clientCount))
+
+	return storage.CreateHealthData("healthy", fmt.Sprintf("gRPC server operational (%s)", strings.Join(details, ", ")), nil)
 }
 
 // New sets up a new gRPC storage backend
@@ -123,8 +158,7 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	go g.Server.Serve(l)
 
 	// Start health monitoring
-	log.Info("starting gRPC health monitor")
-	g.startHealthMonitor(ctx, configProvider)
+	storage.StartHealthMonitor(ctx, configProvider, "grpc", &g, 60*time.Second)
 
 	return &g, nil
 }
@@ -215,11 +249,8 @@ func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather
 
 				log.Debugf("Sending reading to client [%v]", p.Addr)
 
-				//rts, _ := ptypes.TimestampProto(r.Timestamp)
-				rts := timestamppb.New(r.Timestamp)
-
 				stream.Send(&weather.WeatherReading{
-					ReadingTimestamp:   rts,
+					ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Timestamp)),
 					OutsideTemperature: r.OutTemp,
 					InsideTemperature:  r.InTemp,
 					OutsideHumidity:    int32(r.OutHumidity),
