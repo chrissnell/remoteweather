@@ -106,10 +106,3 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *database.FetchedBucke
 
 	return p.SendHTTPRequest(p.PWSWeatherConfig.APIEndpoint, v)
 }
-
-func (p *PWSWeatherController) fetchReadingsFromTimescaleDB() (database.FetchedBucketReading, error) {
-	// Implementation of fetchReadingsFromTimescaleDB method
-	// This method is not provided in the original file or the new file
-	// It's assumed to exist as it's called in the sendPeriodicReports method
-	return database.FetchedBucketReading{}, nil // Placeholder return, actual implementation needed
-}
