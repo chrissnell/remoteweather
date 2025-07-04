@@ -1,17 +1,15 @@
 package wunderground
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/constants"
+	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -20,66 +18,46 @@ import (
 
 // WeatherUndergroundController holds our connection along with some mutexes for operation
 type WeatherUndergroundController struct {
-	ctx                      context.Context
-	wg                       *sync.WaitGroup
-	configProvider           config.ConfigProvider
+	*controllers.WeatherServiceController
 	WeatherUndergroundConfig config.WeatherUndergroundData
-	logger                   *zap.SugaredLogger
-	DB                       *database.Client
 }
 
 func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, wuconfig config.WeatherUndergroundData, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
-	wuc := WeatherUndergroundController{
-		ctx:                      ctx,
-		wg:                       wg,
-		configProvider:           configProvider,
+	// Create base weather service controller
+	base, err := controllers.NewWeatherServiceController(ctx, wg, configProvider, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate Weather Underground specific configuration
+	serviceConfig := controllers.WeatherServiceConfig{
+		ServiceName:    "Weather Underground",
+		StationID:      wuconfig.StationID,
+		APIKey:         wuconfig.APIKey,
+		PullFromDevice: wuconfig.PullFromDevice,
+	}
+
+	if err := controllers.ValidateWeatherServiceConfig(serviceConfig); err != nil {
+		return nil, err
+	}
+
+	// Set defaults
+	if wuconfig.APIEndpoint == "" {
+		wuconfig.APIEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
+	}
+	if wuconfig.UploadInterval == "" {
+		wuconfig.UploadInterval = "60"
+	}
+
+	// Validate pull-from-device exists
+	if !base.DB.ValidatePullFromStation(wuconfig.PullFromDevice) {
+		return nil, fmt.Errorf("pull-from-device %v is not a valid station name", wuconfig.PullFromDevice)
+	}
+
+	return &WeatherUndergroundController{
+		WeatherServiceController: base,
 		WeatherUndergroundConfig: wuconfig,
-		logger:                   logger,
-	}
-
-	// Load configuration to validate storage settings
-	cfgData, err := configProvider.LoadConfig()
-	if err != nil {
-		return &WeatherUndergroundController{}, fmt.Errorf("error loading configuration: %v", err)
-	}
-
-	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
-		return &WeatherUndergroundController{}, fmt.Errorf("TimescaleDB storage must be configured for the Weather Underground controller to function")
-	}
-
-	if wuc.WeatherUndergroundConfig.StationID == "" {
-		return &WeatherUndergroundController{}, fmt.Errorf("station ID must be set")
-	}
-
-	if wuc.WeatherUndergroundConfig.APIKey == "" {
-		return &WeatherUndergroundController{}, fmt.Errorf("API key must be set")
-	}
-
-	if wuc.WeatherUndergroundConfig.PullFromDevice == "" {
-		return &WeatherUndergroundController{}, fmt.Errorf("pull-from-device must be set")
-	}
-
-	if wuc.WeatherUndergroundConfig.APIEndpoint == "" {
-		wuc.WeatherUndergroundConfig.APIEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
-	}
-
-	if wuc.WeatherUndergroundConfig.UploadInterval == "" {
-		// Use a default interval of 60 seconds
-		wuc.WeatherUndergroundConfig.UploadInterval = "60"
-	}
-
-	wuc.DB = database.NewClient(configProvider, logger)
-
-	if !wuc.DB.ValidatePullFromStation(wuc.WeatherUndergroundConfig.PullFromDevice) {
-		return &WeatherUndergroundController{}, fmt.Errorf("pull-from-device %v is not a valid station name", wuc.WeatherUndergroundConfig.PullFromDevice)
-	}
-
-	err = wuc.DB.ConnectToTimescaleDB()
-	if err != nil {
-		return &WeatherUndergroundController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
-	}
-
-	return &wuc, nil
+	}, nil
 }
 
 func (p *WeatherUndergroundController) StartController() error {
@@ -89,40 +67,26 @@ func (p *WeatherUndergroundController) StartController() error {
 }
 
 func (p *WeatherUndergroundController) sendPeriodicReports() {
-	p.wg.Add(1)
-	defer p.wg.Done()
-
-	submitInterval, err := time.ParseDuration(fmt.Sprintf("%vs", p.WeatherUndergroundConfig.UploadInterval))
-	if err != nil {
-		log.Errorf("error parsing duration: %v", err)
+	config := controllers.WeatherServiceConfig{
+		ServiceName:    "Weather Underground",
+		StationID:      p.WeatherUndergroundConfig.StationID,
+		APIKey:         p.WeatherUndergroundConfig.APIKey,
+		APIEndpoint:    p.WeatherUndergroundConfig.APIEndpoint,
+		UploadInterval: p.WeatherUndergroundConfig.UploadInterval,
+		PullFromDevice: p.WeatherUndergroundConfig.PullFromDevice,
 	}
 
-	ticker := time.NewTicker(submitInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			log.Debug("Sending reading to Weather Underground...")
-			br, err := p.DB.GetReadingsFromTimescaleDB(p.WeatherUndergroundConfig.PullFromDevice)
-			if err != nil {
-				log.Info("error getting readings from TimescaleDB:", err)
-			}
-			log.Debugf("readings fetched from TimescaleDB for Weather Underground: %+v", br)
-			err = p.sendReadingsToWeatherUnderground(&br)
-			if err != nil {
-				log.Errorf("error sending readings to Weather Underground: %v", err)
-			}
-		case <-p.ctx.Done():
-			return
-		}
-	}
+	p.StartPeriodicReports(config, p.sendReadingsToWeatherUnderground)
 }
 
 func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *database.FetchedBucketReading) error {
+	if err := controllers.ValidateReading(r); err != nil {
+		return err
+	}
+
 	v := url.Values{}
 
-	// Add our authentication parameters to our URL
+	// Add authentication parameters
 	v.Set("ID", p.WeatherUndergroundConfig.StationID)
 	v.Set("PASSWORD", p.WeatherUndergroundConfig.APIKey)
 
@@ -134,7 +98,7 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *datab
 	v.Set("realtime", "1")
 	v.Set("rtfreq", "2.5")
 
-	// Set some values for our weather metrics
+	// Set weather metrics
 	v.Set("winddir", strconv.FormatInt(int64(r.WindDir), 10))
 	v.Set("windspeedmph", strconv.FormatInt(int64(r.WindSpeed), 10))
 	v.Set("humidity", strconv.FormatInt(int64(r.InHumidity), 10))
@@ -143,31 +107,5 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *datab
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", constants.Version))
 
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	req, err := http.NewRequest("GET", fmt.Sprint(p.WeatherUndergroundConfig.APIEndpoint+"?"+v.Encode()), nil)
-	if err != nil {
-		return fmt.Errorf("error creating Weather Underground HTTP request: %v", err)
-	}
-
-	log.Debugf("Making request to Weather Underground: %v?%v", p.WeatherUndergroundConfig.APIEndpoint, v.Encode())
-	req = req.WithContext(p.ctx)
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending report to Weather Underground: %v", err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("error reading Weather Underground response body: %v", err)
-	}
-
-	if !bytes.Contains(body, []byte("success")) {
-		return fmt.Errorf("bad response from Weather Underground server: %v", string(body))
-	}
-
-	return nil
+	return p.SendHTTPRequest(p.WeatherUndergroundConfig.APIEndpoint, v)
 }

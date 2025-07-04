@@ -17,6 +17,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/types"
 	aprspkg "github.com/chrissnell/remoteweather/pkg/aprs"
 	"github.com/chrissnell/remoteweather/pkg/config"
+	"go.uber.org/zap"
 )
 
 // CurrentReading is a Reading + a mutex that maintains the most recent reading from
@@ -34,6 +35,7 @@ type Controller struct {
 	APRSReadingChan chan types.Reading
 	currentReading  *CurrentReading
 	wg              *sync.WaitGroup
+	logger          *zap.SugaredLogger
 	running         bool
 	runningMutex    sync.RWMutex
 }
