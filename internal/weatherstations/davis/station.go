@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"sync"
 	"time"
@@ -36,16 +35,12 @@ const (
 	maxTries = 3
 )
 
-// Station holds our Davis weather station connection along with some mutexes for operation
 type Station struct {
 	ctx                context.Context
 	wg                 *sync.WaitGroup
-	Name               string `json:"name"`
 	netConn            net.Conn
 	rwc                io.ReadWriteCloser
 	config             config.DeviceData
-	configProvider     config.ConfigProvider
-	deviceName         string
 	ReadingDistributor chan types.Reading
 	logger             *zap.SugaredLogger
 	connecting         bool
@@ -140,66 +135,32 @@ type LoopPacketWithTrend struct {
 }
 
 func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, deviceName string, distributor chan types.Reading, logger *zap.SugaredLogger) weatherstations.WeatherStation {
-	station := &Station{
+	deviceConfig := weatherstations.LoadDeviceConfig(configProvider, deviceName, logger)
+
+	if err := weatherstations.ValidateSerialOrNetwork(*deviceConfig); err != nil {
+		logger.Fatal(err)
+	}
+
+	return &Station{
 		ctx:                ctx,
 		wg:                 wg,
-		configProvider:     configProvider,
-		deviceName:         deviceName,
+		config:             *deviceConfig,
 		ReadingDistributor: distributor,
 		logger:             logger,
 	}
-
-	// Load configuration to get device config
-	cfgData, err := configProvider.LoadConfig()
-	if err != nil {
-		logger.Fatalf("Davis station [%s] failed to load config: %v", deviceName, err)
-	}
-
-	// Find our device configuration
-	var deviceConfig *config.DeviceData
-	for _, device := range cfgData.Devices {
-		if device.Name == deviceName {
-			deviceConfig = &device
-			break
-		}
-	}
-
-	if deviceConfig == nil {
-		logger.Fatalf("Davis station [%s] device not found in configuration", deviceName)
-	}
-
-	// Use the device configuration directly
-	station.config = *deviceConfig
-
-	if station.config.SerialDevice == "" && (station.config.Hostname == "" || station.config.Port == "") {
-		logger.Fatalf("Davis station [%s] must define either a serial device or hostname+port", station.config.Name)
-	}
-
-	if station.config.SerialDevice != "" {
-		log.Info("Configuring Davis station via serial port...")
-	}
-
-	if station.config.Hostname != "" && station.config.Port != "" {
-		log.Info("Configuring Davis station via TCP/IP")
-	}
-
-	return station
 }
 
 func (s *Station) StationName() string {
 	return s.config.Name
 }
 
-// StartWeatherStation wakes the station and launches the station-polling goroutine
 func (s *Station) StartWeatherStation() error {
-	log.Infof("Starting Davis weather station [%v]...", s.config.Name)
+	s.logger.Infof("Starting Davis weather station [%s]", s.config.Name)
 
-	// Connect to the station first
 	s.Connect()
 
-	// Wake the console - if this fails, the GetLoopPackets goroutine will retry
 	if err := s.WakeStation(); err != nil {
-		log.Warnf("initial wake attempt failed, will retry in loop: %v", err)
+		s.logger.Warnf("initial wake attempt failed, will retry in loop: %v", err)
 	}
 
 	s.wg.Add(1)
@@ -516,8 +477,7 @@ func (s *Station) GetDavisLoopPackets(n int) error {
 
 			s.logger.Debugf("Packet received: %+v", r)
 
-			// Send the reading to the distributor
-			log.Debugf("Davis [%s] sending reading to distributor: temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph @ %d°, pressure=%.2f\"",
+			s.logger.Debugf("Davis [%s] sending reading: temp=%.1f°F, humidity=%.1f%%, wind=%.1f mph @ %d°, pressure=%.2f\"",
 				s.config.Name, r.OutTemp, r.OutHumidity, r.WindSpeed, int(r.WindDir), r.Barometer)
 			s.ReadingDistributor <- r
 		}
@@ -692,8 +652,8 @@ func (s *Station) convertLoopPacket(lp *LoopPacketWithTrend) types.Reading {
 		StationBatteryVoltage: s.convConsBatteryVoltage(lp.ConsBatteryVoltage),
 		ForecastIcon:          lp.ForecastIcon,
 		ForecastRule:          lp.ForecastRule,
-		WindChill:             s.calcWindChill(s.convBigVal10(lp.OutTemp), s.convLittleVal(lp.WindSpeed)),
-		HeatIndex:             s.calcHeatIndex(s.convBigVal10(lp.OutTemp), s.convLittleVal(lp.OutHumidity)),
+		WindChill:             weatherstations.CalculateWindChill(s.convBigVal10(lp.OutTemp), s.convLittleVal(lp.WindSpeed)),
+		HeatIndex:             weatherstations.CalculateHeatIndex(s.convBigVal10(lp.OutTemp), s.convLittleVal(lp.OutHumidity)),
 	}
 }
 
@@ -757,64 +717,4 @@ func (s *Station) convLittleVal10(v uint8) float32 {
 		return 0
 	}
 	return float32(v) / 10.0
-}
-
-func (s *Station) calcWindChill(temp float32, windSpeed float32) float32 {
-	// For wind speeds < 3 or temps > 50, wind chill is just the current temperature
-	if (temp > 50) || (windSpeed < 3) {
-		return temp
-	}
-
-	w64 := float64(windSpeed)
-	return (35.74 + (0.6215 * temp) - (35.75 * float32(math.Pow(w64, 0.16))) + (0.4275 * temp * float32(math.Pow(w64, 0.16))))
-}
-
-func (s *Station) calcHeatIndex(temp float32, humidity float32) float32 {
-	// Heat indices don't make much sense at temps below 77° F, so just return the current temperature
-	if temp < 77 {
-		return temp
-	}
-
-	// First, we try Steadman's method, which is valid for all heat indices
-	// below 80° F
-	hi := 0.5 * (temp + 61.0 + ((temp - 68.0) * 1.2) + (humidity + 0.094))
-	if hi < 80 {
-		// Only return heat index if it's greater than the temperature
-		if hi > temp {
-			return hi
-		}
-		return temp
-	}
-
-	// Our heat index is > 80, so we need to use the Rothfusz method instead
-	c1 := -42.379
-	c2 := 2.04901523
-	c3 := 10.14333127
-	c4 := 0.22475541
-	c5 := 0.00683783
-	c6 := 0.05481717
-	c7 := 0.00122874
-	c8 := 0.00085282
-	c9 := 0.00000199
-
-	t64 := float64(temp)
-	h64 := float64(humidity)
-
-	hi64 := c1 + (c2 * t64) + (c3 * h64) - (c4 * t64 * h64) - (c5 * math.Pow(t64, 2)) - (c6 * math.Pow(h64, 2)) + (c7 * math.Pow(t64, 2) * h64) + (c8 * t64 * math.Pow(h64, 2)) - (c9 * math.Pow(t64, 2) * math.Pow(h64, 2))
-
-	// If RH < 13% and temperature is between 80 and 112, we need to subtract an adjustment
-	if humidity < 13 && temp >= 80 && temp <= 112 {
-		adj := ((13 - h64) / 4) * math.Sqrt((17-math.Abs(t64-95.0))/17)
-		hi64 = hi64 - adj
-	} else if humidity > 80 && temp >= 80 && temp <= 87 {
-		// Likewise, if RH > 80% and temperature is between 80 and 87, we need to add an adjustment
-		adj := ((h64 - 85.0) / 10) * ((87.0 - t64) / 5)
-		hi64 = hi64 + adj
-	}
-
-	// Only return heat index if it's greater than the temperature
-	if hi64 > t64 {
-		return float32(hi64)
-	}
-	return temp
 }
