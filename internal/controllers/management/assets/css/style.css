@@ -534,4 +534,50 @@ input:checked + .slider:before {
 .health-stale {
   color: #ffc107;
   font-weight: bold;
+}
+
+/* Login Modal Styles */
+#login-modal {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+#login-modal .modal-content {
+  max-width: 400px;
+  margin: 10% auto;
+}
+
+#login-modal .modal-header h3 {
+  color: var(--accent);
+  margin: 0;
+}
+
+#login-modal p {
+  margin-bottom: 1rem;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Authentication Status */
+.auth-status {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: var(--primary-bg);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.85rem;
+  z-index: 1000;
+}
+
+.auth-status #auth-message {
+  color: var(--text);
+}
+
+.auth-status #logout-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
 } 
