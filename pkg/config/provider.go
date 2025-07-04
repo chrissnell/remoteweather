@@ -180,7 +180,6 @@ type DeviceData struct {
 	Solar             SolarData `json:"solar,omitempty"`
 	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
 	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
-	APRSPasscode      string    `json:"aprs_passcode,omitempty"`
 }
 
 // SolarData holds configuration specific to solar calculations
