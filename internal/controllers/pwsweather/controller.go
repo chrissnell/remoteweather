@@ -1,17 +1,15 @@
 package pwsweather
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/constants"
+	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -20,66 +18,46 @@ import (
 
 // PWSWeatherController holds our connection along with some mutexes for operation
 type PWSWeatherController struct {
-	ctx              context.Context
-	wg               *sync.WaitGroup
-	configProvider   config.ConfigProvider
+	*controllers.WeatherServiceController
 	PWSWeatherConfig config.PWSWeatherData
-	logger           *zap.SugaredLogger
-	DB               *database.Client
 }
 
 func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, pwc config.PWSWeatherData, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
-	pwsc := PWSWeatherController{
-		ctx:              ctx,
-		wg:               wg,
-		configProvider:   configProvider,
-		PWSWeatherConfig: pwc,
-		logger:           logger,
-	}
-
-	// Load configuration to validate storage settings
-	cfgData, err := configProvider.LoadConfig()
+	// Create base weather service controller
+	base, err := controllers.NewWeatherServiceController(ctx, wg, configProvider, logger)
 	if err != nil {
-		return &PWSWeatherController{}, fmt.Errorf("error loading configuration: %v", err)
+		return nil, err
 	}
 
-	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
-		return &PWSWeatherController{}, fmt.Errorf("TimescaleDB storage must be configured for the PWS Weather controller to function")
+	// Validate PWS Weather specific configuration
+	serviceConfig := controllers.WeatherServiceConfig{
+		ServiceName:    "PWS Weather",
+		StationID:      pwc.StationID,
+		APIKey:         pwc.APIKey,
+		PullFromDevice: pwc.PullFromDevice,
 	}
 
-	if pwsc.PWSWeatherConfig.StationID == "" {
-		return &PWSWeatherController{}, fmt.Errorf("station ID must be set")
+	if err := controllers.ValidateWeatherServiceConfig(serviceConfig); err != nil {
+		return nil, err
 	}
 
-	if pwsc.PWSWeatherConfig.APIKey == "" {
-		return &PWSWeatherController{}, fmt.Errorf("API key must be set")
+	// Set defaults
+	if pwc.APIEndpoint == "" {
+		pwc.APIEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
+	}
+	if pwc.UploadInterval == "" {
+		pwc.UploadInterval = "60"
 	}
 
-	if pwsc.PWSWeatherConfig.PullFromDevice == "" {
-		return &PWSWeatherController{}, fmt.Errorf("pull-from-device must be set")
+	// Validate pull-from-device exists
+	if !base.DB.ValidatePullFromStation(pwc.PullFromDevice) {
+		return nil, fmt.Errorf("pull-from-device %v is not a valid station name", pwc.PullFromDevice)
 	}
 
-	if pwsc.PWSWeatherConfig.APIEndpoint == "" {
-		pwsc.PWSWeatherConfig.APIEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
-	}
-
-	if pwsc.PWSWeatherConfig.UploadInterval == "" {
-		// Use a default interval of 60 seconds
-		pwsc.PWSWeatherConfig.UploadInterval = "60"
-	}
-
-	pwsc.DB = database.NewClient(configProvider, logger)
-
-	if !pwsc.DB.ValidatePullFromStation(pwsc.PWSWeatherConfig.PullFromDevice) {
-		return &PWSWeatherController{}, fmt.Errorf("pull-from-device %v is not a valid station name", pwsc.PWSWeatherConfig.PullFromDevice)
-	}
-
-	err = pwsc.DB.ConnectToTimescaleDB()
-	if err != nil {
-		return &PWSWeatherController{}, fmt.Errorf("could not connect to TimescaleDB: %v", err)
-	}
-
-	return &pwsc, nil
+	return &PWSWeatherController{
+		WeatherServiceController: base,
+		PWSWeatherConfig:         pwc,
+	}, nil
 }
 
 func (p *PWSWeatherController) StartController() error {
@@ -89,51 +67,33 @@ func (p *PWSWeatherController) StartController() error {
 }
 
 func (p *PWSWeatherController) sendPeriodicReports() {
-	p.wg.Add(1)
-	defer p.wg.Done()
-
-	submitInterval, err := time.ParseDuration(fmt.Sprintf("%vs", p.PWSWeatherConfig.UploadInterval))
-	if err != nil {
-		log.Errorf("error parsing duration: %v", err)
+	config := controllers.WeatherServiceConfig{
+		ServiceName:    "PWS Weather",
+		StationID:      p.PWSWeatherConfig.StationID,
+		APIKey:         p.PWSWeatherConfig.APIKey,
+		APIEndpoint:    p.PWSWeatherConfig.APIEndpoint,
+		UploadInterval: p.PWSWeatherConfig.UploadInterval,
+		PullFromDevice: p.PWSWeatherConfig.PullFromDevice,
 	}
 
-	ticker := time.NewTicker(submitInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			log.Debug("Sending reading to PWS Weather...")
-			br, err := p.DB.GetReadingsFromTimescaleDB(p.PWSWeatherConfig.PullFromDevice)
-			if err != nil {
-				log.Info("error getting readings from TimescaleDB:", err)
-			}
-			log.Debugf("readings fetched from TimescaleDB for PWS Weather: %+v", br)
-			err = p.sendReadingsToPWSWeather(&br)
-			if err != nil {
-				log.Errorf("error sending readings to PWS Weather: %v", err)
-			}
-		case <-p.ctx.Done():
-			return
-		}
-	}
+	p.StartPeriodicReports(config, p.sendReadingsToPWSWeather)
 }
 
 func (p *PWSWeatherController) sendReadingsToPWSWeather(r *database.FetchedBucketReading) error {
-	v := url.Values{}
-
-	if r.Barometer == 0 && r.OutTemp == 0 {
-		return fmt.Errorf("rejecting likely faulty reading (temp %v, barometer %v)", r.OutTemp, r.Barometer)
+	if err := controllers.ValidateReading(r); err != nil {
+		return err
 	}
 
-	// Add our authentication parameters to our URL
+	v := url.Values{}
+
+	// Add authentication parameters
 	v.Set("ID", p.PWSWeatherConfig.StationID)
 	v.Set("PASSWORD", p.PWSWeatherConfig.APIKey)
 
 	now := time.Now().In(time.UTC)
 	v.Set("dateutc", now.Format("2006-01-02 15:04:05"))
 
-	// Set some values for our weather metrics
+	// Set weather metrics
 	v.Set("winddir", strconv.FormatInt(int64(r.WindDir), 10))
 	v.Set("windspeedmph", strconv.FormatInt(int64(r.WindSpeed), 10))
 	v.Set("windgustmph", strconv.FormatInt(int64(r.MaxWindSpeed), 10))
@@ -144,33 +104,7 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *database.FetchedBucke
 	v.Set("solarradiation", fmt.Sprintf("%0.2f", r.SolarWatts))
 	v.Set("softwaretype", fmt.Sprintf("RemoteWeather-%v", constants.Version))
 
-	client := http.Client{
-		Timeout: 5 * time.Second,
-	}
-
-	req, err := http.NewRequest("GET", fmt.Sprint(p.PWSWeatherConfig.APIEndpoint+"?"+v.Encode()), nil)
-	if err != nil {
-		return fmt.Errorf("error creating PWS Weather HTTP request: %v", err)
-	}
-
-	log.Debugf("Making request to PWS weather: %v?%v", p.PWSWeatherConfig.APIEndpoint, v.Encode())
-	req = req.WithContext(p.ctx)
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending report to PWS Weather: %v", err)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("error reading PWS Weather response body: %v", err)
-	}
-
-	if !bytes.Contains(body, []byte("success")) {
-		return fmt.Errorf("bad response from PWS Weather server: %v", string(body))
-	}
-
-	return nil
+	return p.SendHTTPRequest(p.PWSWeatherConfig.APIEndpoint, v)
 }
 
 func (p *PWSWeatherController) fetchReadingsFromTimescaleDB() (database.FetchedBucketReading, error) {
