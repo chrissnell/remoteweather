@@ -11,5 +11,9 @@ config-test
 test-config*.yaml
 test-config*.db
 *.db
+config*backup*
 config.yaml
 config-conversion/
+cmd/campbell-emulator/campbell-emulator
+cmd/davis-emulator/davis-emulator
+cmd/remoteweather/remoteweather
