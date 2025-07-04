@@ -28,12 +28,8 @@ build() {
     
     # Build main application from cmd/remoteweather (clean architecture)
     go build -o remoteweather ./cmd/remoteweather/
-    
-    # Build utilities
-    go build -o config-convert ./cmd/config-convert/
-    go build -o config-test ./cmd/config-test/
-    go build -o migrate ./cmd/migrate/
-    
+
+
     # Build emulators for development/testing
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
@@ -51,12 +47,7 @@ package() {
     
     # Install main binary
     install -Dm755 remoteweather "$pkgdir/usr/bin/remoteweather"
-    
-    # Install utility binaries
-    install -Dm755 config-convert "$pkgdir/usr/bin/remoteweather-config-convert"
-    install -Dm755 config-test "$pkgdir/usr/bin/remoteweather-config-test"
-    install -Dm755 migrate "$pkgdir/usr/bin/remoteweather-migrate"
-    
+        
     # Install development/testing tools
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
@@ -70,14 +61,6 @@ package() {
     # Create application directories
     install -dm755 "$pkgdir/var/lib/remoteweather"
     install -dm755 "$pkgdir/etc/remoteweather"
-    
-    # Install example configurations
-    install -Dm644 examples/configs/weather-station-basic.yaml "$pkgdir/usr/share/doc/remoteweather/examples/weather-station-basic.yaml"
-    install -Dm644 examples/configs/weather-station-full.yaml "$pkgdir/usr/share/doc/remoteweather/examples/weather-station-full.yaml"
-    install -Dm644 examples/configs/README.md "$pkgdir/usr/share/doc/remoteweather/examples/README.md"
-    
-    # Install default configuration (basic example)
-    install -Dm644 examples/configs/weather-station-basic.yaml "$pkgdir/var/lib/remoteweather/config.yaml"
     
     # Install documentation
     install -Dm644 README.md "$pkgdir/usr/share/doc/remoteweather/README.md"
