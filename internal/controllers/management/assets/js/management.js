@@ -4,6 +4,115 @@
   const tabButtons = document.querySelectorAll('.tab-button');
   const panes = document.querySelectorAll('.tab-pane');
 
+  /* ---------------------------------------------------
+     Coordinate Utilities
+  --------------------------------------------------- */
+  
+  // Round coordinates to 0.1m resolution (6 decimal places)
+  function roundCoordinate(value) {
+    if (typeof value === 'string') {
+      value = parseFloat(value);
+    }
+    if (isNaN(value)) return '';
+    return Math.round(value * 1000000) / 1000000;
+  }
+
+  // Parse coordinate input, handling pasted text with various formats
+  function parseCoordinateInput(input) {
+    if (!input) return '';
+    
+    // Clean the input - remove extra spaces, handle comma-separated values
+    const cleaned = input.trim();
+    
+    // If it looks like "lat, lon" format, extract just the first part
+    if (cleaned.includes(',')) {
+      const parts = cleaned.split(',');
+      if (parts.length >= 2) {
+        // For latitude field, take first part; for longitude, take second part
+        return cleaned; // Return as-is for now, we'll handle in the event listener
+      }
+    }
+    
+    // Try to parse as a single number
+    const num = parseFloat(cleaned);
+    if (!isNaN(num)) {
+      return roundCoordinate(num);
+    }
+    
+    return '';
+  }
+
+  // Handle coordinate input events
+  function handleCoordinateInput(inputElement, isLatitude) {
+    const value = inputElement.value;
+    
+    // Check if it's a comma-separated pair
+    if (value.includes(',')) {
+      const parts = value.split(',').map(p => p.trim());
+      if (parts.length >= 2) {
+        const lat = parseFloat(parts[0]);
+        const lon = parseFloat(parts[1]);
+        
+        if (!isNaN(lat) && !isNaN(lon)) {
+          // Update both latitude and longitude fields
+          const latField = document.getElementById('solar-latitude') || document.getElementById('aeris-latitude');
+          const lonField = document.getElementById('solar-longitude') || document.getElementById('aeris-longitude');
+          
+          if (latField && lonField) {
+            latField.value = roundCoordinate(lat);
+            lonField.value = roundCoordinate(lon);
+            return;
+          }
+        }
+      }
+    }
+    
+    // Handle single coordinate
+    const rounded = parseCoordinateInput(value);
+    if (rounded !== '') {
+      inputElement.value = rounded;
+    }
+  }
+
+  // Setup coordinate input handlers
+  function setupCoordinateHandlers() {
+    // Station location coordinates
+    const solarLatInput = document.getElementById('solar-latitude');
+    const solarLonInput = document.getElementById('solar-longitude');
+    
+    if (solarLatInput) {
+      solarLatInput.addEventListener('blur', () => handleCoordinateInput(solarLatInput, true));
+      solarLatInput.addEventListener('paste', (e) => {
+        setTimeout(() => handleCoordinateInput(solarLatInput, true), 10);
+      });
+    }
+    
+    if (solarLonInput) {
+      solarLonInput.addEventListener('blur', () => handleCoordinateInput(solarLonInput, false));
+      solarLonInput.addEventListener('paste', (e) => {
+        setTimeout(() => handleCoordinateInput(solarLonInput, false), 10);
+      });
+    }
+    
+    // Aeris Weather controller coordinates
+    const aerisLatInput = document.getElementById('aeris-latitude');
+    const aerisLonInput = document.getElementById('aeris-longitude');
+    
+    if (aerisLatInput) {
+      aerisLatInput.addEventListener('blur', () => handleCoordinateInput(aerisLatInput, true));
+      aerisLatInput.addEventListener('paste', (e) => {
+        setTimeout(() => handleCoordinateInput(aerisLatInput, true), 10);
+      });
+    }
+    
+    if (aerisLonInput) {
+      aerisLonInput.addEventListener('blur', () => handleCoordinateInput(aerisLonInput, false));
+      aerisLonInput.addEventListener('paste', (e) => {
+        setTimeout(() => handleCoordinateInput(aerisLonInput, false), 10);
+      });
+    }
+  }
+
   // URL to tab mapping
   const urlToTab = {
     '/': 'ws-pane',
@@ -72,6 +181,9 @@
 
   // Initialize on page load
   initializeTab();
+
+  // Setup coordinate handlers
+  setupCoordinateHandlers();
 
   /* ---------------------------------------------------
      API helpers
@@ -174,12 +286,19 @@
      Weather Stations
   --------------------------------------------------- */
   async function loadWeatherStations() {
+    console.log('Loading weather stations...');
     const container = document.getElementById('ws-list');
+    if (!container) {
+      console.error('Weather stations container not found');
+      return;
+    }
+    
     container.textContent = 'Loading…';
 
     try {
       const data = await apiGet('/config/weather-stations');
       const devices = data.devices || [];
+      console.log('Loaded', devices.length, 'weather stations');
 
       if (devices.length === 0) {
         container.textContent = 'No weather stations configured.';
@@ -228,7 +347,10 @@
         // Load status in background
         loadDeviceStatus(dev.name, statusEl);
       });
+      
+      console.log('Weather stations loaded and displayed successfully');
     } catch (err) {
+      console.error('Failed to load weather stations:', err);
       container.textContent = 'Failed to load weather stations. ' + err.message;
     }
   }
@@ -780,10 +902,18 @@
     }
     
     modal.classList.remove('hidden');
+    
+    // Setup coordinate handlers for modal inputs
+    setTimeout(() => setupCoordinateHandlers(), 100);
   }
 
   function closeModal() {
-    modal.classList.add('hidden');
+    try {
+      modal.classList.add('hidden');
+      console.log('Modal closed successfully');
+    } catch (err) {
+      console.error('Error closing modal:', err);
+    }
   }
 
   modalClose.addEventListener('click', closeModal);
@@ -848,6 +978,9 @@
     populateAPRSFields(dev);
 
     modal.classList.remove('hidden');
+    
+    // Setup coordinate handlers for modal inputs
+    setTimeout(() => setupCoordinateHandlers(), 100);
   }
 
   // Helper function to populate APRS fields for a device
@@ -1027,9 +1160,14 @@
     const devObj = collectFormData();
     if (!devObj) return; // Validation failed
 
+    // Disable the submit button to prevent double-submission
+    const submitBtn = document.getElementById('save-station-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+
     try {
       if (mode === 'add') {
-        const nameEncoded = encodeURIComponent(devObj.name);
         await apiPost('/config/weather-stations', devObj);
       } else {
         // For edit mode, use the original name to identify the device to update
@@ -1038,10 +1176,16 @@
         await apiPut(`/config/weather-stations/${originalNameEncoded}`, devObj);
       }
       
+      // If we get here, the save was successful
       closeModal();
-      loadWeatherStations();
+      await loadWeatherStations();
     } catch (err) {
+      console.error('Save failed:', err);
       alert('Failed to save: ' + err.message);
+    } finally {
+      // Re-enable the submit button
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
   });
 
@@ -1119,8 +1263,8 @@
 
     // Add solar data if any fields are filled
             if (latitude || longitude || altitude) {
-            device.latitude = latitude ? parseFloat(latitude) : 0;
-            device.longitude = longitude ? parseFloat(longitude) : 0;
+            device.latitude = latitude ? roundCoordinate(parseFloat(latitude)) : 0;
+            device.longitude = longitude ? roundCoordinate(parseFloat(longitude)) : 0;
             device.altitude = altitude ? parseFloat(altitude) : 0;
         }
 
@@ -1168,6 +1312,7 @@
     if (body) {
       options.body = JSON.stringify(body);
     }
+    
     const res = await fetch(API_BASE + path, options);
 
     if (res.status === 401 && retry) {
@@ -1181,7 +1326,18 @@
       const txt = await res.text().catch(() => res.statusText);
       throw new Error(`Request failed (${res.status}): ${txt}`);
     }
-    return res.json().catch(() => ({}));
+    
+    // Try to parse JSON response, but don't fail if there's no content
+    try {
+      const responseText = await res.text();
+      if (responseText.trim() === '') {
+        return {}; // Empty response is OK for some operations
+      }
+      return JSON.parse(responseText);
+    } catch (jsonErr) {
+      console.warn('Failed to parse JSON response:', jsonErr);
+      return {}; // Return empty object for non-JSON responses
+    }
   }
 
   /* ---------------------------------------------------
@@ -1310,6 +1466,9 @@
     controllerModal.classList.remove('hidden');
     updateControllerFieldVisibility();
     loadDeviceSelectsForController();
+    
+    // Setup coordinate handlers for modal inputs
+    setTimeout(() => setupCoordinateHandlers(), 100);
   }
   
   function closeControllerModal() {
@@ -1329,6 +1488,9 @@
     controllerModal.classList.remove('hidden');
     updateControllerFieldVisibility();
     loadDeviceSelectsForController();
+    
+    // Setup coordinate handlers for modal inputs
+    setTimeout(() => setupCoordinateHandlers(), 100);
   }
   
   function resetControllerForm() {
@@ -1466,8 +1628,8 @@
         config.api_endpoint = document.getElementById('aeris-api-endpoint').value || '';
         const latitude = parseFloat(document.getElementById('aeris-latitude').value);
         const longitude = parseFloat(document.getElementById('aeris-longitude').value);
-        if (!isNaN(latitude)) config.latitude = latitude;
-        if (!isNaN(longitude)) config.longitude = longitude;
+        if (!isNaN(latitude)) config.latitude = roundCoordinate(latitude);
+        if (!isNaN(longitude)) config.longitude = roundCoordinate(longitude);
         break;
       case 'rest':
         config.http_port = parseInt(document.getElementById('rest-http-port').value) || 0;

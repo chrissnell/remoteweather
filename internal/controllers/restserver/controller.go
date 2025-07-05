@@ -2,7 +2,6 @@ package restserver
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -17,10 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	//go:embed all:assets
-	content embed.FS
-)
+// Assets are now handled by the GetAssets() function in assets.go
 
 // Controller represents the REST server controller
 type Controller struct {
@@ -173,9 +169,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	// Create handlers
 	ctrl.handlers = NewHandlers(ctrl)
 
-	// Set up embedded filesystem for assets
-	assetsFS, _ := fs.Sub(fs.FS(content), "assets")
-	ctrl.FS = &assetsFS
+	// Set up filesystem for assets (either from disk or embedded)
+	assets := GetAssets()
+	ctrl.FS = &assets
 
 	// Set up router
 	router := ctrl.setupRouter()
