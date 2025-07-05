@@ -127,11 +127,62 @@
   margin-top: 0.25rem;
 }
 
-.station-item.active .station-temp {
-  color: white;
-}
-
-/* Map Popup Styles */
+  .station-item.active .station-temp {
+    color: white;
+  }
+  
+  /* Data Display Controls */
+  .data-display-controls {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #34495e;
+    border-top: 1px solid #2c3e50;
+  }
+  
+  .data-display-controls h4 {
+    margin: 0 0 0.75rem 0;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  
+  .data-display-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .data-display-button {
+    background-color: #47627d;
+    color: white;
+    border: 1px solid #5a6d7a;
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+  
+  .data-display-button:hover {
+    background-color: #3498db;
+    border-color: #2980b9;
+    transform: translateY(-1px);
+  }
+  
+  .data-display-button.active {
+    background-color: #2980b9;
+    border-color: #1f5f8b;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  
+  .data-display-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+  }
+  
+  /* Map Popup Styles */
 .weather-popup {
   min-width: 280px;
   max-width: 320px;
@@ -341,12 +392,20 @@
 
 /* Map Marker Icons */
 .weather-station-marker {
-  width: 24px;
-  height: 24px;
+  width: 40px;
+  height: 40px;
   background-color: #3498db;
   border: 2px solid white;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Inconsolata, monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .weather-station-marker.offline {
@@ -359,6 +418,10 @@
 
 .weather-station-marker.error {
   background-color: #e74c3c;
+}
+
+.weather-station-marker.no-data {
+  background-color: #7f8c8d;
 }
 
 /* Responsive Design */
@@ -392,6 +455,17 @@
   
   .portal-title {
     font-size: 1.2rem;
+  }
+  
+  .data-display-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+  }
+  
+  .data-display-button {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.5rem;
   }
 }
 
