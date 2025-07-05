@@ -234,6 +234,11 @@ input:checked + .slider:before {
   margin-bottom: 1rem;
 }
 
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
 /* Cards layout */
 .card-container {
   display: grid;
@@ -580,4 +585,33 @@ input:checked + .slider:before {
 .auth-status #logout-btn {
   padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
+} 
+
+/* Dashboard checkbox styling */
+.checkbox-wrapper {
+  margin: 16px 0;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+.checkbox-wrapper .checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.checkbox-wrapper .checkbox-label input[type="checkbox"] {
+  margin-right: 8px;
+  width: auto;
+}
+
+.checkbox-wrapper small {
+  display: block;
+  color: #6c757d;
+  font-size: 12px;
+  margin-left: 24px;
 } 
