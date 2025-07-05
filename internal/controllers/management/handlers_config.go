@@ -102,21 +102,23 @@ func (h *Handlers) CreateWeatherStation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Dynamically start the weather station if enabled
-	if device.Enabled && h.controller.app != nil {
-		if err := h.controller.app.AddWeatherStation(device.Name); err != nil {
-			h.controller.logger.Errorf("Failed to start weather station %s: %v", device.Name, err)
-			// Don't fail the API call since the config was saved successfully
-			// The weather station will start on next app restart
-		} else {
-			h.controller.logger.Infof("Weather station %s started successfully", device.Name)
-		}
-	}
-
+	// Send response immediately after config is saved
 	h.sendJSONWithStatus(w, http.StatusCreated, map[string]interface{}{
 		"message": "Weather station created successfully",
 		"device":  device,
 	})
+
+	// Dynamically start the weather station if enabled (asynchronously)
+	if device.Enabled && h.controller.app != nil {
+		go func() {
+			if err := h.controller.app.AddWeatherStation(device.Name); err != nil {
+				h.controller.logger.Errorf("Failed to start weather station %s: %v", device.Name, err)
+				// The weather station will start on next app restart
+			} else {
+				h.controller.logger.Infof("Weather station %s started successfully", device.Name)
+			}
+		}()
+	}
 }
 
 // UpdateWeatherStation updates an existing weather station configuration
@@ -199,20 +201,22 @@ func (h *Handlers) DeleteWeatherStation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Dynamically stop the weather station
-	if h.controller.app != nil {
-		if err := h.controller.app.RemoveWeatherStation(deviceName); err != nil {
-			h.controller.logger.Errorf("Failed to stop weather station %s: %v", deviceName, err)
-			// Don't fail the API call since the config was deleted successfully
-			// The weather station will stop on next app restart
-		} else {
-			h.controller.logger.Infof("Weather station %s stopped successfully", deviceName)
-		}
-	}
-
+	// Send response immediately after config is deleted
 	h.sendJSON(w, map[string]interface{}{
 		"message": "Weather station deleted successfully",
 	})
+
+	// Dynamically stop the weather station (asynchronously)
+	if h.controller.app != nil {
+		go func() {
+			if err := h.controller.app.RemoveWeatherStation(deviceName); err != nil {
+				h.controller.logger.Errorf("Failed to stop weather station %s: %v", deviceName, err)
+				// The weather station will stop on next app restart
+			} else {
+				h.controller.logger.Infof("Weather station %s stopped successfully", deviceName)
+			}
+		}()
+	}
 }
 
 // GetStorageConfigs returns all configured storage backends (sanitized for security)
@@ -451,9 +455,22 @@ func (h *Handlers) DeleteStorageConfig(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) sanitizeTimescaleDBConfig(config *config.TimescaleDBData) map[string]interface{} {
 	sanitized := make(map[string]interface{})
 
-	// Parse connection string to extract non-sensitive parts
-	connStr := config.ConnectionString
-	sanitized["connection_info"] = h.parseConnectionString(connStr)
+	// If individual components are available, use them directly
+	if config.Host != "" {
+		connectionInfo := make(map[string]interface{})
+		connectionInfo["host"] = config.Host
+		connectionInfo["port"] = config.Port
+		connectionInfo["database"] = config.Database
+		connectionInfo["user"] = config.User
+		connectionInfo["password"] = "[HIDDEN]" // Never expose password
+		if config.SSLMode != "" {
+			connectionInfo["ssl_mode"] = config.SSLMode
+		}
+		if config.Timezone != "" {
+			connectionInfo["timezone"] = config.Timezone
+		}
+		sanitized["connection_info"] = connectionInfo
+	}
 
 	// Include health information if available
 	if config.Health != nil {
@@ -594,8 +611,27 @@ func (h *Handlers) validateStorageConfig(storageType string, configData interfac
 		if !ok {
 			return fmt.Errorf("invalid TimescaleDB config type")
 		}
-		if timescale.ConnectionString == "" {
-			return fmt.Errorf("connection_string is required for TimescaleDB")
+
+		// Validate individual components if provided
+		if timescale.Host != "" || timescale.Port != 0 || timescale.Database != "" || timescale.User != "" || timescale.Password != "" {
+			if timescale.Host == "" {
+				return fmt.Errorf("host is required for TimescaleDB")
+			}
+			if timescale.Port <= 0 || timescale.Port > 65535 {
+				return fmt.Errorf("port must be between 1 and 65535 for TimescaleDB")
+			}
+			if timescale.Database == "" {
+				return fmt.Errorf("database is required for TimescaleDB")
+			}
+			if timescale.User == "" {
+				return fmt.Errorf("user is required for TimescaleDB")
+			}
+			if timescale.Password == "" {
+				return fmt.Errorf("password is required for TimescaleDB")
+			}
+		} else {
+			// If no individual components are provided, require all of them
+			return fmt.Errorf("host, port, database, user, and password are required for TimescaleDB")
 		}
 	case "grpc":
 		grpc, ok := configData.(*config.GRPCData)

@@ -38,7 +38,12 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("error loading configuration: %v", err)
 	}
 
-	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
+	if cfgData.Storage.TimescaleDB == nil {
+		return fmt.Errorf("TimescaleDB configuration not found")
+	}
+
+	connectionString := cfgData.Storage.TimescaleDB.GetConnectionString()
+	if connectionString == "" {
 		return fmt.Errorf("TimescaleDB connection string not configured")
 	}
 
@@ -58,7 +63,7 @@ func (c *Client) Connect() error {
 	}
 
 	log.Info("connecting to TimescaleDB...")
-	c.DB, err = gorm.Open(postgres.Open(cfgData.Storage.TimescaleDB.ConnectionString), config)
+	c.DB, err = gorm.Open(postgres.Open(connectionString), config)
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return err

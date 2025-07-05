@@ -16,6 +16,7 @@ import (
 
 type Station struct {
 	ctx                context.Context
+	cancel             context.CancelFunc
 	wg                 *sync.WaitGroup
 	server             *http.Server
 	config             config.DeviceData
@@ -30,8 +31,12 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 		logger.Fatalf("Ambient Weather station [%s] must define a port", deviceConfig.Name)
 	}
 
+	// Create a cancellable context for this specific station
+	stationCtx, cancel := context.WithCancel(ctx)
+
 	return &Station{
-		ctx:                ctx,
+		ctx:                stationCtx,
+		cancel:             cancel,
 		wg:                 wg,
 		config:             *deviceConfig,
 		ReadingDistributor: distributor,
@@ -77,6 +82,12 @@ func (s *Station) StartWeatherStation() error {
 		}
 	}()
 
+	return nil
+}
+
+func (s *Station) StopWeatherStation() error {
+	s.logger.Infof("Stopping Ambient Weather station [%s]", s.config.Name)
+	s.cancel()
 	return nil
 }
 
