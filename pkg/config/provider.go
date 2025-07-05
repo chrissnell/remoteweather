@@ -178,16 +178,17 @@ type DeviceData struct {
 	WindDirCorrection int16     `json:"wind_dir_correction,omitempty"`
 	BaseSnowDistance  int16     `json:"base_snow_distance,omitempty"`
 	WebsiteID         *int      `json:"website_id,omitempty"`
+	Latitude          float64   `json:"latitude,omitempty"`
+	Longitude         float64   `json:"longitude,omitempty"`
+	Altitude          float64   `json:"altitude,omitempty"`
 	Solar             SolarData `json:"solar,omitempty"`
 	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
 	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
 }
 
 // SolarData holds configuration specific to solar calculations
+// Currently empty - may be used for solar-specific settings in the future
 type SolarData struct {
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Altitude  float64 `json:"altitude"`
 }
 
 // StorageData holds the configuration for various storage backends
@@ -357,19 +358,19 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 			}
 		}
 
-		// Validate solar configuration if present
-		if device.Solar.Latitude != 0 || device.Solar.Longitude != 0 {
-			if device.Solar.Latitude < -90 || device.Solar.Latitude > 90 {
+		// Validate location configuration if present
+		if device.Latitude != 0 || device.Longitude != 0 {
+			if device.Latitude < -90 || device.Latitude > 90 {
 				errors = append(errors, ValidationError{
-					Field:   fmt.Sprintf("devices[%d].solar.latitude", i),
-					Value:   fmt.Sprintf("%.6f", device.Solar.Latitude),
+					Field:   fmt.Sprintf("devices[%d].latitude", i),
+					Value:   fmt.Sprintf("%.6f", device.Latitude),
 					Message: "latitude must be between -90 and 90 degrees",
 				})
 			}
-			if device.Solar.Longitude < -180 || device.Solar.Longitude > 180 {
+			if device.Longitude < -180 || device.Longitude > 180 {
 				errors = append(errors, ValidationError{
-					Field:   fmt.Sprintf("devices[%d].solar.longitude", i),
-					Value:   fmt.Sprintf("%.6f", device.Solar.Longitude),
+					Field:   fmt.Sprintf("devices[%d].longitude", i),
+					Value:   fmt.Sprintf("%.6f", device.Longitude),
 					Message: "longitude must be between -180 and 180 degrees",
 				})
 			}
