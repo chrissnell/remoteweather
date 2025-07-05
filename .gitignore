@@ -19,3 +19,4 @@ cmd/davis-emulator/davis-emulator
 cmd/remoteweather/remoteweather
 cmd/migrate/migrate
 .DS_Store
+cmd/live-data-simulator/
