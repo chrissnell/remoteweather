@@ -35,6 +35,7 @@ type Controller struct {
 	WeatherWebsites     map[string]*config.WeatherWebsiteData // hostname -> website config
 	DefaultWebsite      *config.WeatherWebsiteData            // fallback for unmatched hosts
 	Devices             []config.DeviceData
+	DeviceNames         map[string]bool             // device name -> exists (for fast O(1) lookups)
 	DevicesByWebsite    map[int][]config.DeviceData // website_id -> devices
 	AerisWeatherEnabled bool
 	logger              *zap.SugaredLogger
@@ -58,6 +59,12 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	}
 
 	ctrl.Devices = cfgData.Devices
+
+	// Build device name map for fast O(1) lookups
+	ctrl.DeviceNames = make(map[string]bool)
+	for _, device := range ctrl.Devices {
+		ctrl.DeviceNames[device.Name] = true
+	}
 
 	// Load weather websites and set up hostname-based routing
 	websites, err := configProvider.GetWeatherWebsites()
@@ -271,14 +278,17 @@ func (c *Controller) websiteMiddleware(next http.Handler) http.Handler {
 
 // validatePullFromStation validates that the station name exists in config
 func (c *Controller) validatePullFromStation(pullFromDevice string) bool {
-	if len(c.Devices) > 0 {
-		for _, station := range c.Devices {
-			if station.Name == pullFromDevice {
-				return true
-			}
-		}
+	// Use O(1) map lookup instead of O(n) linear search
+	return c.DeviceNames[pullFromDevice]
+}
+
+// RefreshDeviceNames rebuilds the device name map from current devices
+// Should be called when device configuration changes
+func (c *Controller) RefreshDeviceNames() {
+	c.DeviceNames = make(map[string]bool)
+	for _, device := range c.Devices {
+		c.DeviceNames[device.Name] = true
 	}
-	return false
 }
 
 // snowDeviceExists checks if a snow device exists in the configuration

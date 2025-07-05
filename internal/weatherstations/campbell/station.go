@@ -172,10 +172,10 @@ func (s *Station) ParseCampbellScientificPackets() error {
 		timestamp := time.Now()
 
 		var potentialSolarWatts float64
-		if s.config.Solar.Latitude != 0 && s.config.Solar.Longitude != 0 {
+		if s.config.Latitude != 0 && s.config.Longitude != 0 {
 			potentialSolarWatts = solar.CalculateClearSkySolarRadiationASCE(
-				timestamp, s.config.Solar.Latitude, s.config.Solar.Longitude,
-				s.config.Solar.Altitude, float64(packet.OutTemp), float64(packet.OutHumidity))
+				timestamp, s.config.Latitude, s.config.Longitude,
+				s.config.Altitude, float64(packet.OutTemp), float64(packet.OutHumidity))
 			s.logger.Debugf("solar calculation results: %+v", potentialSolarWatts)
 		}
 

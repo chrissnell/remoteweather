@@ -18,15 +18,15 @@ const (
 
 // Test data structures
 type WeatherStation struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Hostname string `json:"hostname,omitempty"`
-	Port     string `json:"port,omitempty"`
-	Baud     int    `json:"baud,omitempty"`
-	Solar    struct {
-		Latitude  float64 `json:"latitude"`
-		Longitude float64 `json:"longitude"`
-		Altitude  float64 `json:"altitude"`
+	Name      string  `json:"name"`
+	Type      string  `json:"type"`
+	Hostname  string  `json:"hostname,omitempty"`
+	Port      string  `json:"port,omitempty"`
+	Baud      int     `json:"baud,omitempty"`
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
+	Altitude  float64 `json:"altitude,omitempty"`
+	Solar     struct {
 	} `json:"solar"`
 }
 
@@ -93,9 +93,9 @@ func TestWeatherStationsCRUD(t *testing.T) {
 		Port:     "22222",
 		Baud:     9600,
 	}
-	testStation.Solar.Latitude = 40.7128
-	testStation.Solar.Longitude = -74.0060
-	testStation.Solar.Altitude = 10.0
+	testStation.Latitude = 40.7128
+	testStation.Longitude = -74.0060
+	testStation.Altitude = 10.0
 
 	updatedStation := testStation
 	updatedStation.Hostname = "192.168.1.201"

@@ -267,9 +267,9 @@
     
     // Station location
     if (dev.solar) {
-      html += `<div><strong>Latitude:</strong> ${dev.solar.latitude || 'Not set'}</div>`;
-      html += `<div><strong>Longitude:</strong> ${dev.solar.longitude || 'Not set'}</div>`;
-      html += `<div><strong>Altitude:</strong> ${dev.solar.altitude || 'Not set'}</div>`;
+                  html += `<div><strong>Latitude:</strong> ${dev.latitude || 'Not set'}</div>`;
+            html += `<div><strong>Longitude:</strong> ${dev.longitude || 'Not set'}</div>`;
+              html += `<div><strong>Altitude:</strong> ${dev.altitude || 'Not set'}</div>`;
     }
     
     html += '</div></div>';
@@ -839,9 +839,9 @@
 
     // Populate solar fields
     if (dev.solar) {
-      document.getElementById('solar-latitude').value = dev.solar.latitude || '';
-      document.getElementById('solar-longitude').value = dev.solar.longitude || '';
-      document.getElementById('solar-altitude').value = dev.solar.altitude || '';
+              document.getElementById('solar-latitude').value = dev.latitude || '';
+        document.getElementById('solar-longitude').value = dev.longitude || '';
+              document.getElementById('solar-altitude').value = dev.altitude || '';
     }
 
     // Populate APRS fields
@@ -1066,9 +1066,9 @@
     const hostname = document.getElementById('net-hostname').value.trim();
     const port = document.getElementById('net-port').value.trim();
     const snowDistanceVal = document.getElementById('snow-distance').value.trim();
-    const solarLat = document.getElementById('solar-latitude').value.trim();
-    const solarLon = document.getElementById('solar-longitude').value.trim();
-    const solarAlt = document.getElementById('solar-altitude').value.trim();
+            const latitude = document.getElementById('solar-latitude').value.trim();
+        const longitude = document.getElementById('solar-longitude').value.trim();
+        const altitude = document.getElementById('solar-altitude').value.trim();
 
     if (!name) {
       alert('Name is required');
@@ -1118,13 +1118,11 @@
     }
 
     // Add solar data if any fields are filled
-    if (solarLat || solarLon || solarAlt) {
-      device.solar = {
-        latitude: solarLat ? parseFloat(solarLat) : 0,
-        longitude: solarLon ? parseFloat(solarLon) : 0,
-        altitude: solarAlt ? parseFloat(solarAlt) : 0
-      };
-    }
+            if (latitude || longitude || altitude) {
+            device.latitude = latitude ? parseFloat(latitude) : 0;
+            device.longitude = longitude ? parseFloat(longitude) : 0;
+            device.altitude = altitude ? parseFloat(altitude) : 0;
+        }
 
     // Add APRS configuration
     const aprsEnabled = document.getElementById('aprs-enabled').checked;

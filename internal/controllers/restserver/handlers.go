@@ -69,6 +69,16 @@ func (h *Handlers) getSnowBaseDistance(website *config.WeatherWebsiteData) float
 	return 0.0
 }
 
+// validateStationExists checks if a station name exists in the configuration
+func (h *Handlers) validateStationExists(stationName string) bool {
+	if stationName == "" {
+		return false
+	}
+
+	// Use O(1) map lookup instead of O(n) linear search
+	return h.controller.DeviceNames[stationName]
+}
+
 // GetWeatherSpan handles requests for weather data over a time span
 func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 	if h.controller.DBEnabled {
@@ -82,6 +92,12 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 		var dbFetchedReadings []types.BucketReading
 
 		stationName := req.URL.Query().Get("station")
+
+		// Validate station name if provided
+		if stationName != "" && !h.validateStationExists(stationName) {
+			http.Error(w, "station not found", 404)
+			return
+		}
 
 		vars := mux.Vars(req)
 		span, err := time.ParseDuration(vars["span"])
@@ -180,6 +196,12 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		stationName := req.URL.Query().Get("station")
 
+		// Validate station name if provided
+		if stationName != "" && !h.validateStationExists(stationName) {
+			http.Error(w, "station not found", 404)
+			return
+		}
+
 		// Get website from context and find primary device
 		website := h.getWebsiteFromContext(req)
 		primaryDevice := h.getPrimaryDeviceForWebsite(website)
@@ -239,6 +261,12 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		var dbFetchedReadings []types.BucketReading
 
 		stationName := req.URL.Query().Get("station")
+
+		// Validate station name if provided
+		if stationName != "" && !h.validateStationExists(stationName) {
+			http.Error(w, "station not found", 404)
+			return
+		}
 
 		if stationName != "" {
 			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
@@ -520,12 +548,12 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 
 	for _, device := range currentDevices {
 		// Only include devices that have location data
-		if device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
+		if device.Latitude != 0 && device.Longitude != 0 {
 			station := StationData{
 				Name:      device.Name,
 				Type:      device.Type,
-				Latitude:  device.Solar.Latitude,
-				Longitude: device.Solar.Longitude,
+				Latitude:  device.Latitude,
+				Longitude: device.Longitude,
 				Enabled:   device.Enabled,
 			}
 			stations = append(stations, station)
