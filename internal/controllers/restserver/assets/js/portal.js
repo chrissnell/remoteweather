@@ -5,7 +5,11 @@ class WeatherPortal {
         this.stations = [];
         this.markers = [];
         this.refreshInterval = null;
+        this.statusInterval = null;
         this.isLoading = false;
+        this.hasInitializedBounds = false;
+        this.lastRefreshTime = null;
+        this.secondsSinceRefresh = 0;
         
         // Initialize portal when DOM is ready
         if (document.readyState === 'loading') {
@@ -20,6 +24,7 @@ class WeatherPortal {
         this.loadStationData();
         this.setupEventListeners();
         this.startAutoRefresh();
+        this.startStatusTimer();
     }
     
     initializeMap() {
@@ -47,11 +52,13 @@ class WeatherPortal {
         }
     }
     
-    async loadStationData() {
+    async loadStationData(showLoadingIndicator = true) {
         if (this.isLoading) return;
         
         this.isLoading = true;
-        this.showLoading(true);
+        if (showLoadingIndicator) {
+            this.showLoading(true);
+        }
         
         try {
             // Get all unique stations from the API
@@ -70,12 +77,19 @@ class WeatherPortal {
             this.updateMapMarkers();
             this.updateStationList();
             
+            // Reset the refresh timer on successful update
+            this.resetRefreshTimer();
+            
         } catch (error) {
             console.error('Error loading station data:', error);
-            this.showError('Unable to load weather station data');
+            if (showLoadingIndicator) {
+                this.showError('Unable to load weather station data');
+            }
         } finally {
             this.isLoading = false;
-            this.showLoading(false);
+            if (showLoadingIndicator) {
+                this.showLoading(false);
+            }
         }
     }
     
@@ -103,23 +117,47 @@ class WeatherPortal {
     }
     
     updateMapMarkers() {
-        // Clear existing markers
-        this.markers.forEach(marker => this.map.removeLayer(marker));
-        this.markers = [];
-        
-        // Add markers for each station
-        this.stations.forEach(station => {
-            if (station.latitude && station.longitude) {
-                const marker = this.createStationMarker(station);
-                this.markers.push(marker);
-                marker.addTo(this.map);
+        // Track existing markers by station name
+        const existingMarkers = new Map();
+        this.markers.forEach(marker => {
+            if (marker.stationName) {
+                existingMarkers.set(marker.stationName, marker);
             }
         });
         
-        // Fit map to show all markers if we have stations
-        if (this.markers.length > 0) {
+        const newMarkers = [];
+        
+        // Process each station
+        this.stations.forEach(station => {
+            if (station.latitude && station.longitude) {
+                const existingMarker = existingMarkers.get(station.name);
+                
+                if (existingMarker) {
+                    // Update existing marker
+                    this.updateMarkerContent(existingMarker, station);
+                    newMarkers.push(existingMarker);
+                    existingMarkers.delete(station.name);
+                } else {
+                    // Create new marker
+                    const marker = this.createStationMarker(station);
+                    newMarkers.push(marker);
+                    marker.addTo(this.map);
+                }
+            }
+        });
+        
+        // Remove markers for stations that no longer exist
+        existingMarkers.forEach(marker => {
+            this.map.removeLayer(marker);
+        });
+        
+        this.markers = newMarkers;
+        
+        // Fit map to show all markers if we have stations (only on first load)
+        if (this.markers.length > 0 && !this.hasInitializedBounds) {
             const group = new L.featureGroup(this.markers);
             this.map.fitBounds(group.getBounds().pad(0.1));
+            this.hasInitializedBounds = true;
         }
     }
     
@@ -140,6 +178,9 @@ class WeatherPortal {
             icon: customIcon
         });
         
+        // Store station name for tracking
+        marker.stationName = station.name;
+        
         // Create popup content
         const popupContent = this.createPopupContent(station);
         marker.bindPopup(popupContent, {
@@ -148,6 +189,26 @@ class WeatherPortal {
         });
         
         return marker;
+    }
+    
+    updateMarkerContent(marker, station) {
+        // Update marker icon based on current status
+        const iconClass = this.getMarkerClass(station);
+        const iconHtml = `<div class="weather-station-marker ${iconClass}"></div>`;
+        
+        const customIcon = L.divIcon({
+            html: iconHtml,
+            className: 'custom-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12]
+        });
+        
+        marker.setIcon(customIcon);
+        
+        // Update popup content
+        const popupContent = this.createPopupContent(station);
+        marker.setPopupContent(popupContent);
     }
     
     getMarkerClass(station) {
@@ -185,6 +246,10 @@ class WeatherPortal {
         container.appendChild(header);
         
         if (station.weather) {
+            // Wind rose at the top
+            const windroseContainer = this.createWindrose(station.weather);
+            container.appendChild(windroseContainer);
+            
             // Weather data grid
             const grid = document.createElement('div');
             grid.className = 'popup-weather-grid';
@@ -192,8 +257,8 @@ class WeatherPortal {
             const weatherItems = [
                 { label: 'Temperature', value: this.formatTemperature(station.weather.otemp) },
                 { label: 'Humidity', value: this.formatHumidity(station.weather.ohum) },
-                { label: 'Pressure', value: this.formatPressure(station.weather.barometerPoint) },
-                { label: 'Wind Speed', value: this.formatWindSpeed(station.weather.windSpeedPoint) }
+                { label: 'Pressure', value: this.formatPressure(station.weather.bar) },
+                { label: 'Wind Speed', value: this.formatWindSpeed(station.weather.winds) }
             ];
             
             weatherItems.forEach(item => {
@@ -214,10 +279,6 @@ class WeatherPortal {
             });
             
             container.appendChild(grid);
-            
-            // Wind rose
-            const windroseContainer = this.createWindrose(station.weather);
-            container.appendChild(windroseContainer);
         } else {
             // No data available
             const noData = document.createElement('div');
@@ -228,65 +289,87 @@ class WeatherPortal {
             container.appendChild(noData);
         }
         
+        // Add website link if available
+        if (station.website && station.website.hostname) {
+            const websiteLink = document.createElement('div');
+            websiteLink.className = 'popup-website-link';
+            
+            const link = document.createElement('a');
+            
+            // Construct URL with proper protocol and port
+            let url = `${station.website.protocol}://${station.website.hostname}`;
+            
+            // Only include port if it's not the standard port for the protocol
+            const isStandardPort = (station.website.protocol === 'http' && station.website.port === 80) ||
+                                   (station.website.protocol === 'https' && station.website.port === 443);
+            
+            if (!isStandardPort) {
+                url += `:${station.website.port}`;
+            }
+            
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            
+            const websiteName = station.website.page_title || station.website.name;
+            link.textContent = `↗ Open ${websiteName}`;
+            
+            websiteLink.appendChild(link);
+            container.appendChild(websiteLink);
+        }
+        
         return container;
     }
     
     createWindrose(weatherData) {
         const container = document.createElement('div');
-        container.className = 'popup-windrose-container';
+        container.className = 'popup-windrosecontainer';
         
-        const windrose = document.createElement('div');
-        windrose.className = 'popup-windrose';
+        const windroseBox = document.createElement('div');
+        windroseBox.className = 'popup-windrose-box';
         
-        // Wind direction arrow
+        const divBlock3 = document.createElement('div');
+        divBlock3.className = 'popup-div-block-3';
+        
+        // Wind cardinal direction
+        const windCardinalDir = document.createElement('div');
+        windCardinalDir.className = 'popup-wind-cardinal-dir';
+        windCardinalDir.textContent = this.getWindDirectionText(weatherData);
+        
+        // Wind speed
+        const windSpeed = document.createElement('div');
+        windSpeed.className = 'popup-wind-speed';
+        windSpeed.textContent = weatherData.winds ? Math.round(parseFloat(weatherData.winds)) : '--';
+        
+        // Windrose box container
+        const windroseBoxContainer = document.createElement('div');
+        windroseBoxContainer.className = 'popup-windrose-box-container';
+        
+        // Windrose circle (this rotates)
+        const windroseCircle = document.createElement('div');
+        windroseCircle.className = 'popup-windrose-circle';
+        
+        // Wind direction arrow (positioned on edge)
         const arrow = document.createElement('div');
         arrow.className = 'popup-windrose-arrow';
         
-        // Get wind direction and rotate arrow
+        // Get wind direction and rotate the entire circle
         const windDirection = this.getWindDirection(weatherData);
         if (windDirection !== null) {
-            arrow.style.transform = `translateY(-8px) rotate(${windDirection}deg)`;
+            windroseCircle.style.transform = `rotate(${windDirection}deg)`;
         }
         
-        // Center dot
-        const center = document.createElement('div');
-        center.className = 'popup-windrose-center';
+        windroseCircle.appendChild(arrow);
+        windroseBoxContainer.appendChild(windroseCircle);
         
-        // Compass labels
-        const labels = document.createElement('div');
-        labels.className = 'popup-windrose-labels';
+        // Add wind speed and cardinal direction inside the circle
+        windroseBoxContainer.appendChild(windCardinalDir);
+        windroseBoxContainer.appendChild(windSpeed);
         
-        const directions = ['N', 'S', 'E', 'W'];
-        const classes = ['popup-windrose-n', 'popup-windrose-s', 'popup-windrose-e', 'popup-windrose-w'];
+        divBlock3.appendChild(windroseBoxContainer);
         
-        directions.forEach((dir, index) => {
-            const label = document.createElement('div');
-            label.className = classes[index];
-            label.textContent = dir;
-            labels.appendChild(label);
-        });
-        
-        windrose.appendChild(arrow);
-        windrose.appendChild(center);
-        windrose.appendChild(labels);
-        
-        // Wind info
-        const windInfo = document.createElement('div');
-        windInfo.className = 'popup-wind-info';
-        
-        const windSpeed = document.createElement('div');
-        windSpeed.className = 'popup-wind-speed';
-        windSpeed.textContent = this.formatWindSpeed(weatherData.windSpeedPoint);
-        
-        const windDir = document.createElement('div');
-        windDir.className = 'popup-wind-direction';
-        windDir.textContent = this.getWindDirectionText(weatherData);
-        
-        windInfo.appendChild(windSpeed);
-        windInfo.appendChild(windDir);
-        
-        container.appendChild(windrose);
-        container.appendChild(windInfo);
+        windroseBox.appendChild(divBlock3);
+        container.appendChild(windroseBox);
         
         return container;
     }
@@ -345,43 +428,49 @@ class WeatherPortal {
     }
     
     setupEventListeners() {
-        // Refresh button
-        const refreshBtn = document.getElementById('refresh-btn');
-        refreshBtn.addEventListener('click', () => {
-            this.loadStationData();
-        });
-        
-        // Disable refresh button during loading
-        this.map.on('movestart', () => {
-            if (this.isLoading) {
-                refreshBtn.disabled = true;
-            }
-        });
-        
-        this.map.on('moveend', () => {
-            refreshBtn.disabled = false;
-        });
+        // No manual refresh button needed - auto-refresh handles everything
+        // Could add other event listeners here if needed in the future
     }
     
     startAutoRefresh() {
-        // Refresh data every 5 minutes
+        // Refresh data every 5 seconds
         this.refreshInterval = setInterval(() => {
-            this.loadStationData();
-        }, 5 * 60 * 1000);
+            this.loadStationData(false); // Don't show loading indicator for auto-refresh
+        }, 5 * 1000);
+    }
+    
+    startStatusTimer() {
+        // Update status every second
+        this.statusInterval = setInterval(() => {
+            this.updateRefreshStatus();
+        }, 1000);
+    }
+    
+    updateRefreshStatus() {
+        const statusElement = document.getElementById('refresh-status');
+        if (!statusElement) return;
+        
+        if (this.lastRefreshTime) {
+            this.secondsSinceRefresh = Math.floor((Date.now() - this.lastRefreshTime) / 1000);
+            statusElement.textContent = `Updated ${this.secondsSinceRefresh}s ago`;
+        } else {
+            statusElement.textContent = 'Loading...';
+        }
+    }
+    
+    resetRefreshTimer() {
+        this.lastRefreshTime = Date.now();
+        this.secondsSinceRefresh = 0;
+        this.updateRefreshStatus();
     }
     
     showLoading(show) {
         const loading = document.getElementById('loading-indicator');
-        const refreshBtn = document.getElementById('refresh-btn');
         
         if (show) {
             loading.style.display = 'block';
-            refreshBtn.disabled = true;
-            refreshBtn.textContent = 'Loading...';
         } else {
             loading.style.display = 'none';
-            refreshBtn.disabled = false;
-            refreshBtn.textContent = 'Refresh Data';
         }
     }
     
@@ -415,8 +504,8 @@ class WeatherPortal {
     
     getWindDirection(weatherData) {
         // Extract wind direction from weather data
-        if (weatherData.windDirectionVectorPoint) {
-            return parseFloat(weatherData.windDirectionVectorPoint);
+        if (weatherData.windd) {
+            return parseFloat(weatherData.windd);
         }
         return null;
     }
