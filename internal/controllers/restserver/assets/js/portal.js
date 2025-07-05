@@ -10,6 +10,7 @@ class WeatherPortal {
         this.hasInitializedBounds = false;
         this.lastRefreshTime = null;
         this.secondsSinceRefresh = 0;
+        this.currentDisplayType = 'temperature'; // Default display type
         
         // Initialize portal when DOM is ready
         if (document.readyState === 'loading') {
@@ -23,6 +24,7 @@ class WeatherPortal {
         this.initializeMap();
         this.loadStationData();
         this.setupEventListeners();
+        this.setupDataDisplayButtons();
         this.startAutoRefresh();
         this.startStatusTimer();
     }
@@ -162,16 +164,21 @@ class WeatherPortal {
     }
     
     createStationMarker(station) {
-        // Create custom marker icon based on status
+        // Get data value and color for current display type
+        const dataValue = this.getDataValue(station, this.currentDisplayType);
+        const formattedValue = this.formatDataValue(dataValue, this.currentDisplayType);
+        const dataColor = this.getDataColor(dataValue, this.currentDisplayType);
+        
+        // Create custom marker icon with data display
         const iconClass = this.getMarkerClass(station);
-        const iconHtml = `<div class="weather-station-marker ${iconClass}"></div>`;
+        const iconHtml = `<div class="weather-station-marker ${iconClass}" style="background-color: ${dataColor};">${formattedValue}</div>`;
         
         const customIcon = L.divIcon({
             html: iconHtml,
             className: 'custom-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-            popupAnchor: [0, -12]
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -20]
         });
         
         const marker = L.marker([station.latitude, station.longitude], {
@@ -192,16 +199,21 @@ class WeatherPortal {
     }
     
     updateMarkerContent(marker, station) {
-        // Update marker icon based on current status
+        // Get data value and color for current display type
+        const dataValue = this.getDataValue(station, this.currentDisplayType);
+        const formattedValue = this.formatDataValue(dataValue, this.currentDisplayType);
+        const dataColor = this.getDataColor(dataValue, this.currentDisplayType);
+        
+        // Update marker icon with data display
         const iconClass = this.getMarkerClass(station);
-        const iconHtml = `<div class="weather-station-marker ${iconClass}"></div>`;
+        const iconHtml = `<div class="weather-station-marker ${iconClass}" style="background-color: ${dataColor};">${formattedValue}</div>`;
         
         const customIcon = L.divIcon({
             html: iconHtml,
             className: 'custom-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
-            popupAnchor: [0, -12]
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -20]
         });
         
         marker.setIcon(customIcon);
@@ -214,6 +226,12 @@ class WeatherPortal {
     getMarkerClass(station) {
         if (station.status === 'offline') return 'offline';
         if (station.status === 'error') return 'error';
+        
+        // Check if the specific data type is available
+        const dataValue = this.getDataValue(station, this.currentDisplayType);
+        if (dataValue === null || dataValue === undefined) {
+            return 'no-data';
+        }
         
         // Check for data freshness (warning if older than 1 hour)
         if (station.weather && station.lastUpdate) {
@@ -531,6 +549,153 @@ class WeatherPortal {
         }
         
         return 'Unknown';
+    }
+    
+    setupDataDisplayButtons() {
+        const buttons = document.querySelectorAll('.data-display-button');
+        buttons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                buttons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Update current display type
+                this.currentDisplayType = button.dataset.type;
+                
+                // Update all markers with new display type
+                this.updateMapMarkers();
+            });
+        });
+    }
+    
+    getDataValue(station, dataType) {
+        if (!station.weather) return null;
+        
+        switch (dataType) {
+            case 'temperature':
+                return station.weather.otemp ? parseFloat(station.weather.otemp) : null;
+            case 'humidity':
+                return station.weather.ohum ? parseFloat(station.weather.ohum) : null;
+            case 'rainfall':
+                return station.weather.dayrain ? parseFloat(station.weather.dayrain) : null;
+            case 'snow':
+                return station.weather.snowdepth ? parseFloat(station.weather.snowdepth) : null;
+            case 'barometer':
+                return station.weather.bar ? parseFloat(station.weather.bar) : null;
+            case 'wind':
+                return station.weather.winds ? parseFloat(station.weather.winds) : null;
+            default:
+                return null;
+        }
+    }
+    
+    formatDataValue(value, dataType) {
+        if (value === null || value === undefined) return '--';
+        
+        switch (dataType) {
+            case 'temperature':
+                return `${Math.round(value)}°`;
+            case 'humidity':
+                return `${Math.round(value)}%`;
+            case 'rainfall':
+                return `${value.toFixed(1)}"`;
+            case 'snow':
+                return `${value.toFixed(1)}"`;
+            case 'barometer':
+                return `${value.toFixed(1)}`;
+            case 'wind':
+                return `${Math.round(value)}`;
+            default:
+                return '--';
+        }
+    }
+    
+    getDataColor(value, dataType) {
+        if (value === null || value === undefined) return '#7f8c8d'; // Gray for no data
+        
+        switch (dataType) {
+            case 'temperature':
+                return this.getTemperatureColor(value);
+            case 'humidity':
+                return this.getHumidityColor(value);
+            case 'rainfall':
+                return this.getRainfallColor(value);
+            case 'snow':
+                return this.getSnowColor(value);
+            case 'barometer':
+                return this.getBarometerColor(value);
+            case 'wind':
+                return this.getWindColor(value);
+            default:
+                return '#3498db'; // Default blue
+        }
+    }
+    
+    getTemperatureColor(temp) {
+        // Hot temps = dark red, cold temps = dark blue/purple
+        if (temp >= 90) return '#8b0000'; // Dark red
+        if (temp >= 80) return '#b22222'; // Fire brick
+        if (temp >= 70) return '#cd5c5c'; // Indian red
+        if (temp >= 60) return '#ffa500'; // Orange
+        if (temp >= 50) return '#3498db'; // Blue
+        if (temp >= 40) return '#2980b9'; // Darker blue
+        if (temp >= 30) return '#1f4e79'; // Dark blue
+        if (temp >= 20) return '#0f2e50'; // Very dark blue
+        return '#4b0082'; // Indigo (very cold)
+    }
+    
+    getHumidityColor(humidity) {
+        // Higher humidity = darker red
+        if (humidity >= 80) return '#8b0000'; // Dark red
+        if (humidity >= 70) return '#b22222'; // Fire brick
+        if (humidity >= 60) return '#cd5c5c'; // Indian red
+        if (humidity >= 50) return '#ffa500'; // Orange
+        if (humidity >= 40) return '#3498db'; // Blue
+        return '#2980b9'; // Darker blue for low humidity
+    }
+    
+    getRainfallColor(rainfall) {
+        // More rain = darker red
+        if (rainfall >= 2.0) return '#8b0000'; // Dark red
+        if (rainfall >= 1.5) return '#b22222'; // Fire brick
+        if (rainfall >= 1.0) return '#cd5c5c'; // Indian red
+        if (rainfall >= 0.5) return '#ffa500'; // Orange
+        if (rainfall >= 0.1) return '#3498db'; // Blue
+        return '#2980b9'; // Darker blue for no rain
+    }
+    
+    getSnowColor(snowDepth) {
+        // Deeper snow = darker red
+        if (snowDepth >= 24) return '#8b0000'; // Dark red
+        if (snowDepth >= 18) return '#b22222'; // Fire brick
+        if (snowDepth >= 12) return '#cd5c5c'; // Indian red
+        if (snowDepth >= 6) return '#ffa500'; // Orange
+        if (snowDepth >= 1) return '#3498db'; // Blue
+        return '#2980b9'; // Darker blue for no snow
+    }
+    
+    getBarometerColor(pressure) {
+        // Lower pressure = darker red (storm conditions)
+        // Normal pressure is around 29.92 inHg
+        if (pressure <= 29.50) return '#8b0000'; // Dark red (very low)
+        if (pressure <= 29.70) return '#b22222'; // Fire brick (low)
+        if (pressure <= 29.85) return '#cd5c5c'; // Indian red (below normal)
+        if (pressure <= 30.00) return '#3498db'; // Blue (normal)
+        if (pressure <= 30.15) return '#2980b9'; // Darker blue (above normal)
+        return '#1f4e79'; // Dark blue (high pressure)
+    }
+    
+    getWindColor(windSpeed) {
+        // Calm winds = blue, higher winds = darker red
+        if (windSpeed >= 40) return '#8b0000'; // Dark red (very high)
+        if (windSpeed >= 30) return '#b22222'; // Fire brick (high)
+        if (windSpeed >= 20) return '#cd5c5c'; // Indian red (moderate-high)
+        if (windSpeed >= 15) return '#ffa500'; // Orange (moderate)
+        if (windSpeed >= 10) return '#3498db'; // Blue (light)
+        if (windSpeed >= 5) return '#2980b9'; // Darker blue (very light)
+        return '#1f4e79'; // Dark blue (calm)
     }
 }
 
