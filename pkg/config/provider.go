@@ -219,8 +219,46 @@ type StorageHealthData struct {
 
 // Storage backend configuration structs
 type TimescaleDBData struct {
-	ConnectionString string             `json:"connection_string"`
-	Health           *StorageHealthData `json:"health,omitempty"`
+	// Individual DSN components
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	SSLMode  string `json:"ssl_mode"`
+	Timezone string `json:"timezone,omitempty"`
+
+	Health *StorageHealthData `json:"health,omitempty"`
+}
+
+// GetConnectionString forms a DSN from individual components
+func (td *TimescaleDBData) GetConnectionString() string {
+	// Form DSN from individual components
+	var parts []string
+
+	if td.Host != "" {
+		parts = append(parts, fmt.Sprintf("host=%s", td.Host))
+	}
+	if td.Port > 0 {
+		parts = append(parts, fmt.Sprintf("port=%d", td.Port))
+	}
+	if td.Database != "" {
+		parts = append(parts, fmt.Sprintf("dbname=%s", td.Database))
+	}
+	if td.User != "" {
+		parts = append(parts, fmt.Sprintf("user=%s", td.User))
+	}
+	if td.Password != "" {
+		parts = append(parts, fmt.Sprintf("password=%s", td.Password))
+	}
+	if td.SSLMode != "" {
+		parts = append(parts, fmt.Sprintf("sslmode=%s", td.SSLMode))
+	}
+	if td.Timezone != "" {
+		parts = append(parts, fmt.Sprintf("TimeZone=%s", td.Timezone))
+	}
+
+	return strings.Join(parts, " ")
 }
 
 type GRPCData struct {
