@@ -157,9 +157,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 
 	// If a TimescaleDB database was configured, set up a GORM DB handle so that the
 	// handlers can retrieve data
-	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.GetConnectionString() != "" {
 		var err error
-		ctrl.DB, err = database.CreateConnection(cfgData.Storage.TimescaleDB.ConnectionString)
+		ctrl.DB, err = database.CreateConnection(cfgData.Storage.TimescaleDB.GetConnectionString())
 		if err != nil {
 			return nil, fmt.Errorf("REST server could not connect to database: %v", err)
 		}

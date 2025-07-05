@@ -98,7 +98,13 @@ CREATE TABLE storage_configs (
     enabled BOOLEAN DEFAULT TRUE,
     
     -- TimescaleDB fields
-    timescale_connection_string TEXT,
+    timescale_host TEXT DEFAULT '',
+    timescale_port INTEGER DEFAULT 5432,
+    timescale_database TEXT DEFAULT '',
+    timescale_user TEXT DEFAULT '',
+    timescale_password TEXT DEFAULT '',
+    timescale_ssl_mode TEXT DEFAULT 'prefer',
+    timescale_timezone TEXT DEFAULT '',
     
     -- gRPC fields
     grpc_cert TEXT,
@@ -178,7 +184,7 @@ CREATE TABLE weather_websites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     config_id INTEGER NOT NULL,
     name TEXT NOT NULL,
-    device_id TEXT,
+    device_id INTEGER,
     hostname TEXT,
     page_title TEXT,
     about_station_html TEXT,
@@ -186,10 +192,11 @@ CREATE TABLE weather_websites (
     snow_device_name TEXT,
     tls_cert_path TEXT,
     tls_key_path TEXT,
-    		is_portal BOOLEAN DEFAULT FALSE,
+    is_portal BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
+    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE SET NULL,
     UNIQUE(config_id, name)
 );
 
@@ -343,7 +350,8 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 	query := `
 		SELECT backend_type, enabled,
 		       -- TimescaleDB fields
-		       timescale_connection_string,
+		       timescale_host, timescale_port, timescale_database, timescale_user,
+		       timescale_password, timescale_ssl_mode, timescale_timezone,
 		       -- gRPC fields
 		       grpc_cert, grpc_key, grpc_listen_addr, grpc_port, grpc_pull_from_device,
 		       -- APRS fields
@@ -365,7 +373,8 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 	for rows.Next() {
 		var backendType string
 		var enabled bool
-		var timescaleConnectionString sql.NullString
+		var timescaleHost, timescaleDatabase, timescaleUser, timescalePassword, timescaleSSLMode, timescaleTimezone sql.NullString
+		var timescalePort sql.NullInt64
 		var grpcCert, grpcKey, grpcListenAddr, grpcPullFromDevice sql.NullString
 		var grpcPort sql.NullInt64
 		// Note: APRS fields removed - now handled by separate APRS tables
@@ -377,7 +386,8 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 
 		err := rows.Scan(
 			&backendType, &enabled,
-			&timescaleConnectionString,
+			&timescaleHost, &timescalePort, &timescaleDatabase, &timescaleUser,
+			&timescalePassword, &timescaleSSLMode, &timescaleTimezone,
 			&grpcCert, &grpcKey, &grpcListenAddr, &grpcPort, &grpcPullFromDevice,
 			&aprsCallsign, &aprsServer, &aprsLat, &aprsLon,
 			&healthLastCheck, &healthStatus, &healthMessage, &healthError,
@@ -391,10 +401,16 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 
 		switch backendType {
 		case "timescaledb":
-			if timescaleConnectionString.Valid {
+			if timescaleHost.Valid {
 				storage.TimescaleDB = &TimescaleDBData{
-					ConnectionString: timescaleConnectionString.String,
-					Health:           health,
+					Host:     timescaleHost.String,
+					Port:     int(timescalePort.Int64),
+					Database: timescaleDatabase.String,
+					User:     timescaleUser.String,
+					Password: timescalePassword.String,
+					SSLMode:  timescaleSSLMode.String,
+					Timezone: timescaleTimezone.String,
+					Health:   health,
 				}
 			}
 		case "grpc":
@@ -681,10 +697,14 @@ func (s *SQLiteProvider) insertStorageConfigs(tx *sql.Tx, configID int64, storag
 func (s *SQLiteProvider) insertTimescaleDBConfig(tx *sql.Tx, configID int64, timescale *TimescaleDBData) error {
 	query := `
 		INSERT INTO storage_configs (
-			config_id, backend_type, enabled, timescale_connection_string
-		) VALUES (?, 'timescaledb', 1, ?)
+			config_id, backend_type, enabled, 
+			timescale_host, timescale_port, timescale_database, timescale_user, 
+			timescale_password, timescale_ssl_mode, timescale_timezone
+		) VALUES (?, 'timescaledb', 1, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := tx.Exec(query, configID, timescale.ConnectionString)
+	_, err := tx.Exec(query, configID,
+		timescale.Host, timescale.Port, timescale.Database, timescale.User,
+		timescale.Password, timescale.SSLMode, timescale.Timezone)
 	return err
 }
 
@@ -886,9 +906,35 @@ func (s *SQLiteProvider) AddDevice(device *DeviceData) error {
 	}
 
 	// Insert device
-	if err := s.insertDevice(tx, configID, device); err != nil {
+	query := `
+		INSERT INTO devices (
+			config_id, name, type, enabled, hostname, port, serial_device,
+			baud, wind_dir_correction, base_snow_distance, website_id,
+			latitude, longitude, altitude, aprs_enabled, aprs_callsign
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	var websiteID sql.NullInt64
+	if device.WebsiteID != nil {
+		websiteID = sql.NullInt64{Int64: int64(*device.WebsiteID), Valid: true}
+	}
+
+	result, err := tx.Exec(query,
+		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
+		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
+		websiteID, device.Latitude, device.Longitude, device.Altitude,
+		device.APRSEnabled, device.APRSCallsign,
+	)
+	if err != nil {
 		return fmt.Errorf("failed to insert device: %w", err)
 	}
+
+	// Get the inserted ID
+	deviceID, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get inserted device ID: %w", err)
+	}
+	device.ID = int(deviceID)
 
 	return tx.Commit()
 }

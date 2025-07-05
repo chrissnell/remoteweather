@@ -20,6 +20,7 @@ import (
 
 type Station struct {
 	ctx                context.Context
+	cancel             context.CancelFunc
 	wg                 *sync.WaitGroup
 	conn               *grpc.ClientConn
 	stream             snowgauge.SnowGaugeService_StreamReadingClient
@@ -35,8 +36,12 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 		logger.Fatalf("SnowGauge station [%s] must define a hostname and port", deviceConfig.Name)
 	}
 
+	// Create a cancellable context for this specific station
+	stationCtx, cancel := context.WithCancel(ctx)
+
 	return &Station{
-		ctx:                ctx,
+		ctx:                stationCtx,
+		cancel:             cancel,
 		wg:                 wg,
 		config:             *deviceConfig,
 		ReadingDistributor: distributor,
@@ -56,6 +61,12 @@ func (s *Station) StartWeatherStation() error {
 	s.wg.Add(1)
 	go s.StreamSnowGaugeReadings()
 
+	return nil
+}
+
+func (s *Station) StopWeatherStation() error {
+	s.logger.Infof("Stopping SnowGauge weather station [%s]", s.config.Name)
+	s.cancel()
 	return nil
 }
 

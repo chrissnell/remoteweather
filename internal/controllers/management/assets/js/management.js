@@ -414,8 +414,8 @@
 
   async function loadDeviceStatus(deviceName, statusEl) {
     try {
-      // Connectivity test
-      const statusRes = await apiPost('/test/device', { device_name: deviceName, timeout_seconds: 5 });
+      // Connectivity test with shorter timeout
+      const statusRes = await apiPost('/test/device', { device_name: deviceName, timeout: 3 });
       if (statusRes.success) {
         statusEl.textContent = 'Online';
         statusEl.classList.add('status-online');
@@ -1178,7 +1178,7 @@
       
       // If we get here, the save was successful
       closeModal();
-      await loadWeatherStations();
+      loadWeatherStations(); // Don't await this - let it run in background
     } catch (err) {
       console.error('Save failed:', err);
       alert('Failed to save: ' + err.message);
@@ -1411,12 +1411,28 @@
 
       let configObj = {};
       if (storageType === 'timescaledb') {
-        const connStr = document.getElementById('timescale-conn').value.trim();
-        if (!connStr) {
-          alert('Connection string is required');
+        const host = document.getElementById('timescale-host').value.trim();
+        const port = parseInt(document.getElementById('timescale-port').value, 10);
+        const database = document.getElementById('timescale-database').value.trim();
+        const user = document.getElementById('timescale-user').value.trim();
+        const password = document.getElementById('timescale-password').value.trim();
+        const sslMode = document.getElementById('timescale-ssl-mode').value;
+        const timezone = document.getElementById('timescale-timezone').value.trim();
+        
+        if (!host || !port || !database || !user || !password) {
+          alert('Host, port, database, user, and password are required');
           return;
         }
-        configObj = { connection_string: connStr };
+        
+        configObj = {
+          host: host,
+          port: port,
+          database: database,
+          user: user,
+          password: password,
+          ssl_mode: sslMode,
+          timezone: timezone
+        };
       } else if (storageType === 'grpc') {
         const portVal = parseInt(document.getElementById('grpc-port').value, 10);
         const deviceName = document.getElementById('grpc-device-select').value;

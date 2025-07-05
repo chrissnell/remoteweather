@@ -194,8 +194,38 @@
         </label>
         <div id="timescaledb-fields">
           <label>
-            Connection String
-            <input type="text" id="timescale-conn" placeholder="host=localhost port=5432 dbname=..." />
+            Host
+            <input type="text" id="timescale-host" placeholder="localhost" value="localhost" />
+          </label>
+          <label>
+            Port
+            <input type="number" id="timescale-port" placeholder="5432" value="5432" min="1" max="65535" />
+          </label>
+          <label>
+            Database
+            <input type="text" id="timescale-database" placeholder="weather" value="weather" />
+          </label>
+          <label>
+            User
+            <input type="text" id="timescale-user" placeholder="weather" value="weather" />
+          </label>
+          <label>
+            Password
+            <input type="password" id="timescale-password" placeholder="password" />
+          </label>
+          <label>
+            SSL Mode
+            <select id="timescale-ssl-mode">
+              <option value="disable">Disable</option>
+              <option value="prefer" selected>Prefer</option>
+              <option value="require">Require</option>
+              <option value="verify-ca">Verify CA</option>
+              <option value="verify-full">Verify Full</option>
+            </select>
+          </label>
+          <label>
+            Timezone (optional)
+            <input type="text" id="timescale-timezone" placeholder="UTC" />
           </label>
         </div>
         <div id="grpc-fields" class="hidden">

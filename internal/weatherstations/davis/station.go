@@ -37,6 +37,7 @@ const (
 
 type Station struct {
 	ctx                context.Context
+	cancel             context.CancelFunc
 	wg                 *sync.WaitGroup
 	netConn            net.Conn
 	rwc                io.ReadWriteCloser
@@ -141,8 +142,12 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 		logger.Fatal(err)
 	}
 
+	// Create a cancellable context for this specific station
+	stationCtx, cancel := context.WithCancel(ctx)
+
 	return &Station{
-		ctx:                ctx,
+		ctx:                stationCtx,
+		cancel:             cancel,
 		wg:                 wg,
 		config:             *deviceConfig,
 		ReadingDistributor: distributor,
@@ -165,6 +170,21 @@ func (s *Station) StartWeatherStation() error {
 
 	s.wg.Add(1)
 	go s.GetLoopPackets()
+
+	return nil
+}
+
+func (s *Station) StopWeatherStation() error {
+	s.logger.Infof("Stopping Davis weather station [%s]", s.config.Name)
+	s.cancel()
+
+	// Close connections
+	if s.rwc != nil {
+		s.rwc.Close()
+	}
+	if s.netConn != nil {
+		s.netConn.Close()
+	}
 
 	return nil
 }

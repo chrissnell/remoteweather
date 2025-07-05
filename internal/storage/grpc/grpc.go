@@ -145,7 +145,7 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	}
 
 	// If a TimescaleDB database was configured, create a database client
-	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.GetConnectionString() != "" {
 		g.DBClient = database.NewClient(configProvider, log.GetZapLogger().Sugar())
 		err = g.DBClient.Connect()
 		if err != nil {

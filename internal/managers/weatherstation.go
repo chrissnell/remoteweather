@@ -117,12 +117,16 @@ func (w *weatherStationManager) RemoveWeatherStation(deviceName string) error {
 		return fmt.Errorf("weather station %s not found", deviceName)
 	}
 
-	// For now, we can't cleanly stop a station since the interface doesn't have a Stop method
-	// The context cancellation will handle cleanup when the app shuts down
+	// Stop the weather station
+	if err := station.StopWeatherStation(); err != nil {
+		w.logger.Errorf("Error stopping weather station %s: %v", deviceName, err)
+		// Continue with removal even if stop failed
+	}
+
+	// Remove from stations map
 	delete(w.stations, deviceName)
 
-	w.logger.Infof("Removed weather station: %s (will stop on next app restart)", deviceName)
-	_ = station // Keep reference to avoid "unused variable" warning
+	w.logger.Infof("Removed and stopped weather station: %s", deviceName)
 	return nil
 }
 

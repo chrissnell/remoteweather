@@ -33,7 +33,7 @@ func ValidateTimescaleDBConfig(configProvider config.ConfigProvider, controllerN
 		return fmt.Errorf("error loading configuration: %v", err)
 	}
 
-	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
+	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.GetConnectionString() == "" {
 		return fmt.Errorf("TimescaleDB storage must be configured for the %s controller to function", controllerName)
 	}
 

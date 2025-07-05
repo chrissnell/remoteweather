@@ -81,12 +81,17 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
-	if cfgData.Storage.TimescaleDB == nil || cfgData.Storage.TimescaleDB.ConnectionString == "" {
+	if cfgData.Storage.TimescaleDB == nil {
+		return &Storage{}, fmt.Errorf("TimescaleDB configuration not found")
+	}
+
+	connectionString := cfgData.Storage.TimescaleDB.GetConnectionString()
+	if connectionString == "" {
 		return &Storage{}, fmt.Errorf("TimescaleDB connection string not configured")
 	}
 
 	log.Info("connecting to TimescaleDB...")
-	t.TimescaleDBConn, err = database.CreateConnection(cfgData.Storage.TimescaleDB.ConnectionString)
+	t.TimescaleDBConn, err = database.CreateConnection(connectionString)
 	if err != nil {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return &Storage{}, err

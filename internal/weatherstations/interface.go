@@ -8,6 +8,7 @@ import (
 // weather station backends
 type WeatherStation interface {
 	StartWeatherStation() error
+	StopWeatherStation() error
 	StationName() string
 }
 

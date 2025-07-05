@@ -203,12 +203,12 @@ func (h *Handlers) TestDatabaseConnectivity(w http.ResponseWriter, r *http.Reque
 	testResults := []map[string]interface{}{}
 
 	// Test TimescaleDB if configured
-	if storage.TimescaleDB != nil && storage.TimescaleDB.ConnectionString != "" {
+	if storage.TimescaleDB != nil && storage.TimescaleDB.GetConnectionString() != "" {
 		connected := false
 		errorMessage := ""
 
 		// Try to connect to TimescaleDB using internal database package
-		db, err := database.CreateConnection(storage.TimescaleDB.ConnectionString)
+		db, err := database.CreateConnection(storage.TimescaleDB.GetConnectionString())
 		if err != nil {
 			errorMessage = err.Error()
 		} else {
@@ -226,17 +226,17 @@ func (h *Handlers) TestDatabaseConnectivity(w http.ResponseWriter, r *http.Reque
 		}
 
 		testResults = append(testResults, map[string]interface{}{
-			"database":                   "timescaledb",
-			"connected":                  connected,
-			"error":                      errorMessage,
-			"connection_string_provided": true,
+			"database":        "timescaledb",
+			"connected":       connected,
+			"error":           errorMessage,
+			"config_provided": true,
 		})
 	} else {
 		testResults = append(testResults, map[string]interface{}{
-			"database":                   "timescaledb",
-			"connected":                  false,
-			"error":                      "No TimescaleDB configuration found",
-			"connection_string_provided": false,
+			"database":        "timescaledb",
+			"connected":       false,
+			"error":           "No TimescaleDB configuration found",
+			"config_provided": false,
 		})
 	}
 
@@ -622,12 +622,12 @@ func (h *Handlers) getCurrentWeatherFromDatabase(deviceName string, maxStaleMinu
 		return nil, fmt.Errorf("failed to get storage config: %w", err)
 	}
 
-	if storage.TimescaleDB == nil || storage.TimescaleDB.ConnectionString == "" {
+	if storage.TimescaleDB == nil || storage.TimescaleDB.GetConnectionString() == "" {
 		return nil, fmt.Errorf("TimescaleDB storage not configured - cannot retrieve weather readings")
 	}
 
 	// Connect to TimescaleDB using internal database package
-	gormDB, err := database.CreateConnection(storage.TimescaleDB.ConnectionString)
+	gormDB, err := database.CreateConnection(storage.TimescaleDB.GetConnectionString())
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
