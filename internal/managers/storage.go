@@ -50,7 +50,7 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 	// Check the configuration file for various supported storage backends
 	// and enable them if found
 
-	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.GetConnectionString() != "" {
 		err = s.AddEngine(ctx, wg, "timescaledb", configProvider)
 		if err != nil {
 			return &s, fmt.Errorf("could not add TimescaleDB storage backend: %v", err)
@@ -161,7 +161,7 @@ func (s *StorageManager) ReloadStorageConfig(ctx context.Context, wg *sync.WaitG
 	// Track what engines should be active
 	shouldBeActive := make(map[string]bool)
 
-	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.ConnectionString != "" {
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.GetConnectionString() != "" {
 		shouldBeActive["timescaledb"] = true
 	}
 	if cfgData.Storage.GRPC != nil && cfgData.Storage.GRPC.Port != 0 {
