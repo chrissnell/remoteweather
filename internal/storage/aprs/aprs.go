@@ -59,7 +59,7 @@ func New(configProvider config.ConfigProvider) (Storage, error) {
 	validStation := false
 	for _, device := range devices {
 		if device.APRSEnabled && device.APRSCallsign != "" &&
-			device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
+			device.Latitude != 0 && device.Longitude != 0 {
 			validStation = true
 			break
 		}
@@ -358,8 +358,8 @@ func (a *Storage) CreateCompleteWeatherReport(symTable, symCode rune) string {
 	for _, device := range devices {
 		if device.APRSEnabled && device.APRSCallsign != "" {
 			aprsCallsign = device.APRSCallsign
-			lat = device.Solar.Latitude
-			lon = device.Solar.Longitude
+			lat = device.Latitude
+			lon = device.Longitude
 			break
 		}
 	}

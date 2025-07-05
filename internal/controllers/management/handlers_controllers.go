@@ -463,7 +463,7 @@ func (h *Handlers) validateControllerConfig(controllerType string, controller *c
 		validStation := false
 		for _, device := range devices {
 			if device.APRSEnabled && device.APRSCallsign != "" &&
-				device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
+				device.Latitude != 0 && device.Longitude != 0 {
 				validStation = true
 				break
 			}

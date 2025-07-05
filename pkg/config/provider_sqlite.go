@@ -276,13 +276,13 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		var device DeviceData
 		var hostname, port, serialDevice, aprsCallsign sql.NullString
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
-		var solarLat, solarLon, solarAlt sql.NullFloat64
+		var latitude, longitude, altitude sql.NullFloat64
 		var aprsEnabled sql.NullBool
 
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
-			&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
+			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 			&aprsEnabled, &aprsCallsign,
 		)
 		if err != nil {
@@ -317,13 +317,15 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 			device.WebsiteID = &websiteIDInt
 		}
 
-		// Set solar data if present
-		if solarLat.Valid && solarLon.Valid && solarAlt.Valid {
-			device.Solar = SolarData{
-				Latitude:  solarLat.Float64,
-				Longitude: solarLon.Float64,
-				Altitude:  solarAlt.Float64,
-			}
+		// Set location data if present
+		if latitude.Valid {
+			device.Latitude = latitude.Float64
+		}
+		if longitude.Valid {
+			device.Longitude = longitude.Float64
+		}
+		if altitude.Valid {
+			device.Altitude = altitude.Float64
 		}
 
 		// Set APRS data
@@ -652,7 +654,7 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 	_, err := tx.Exec(query,
 		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		websiteID, device.Latitude, device.Longitude, device.Altitude,
 		device.APRSEnabled, device.APRSCallsign,
 	)
 	return err
@@ -801,13 +803,13 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var device DeviceData
 	var hostname, port, serialDevice, aprsCallsign sql.NullString
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
-	var solarLat, solarLon, solarAlt sql.NullFloat64
+	var latitude, longitude, altitude sql.NullFloat64
 	var aprsEnabled sql.NullBool
 
 	err := s.db.QueryRow(query, name).Scan(
 		&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
-		&baseSnowDistance, &websiteID, &solarLat, &solarLon, &solarAlt,
+		&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 		&aprsEnabled, &aprsCallsign,
 	)
 
@@ -846,13 +848,15 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		device.WebsiteID = &websiteIDInt
 	}
 
-	// Set solar data if present
-	if solarLat.Valid && solarLon.Valid && solarAlt.Valid {
-		device.Solar = SolarData{
-			Latitude:  solarLat.Float64,
-			Longitude: solarLon.Float64,
-			Altitude:  solarAlt.Float64,
-		}
+	// Set location data if present
+	if latitude.Valid {
+		device.Latitude = latitude.Float64
+	}
+	if longitude.Valid {
+		device.Longitude = longitude.Float64
+	}
+	if altitude.Valid {
+		device.Altitude = altitude.Float64
 	}
 
 	// Set APRS data
@@ -919,7 +923,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 	_, err = tx.Exec(query,
 		device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		websiteID, device.Solar.Latitude, device.Solar.Longitude, device.Solar.Altitude,
+		websiteID, device.Latitude, device.Longitude, device.Altitude,
 		device.APRSEnabled, device.APRSCallsign,
 		name,
 	)
