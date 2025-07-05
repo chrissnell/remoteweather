@@ -159,9 +159,19 @@ func headingToCardinalDirection(f float32) string {
 
 // StationData represents weather station information for the portal
 type StationData struct {
-	Name      string  `json:"name"`
-	Type      string  `json:"type"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Enabled   bool    `json:"enabled"`
+	Name      string              `json:"name"`
+	Type      string              `json:"type"`
+	Latitude  float64             `json:"latitude"`
+	Longitude float64             `json:"longitude"`
+	Enabled   bool                `json:"enabled"`
+	Website   *StationWebsiteData `json:"website,omitempty"`
+}
+
+// StationWebsiteData represents weather website information for a station
+type StationWebsiteData struct {
+	Name      string `json:"name"`
+	Hostname  string `json:"hostname"`
+	PageTitle string `json:"page_title"`
+	Protocol  string `json:"protocol"`
+	Port      int    `json:"port"`
 }
