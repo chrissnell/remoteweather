@@ -164,7 +164,10 @@
       <div class="tab-pane hidden" id="websites-pane">
         <div class="pane-header">
           <h2>Weather Websites</h2>
-          <button class="primary-btn" id="add-website-btn">Add Website</button>
+          <div class="button-group">
+            <button class="primary-btn" id="add-website-btn">+ Add Website</button>
+            <button class="secondary-btn" id="add-portal-btn">+ Add Multi-Station Portal</button>
+          </div>
         </div>
         <div id="website-list" class="list-container">Loading…</div>
       </div>
@@ -431,6 +434,58 @@
     </div>
   </div>
   <!-- end website modal -->
+
+  <!-- Multi-Station Portal Modal -->
+  <div id="portal-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="portal-modal-title">Add Multi-Station Portal</h3>
+        <button class="close-btn" id="portal-modal-close">×</button>
+      </div>
+      <form id="portal-form" class="station-form">
+        <input type="hidden" id="portal-form-mode" value="add" />
+        <input type="hidden" id="portal-edit-id" value="" />
+        
+        <label>
+          Portal Name
+          <input type="text" id="portal-name" placeholder="Weather Station Portal" required />
+        </label>
+        
+        <label>
+          Page Title
+                      <input type="text" id="portal-page-title" placeholder="Weather Management Portal" />
+        </label>
+        
+        <label>
+          About Portal HTML
+          <textarea id="portal-about-html" rows="4" placeholder="<p>Welcome to our weather station portal...</p>"></textarea>
+        </label>
+        
+        <label>
+          Hostname
+          <input type="text" id="portal-hostname" placeholder="weather-portal.example.com" required />
+        </label>
+        
+        <fieldset>
+          <legend>TLS Configuration (Optional)</legend>
+          <label>
+            TLS Certificate Path
+            <input type="text" id="portal-tls-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path
+            <input type="text" id="portal-tls-key" placeholder="/path/to/key.pem" />
+          </label>
+        </fieldset>
+        
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-portal-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-portal-btn">Save Portal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end portal modal -->
 
   <!-- Login Modal -->
   <div id="login-modal" class="modal">

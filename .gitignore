@@ -18,3 +18,4 @@ cmd/campbell-emulator/campbell-emulator
 cmd/davis-emulator/davis-emulator
 cmd/remoteweather/remoteweather
 cmd/migrate/migrate
+.DS_Store

@@ -83,12 +83,33 @@ func (h *Handlers) CreateWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Validate device exists if specified
-	if website.DeviceID != "" {
-		if _, err := h.controller.ConfigProvider.GetDevice(website.DeviceID); err != nil {
-			h.sendError(w, http.StatusBadRequest, "Specified device does not exist", err)
+	// Validate device exists if specified (skip for portal websites)
+	if !website.IsPortal && website.DeviceID != nil {
+		// Validate that the device ID exists
+		devices, err := h.controller.ConfigProvider.GetDevices()
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, "Failed to validate device", err)
 			return
 		}
+
+		deviceExists := false
+		for _, device := range devices {
+			if device.ID == *website.DeviceID {
+				deviceExists = true
+				break
+			}
+		}
+
+		if !deviceExists {
+			h.sendError(w, http.StatusBadRequest, "Specified device does not exist", nil)
+			return
+		}
+	}
+
+	// Validate that regular websites have a device assigned
+	if !website.IsPortal && website.DeviceID == nil {
+		h.sendError(w, http.StatusBadRequest, "Device is required for regular websites", nil)
+		return
 	}
 
 	// Add the website
@@ -139,12 +160,33 @@ func (h *Handlers) UpdateWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Validate device exists if specified
-	if website.DeviceID != "" {
-		if _, err := h.controller.ConfigProvider.GetDevice(website.DeviceID); err != nil {
-			h.sendError(w, http.StatusBadRequest, "Specified device does not exist", err)
+	// Validate device exists if specified (skip for portal websites)
+	if !website.IsPortal && website.DeviceID != nil {
+		// Validate that the device ID exists
+		devices, err := h.controller.ConfigProvider.GetDevices()
+		if err != nil {
+			h.sendError(w, http.StatusInternalServerError, "Failed to validate device", err)
 			return
 		}
+
+		deviceExists := false
+		for _, device := range devices {
+			if device.ID == *website.DeviceID {
+				deviceExists = true
+				break
+			}
+		}
+
+		if !deviceExists {
+			h.sendError(w, http.StatusBadRequest, "Specified device does not exist", nil)
+			return
+		}
+	}
+
+	// Validate that regular websites have a device assigned
+	if !website.IsPortal && website.DeviceID == nil {
+		h.sendError(w, http.StatusBadRequest, "Device is required for regular websites", nil)
+		return
 	}
 
 	// Update the website

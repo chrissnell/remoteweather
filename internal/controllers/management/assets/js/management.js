@@ -1566,21 +1566,38 @@
     html += '<h4>Website Configuration</h4>';
     html += '<div class="config-stack">';
     
-    if (website.device_id) {
-      html += `<div><strong>Weather Station:</strong> ${website.device_id}</div>`;
+    // Show type (portal vs regular)
+    if (website.is_portal) {
+      html += '<div><strong>Type:</strong> <span style="color: #1a8ca7; font-weight: bold;">Portal</span> (Shows all weather stations)</div>';
     } else {
-      html += '<div><strong>Weather Station:</strong> <span style="color: #c1121f;">None (Required)</span></div>';
+      html += '<div><strong>Type:</strong> Single Station Website</div>';
     }
+    
+    if (website.is_portal) {
+      // Portal doesn't require a specific device
+      html += '<div><strong>Weather Stations:</strong> All configured stations</div>';
+    } else {
+      // Regular website requires a device
+      if (website.device_name) {
+        html += `<div><strong>Weather Station:</strong> ${website.device_name}</div>`;
+      } else {
+        html += '<div><strong>Weather Station:</strong> <span style="color: #c1121f;">None (Required)</span></div>';
+      }
+    }
+    
     if (website.hostname) {
       html += `<div><strong>Hostname:</strong> ${website.hostname}</div>`;
     }
     if (website.page_title) {
       html += `<div><strong>Page Title:</strong> ${website.page_title}</div>`;
     }
-    if (website.snow_device_name) {
-      html += `<div><strong>Snow Device:</strong> ${website.snow_device_name}</div>`;
-    } else {
-      html += '<div><strong>Snow Device:</strong> None</div>';
+    
+    if (!website.is_portal) {
+      if (website.snow_device_name) {
+        html += `<div><strong>Snow Device:</strong> ${website.snow_device_name}</div>`;
+      } else {
+        html += '<div><strong>Snow Device:</strong> None</div>';
+      }
     }
     
     html += '</div>';
@@ -1618,6 +1635,13 @@
   const addWebsiteBtn = document.getElementById('add-website-btn');
   const websiteForm = document.getElementById('website-form');
 
+  // Portal modal functionality
+  const portalModal = document.getElementById('portal-modal');
+  const portalModalClose = document.getElementById('portal-modal-close');
+  const cancelPortalBtn = document.getElementById('cancel-portal-btn');
+  const addPortalBtn = document.getElementById('add-portal-btn');
+  const portalForm = document.getElementById('portal-form');
+
   function openWebsiteModal() {
     resetWebsiteForm();
     document.getElementById('website-modal-title').textContent = 'Add Weather Website';
@@ -1631,9 +1655,28 @@
     resetWebsiteForm();
   }
 
+  function openPortalModal() {
+    resetPortalForm();
+    document.getElementById('portal-modal-title').textContent = 'Add Multi-Station Portal';
+    document.getElementById('portal-form-mode').value = 'add';
+    portalModal.classList.remove('hidden');
+  }
+
+  function closePortalModal() {
+    portalModal.classList.add('hidden');
+    resetPortalForm();
+  }
+
   async function editWebsite(id) {
     try {
       const website = await apiGet(`/config/websites/${id}`);
+      
+          // Check if this is a portal and redirect to portal editor
+    if (website.is_portal) {
+      editPortal(id);
+      return;
+    }
+      
       document.getElementById('website-modal-title').textContent = 'Edit Weather Website';
       document.getElementById('website-form-mode').value = 'edit';
       document.getElementById('website-edit-id').value = id;
@@ -1648,9 +1691,9 @@
       
       await loadDeviceSelectsForWebsite();
       
-      // Set device dropdown
-      const device = website.device_id || '';
-      document.getElementById('website-device').value = device;
+      // Set device dropdown using device ID
+      const deviceId = website.device_id || '';
+      document.getElementById('website-device').value = deviceId;
       
       // Set snow device dropdown
       const snowDevice = website.snow_device_name || '';
@@ -1662,11 +1705,36 @@
     }
   }
 
+  async function editPortal(id) {
+    try {
+      const portal = await apiGet(`/config/websites/${id}`);
+      document.getElementById('portal-modal-title').textContent = 'Edit Multi-Station Portal';
+      document.getElementById('portal-form-mode').value = 'edit';
+      document.getElementById('portal-edit-id').value = id;
+      
+      // Populate form
+      document.getElementById('portal-name').value = portal.name || '';
+      document.getElementById('portal-hostname').value = portal.hostname || '';
+      document.getElementById('portal-page-title').value = portal.page_title || '';
+      document.getElementById('portal-about-html').value = portal.about_station_html || '';
+      document.getElementById('portal-tls-cert').value = portal.tls_cert_path || '';
+      document.getElementById('portal-tls-key').value = portal.tls_key_path || '';
+      
+      portalModal.classList.remove('hidden');
+    } catch (err) {
+      alert('Failed to load portal: ' + err.message);
+    }
+  }
+
   function resetWebsiteForm() {
     websiteForm.reset();
     // Reset device dropdown to default state
     document.getElementById('website-device').value = '';
     document.getElementById('website-snow-device').value = '';
+  }
+
+  function resetPortalForm() {
+    portalForm.reset();
   }
 
   async function loadDeviceSelectsForWebsite() {
@@ -1676,22 +1744,23 @@
       const data = await apiGet('/config/weather-stations');
       const devices = data.devices || [];
       
-      // Populate main device dropdown with all devices
+      // Populate main device dropdown with all devices using device IDs as values
       const deviceSelect = document.getElementById('website-device');
       deviceSelect.innerHTML = '<option value="">Select a device...</option>';
       devices.forEach(device => {
         const option = document.createElement('option');
-        option.value = device.name;
+        option.value = device.id; // Use device ID as value
         option.textContent = `${device.name} (${device.type})`;
+        option.dataset.deviceName = device.name; // Store name for reference
         deviceSelect.appendChild(option);
       });
       
-      // Populate snow device dropdown with only snow gauges
+      // Populate snow device dropdown with only snow gauges (still using names for snow devices)
       const snowSelect = document.getElementById('website-snow-device');
       snowSelect.innerHTML = '<option value="">None</option>';
       devices.filter(device => device.type === 'snowgauge').forEach(device => {
         const option = document.createElement('option');
-        option.value = device.name;
+        option.value = device.name; // Snow devices still use names
         option.textContent = device.name;
         snowSelect.appendChild(option);
       });
@@ -1706,17 +1775,19 @@
     
     try {
       const snowDevice = document.getElementById('website-snow-device').value;
+      const deviceId = document.getElementById('website-device').value;
       
       const websiteData = {
         name: document.getElementById('website-name').value,
-        device_id: document.getElementById('website-device').value,
+        device_id: deviceId ? parseInt(deviceId) : null,
         hostname: document.getElementById('website-hostname').value,
         page_title: document.getElementById('website-page-title').value,
         about_station_html: document.getElementById('website-about-html').value,
         snow_enabled: snowDevice !== "",
         snow_device_name: snowDevice || "",
         tls_cert_path: document.getElementById('website-tls-cert').value,
-        tls_key_path: document.getElementById('website-tls-key').value
+        tls_key_path: document.getElementById('website-tls-key').value,
+        is_portal: false
       };
       
       if (mode === 'add') {
@@ -1732,6 +1803,37 @@
     }
   }
 
+  async function savePortal() {
+    const mode = document.getElementById('portal-form-mode').value;
+    const id = document.getElementById('portal-edit-id').value;
+    
+    try {
+      const portalData = {
+        name: document.getElementById('portal-name').value,
+        device_id: null, // Portals don't have a specific device
+        hostname: document.getElementById('portal-hostname').value,
+        page_title: document.getElementById('portal-page-title').value,
+        about_station_html: document.getElementById('portal-about-html').value,
+        snow_enabled: false, // Portals don't have snow devices
+        snow_device_name: "",
+        tls_cert_path: document.getElementById('portal-tls-cert').value,
+        tls_key_path: document.getElementById('portal-tls-key').value,
+        is_portal: true
+      };
+      
+      if (mode === 'add') {
+        await apiPost('/config/websites', portalData);
+      } else {
+        await apiPut(`/config/websites/${id}`, portalData);
+      }
+      
+      closePortalModal();
+      loadWeatherWebsites();
+    } catch (err) {
+      alert('Failed to save portal: ' + err.message);
+    }
+  }
+
   // Event listeners for website modal
   if (websiteModalClose) websiteModalClose.addEventListener('click', closeWebsiteModal);
   if (cancelWebsiteBtn) cancelWebsiteBtn.addEventListener('click', closeWebsiteModal);
@@ -1744,12 +1846,25 @@
     });
   }
 
+  // Event listeners for portal modal
+  if (portalModalClose) portalModalClose.addEventListener('click', closePortalModal);
+  if (cancelPortalBtn) cancelPortalBtn.addEventListener('click', closePortalModal);
+  if (addPortalBtn) addPortalBtn.addEventListener('click', openPortalModal);
+  
+  if (portalForm) {
+    portalForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      savePortal();
+    });
+  }
+
   /* ---------------------------------------------------
      Global function exposure for inline handlers
   --------------------------------------------------- */
   // Expose functions to global scope for inline event handlers
   window.editWebsite = editWebsite;
   window.deleteWebsite = deleteWebsite;
+  window.editPortal = editPortal;
 
   /* ---------------------------------------------------
      Init

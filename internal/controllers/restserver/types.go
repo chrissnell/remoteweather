@@ -156,3 +156,12 @@ func headingToCardinalDirection(f float32) string {
 	cardIndex := int((float32(f) + float32(11.25)) / float32(22.5))
 	return cardDirections[cardIndex%16]
 }
+
+// StationData represents weather station information for the portal
+type StationData struct {
+	Name      string  `json:"name"`
+	Type      string  `json:"type"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Enabled   bool    `json:"enabled"`
+}

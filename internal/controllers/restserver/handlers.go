@@ -3,6 +3,7 @@ package restserver
 import (
 	"encoding/json"
 	htmltemplate "html/template"
+	"io/fs"
 	"net/http"
 	"regexp"
 	"text/template"
@@ -370,6 +371,13 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
+
+	// If this is a portal website, serve the portal instead
+	if website.IsPortal {
+		h.ServePortal(w, req)
+		return
+	}
+
 	primaryDevice := h.getPrimaryDeviceForWebsite(website)
 
 	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*h.controller.FS, "index.html.tmpl"))
@@ -432,6 +440,104 @@ func (h *Handlers) ServeJS(w http.ResponseWriter, req *http.Request) {
 	err := view.Execute(w, jsTemplateData)
 	if err != nil {
 		log.Error("error executing template:", err)
+		return
+	}
+}
+
+// ServePortal serves the portal template for weather management portal websites
+func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Only serve portal if this website is configured as a portal
+	if !website.IsPortal {
+		http.NotFound(w, req)
+		return
+	}
+
+	view := htmltemplate.Must(htmltemplate.New("portal.html.tmpl").ParseFS(*h.controller.FS, "portal.html.tmpl"))
+
+	// Portal doesn't need specific station data - it loads all stations via API
+	templateData := struct {
+		PageTitle string
+	}{
+		PageTitle: website.PageTitle,
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, templateData)
+	if err != nil {
+		log.Error("error executing portal template:", err)
+		return
+	}
+}
+
+// GetPortalJS returns the portal JavaScript code via REST API
+func (h *Handlers) GetPortalJS(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Only serve portal JS if this website is configured as a portal
+	if !website.IsPortal {
+		http.Error(w, "portal JS not available for this website", 403)
+		return
+	}
+
+	// Read portal JS from embedded filesystem
+	jsContent, err := fs.ReadFile(*h.controller.FS, "js/portal.js")
+	if err != nil {
+		log.Error("error reading portal.js:", err)
+		http.Error(w, "portal.js not found", 404)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/javascript")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(jsContent)
+}
+
+// GetStations returns all weather stations with their location data
+func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Only allow station API access for portal websites
+	if !website.IsPortal {
+		http.Error(w, "stations API not available for this website", 403)
+		return
+	}
+
+	// Load current devices from config provider to get latest configuration
+	currentDevices, err := h.controller.configProvider.GetDevices()
+	if err != nil {
+		log.Error("error loading current devices from config:", err)
+		http.Error(w, "error loading station data", 500)
+		return
+	}
+
+	// Get all devices with location data
+	stations := make([]StationData, 0)
+
+	for _, device := range currentDevices {
+		// Only include devices that have location data
+		if device.Solar.Latitude != 0 && device.Solar.Longitude != 0 {
+			station := StationData{
+				Name:      device.Name,
+				Type:      device.Type,
+				Latitude:  device.Solar.Latitude,
+				Longitude: device.Solar.Longitude,
+				Enabled:   device.Enabled,
+			}
+			stations = append(stations, station)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	err = json.NewEncoder(w).Encode(stations)
+	if err != nil {
+		log.Error("error encoding stations to JSON:", err)
+		http.Error(w, "error encoding stations", 500)
 		return
 	}
 }

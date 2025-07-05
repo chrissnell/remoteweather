@@ -95,10 +95,10 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 
 		// Build device associations for this website
 		var websiteDevices []config.DeviceData
-		if website.DeviceID != "" {
-			// Find the device by name from the website's device_id field
+		if website.DeviceID != nil {
+			// Find the device by ID from the website's device_id field
 			for _, device := range ctrl.Devices {
-				if device.Name == website.DeviceID {
+				if device.ID == *website.DeviceID {
 					websiteDevices = append(websiteDevices, device)
 					break // Only one device per website's device_id
 				}
@@ -131,11 +131,24 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		rc.HTTPPort = 8080
 	}
 
-	// Validate that all websites have at least one associated device
+	// Validate that all non-portal websites have at least one associated device
 	for _, website := range websites {
+		// Skip validation for portal websites - they don't need a specific device
+		if website.IsPortal {
+			continue
+		}
+
 		devices := ctrl.DevicesByWebsite[website.ID]
 		if len(devices) == 0 {
-			return nil, fmt.Errorf("no device is associated with website '%s' (ID: %d) - please associate a device with this website", website.Name, website.ID)
+			// Instead of failing, log a warning and suggest how to fix it
+			deviceRef := "none"
+			if website.DeviceID != nil {
+				deviceRef = fmt.Sprintf("ID %d", *website.DeviceID)
+			}
+			logger.Warnf("Website '%s' (ID: %d) references device %s which does not exist. Available devices: %v",
+				website.Name, website.ID, deviceRef, getDeviceNames(ctrl.Devices))
+			logger.Warnf("To fix: Update the device_id in weather_websites table or use the management interface")
+			logger.Warnf("Server will continue but this website may not function properly")
 		}
 	}
 
@@ -214,6 +227,13 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.HandleFunc("/", c.handlers.ServeIndexTemplate)
 	router.HandleFunc("/js/remoteweather.js", c.handlers.ServeJS)
 
+	// Portal endpoints
+	router.HandleFunc("/portal", c.handlers.ServePortal)
+
+	// Station API endpoints
+	router.HandleFunc("/api/stations", c.handlers.GetStations)
+	router.HandleFunc("/api/portal-js", c.handlers.GetPortalJS)
+
 	// Static file serving
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
 
@@ -269,4 +289,13 @@ func (c *Controller) snowDeviceExists(name string) bool {
 		}
 	}
 	return false
+}
+
+// getDeviceNames returns a slice of all device names
+func getDeviceNames(devices []config.DeviceData) []string {
+	var names []string
+	for _, device := range devices {
+		names = append(names, device.Name)
+	}
+	return names
 }
