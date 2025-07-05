@@ -167,6 +167,7 @@ type ConfigData struct {
 
 // DeviceData holds configuration specific to data collection devices
 type DeviceData struct {
+	ID                int       `json:"id,omitempty"`
 	Name              string    `json:"name"`
 	Type              string    `json:"type,omitempty"`
 	Enabled           bool      `json:"enabled"`
@@ -276,14 +277,16 @@ type RESTServerData struct {
 type WeatherWebsiteData struct {
 	ID               int    `json:"id,omitempty"`
 	Name             string `json:"name"`
-	DeviceID         string `json:"device_id,omitempty"` // Device name that provides data for this website
-	Hostname         string `json:"hostname,omitempty"`  // Domain name for this website (e.g., weather.example.com)
+	DeviceID         *int   `json:"device_id,omitempty"`   // Device ID (foreign key to devices.id) that provides data for this website
+	DeviceName       string `json:"device_name,omitempty"` // Device name (populated from join, not stored)
+	Hostname         string `json:"hostname,omitempty"`    // Domain name for this website (e.g., weather.example.com)
 	PageTitle        string `json:"page_title,omitempty"`
 	AboutStationHTML string `json:"about_station_html,omitempty"`
 	SnowEnabled      bool   `json:"snow_enabled,omitempty"`
 	SnowDeviceName   string `json:"snow_device_name,omitempty"`
 	TLSCertPath      string `json:"tls_cert_path,omitempty"` // Optional per-site TLS cert (overrides server default)
 	TLSKeyPath       string `json:"tls_key_path,omitempty"`  // Optional per-site TLS key (overrides server default)
+	IsPortal         bool   `json:"is_portal,omitempty"`     // Whether this website is a weather management portal
 }
 
 type ManagementAPIData struct {
