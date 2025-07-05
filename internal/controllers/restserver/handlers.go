@@ -543,6 +543,24 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Load weather websites to find associations with devices
+	websites, err := h.controller.configProvider.GetWeatherWebsites()
+	if err != nil {
+		log.Error("error loading weather websites from config:", err)
+		http.Error(w, "error loading website data", 500)
+		return
+	}
+
+	// Create a map of device ID to weather website for quick lookup
+	deviceToWebsite := make(map[int]*config.WeatherWebsiteData)
+	for i := range websites {
+		website := &websites[i]
+		// Only include regular websites (not portals) that have a device association
+		if !website.IsPortal && website.DeviceID != nil {
+			deviceToWebsite[*website.DeviceID] = website
+		}
+	}
+
 	// Get all devices with location data
 	stations := make([]StationData, 0)
 
@@ -556,6 +574,41 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 				Longitude: device.Longitude,
 				Enabled:   device.Enabled,
 			}
+
+			// Check if this device has an associated weather website
+			if websiteData, exists := deviceToWebsite[device.ID]; exists && websiteData.Hostname != "" {
+				// Determine if website has TLS configured
+				hasTLS := (websiteData.TLSCertPath != "" && websiteData.TLSKeyPath != "") ||
+					(h.controller.restConfig.TLSCertPath != "" && h.controller.restConfig.TLSKeyPath != "")
+
+				// Determine protocol and port
+				var protocol string
+				var port int
+
+				if hasTLS {
+					protocol = "https"
+					if h.controller.restConfig.HTTPSPort != nil {
+						port = *h.controller.restConfig.HTTPSPort
+					} else {
+						port = 443 // Standard HTTPS port
+					}
+				} else {
+					protocol = "http"
+					port = h.controller.restConfig.HTTPPort
+					if port == 0 {
+						port = 80 // Standard HTTP port
+					}
+				}
+
+				station.Website = &StationWebsiteData{
+					Name:      websiteData.Name,
+					Hostname:  websiteData.Hostname,
+					PageTitle: websiteData.PageTitle,
+					Protocol:  protocol,
+					Port:      port,
+				}
+			}
+
 			stations = append(stations, station)
 		}
 	}
