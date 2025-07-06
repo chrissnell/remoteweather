@@ -1,3 +1,4 @@
+// Package weatherstations provides interfaces and implementations for various weather station types.
 package weatherstations
 
 import (
