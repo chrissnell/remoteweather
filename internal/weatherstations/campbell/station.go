@@ -1,3 +1,4 @@
+// Package campbell provides Campbell Scientific weather station support with JSON communication.
 package campbell
 
 import (
