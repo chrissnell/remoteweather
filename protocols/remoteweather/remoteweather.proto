@@ -22,16 +22,16 @@ service WeatherV1 {
 }
 
 message LiveWeatherRequest {
-    optional string stationName = 1;
+    string stationName = 1;
 }
 
 message WeatherSpanRequest {
     google.protobuf.Duration spanDuration = 1;
-    optional string stationName = 2;
+    string stationName = 2;
 }
 
 message LatestReadingRequest {
-    optional string stationName = 1;
+    string stationName = 1;
 }
 
 message WeatherSpan {
