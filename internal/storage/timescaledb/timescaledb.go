@@ -328,6 +328,20 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	log.Info("Adding current snowfall rate function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createCurrentSnowfallRateSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add current snowfall rate function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding storm rainfall total function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainStormTotalSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add storm rainfall total function")
+		return &Storage{}, err
+	}
+
 	// Add indexes to speed up our most common queries
 	log.Info("Creating indexes...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createIndexesSQL).Error
