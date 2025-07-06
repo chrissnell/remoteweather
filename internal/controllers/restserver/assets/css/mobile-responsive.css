@@ -1,0 +1,710 @@
+/* Mobile Responsive Fixes for Weather Portal */
+
+/* ====================================
+   MOBILE-FIRST RESPONSIVE IMPROVEMENTS
+   ==================================== */
+
+/* Base mobile styles - 480px and below */
+@media screen and (max-width: 480px) {
+  
+  /* ===== TAB IMPROVEMENTS ===== */
+  
+  /* Forecast tabs - make them larger and stack if needed */
+  .tabs-menu.w-tab-menu {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 8px !important;
+    border-bottom: 1px dotted #000 !important;
+  }
+  
+  .tab-link.w-tab-link {
+    flex: 1 1 auto !important;
+    min-width: 80px !important;
+    max-width: 120px !important;
+    padding: 12px 8px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    background-color: #f5f5f5 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    margin: 2px !important;
+    min-height: 44px !important; /* iOS touch target minimum */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .tab-link.w-tab-link:hover,
+  .tab-link.w-tab-link:focus {
+    background-color: #e0e0e0 !important;
+    border-color: #999 !important;
+    transform: translateY(-1px) !important;
+  }
+  
+  .tab-link.w-tab-link.w--current {
+    background-color: #c1121f !important;
+    color: white !important;
+    border-color: #a10e1a !important;
+    font-weight: 700 !important;
+  }
+  
+  /* Chart tabs */
+  .tabs-menu.charts-tabs {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    padding: 6px !important;
+  }
+  
+  .tabs-menu.charts-tabs .tab-link {
+    flex: 1 1 auto !important;
+    min-width: 65px !important;
+    max-width: 80px !important;
+    padding: 10px 4px !important;
+    font-size: 12px !important;
+    min-height: 42px !important;
+    margin: 1px !important;
+  }
+  
+  /* ===== MEASUREMENTS GRID IMPROVEMENTS ===== */
+  
+  .measurements-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-gap: 8px !important;
+    padding: 10px !important;
+    margin-top: 0 !important;
+    border-top: 1px dotted #000 !important;
+  }
+  
+  .measurement {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    padding: 12px 8px !important;
+    background-color: #f9f9f9 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 6px !important;
+    margin: 0 !important;
+    min-height: 100px !important;
+  }
+  
+  .measurement .text-block-9 {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    margin-bottom: 4px !important;
+    color: #333 !important;
+  }
+  
+  .measurement .readingval {
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    margin: 4px 0 !important;
+    color: #c1121f !important;
+    line-height: 1.1 !important;
+  }
+  
+  .measurement .readingdescsubtitle {
+    font-size: 11px !important;
+    color: #666 !important;
+    margin-top: 2px !important;
+  }
+  
+  /* ===== WINDROSE COMPONENT - MAKE VISIBLE ON MOBILE ===== */
+  
+  .windrosecontainer {
+    display: block !important; /* Override w-hidden-small w-hidden-tiny */
+    margin: 0 auto !important;
+    padding: 8px !important;
+    grid-column: 1 / -1 !important; /* Span full width */
+    justify-self: center !important;
+  }
+  
+  .windrose-circle {
+    display: block !important; /* Override w-hidden-small w-hidden-tiny */
+    width: 60px !important;
+    height: 60px !important;
+    border: 2px solid #898989 !important;
+    margin: 0 auto !important;
+  }
+  
+  .windrose-arrow {
+    border-top: 12px solid #669bbc !important;
+    border-left: 4px solid transparent !important;
+    border-right: 4px solid transparent !important;
+    top: -6px !important;
+  }
+  
+  .wind-cardinal-dir {
+    font-size: 10px !important;
+  }
+  
+  .wind-speed {
+    font-size: 16px !important;
+  }
+  
+  /* Combined wind display for mobile */
+  .measurement.textwind {
+    display: flex !important; /* Override display: none from main CSS */
+    grid-column: 1 / -1 !important; /* Span full width */
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    padding: 12px !important;
+  }
+  
+  .valtextwind {
+    font-size: 20px !important;
+    margin: 0 8px !important;
+  }
+  
+  .cardinalval {
+    font-size: 16px !important;
+    margin: 0 8px !important;
+  }
+  
+  .windcombinedsubtitle {
+    font-size: 12px !important;
+  }
+  
+  /* ===== SNOW GAUGE MEASUREMENTS ===== */
+  
+  .snow-gauge-measurements-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-gap: 8px !important;
+    padding: 10px !important;
+    margin-top: 0 !important;
+    border-top: 1px dotted #000 !important;
+  }
+  
+  .snow-last-24h-measurement {
+    display: flex !important; /* Show on mobile */
+  }
+  
+  /* ===== LIVE INDICATOR ===== */
+  
+  .div-block-12 {
+    justify-content: center !important;
+    margin: 10px 0 !important;
+    padding: 0 10px !important;
+    flex-wrap: wrap !important;
+  }
+  
+  .live-indicator {
+    margin: 0 5px !important;
+  }
+  
+  .last-updated {
+    font-size: 11px !important;
+    text-align: center !important;
+    margin-top: 5px !important;
+    width: 100% !important;
+  }
+  
+  /* ===== FORECAST GRIDS ===== */
+  
+  /* Week forecast - make it scroll horizontally on mobile */
+  .week-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .week-grid .flex-block {
+    flex: 0 0 120px !important;
+    min-width: 120px !important;
+  }
+  
+  .day-forecast-unit.forecastspace.leftendcap {
+    min-height: 180px !important;
+    max-height: 180px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    background-color: #f9f9f9 !important;
+  }
+  
+  /* Day forecast - stack in single column */
+  .grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    padding: 8px !important;
+  }
+  
+  .day-forecast-unit.day-forecast-space.day-forecast-period-block-sub {
+    min-height: 80px !important;
+    max-height: 80px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    background-color: #f9f9f9 !important;
+    padding: 8px !important;
+  }
+  
+  /* ===== CHARTS SECTION ===== */
+  
+  .container {
+    padding: 0 10px !important;
+  }
+  
+  /* Chart containers - add horizontal scroll if needed */
+  .temperaturechart, .winddirectionchart, .windspeedchart, 
+  .snowdepthchart, .humiditychart, .barometerchart, 
+  .rainfallchart, .solarwattschart, .voltagechart {
+    min-height: 250px !important;
+    margin-bottom: 15px !important;
+    overflow-x: auto !important;
+  }
+  
+  /* ===== HEADER AND TITLE ===== */
+  
+  .title-box {
+    padding: 10px !important;
+    margin-top: 10px !important;
+  }
+  
+  .header {
+    font-size: 28px !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    padding: 0 10px !important;
+  }
+  
+  /* Section titles */
+  .current-conditions-title, .forecast-title, .charts-title, 
+  .snow-gauge-title, .about-this-station-title {
+    min-width: auto !important;
+    max-width: 100% !important;
+    margin: 15px 10px 0 10px !important;
+  }
+  
+  .div-block-6 {
+    padding: 8px 12px !important;
+    border-radius: 4px 4px 0 0 !important;
+  }
+  
+  .text-block-12 {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+  
+  /* ===== FORECAST GRIDS CONTAINER ===== */
+  
+  .forecast-grid-container {
+    min-width: auto !important;
+    max-width: 100% !important;
+    margin: 0 10px 15px 10px !important;
+    border: 1px dotted #000 !important;
+    height: auto !important;
+  }
+  
+  /* ===== ABOUT SECTION ===== */
+  
+  .about-contents-grid {
+    margin: 0 10px 15px 10px !important;
+    padding: 15px 10px !important;
+    max-width: 100% !important;
+  }
+  
+  /* ===== SCROLL IMPROVEMENTS ===== */
+  
+  /* Smooth scrolling for horizontal scroll areas */
+  .week-grid::-webkit-scrollbar {
+    height: 6px !important;
+  }
+  
+  .week-grid::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+    border-radius: 3px !important;
+  }
+  
+  .week-grid::-webkit-scrollbar-thumb {
+    background: #c1c1c1 !important;
+    border-radius: 3px !important;
+  }
+  
+  .week-grid::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1 !important;
+  }
+}
+
+/* ====================================
+   MEDIUM MOBILE - 481px to 767px
+   ==================================== */
+
+@media screen and (min-width: 481px) and (max-width: 767px) {
+  
+  /* Measurements grid - 3 columns for medium mobile */
+  .measurements-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  /* Snow measurements - 3 columns */
+  .snow-gauge-measurements-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  /* Tabs can be larger */
+  .tab-link.w-tab-link {
+    min-width: 100px !important;
+    padding: 14px 12px !important;
+    font-size: 15px !important;
+  }
+  
+  /* Week forecast - more items visible */
+  .week-grid .flex-block {
+    flex: 0 0 140px !important;
+    min-width: 140px !important;
+  }
+  
+  /* Windrose slightly larger */
+  .windrose-circle {
+    width: 70px !important;
+    height: 70px !important;
+  }
+}
+
+/* ====================================
+   LANDSCAPE MOBILE - up to 667px height
+   ==================================== */
+
+@media screen and (max-height: 667px) and (orientation: landscape) {
+  
+  /* Reduce vertical spacing in landscape */
+  .measurement {
+    min-height: 80px !important;
+    padding: 8px 6px !important;
+  }
+  
+  .day-forecast-unit.forecastspace.leftendcap {
+    min-height: 140px !important;
+    max-height: 140px !important;
+  }
+  
+  .header {
+    font-size: 24px !important;
+    margin: 5px 0 !important;
+  }
+  
+  .title-box {
+    padding: 5px !important;
+    margin-top: 5px !important;
+  }
+  
+  /* Charts smaller in landscape */
+  .temperaturechart, .winddirectionchart, .windspeedchart, 
+  .snowdepthchart, .humiditychart, .barometerchart, 
+  .rainfallchart, .solarwattschart, .voltagechart {
+    min-height: 200px !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+/* ====================================
+   ACCESSIBILITY IMPROVEMENTS
+   ==================================== */
+
+/* Better focus indicators for mobile users */
+@media screen and (max-width: 767px) {
+  
+  .tab-link:focus,
+  .tab-link:focus-visible {
+    outline: 3px solid #4A90E2 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 1px #ffffff !important;
+  }
+  
+  /* Ensure touch targets are large enough */
+  .tab-link,
+  .w-tab-link {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* High contrast for readability */
+  .readingval {
+    text-shadow: 0 0 1px rgba(0,0,0,0.3) !important;
+  }
+}
+
+/* ====================================
+   UTILITY CLASSES FOR FORCING VISIBILITY
+   ==================================== */
+
+/* Override Webflow's hidden classes for critical elements */
+.w-hidden-small.force-mobile-visible,
+.w-hidden-tiny.force-mobile-visible {
+  display: block !important;
+}
+
+@media screen and (max-width: 767px) {
+  .w-hidden-small.force-mobile-visible,
+  .w-hidden-tiny.force-mobile-visible {
+    display: block !important;
+  }
+}
+
+/* ====================================
+   DARK MODE SUPPORT (if needed in future)
+   ==================================== */
+
+@media (prefers-color-scheme: dark) and (max-width: 767px) {
+  .measurement {
+    background-color: #2a2a2a !important;
+    border-color: #444 !important;
+    color: #fff !important;
+  }
+  
+  .tab-link.w-tab-link {
+    background-color: #333 !important;
+    border-color: #555 !important;
+    color: #fff !important;
+  }
+  
+  .tab-link.w-tab-link:hover {
+    background-color: #404040 !important;
+  }
+}
+
+/* ====================================
+   PORTAL PAGE SPECIFIC RESPONSIVE STYLES
+   ==================================== */
+
+/* Mobile portal styles - 480px and below */
+@media screen and (max-width: 480px) {
+  
+  /* Portal container responsive layout */
+  .portal-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+  
+  /* Portal header */
+  .portal-header {
+    flex-shrink: 0 !important;
+    padding: 12px 16px !important;
+  }
+  
+  /* Hide portal controls section on mobile since refresh status is now overlay */
+  .portal-controls {
+    display: none !important;
+  }
+  
+  /* Make sure refresh status element is visible as overlay */
+  #refresh-status {
+    display: block !important;
+    position: absolute !important;
+    top: 70px !important;
+    right: 10px !important;
+    background: #1e3a8a !important;
+    color: white !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    z-index: 1000 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    pointer-events: none !important;
+  }
+  
+  .portal-title {
+    font-size: 18px !important;
+    margin: 0 !important;
+    text-align: center !important;
+  }
+  
+  .refresh-status {
+    position: absolute !important;
+    top: 70px !important;
+    right: 10px !important;
+    background: #1e3a8a !important;
+    color: white !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    z-index: 1000 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    pointer-events: none !important;
+  }
+  
+  /* Portal content area */
+  .portal-content {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+  
+  /* Map container */
+  .map-container {
+    flex: 1 !important;
+    min-height: 300px !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+  
+  .weather-map {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  /* Station sidebar */
+  .station-sidebar {
+    flex-shrink: 0 !important;
+    padding: 8px 16px 16px 16px !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .station-sidebar h3 {
+    font-size: 18px !important;
+    margin: 0 0 12px 0 !important;
+  }
+  
+  .station-sidebar h4 {
+    font-size: 16px !important;
+    margin: 4px 0 8px 0 !important;
+  }
+  
+  /* Hide weather station list on mobile */
+  .station-list-content {
+    display: none !important;
+  }
+  
+  /* Hide the "Weather Stations" heading too */
+  .station-sidebar h3 {
+    display: none !important;
+  }
+  
+  /* Reduce margins on data display controls section */
+  .data-display-controls {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+  
+  /* Data display buttons - CRITICAL FOR MOBILE */
+  .data-display-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-top: 4px !important;
+  }
+  
+  .data-display-button {
+    min-height: 48px !important;
+    padding: 12px 8px !important;
+    font-size: 14px !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+  }
+  
+  /* Station list content */
+  .station-list-content {
+    margin-bottom: 16px !important;
+  }
+  
+  /* Loading and error states */
+  .loading-indicator {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    text-align: center !important;
+    z-index: 1000 !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  }
+  
+  .loading-spinner {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    animation: spin 1s linear infinite !important;
+    margin: 0 auto 12px !important;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .error-message {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    text-align: center !important;
+    z-index: 1000 !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    max-width: 90vw !important;
+  }
+}
+
+/* Tablet portal styles - 481px to 768px */
+@media screen and (min-width: 481px) and (max-width: 768px) {
+  
+  /* Portal adjustments for tablet */
+  .portal-content {
+    flex-direction: row !important;
+  }
+  
+  .map-container {
+    flex: 2 !important;
+  }
+  
+  .station-sidebar {
+    flex: 1 !important;
+    max-width: 300px !important;
+    max-height: none !important;
+  }
+  
+  .data-display-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+/* Desktop portal styles - 769px and above */
+@media screen and (min-width: 769px) {
+  
+  /* Portal desktop layout */
+  .portal-content {
+    flex-direction: row !important;
+  }
+  
+  .map-container {
+    flex: 3 !important;
+  }
+  
+  .station-sidebar {
+    flex: 1 !important;
+    max-width: 350px !important;
+    max-height: none !important;
+  }
+  
+  .data-display-buttons {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+} 
