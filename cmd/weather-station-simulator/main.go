@@ -246,7 +246,7 @@ func startDavisListener(ctx context.Context, wg *sync.WaitGroup, addr string, in
 	}
 }
 
-func handleDavisClient(ctx context.Context, conn net.Conn, emu *WeatherEmulator, interval time.Duration) {
+func handleDavisClient(ctx context.Context, conn net.Conn, emu *WeatherEmulator, _ time.Duration) {
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
