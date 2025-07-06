@@ -624,7 +624,7 @@ class WeatherPortal {
         
         switch (dataType) {
             case 'temperature':
-                return `${Math.round(value)}°`;
+                return `${Math.round(value)}`;
             case 'humidity':
                 return `${Math.round(value)}%`;
             case 'rainfall':
