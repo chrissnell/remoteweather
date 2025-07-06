@@ -650,53 +650,99 @@ END;
 $$ LANGUAGE plpgsql;`
 
 const createSnowSeasonTotalSQL = `CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
-    stationname TEXT,
+    p_stationname TEXT,
     base_distance FLOAT,
     start_of_season TIMESTAMPTZ = NULL
 ) RETURNS FLOAT AS $$
 DECLARE
     total_snowfall FLOAT := 0.0;
-    previous_depth FLOAT := NULL;
-    current_depth FLOAT;
+    previous_snowdistance FLOAT := NULL;
+    current_snowdistance FLOAT;
     current_bucket TIMESTAMPTZ;
     local_start_of_season TIMESTAMPTZ;
+    season_end TIMESTAMPTZ;
+    current_year INTEGER;
+    current_month INTEGER;
+    today_snowfall FLOAT := 0.0;
+    today_previous_snowdistance FLOAT := NULL;
+    today_current_snowdistance FLOAT;
+    midnight TIMESTAMPTZ;
 BEGIN
-    -- If start_of_season is not provided, set it to the most recent October 1st
+    -- Determine the current snow season (October 1 to May 1)
     IF start_of_season IS NULL THEN
-        local_start_of_season := make_timestamptz(
-            extract(YEAR FROM now())::INT, 10, 1, 0, 0, 0, current_setting('TimeZone')
-        );
+        current_year := extract(YEAR FROM now())::INT;
+        current_month := extract(MONTH FROM now())::INT;
+        
+        -- Determine which season we're in
+        IF current_month >= 10 THEN
+            -- October-December: current season (Oct 1 current year to May 1 next year)
+            local_start_of_season := make_timestamptz(current_year, 10, 1, 0, 0, 0, current_setting('TimeZone'));
+        ELSIF current_month <= 4 THEN
+            -- January-April: current season (Oct 1 previous year to May 1 current year)
+            local_start_of_season := make_timestamptz(current_year - 1, 10, 1, 0, 0, 0, current_setting('TimeZone'));
+        ELSE
+            -- May-September: off-season, use most recent completed season
+            local_start_of_season := make_timestamptz(current_year - 1, 10, 1, 0, 0, 0, current_setting('TimeZone'));
+        END IF;
     ELSE
         local_start_of_season := start_of_season;
     END IF;
 
-    -- Cursor to iterate through the weather_1d table in chronological order
-    FOR current_bucket, current_depth IN 
+    -- Calculate season end (May 1 of the following year)
+    season_end := local_start_of_season + interval '7 months';
+
+    -- Iterate through weather_1d table to calculate snowfall from daily deltas
+    FOR current_bucket, current_snowdistance IN 
         SELECT bucket, snowdistance 
         FROM weather_1d 
-        WHERE weather_1d.stationname = calculate_total_season_snowfall.stationname
+        WHERE weather_1d.stationname = p_stationname
           AND bucket >= local_start_of_season
+          AND bucket < season_end
+          AND snowdistance IS NOT NULL
         ORDER BY bucket
     LOOP
-        -- Check if the current depth is valid (not exceeding base_distance)
-        IF current_depth <= base_distance THEN
-            -- Handle initial case where previous_depth is NULL
-            IF previous_depth IS NULL THEN
-                previous_depth := current_depth;
-            ELSE
-                -- Calculate increase in snow depth, only adding if there's an increase
-                IF current_depth > previous_depth THEN
-                    total_snowfall := total_snowfall + (current_depth - previous_depth);
+        -- Check if the current snowdistance is valid (not exceeding base_distance)
+        IF current_snowdistance <= base_distance THEN
+            -- Handle initial case where previous_snowdistance is NULL
+            IF previous_snowdistance IS NOT NULL THEN
+                -- Calculate snowfall: if snowdistance decreased, snow fell
+                IF current_snowdistance < previous_snowdistance THEN
+                    total_snowfall := total_snowfall + (previous_snowdistance - current_snowdistance);
                 END IF;
-                previous_depth := current_depth;
             END IF;
-        ELSE
-            -- Log or handle invalid data point (snowdistance > base_distance)
-            RAISE NOTICE 'Invalid data point for bucket % at station %: snowdistance value exceeds base_distance', current_bucket, stationname;
+            previous_snowdistance := current_snowdistance;
         END IF;
     END LOOP;
 
-    -- Return the total snowfall, ensuring it's not negative or null
+    -- Add today's snowfall from weather_1h since midnight (only if we're in the current season)
+    IF now() >= local_start_of_season AND now() < season_end THEN
+        midnight := date_trunc('day', now());
+        
+        FOR current_bucket, today_current_snowdistance IN 
+            SELECT bucket, snowdistance 
+            FROM weather_1h 
+            WHERE weather_1h.stationname = p_stationname
+              AND bucket >= midnight
+              AND snowdistance IS NOT NULL
+            ORDER BY bucket
+        LOOP
+            -- Check if the current snowdistance is valid (not exceeding base_distance)
+            IF today_current_snowdistance <= base_distance THEN
+                -- Handle initial case where previous_snowdistance is NULL
+                IF today_previous_snowdistance IS NOT NULL THEN
+                    -- Calculate snowfall: if snowdistance decreased, snow fell
+                    IF today_current_snowdistance < today_previous_snowdistance THEN
+                        today_snowfall := today_snowfall + (today_previous_snowdistance - today_current_snowdistance);
+                    END IF;
+                END IF;
+                today_previous_snowdistance := today_current_snowdistance;
+            END IF;
+        END LOOP;
+        
+        total_snowfall := total_snowfall + today_snowfall;
+    END IF;
+
+    -- Return the total snowfall, ensuring it's not negative
     RETURN GREATEST(total_snowfall, 0.0);
 END;
 $$ LANGUAGE plpgsql;
