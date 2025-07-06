@@ -1,5 +1,5 @@
-// Package grpc provides gRPC storage backend for streaming weather data to remote clients.
-package grpc
+// Package grpcstream provides gRPC storage backend for streaming weather data to remote clients.
+package grpcstream
 
 import (
 	"context"
