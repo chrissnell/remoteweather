@@ -20,3 +20,4 @@ cmd/remoteweather/remoteweather
 cmd/migrate/migrate
 .DS_Store
 cmd/live-data-simulator/
+cmd/live-data-simulator/live-data-simulator
