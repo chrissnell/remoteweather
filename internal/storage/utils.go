@@ -23,7 +23,7 @@ func StartHealthMonitor(ctx context.Context, configProvider config.ConfigProvide
 			if err := configProvider.UpdateStorageHealth(storageType, health); err != nil {
 				log.Errorf("Failed to update %s health status: %v", storageType, err)
 			} else {
-				log.Infof("Updated %s health status: %s", storageType, health.Status)
+				log.Debugf("Updated %s health status: %s", storageType, health.Status)
 			}
 		}
 
