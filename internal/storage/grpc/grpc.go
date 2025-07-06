@@ -32,7 +32,7 @@ type Storage struct {
 	Server          *grpc.Server
 	GRPCConfig      *config.GRPCData
 
-	weather.UnimplementedWeatherServer
+	weather.UnimplementedWeatherV1Server
 }
 
 // StartStorageEngine creates a goroutine loop to receive readings and send
@@ -155,7 +155,7 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		g.DBEnabled = true
 	}
 
-	weather.RegisterWeatherServer(g.Server, &g)
+	weather.RegisterWeatherV1Server(g.Server, &g)
 	go g.Server.Serve(l)
 
 	// Start health monitoring
@@ -204,23 +204,177 @@ func (g *Storage) GetWeatherSpan(ctx context.Context, request *weather.WeatherSp
 	return &weather.WeatherSpan{}, fmt.Errorf("ignoring GetWeatherSpan request: database not configured")
 }
 
+func (g *Storage) GetLatestReading(ctx context.Context, request *weather.LatestReadingRequest) (*weather.WeatherReading, error) {
+	var dbFetchedReadings []types.BucketReading
+
+	if g.DBEnabled {
+		query := g.DBClient.DB.Table("weather_1m").Order("bucket desc").Limit(1)
+
+		// Filter by station name if provided
+		if request.StationName != nil && *request.StationName != "" {
+			query = query.Where("stationname = ?", *request.StationName)
+		}
+
+		query.Find(&dbFetchedReadings)
+
+		if len(dbFetchedReadings) == 0 {
+			return &weather.WeatherReading{}, fmt.Errorf("no weather readings found")
+		}
+
+		readings := g.transformReadings(&dbFetchedReadings)
+		if len(readings) > 0 {
+			return readings[0], nil
+		}
+	}
+
+	return &weather.WeatherReading{}, fmt.Errorf("ignoring GetLatestReading request: database not configured")
+}
+
 func (g *Storage) transformReadings(dbReadings *[]types.BucketReading) []*weather.WeatherReading {
 	// Pre-allocate slice with exact capacity to avoid multiple reallocations
 	grpcReadings := make([]*weather.WeatherReading, 0, len(*dbReadings))
 
 	for _, r := range *dbReadings {
 		grpcReadings = append(grpcReadings, &weather.WeatherReading{
-			ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
-			OutsideTemperature: r.OutTemp,
-			OutsideHumidity:    int32(r.OutHumidity),
+			ReadingTimestamp: (*timestamppb.Timestamp)(timestamppb.New(r.Bucket)),
+			StationName:      r.StationName,
+			StationType:      r.StationType,
+
+			// Primary environmental readings
 			Barometer:          r.Barometer,
-			WindSpeed:          int32(r.WindSpeed),
-			WindDirection:      int32(r.WindDir),
-			RainfallDay:        r.DayRain,
-			WindChill:          r.WindChill,
-			HeatIndex:          r.HeatIndex,
 			InsideTemperature:  r.InTemp,
-			InsideHumidity:     int32(r.InHumidity),
+			InsideHumidity:     r.InHumidity,
+			OutsideTemperature: r.OutTemp,
+			OutsideHumidity:    r.OutHumidity,
+
+			// Wind measurements
+			WindSpeed:     r.WindSpeed,
+			WindSpeed10:   r.WindSpeed10,
+			WindDirection: r.WindDir,
+			WindChill:     r.WindChill,
+			HeatIndex:     r.HeatIndex,
+
+			// Additional temperature sensors
+			ExtraTemp1: r.ExtraTemp1,
+			ExtraTemp2: r.ExtraTemp2,
+			ExtraTemp3: r.ExtraTemp3,
+			ExtraTemp4: r.ExtraTemp4,
+			ExtraTemp5: r.ExtraTemp5,
+			ExtraTemp6: r.ExtraTemp6,
+			ExtraTemp7: r.ExtraTemp7,
+
+			// Soil temperature sensors
+			SoilTemp1: r.SoilTemp1,
+			SoilTemp2: r.SoilTemp2,
+			SoilTemp3: r.SoilTemp3,
+			SoilTemp4: r.SoilTemp4,
+
+			// Leaf temperature sensors
+			LeafTemp1: r.LeafTemp1,
+			LeafTemp2: r.LeafTemp2,
+			LeafTemp3: r.LeafTemp3,
+			LeafTemp4: r.LeafTemp4,
+
+			// Additional humidity sensors
+			ExtraHumidity1: r.ExtraHumidity1,
+			ExtraHumidity2: r.ExtraHumidity2,
+			ExtraHumidity3: r.ExtraHumidity3,
+			ExtraHumidity4: r.ExtraHumidity4,
+			ExtraHumidity5: r.ExtraHumidity5,
+			ExtraHumidity6: r.ExtraHumidity6,
+			ExtraHumidity7: r.ExtraHumidity7,
+
+			// Rain measurements
+			RainRate:        r.RainRate,
+			RainIncremental: r.RainIncremental,
+			StormRain:       r.StormRain,
+			StormStart:      (*timestamppb.Timestamp)(timestamppb.New(r.StormStart)),
+			DayRain:         r.DayRain,
+			MonthRain:       r.MonthRain,
+			YearRain:        r.YearRain,
+
+			// Solar measurements
+			SolarWatts:          r.SolarWatts,
+			PotentialSolarWatts: r.PotentialSolarWatts,
+			SolarJoules:         r.SolarJoules,
+			Uv:                  r.UV,
+			Radiation:           r.Radiation,
+
+			// Evapotranspiration
+			DayET:   r.DayET,
+			MonthET: r.MonthET,
+			YearET:  r.YearET,
+
+			// Soil moisture sensors
+			SoilMoisture1: r.SoilMoisture1,
+			SoilMoisture2: r.SoilMoisture2,
+			SoilMoisture3: r.SoilMoisture3,
+			SoilMoisture4: r.SoilMoisture4,
+
+			// Leaf wetness sensors
+			LeafWetness1: r.LeafWetness1,
+			LeafWetness2: r.LeafWetness2,
+			LeafWetness3: r.LeafWetness3,
+			LeafWetness4: r.LeafWetness4,
+
+			// Alarm states
+			InsideAlarm:    uint32(r.InsideAlarm),
+			RainAlarm:      uint32(r.RainAlarm),
+			OutsideAlarm1:  uint32(r.OutsideAlarm1),
+			OutsideAlarm2:  uint32(r.OutsideAlarm2),
+			ExtraAlarm1:    uint32(r.ExtraAlarm1),
+			ExtraAlarm2:    uint32(r.ExtraAlarm2),
+			ExtraAlarm3:    uint32(r.ExtraAlarm3),
+			ExtraAlarm4:    uint32(r.ExtraAlarm4),
+			ExtraAlarm5:    uint32(r.ExtraAlarm5),
+			ExtraAlarm6:    uint32(r.ExtraAlarm6),
+			ExtraAlarm7:    uint32(r.ExtraAlarm7),
+			ExtraAlarm8:    uint32(r.ExtraAlarm8),
+			SoilLeafAlarm1: uint32(r.SoilLeafAlarm1),
+			SoilLeafAlarm2: uint32(r.SoilLeafAlarm2),
+			SoilLeafAlarm3: uint32(r.SoilLeafAlarm3),
+			SoilLeafAlarm4: uint32(r.SoilLeafAlarm4),
+
+			// Battery and power status
+			TxBatteryStatus:       uint32(r.TxBatteryStatus),
+			ConsBatteryVoltage:    r.ConsBatteryVoltage,
+			StationBatteryVoltage: r.StationBatteryVoltage,
+
+			// Forecast information
+			ForecastIcon: uint32(r.ForecastIcon),
+			ForecastRule: uint32(r.ForecastRule),
+
+			// Astronomical data
+			Sunrise: (*timestamppb.Timestamp)(timestamppb.New(r.Sunrise)),
+			Sunset:  (*timestamppb.Timestamp)(timestamppb.New(r.Sunset)),
+
+			// Snow measurements
+			SnowDistance: r.SnowDistance,
+			SnowDepth:    r.SnowDepth,
+
+			// Extended float fields
+			ExtraFloat1:  r.ExtraFloat1,
+			ExtraFloat2:  r.ExtraFloat2,
+			ExtraFloat3:  r.ExtraFloat3,
+			ExtraFloat4:  r.ExtraFloat4,
+			ExtraFloat5:  r.ExtraFloat5,
+			ExtraFloat6:  r.ExtraFloat6,
+			ExtraFloat7:  r.ExtraFloat7,
+			ExtraFloat8:  r.ExtraFloat8,
+			ExtraFloat9:  r.ExtraFloat9,
+			ExtraFloat10: r.ExtraFloat10,
+
+			// Extended text fields
+			ExtraText1:  r.ExtraText1,
+			ExtraText2:  r.ExtraText2,
+			ExtraText3:  r.ExtraText3,
+			ExtraText4:  r.ExtraText4,
+			ExtraText5:  r.ExtraText5,
+			ExtraText6:  r.ExtraText6,
+			ExtraText7:  r.ExtraText7,
+			ExtraText8:  r.ExtraText8,
+			ExtraText9:  r.ExtraText9,
+			ExtraText10: r.ExtraText10,
 		})
 	}
 
@@ -228,7 +382,7 @@ func (g *Storage) transformReadings(dbReadings *[]types.BucketReading) []*weathe
 }
 
 // GetLiveWeather implements the live weather feed for WeatherServer
-func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.Weather_GetLiveWeatherServer) error {
+func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.WeatherV1_GetLiveWeatherServer) error {
 	ctx := stream.Context()
 	p, _ := peer.FromContext(ctx)
 
@@ -251,16 +405,145 @@ func (g *Storage) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather
 				log.Debugf("Sending reading to client [%v]", p.Addr)
 
 				stream.Send(&weather.WeatherReading{
-					ReadingTimestamp:   (*timestamppb.Timestamp)(timestamppb.New(r.Timestamp)),
-					OutsideTemperature: r.OutTemp,
-					InsideTemperature:  r.InTemp,
-					OutsideHumidity:    int32(r.OutHumidity),
-					InsideHumidity:     int32(r.InHumidity),
+					ReadingTimestamp: (*timestamppb.Timestamp)(timestamppb.New(r.Timestamp)),
+					StationName:      r.StationName,
+					StationType:      r.StationType,
+
+					// Primary environmental readings
 					Barometer:          r.Barometer,
-					WindSpeed:          int32(r.WindSpeed),
-					WindDirection:      int32(r.WindDir),
-					RainfallDay:        r.DayRain,
-					StationName:        r.StationName,
+					InsideTemperature:  r.InTemp,
+					InsideHumidity:     r.InHumidity,
+					OutsideTemperature: r.OutTemp,
+					OutsideHumidity:    r.OutHumidity,
+
+					// Wind measurements
+					WindSpeed:     r.WindSpeed,
+					WindSpeed10:   r.WindSpeed10,
+					WindDirection: r.WindDir,
+					WindChill:     r.WindChill,
+					HeatIndex:     r.HeatIndex,
+
+					// Additional temperature sensors
+					ExtraTemp1: r.ExtraTemp1,
+					ExtraTemp2: r.ExtraTemp2,
+					ExtraTemp3: r.ExtraTemp3,
+					ExtraTemp4: r.ExtraTemp4,
+					ExtraTemp5: r.ExtraTemp5,
+					ExtraTemp6: r.ExtraTemp6,
+					ExtraTemp7: r.ExtraTemp7,
+
+					// Soil temperature sensors
+					SoilTemp1: r.SoilTemp1,
+					SoilTemp2: r.SoilTemp2,
+					SoilTemp3: r.SoilTemp3,
+					SoilTemp4: r.SoilTemp4,
+
+					// Leaf temperature sensors
+					LeafTemp1: r.LeafTemp1,
+					LeafTemp2: r.LeafTemp2,
+					LeafTemp3: r.LeafTemp3,
+					LeafTemp4: r.LeafTemp4,
+
+					// Additional humidity sensors
+					ExtraHumidity1: r.ExtraHumidity1,
+					ExtraHumidity2: r.ExtraHumidity2,
+					ExtraHumidity3: r.ExtraHumidity3,
+					ExtraHumidity4: r.ExtraHumidity4,
+					ExtraHumidity5: r.ExtraHumidity5,
+					ExtraHumidity6: r.ExtraHumidity6,
+					ExtraHumidity7: r.ExtraHumidity7,
+
+					// Rain measurements
+					RainRate:        r.RainRate,
+					RainIncremental: r.RainIncremental,
+					StormRain:       r.StormRain,
+					StormStart:      (*timestamppb.Timestamp)(timestamppb.New(r.StormStart)),
+					DayRain:         r.DayRain,
+					MonthRain:       r.MonthRain,
+					YearRain:        r.YearRain,
+
+					// Solar measurements
+					SolarWatts:          r.SolarWatts,
+					PotentialSolarWatts: r.PotentialSolarWatts,
+					SolarJoules:         r.SolarJoules,
+					Uv:                  r.UV,
+					Radiation:           r.Radiation,
+
+					// Evapotranspiration
+					DayET:   r.DayET,
+					MonthET: r.MonthET,
+					YearET:  r.YearET,
+
+					// Soil moisture sensors
+					SoilMoisture1: r.SoilMoisture1,
+					SoilMoisture2: r.SoilMoisture2,
+					SoilMoisture3: r.SoilMoisture3,
+					SoilMoisture4: r.SoilMoisture4,
+
+					// Leaf wetness sensors
+					LeafWetness1: r.LeafWetness1,
+					LeafWetness2: r.LeafWetness2,
+					LeafWetness3: r.LeafWetness3,
+					LeafWetness4: r.LeafWetness4,
+
+					// Alarm states
+					InsideAlarm:    uint32(r.InsideAlarm),
+					RainAlarm:      uint32(r.RainAlarm),
+					OutsideAlarm1:  uint32(r.OutsideAlarm1),
+					OutsideAlarm2:  uint32(r.OutsideAlarm2),
+					ExtraAlarm1:    uint32(r.ExtraAlarm1),
+					ExtraAlarm2:    uint32(r.ExtraAlarm2),
+					ExtraAlarm3:    uint32(r.ExtraAlarm3),
+					ExtraAlarm4:    uint32(r.ExtraAlarm4),
+					ExtraAlarm5:    uint32(r.ExtraAlarm5),
+					ExtraAlarm6:    uint32(r.ExtraAlarm6),
+					ExtraAlarm7:    uint32(r.ExtraAlarm7),
+					ExtraAlarm8:    uint32(r.ExtraAlarm8),
+					SoilLeafAlarm1: uint32(r.SoilLeafAlarm1),
+					SoilLeafAlarm2: uint32(r.SoilLeafAlarm2),
+					SoilLeafAlarm3: uint32(r.SoilLeafAlarm3),
+					SoilLeafAlarm4: uint32(r.SoilLeafAlarm4),
+
+					// Battery and power status
+					TxBatteryStatus:       uint32(r.TxBatteryStatus),
+					ConsBatteryVoltage:    r.ConsBatteryVoltage,
+					StationBatteryVoltage: r.StationBatteryVoltage,
+
+					// Forecast information
+					ForecastIcon: uint32(r.ForecastIcon),
+					ForecastRule: uint32(r.ForecastRule),
+
+					// Astronomical data
+					Sunrise: (*timestamppb.Timestamp)(timestamppb.New(r.Sunrise)),
+					Sunset:  (*timestamppb.Timestamp)(timestamppb.New(r.Sunset)),
+
+					// Snow measurements
+					SnowDistance: r.SnowDistance,
+					SnowDepth:    r.SnowDepth,
+
+					// Extended float fields
+					ExtraFloat1:  r.ExtraFloat1,
+					ExtraFloat2:  r.ExtraFloat2,
+					ExtraFloat3:  r.ExtraFloat3,
+					ExtraFloat4:  r.ExtraFloat4,
+					ExtraFloat5:  r.ExtraFloat5,
+					ExtraFloat6:  r.ExtraFloat6,
+					ExtraFloat7:  r.ExtraFloat7,
+					ExtraFloat8:  r.ExtraFloat8,
+					ExtraFloat9:  r.ExtraFloat9,
+					ExtraFloat10: r.ExtraFloat10,
+
+					// Extended text fields
+					ExtraText1:  r.ExtraText1,
+					ExtraText2:  r.ExtraText2,
+					ExtraText3:  r.ExtraText3,
+					ExtraText4:  r.ExtraText4,
+					ExtraText5:  r.ExtraText5,
+					ExtraText6:  r.ExtraText6,
+					ExtraText7:  r.ExtraText7,
+					ExtraText8:  r.ExtraText8,
+					ExtraText9:  r.ExtraText9,
+					ExtraText10: r.ExtraText10,
 				})
 			}
 
