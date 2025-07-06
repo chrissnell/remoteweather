@@ -290,6 +290,68 @@ func (c *Controller) RefreshDeviceNames() {
 	}
 }
 
+// ReloadWebsiteConfiguration reloads website configuration from the config provider
+// This should be called when website configuration changes through the management API
+func (c *Controller) ReloadWebsiteConfiguration() error {
+	c.logger.Info("Reloading website configuration...")
+
+	// Load fresh website configuration
+	websites, err := c.configProvider.GetWeatherWebsites()
+	if err != nil {
+		return fmt.Errorf("error loading weather websites: %v", err)
+	}
+
+	if len(websites) == 0 {
+		return fmt.Errorf("no weather websites configured - at least one website must be configured for the REST server")
+	}
+
+	// Rebuild hostname -> website mapping and device -> website associations
+	c.WeatherWebsites = make(map[string]*config.WeatherWebsiteData)
+	c.DevicesByWebsite = make(map[int][]config.DeviceData)
+	c.DefaultWebsite = nil
+
+	for i := range websites {
+		website := &websites[i]
+
+		// Map hostname to website (if hostname is specified)
+		if website.Hostname != "" {
+			c.WeatherWebsites[website.Hostname] = website
+		}
+
+		// Set default website (first one or one without hostname)
+		if c.DefaultWebsite == nil || website.Hostname == "" {
+			c.DefaultWebsite = website
+		}
+
+		// Validate snow device if snow is enabled
+		if website.SnowEnabled {
+			if !c.snowDeviceExists(website.SnowDeviceName) {
+				c.logger.Warnf("Snow device '%s' for website '%s' does not exist", website.SnowDeviceName, website.Name)
+			}
+		}
+
+		// Build device associations for this website
+		var websiteDevices []config.DeviceData
+		if website.DeviceID != nil {
+			// Find the device by ID from the website's device_id field
+			for _, device := range c.Devices {
+				if device.ID == *website.DeviceID {
+					websiteDevices = append(websiteDevices, device)
+					break // Only one device per website's device_id
+				}
+			}
+		}
+		c.DevicesByWebsite[website.ID] = websiteDevices
+	}
+
+	if c.DefaultWebsite == nil {
+		return fmt.Errorf("no default website could be determined")
+	}
+
+	c.logger.Info("Website configuration reloaded successfully")
+	return nil
+}
+
 // snowDeviceExists checks if a snow device exists in the configuration
 func (c *Controller) snowDeviceExists(name string) bool {
 	for _, device := range c.Devices {

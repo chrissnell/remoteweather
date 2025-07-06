@@ -122,6 +122,23 @@ func (h *Handlers) CreateWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Trigger website configuration reload in the REST controller
+	if h.controller.app != nil {
+		// Use a type assertion to access the ReloadWebsiteConfiguration method
+		type WebsiteReloader interface {
+			ReloadWebsiteConfiguration() error
+		}
+
+		if websiteReloader, ok := h.controller.app.(WebsiteReloader); ok {
+			if err := websiteReloader.ReloadWebsiteConfiguration(); err != nil {
+				h.controller.logger.Errorf("Failed to reload website configuration: %v", err)
+				// Don't fail the API call - just log the error
+			} else {
+				h.controller.logger.Info("Website configuration reloaded successfully")
+			}
+		}
+	}
+
 	h.sendJSONWithStatus(w, http.StatusCreated, map[string]interface{}{
 		"message": "Weather website created successfully",
 		"website": website,
@@ -199,6 +216,23 @@ func (h *Handlers) UpdateWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Trigger website configuration reload in the REST controller
+	if h.controller.app != nil {
+		// Use a type assertion to access the ReloadWebsiteConfiguration method
+		type WebsiteReloader interface {
+			ReloadWebsiteConfiguration() error
+		}
+
+		if websiteReloader, ok := h.controller.app.(WebsiteReloader); ok {
+			if err := websiteReloader.ReloadWebsiteConfiguration(); err != nil {
+				h.controller.logger.Errorf("Failed to reload website configuration: %v", err)
+				// Don't fail the API call - just log the error
+			} else {
+				h.controller.logger.Info("Website configuration reloaded successfully")
+			}
+		}
+	}
+
 	h.sendJSON(w, map[string]interface{}{
 		"message": "Weather website updated successfully",
 		"website": website,
@@ -235,6 +269,23 @@ func (h *Handlers) DeleteWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 			h.sendError(w, http.StatusInternalServerError, "Failed to delete weather website", err)
 		}
 		return
+	}
+
+	// Trigger website configuration reload in the REST controller
+	if h.controller.app != nil {
+		// Use a type assertion to access the ReloadWebsiteConfiguration method
+		type WebsiteReloader interface {
+			ReloadWebsiteConfiguration() error
+		}
+
+		if websiteReloader, ok := h.controller.app.(WebsiteReloader); ok {
+			if err := websiteReloader.ReloadWebsiteConfiguration(); err != nil {
+				h.controller.logger.Errorf("Failed to reload website configuration: %v", err)
+				// Don't fail the API call - just log the error
+			} else {
+				h.controller.logger.Info("Website configuration reloaded successfully")
+			}
+		}
 	}
 
 	h.sendJSON(w, map[string]interface{}{
