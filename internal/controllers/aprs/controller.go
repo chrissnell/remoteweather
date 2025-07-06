@@ -1,3 +1,4 @@
+// Package aprs provides APRS/CWOP controller for transmitting weather data to amateur radio networks.
 package aprs
 
 import (

@@ -1,3 +1,4 @@
+// Package main provides a live weather data simulator that fetches real data and serves it to multiple stations.
 package main
 
 import (

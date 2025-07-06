@@ -1,3 +1,4 @@
+// Package aprs provides APRS-IS storage backend for transmitting weather data to APRS/CWOP networks.
 package aprs
 
 import (

@@ -1,3 +1,4 @@
+// Package aerisweather provides integration with Aeris Weather API for forecast data.
 package aerisweather
 
 import (

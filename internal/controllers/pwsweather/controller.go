@@ -1,3 +1,4 @@
+// Package pwsweather provides integration with PWS Weather service for uploading weather data.
 package pwsweather
 
 import (
