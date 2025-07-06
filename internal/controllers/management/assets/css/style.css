@@ -43,7 +43,7 @@ body {
   border-right: 1px solid #ccc;
 }
 
-.tab-button {
+.nav-tab {
   background: none;
   border: none;
   padding: 1rem;
@@ -56,11 +56,11 @@ body {
   transition: background 0.2s, color 0.2s;
 }
 
-.tab-button:hover {
+.nav-tab:hover {
   background: #d9e2e5;
 }
 
-.tab-button.active {
+.nav-tab.active {
   background: var(--accent);
   color: #fff;
   border-left-color: var(--danger);
@@ -72,11 +72,11 @@ body {
   overflow-y: auto;
 }
 
-.tab-pane {
+.pane {
   display: block;
 }
 
-.tab-pane.hidden {
+.pane.hidden {
   display: none;
 }
 
@@ -596,6 +596,37 @@ input:checked + .slider:before {
   border-radius: 4px;
 }
 
+/* Utilities styling */
+.utilities-container {
+  margin-top: 1rem;
+}
+
+.utility-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.utility-section h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+.utility-section p {
+  margin-bottom: 1rem;
+  color: #6c757d;
+}
+
+.form-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
 .checkbox-wrapper .checkbox-label {
   display: flex;
   align-items: center;
@@ -614,4 +645,184 @@ input:checked + .slider:before {
   color: #6c757d;
   font-size: 12px;
   margin-left: 24px;
+}
+
+/* Logs section */
+.logs-container {
+  height: calc(100vh - 300px);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.logs-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.btn-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #14768c;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #a10e1f;
+}
+
+.logs-content {
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding: 1rem;
+  margin: 0;
+  background: #fafafa;
+  color: #333;
+  height: 100%;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.log-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-bottom: 0;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+}
+
+.log-timestamp {
+  color: #666;
+  font-size: 0.85rem;
+  font-family: 'Inconsolata', monospace;
+  margin-right: 0.75rem;
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+.log-level {
+  display: inline-block;
+  width: 50px;
+  text-align: center;
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  margin-right: 0.75rem;
+  font-weight: bold;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.log-level.debug {
+  background-color: #6c757d;
+  color: white;
+}
+
+.log-level.info {
+  background-color: #007bff;
+  color: white;
+}
+
+.log-level.warn {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.log-level.error {
+  background-color: #dc3545;
+  color: white;
+}
+
+.log-level.fatal {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.log-message {
+  flex: 1;
+  min-width: 0;
+  word-wrap: break-word;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.log-caller {
+  color: #999;
+  font-size: 0.75rem;
+  font-family: 'Inconsolata', monospace;
+  margin-left: 0.75rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.logs-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.logs-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.logs-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.logs-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.log-status {
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.log-status.error {
+  color: #dc3545;
+  font-weight: bold;
 } 

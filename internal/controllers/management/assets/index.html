@@ -17,16 +17,18 @@
   <main class="main-layout">
     <!-- Vertical tab navigation -->
     <nav class="side-nav" id="side-nav">
-      <button class="tab-button active" data-target="ws-pane">Weather Stations</button>
-      <button class="tab-button" data-target="ctrl-pane">Controllers</button>
-      <button class="tab-button" data-target="storage-pane">Storage</button>
-      <button class="tab-button" data-target="websites-pane">Weather Websites</button>
+      <button class="nav-tab active" id="weather-stations-tab" data-tab="weather-stations">Weather Stations</button>
+      <button class="nav-tab" id="controllers-tab" data-tab="controllers">Controllers</button>
+      <button class="nav-tab" id="storage-tab" data-tab="storage">Storage</button>
+      <button class="nav-tab" id="websites-tab" data-tab="websites">Weather Websites</button>
+      <button class="nav-tab" id="logs-tab" data-tab="logs">Logs</button>
+      <button class="nav-tab" id="utilities-tab" data-tab="utilities">Utilities</button>
     </nav>
 
     <!-- Content area -->
     <section class="content-area">
       <!-- Weather Stations Pane -->
-      <div class="tab-pane" id="ws-pane">
+      <div class="pane active" id="weather-stations-pane">
         <header class="pane-header">
           <h2>Weather Stations</h2>
           <button id="add-station-btn" class="primary-btn">+ Add Station</button>
@@ -145,7 +147,7 @@
       </div>
 
       <!-- Controllers Pane -->
-      <div class="tab-pane hidden" id="ctrl-pane">
+      <div class="pane hidden" id="controllers-pane">
         <div class="pane-header">
           <h2>Controllers</h2>
           <button class="primary-btn" id="add-controller-btn">+ Add Controller</button>
@@ -154,7 +156,7 @@
       </div>
 
       <!-- Storage Pane -->
-      <div class="tab-pane hidden" id="storage-pane">
+      <div class="pane hidden" id="storage-pane">
         <div class="pane-header">
           <h2>Storage</h2>
           <button class="primary-btn" id="add-storage-btn">Add Storage</button>
@@ -163,7 +165,7 @@
       </div>
 
       <!-- Weather Websites Pane -->
-      <div class="tab-pane hidden" id="websites-pane">
+      <div class="pane hidden" id="websites-pane">
         <div class="pane-header">
           <h2>Weather Websites</h2>
           <div class="button-group">
@@ -172,6 +174,48 @@
           </div>
         </div>
         <div id="website-list" class="list-container">Loading…</div>
+      </div>
+
+      <!-- Logs Pane -->
+      <div class="pane hidden" id="logs-pane">
+        <div class="pane-header">
+          <h2>Logs</h2>
+          <div class="logs-controls">
+                <button id="logs-tail-btn" class="btn btn-success">Live Tail</button>
+                <button id="refresh-logs-btn" class="btn btn-primary">Refresh</button>
+                <button id="copy-logs-btn" class="btn btn-secondary">Copy to Clipboard</button>
+                <button id="clear-logs-btn" class="btn btn-danger">Clear Logs</button>
+              </div>
+        </div>
+        <div class="logs-container">
+          <pre id="logs-content" class="logs-content">Loading logs...</pre>
+        </div>
+      </div>
+
+      <!-- Utilities Pane -->
+      <div class="pane hidden" id="utilities-pane">
+        <div class="pane-header">
+          <h2>Utilities</h2>
+        </div>
+        <div class="utilities-container">
+          <div class="utility-section">
+            <h3>Administrator Token Management</h3>
+            <p>Change the administrator token used for API authentication and web interface access.</p>
+            <form id="change-token-form" class="station-form">
+              <label>
+                New Token
+                <input type="password" id="new-token" placeholder="Enter new token" required />
+              </label>
+              <label>
+                Confirm New Token
+                <input type="password" id="confirm-new-token" placeholder="Confirm new token" required />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn">Change Token</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </section>
   </main>
