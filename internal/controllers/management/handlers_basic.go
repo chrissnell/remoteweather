@@ -93,3 +93,5 @@ func (h *Handlers) ReloadConfig(w http.ResponseWriter, r *http.Request) {
 
 	h.sendJSON(w, response)
 }
+
+// Additional handlers can be added here as needed
