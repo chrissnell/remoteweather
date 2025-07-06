@@ -8,7 +8,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/storage"
 	"github.com/chrissnell/remoteweather/internal/storage/aprs"
-	"github.com/chrissnell/remoteweather/internal/storage/grpc"
+	"github.com/chrissnell/remoteweather/internal/storage/grpcstream"
 	"github.com/chrissnell/remoteweather/internal/storage/timescaledb"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -113,7 +113,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		log.Infof("Added TimescaleDB storage engine")
 	case "grpc":
 		se := StorageEngine{Name: engineName}
-		se.Engine, err = grpc.New(ctx, configProvider)
+		se.Engine, err = grpcstream.New(ctx, configProvider)
 		if err != nil {
 			return err
 		}
