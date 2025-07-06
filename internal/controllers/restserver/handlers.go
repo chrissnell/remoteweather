@@ -206,27 +206,45 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		website := h.getWebsiteFromContext(req)
 		primaryDevice := h.getPrimaryDeviceForWebsite(website)
 
+		// Get latest weather reading with rainfall calculations in a single query
+		deviceName := primaryDevice
 		if stationName != "" {
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
-		} else {
-			// Client did not supply a station name, so pull from the configured primary device
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", primaryDevice).Order("time DESC").Find(&dbFetchedReadings)
+			deviceName = stationName
 		}
 
+		query := `SELECT 
+			w.*,
+			(SELECT total_rain FROM today_rainfall LIMIT 1) AS today_rainfall,
+			calculate_storm_rainfall(w.stationname) AS storm_rainfall
+		FROM weather w
+		WHERE w.stationname = ?
+		ORDER BY w.time DESC
+		LIMIT 1`
+
+		type WeatherWithRainfall struct {
+			types.BucketReading
+			TodayRainfall float32 `gorm:"column:today_rainfall"`
+			StormRainfall float32 `gorm:"column:storm_rainfall"`
+		}
+
+		var weatherWithRainfall WeatherWithRainfall
+		weatherErr := h.controller.DB.Raw(query, deviceName).Scan(&weatherWithRainfall).Error
+		if weatherErr != nil {
+			log.Errorf("error getting weather with rainfall calculations from DB: %v", weatherErr)
+			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+			return
+		}
+
+		// Convert to slice for compatibility with existing transform function
+		dbFetchedReadings = []types.BucketReading{weatherWithRainfall.BucketReading}
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
 
-		// Add total rainfall for the day
-		type Rainfall struct {
-			TotalRain float32
-		}
-
-		var totalRainfall Rainfall
-		// Fetch the rainfall since midnight
-		h.controller.DB.Table("today_rainfall").First(&totalRainfall)
-
-		// Override DayRain from our weather table with the latest data from our view
+		// Add rainfall calculations to the response
 		if len(dbFetchedReadings) > 0 {
-			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
+			latestReading.RainfallDay = float32ToJSONNumber(weatherWithRainfall.TodayRainfall)
+			latestReading.StormRain = float32ToJSONNumber(weatherWithRainfall.StormRainfall)
+			log.Debugf("Rainfall calculations - Today: %.2f mm, Storm: %.2f mm",
+				weatherWithRainfall.TodayRainfall, weatherWithRainfall.StormRainfall)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -281,43 +299,42 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			log.Debugf("latest snow reading: %v", mmToInches(dbFetchedReadings[0].SnowDistance))
 		}
 
-		var result SnowDeltaResult
-
 		// Get snow base distance from the snow device
 		snowBaseDistance := h.getSnowBaseDistance(website)
 
-		// Get the snowfall since midnight
-		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
-		err := h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
-			return
-		}
-		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
-		snowSinceMidnight := mmToInches(result.Snowfall)
+		// Get all snow calculations in a single query
+		var snowResults SnowAllCalculationsResult
+		query := `SELECT 
+			get_new_snow_midnight(?, ?) AS snow_since_midnight,
+			get_new_snow_24h(?, ?) AS snow_last_24h,
+			get_new_snow_72h(?, ?) AS snow_last_72h,
+			calculate_total_season_snowfall(?) AS snow_season,
+			calculate_storm_snowfall(?) AS snow_storm`
 
-		// Get the snowfall in the last 24 hours
-		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
-			return
-		}
-		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
-		snowLast24 := mmToInches(result.Snowfall)
+		err := h.controller.DB.Raw(query,
+			website.SnowDeviceName, snowBaseDistance, // for midnight
+			website.SnowDeviceName, snowBaseDistance, // for 24h
+			website.SnowDeviceName, snowBaseDistance, // for 72h
+			website.SnowDeviceName, // for season
+			website.SnowDeviceName, // for storm
+		).Scan(&snowResults).Error
 
-		// Get the snowfall in the last 72 hours
-		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
-			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
+			log.Errorf("error getting snow calculations from DB: %v", err)
 			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
 			return
 		}
-		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
-		snowLast72 := mmToInches(result.Snowfall)
+
+		log.Debugf("Snow calculations - Midnight: %.2f mm, 24h: %.2f mm, 72h: %.2f mm, Season: %.2f mm, Storm: %.2f mm",
+			snowResults.SnowSinceMidnight, snowResults.SnowLast24, snowResults.SnowLast72,
+			snowResults.SnowSeason, snowResults.SnowStorm)
+
+		// Convert all values from mm to inches
+		snowSinceMidnight := mmToInches(snowResults.SnowSinceMidnight)
+		snowLast24 := mmToInches(snowResults.SnowLast24)
+		snowLast72 := mmToInches(snowResults.SnowLast72)
+		snowSeason := mmToInches(snowResults.SnowSeason)
+		snowStorm := mmToInches(snowResults.SnowStorm)
 
 		snowReading := SnowReading{
 			StationName: website.SnowDeviceName,
@@ -325,6 +342,8 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			SnowToday:   float32(snowSinceMidnight),
 			SnowLast24:  float32(snowLast24),
 			SnowLast72:  float32(snowLast72),
+			SnowSeason:  float32(snowSeason),
+			SnowStorm:   float32(snowStorm),
 		}
 
 		w.Header().Add("Access-Control-Allow-Origin", "*")
