@@ -16,6 +16,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const (
+	// websiteContextKey is the key used to store website data in request context
+	websiteContextKey contextKey = "website"
+)
+
 // Assets are now handled by the GetAssets() function in assets.go
 
 // Controller represents the REST server controller
@@ -267,15 +275,9 @@ func (c *Controller) websiteMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Add website to request context
-		ctx := context.WithValue(r.Context(), "website", website)
+		ctx := context.WithValue(r.Context(), websiteContextKey, website)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-// validatePullFromStation validates that the station name exists in config
-func (c *Controller) validatePullFromStation(pullFromDevice string) bool {
-	// Use O(1) map lookup instead of O(n) linear search
-	return c.DeviceNames[pullFromDevice]
 }
 
 // RefreshDeviceNames rebuilds the device name map from current devices

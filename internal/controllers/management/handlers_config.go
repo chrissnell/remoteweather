@@ -480,46 +480,6 @@ func (h *Handlers) sanitizeTimescaleDBConfig(config *config.TimescaleDBData) map
 	return sanitized
 }
 
-// parseConnectionString extracts non-sensitive connection information
-func (h *Handlers) parseConnectionString(connStr string) map[string]interface{} {
-	info := make(map[string]interface{})
-
-	// Split connection string by spaces and extract key=value pairs
-	parts := strings.Fields(connStr)
-	for _, part := range parts {
-		if strings.Contains(part, "=") {
-			kv := strings.SplitN(part, "=", 2)
-			if len(kv) == 2 {
-				key := kv[0]
-				value := kv[1]
-
-				// Include non-sensitive parameters only
-				switch key {
-				case "host", "hostname":
-					info["host"] = value
-				case "port":
-					info["port"] = value
-				case "dbname", "database":
-					info["database"] = value
-				case "user", "username":
-					info["user"] = value
-				case "sslmode":
-					info["ssl_mode"] = value
-				case "TimeZone", "timezone":
-					info["timezone"] = value
-				case "connect_timeout":
-					info["connect_timeout"] = value
-				// Skip sensitive fields like password, passcode, etc.
-				case "password", "passcode", "passwd":
-					info["password"] = "[HIDDEN]"
-				}
-			}
-		}
-	}
-
-	return info
-}
-
 // validateDeviceConnectionSettings validates device connection settings based on type
 func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) error {
 	switch device.Type {
