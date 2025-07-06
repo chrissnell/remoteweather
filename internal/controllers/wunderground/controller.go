@@ -1,3 +1,4 @@
+// Package wunderground provides integration with Weather Underground service for uploading weather data.
 package wunderground
 
 import (

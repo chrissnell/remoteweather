@@ -1,3 +1,4 @@
+// Package timescaledb provides TimescaleDB storage backend for weather data persistence.
 package timescaledb
 
 import (
