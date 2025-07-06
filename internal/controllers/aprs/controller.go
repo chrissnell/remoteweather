@@ -631,7 +631,7 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 	if err != nil {
 		log.Errorf("Failed to update APRS health status: %v", err)
 	} else {
-		log.Infof("Updated APRS health status: %s", health.Status)
+		log.Debugf("Updated APRS health status: %s", health.Status)
 	}
 }
 
