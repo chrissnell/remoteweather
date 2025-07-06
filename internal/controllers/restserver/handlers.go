@@ -31,7 +31,7 @@ func NewHandlers(ctrl *Controller) *Handlers {
 
 // getWebsiteFromContext extracts the website from request context
 func (h *Handlers) getWebsiteFromContext(req *http.Request) *config.WeatherWebsiteData {
-	if website, ok := req.Context().Value("website").(*config.WeatherWebsiteData); ok {
+	if website, ok := req.Context().Value(websiteContextKey).(*config.WeatherWebsiteData); ok {
 		return website
 	}
 	// Fallback to default website if context is missing
@@ -95,7 +95,7 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
 		// Validate station name if provided
 		if stationName != "" && !h.validateStationExists(stationName) {
-			http.Error(w, "station not found", 404)
+			http.Error(w, "station not found", http.StatusNotFound)
 			return
 		}
 
@@ -103,7 +103,7 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 		span, err := time.ParseDuration(vars["span"])
 		if err != nil {
 			log.Errorf("invalid request: unable to parse duration: %v", vars["span"])
-			http.Error(w, "error: invalid span duration", 400)
+			http.Error(w, "error: invalid span duration", http.StatusBadRequest)
 			return
 		}
 
@@ -185,7 +185,7 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		http.Error(w, "database not enabled", 500)
+		http.Error(w, "database not enabled", http.StatusInternalServerError)
 	}
 }
 
@@ -198,7 +198,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		// Validate station name if provided
 		if stationName != "" && !h.validateStationExists(stationName) {
-			http.Error(w, "station not found", 404)
+			http.Error(w, "station not found", http.StatusNotFound)
 			return
 		}
 
@@ -237,7 +237,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		http.Error(w, "database not enabled", 500)
+		http.Error(w, "database not enabled", http.StatusInternalServerError)
 	}
 }
 
@@ -246,7 +246,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 	// Get website from context and check if snow is enabled
 	website := h.getWebsiteFromContext(req)
 	if !website.SnowEnabled {
-		http.Error(w, "snow data not enabled for this website", 404)
+		http.Error(w, "snow data not enabled for this website", http.StatusNotFound)
 		return
 	}
 
@@ -264,7 +264,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 
 		// Validate station name if provided
 		if stationName != "" && !h.validateStationExists(stationName) {
-			http.Error(w, "station not found", 404)
+			http.Error(w, "station not found", http.StatusNotFound)
 			return
 		}
 
@@ -291,7 +291,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		err := h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
 			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
+			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
 			return
 		}
 		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
@@ -302,7 +302,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
 			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
+			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
 			return
 		}
 		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
@@ -313,7 +313,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
 		if err != nil {
 			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
+			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
 			return
 		}
 		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
@@ -333,13 +333,13 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		jsonResponse, err := json.Marshal(&snowReading)
 		if err != nil {
 			log.Errorf("error marshalling snowReading: %v", err)
-			http.Error(w, "error fetching readings from DB", 500)
+			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
 			return
 		}
 
 		w.Write(jsonResponse)
 	} else {
-		http.Error(w, "database not enabled", 500)
+		http.Error(w, "database not enabled", http.StatusInternalServerError)
 	}
 }
 
@@ -357,7 +357,7 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 		span := vars["span"]
 		if span == "" {
 			log.Errorf("invalid request: missing span duration")
-			http.Error(w, "error: missing span duration", 400)
+			http.Error(w, "error: missing span duration", http.StatusBadRequest)
 			return
 		}
 
@@ -391,7 +391,7 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 		w.Write(record.Data.Bytes)
 		w.Write([]byte("}"))
 	} else {
-		http.Error(w, "database not enabled", 500)
+		http.Error(w, "database not enabled", http.StatusInternalServerError)
 	}
 }
 
@@ -507,7 +507,7 @@ func (h *Handlers) GetPortalJS(w http.ResponseWriter, req *http.Request) {
 
 	// Only serve portal JS if this website is configured as a portal
 	if !website.IsPortal {
-		http.Error(w, "portal JS not available for this website", 403)
+		http.Error(w, "portal JS not available for this website", http.StatusForbidden)
 		return
 	}
 
@@ -515,7 +515,7 @@ func (h *Handlers) GetPortalJS(w http.ResponseWriter, req *http.Request) {
 	jsContent, err := fs.ReadFile(*h.controller.FS, "js/portal.js")
 	if err != nil {
 		log.Error("error reading portal.js:", err)
-		http.Error(w, "portal.js not found", 404)
+		http.Error(w, "portal.js not found", http.StatusNotFound)
 		return
 	}
 
@@ -531,7 +531,7 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 
 	// Only allow station API access for portal websites
 	if !website.IsPortal {
-		http.Error(w, "stations API not available for this website", 403)
+		http.Error(w, "stations API not available for this website", http.StatusForbidden)
 		return
 	}
 
@@ -539,7 +539,7 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 	currentDevices, err := h.controller.configProvider.GetDevices()
 	if err != nil {
 		log.Error("error loading current devices from config:", err)
-		http.Error(w, "error loading station data", 500)
+		http.Error(w, "error loading station data", http.StatusInternalServerError)
 		return
 	}
 
@@ -547,7 +547,7 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 	websites, err := h.controller.configProvider.GetWeatherWebsites()
 	if err != nil {
 		log.Error("error loading weather websites from config:", err)
-		http.Error(w, "error loading website data", 500)
+		http.Error(w, "error loading website data", http.StatusInternalServerError)
 		return
 	}
 
@@ -618,7 +618,7 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 	err = json.NewEncoder(w).Encode(stations)
 	if err != nil {
 		log.Error("error encoding stations to JSON:", err)
-		http.Error(w, "error encoding stations", 500)
+		http.Error(w, "error encoding stations", http.StatusInternalServerError)
 		return
 	}
 }
