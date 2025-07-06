@@ -1,3 +1,4 @@
+// Package davis provides Davis weather station support with LOOP packet communication.
 package davis
 
 // Device-specific code was ported to Go from Tom Keffer's weewx by Chris Snell

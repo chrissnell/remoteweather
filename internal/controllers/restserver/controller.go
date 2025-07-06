@@ -1,3 +1,4 @@
+// Package restserver provides HTTP REST API server for weather data and website hosting.
 package restserver
 
 import (

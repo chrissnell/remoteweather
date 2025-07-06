@@ -1,3 +1,4 @@
+// Package snowgauge provides snow gauge weather station support with gRPC communication.
 package snowgauge
 
 import (

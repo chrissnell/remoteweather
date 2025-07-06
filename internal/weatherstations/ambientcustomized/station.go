@@ -1,3 +1,4 @@
+// Package ambientcustomized provides Ambient Weather station support with HTTP customized protocol.
 package ambientcustomized
 
 import (
