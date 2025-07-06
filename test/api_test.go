@@ -1,3 +1,4 @@
+// Package test provides integration tests for the remoteweather management API.
 package test
 
 import (

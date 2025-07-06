@@ -1,3 +1,4 @@
+// Package main provides a multi-protocol weather station simulator supporting Davis and Campbell formats.
 package main
 
 import (
