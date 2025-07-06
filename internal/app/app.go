@@ -170,6 +170,22 @@ func (a *App) ReloadConfiguration(ctx context.Context) error {
 	return nil
 }
 
+// ReloadWebsiteConfiguration reloads website configuration for the REST controller
+func (a *App) ReloadWebsiteConfiguration() error {
+	a.logger.Info("Reloading website configuration...")
+
+	// Use a type assertion to access the ReloadWebsiteConfiguration method
+	type WebsiteReloader interface {
+		ReloadWebsiteConfiguration() error
+	}
+
+	if websiteReloader, ok := a.controllerManager.(WebsiteReloader); ok {
+		return websiteReloader.ReloadWebsiteConfiguration()
+	}
+
+	return fmt.Errorf("controller manager does not support website configuration reloading")
+}
+
 // AddController adds a new controller dynamically
 func (a *App) AddController(controllerConfig *config.ControllerData) error {
 	a.logger.Infof("Adding controller: %s", controllerConfig.Type)

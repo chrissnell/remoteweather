@@ -172,10 +172,34 @@ func (h *Handlers) UpdateWeatherStation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Send response immediately after config is saved
 	h.sendJSON(w, map[string]interface{}{
 		"message": "Weather station updated successfully",
 		"device":  device,
 	})
+
+	// Dynamically restart the weather station with new configuration (asynchronously)
+	if h.controller.app != nil {
+		go func() {
+			// First, try to remove the existing weather station (if running)
+			if err := h.controller.app.RemoveWeatherStation(deviceName); err != nil {
+				h.controller.logger.Warnf("Weather station %s was not running or failed to stop: %v", deviceName, err)
+				// Continue anyway - might not have been running
+			}
+
+			// Then, add it back with new configuration if it should be enabled
+			if device.Enabled {
+				if err := h.controller.app.AddWeatherStation(device.Name); err != nil {
+					h.controller.logger.Errorf("Failed to restart weather station %s with new configuration: %v", device.Name, err)
+					// The weather station will start with new config on next app restart
+				} else {
+					h.controller.logger.Infof("Weather station %s restarted successfully with new configuration", device.Name)
+				}
+			} else {
+				h.controller.logger.Infof("Weather station %s stopped (disabled in new configuration)", device.Name)
+			}
+		}()
+	}
 }
 
 // DeleteWeatherStation deletes a weather station configuration
