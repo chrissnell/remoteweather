@@ -176,6 +176,22 @@ func (cm *controllerManager) ReloadControllersConfig() error {
 	return nil
 }
 
+// ReloadWebsiteConfiguration reloads website configuration for the REST controller
+func (cm *controllerManager) ReloadWebsiteConfiguration() error {
+	// Find the REST controller
+	restController, exists := cm.controllers["rest"]
+	if !exists {
+		return fmt.Errorf("REST controller not found")
+	}
+
+	// Type assert to get the concrete REST controller type
+	if restCtrl, ok := restController.(*restserver.Controller); ok {
+		return restCtrl.ReloadWebsiteConfiguration()
+	}
+
+	return fmt.Errorf("REST controller is not of the expected type")
+}
+
 // createController creates a controller based on the controller configuration
 func (cm *controllerManager) createController(cc config.ControllerData) (Controller, error) {
 	switch cc.Type {
