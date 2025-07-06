@@ -392,10 +392,14 @@
 
 /* Map Marker Icons */
 .weather-station-marker {
-  width: 40px;
-  height: 40px;
+  --marker-size: 40px;
+  --marker-border: 2px;
+  --marker-radius: calc(var(--marker-size) / 2);
+  
+  width: var(--marker-size);
+  height: var(--marker-size);
   background-color: #3498db;
-  border: 2px solid white;
+  border: var(--marker-border) solid white;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   display: flex;
@@ -406,6 +410,7 @@
   font-weight: 600;
   color: white;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  position: relative;
 }
 
 .weather-station-marker.offline {
@@ -422,6 +427,25 @@
 
 .weather-station-marker.no-data {
   background-color: #7f8c8d;
+}
+
+.wind-direction-indicator {
+  --triangle-size: calc(var(--marker-size) * 0.2);
+  --triangle-half: calc(var(--triangle-size) / 2);
+  
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  width: 0;
+  height: 0;
+  border-left: var(--triangle-half) solid transparent;
+  border-right: var(--triangle-half) solid transparent;
+  border-bottom: var(--triangle-size) solid; /* Color will be set dynamically */
+  margin-left: calc(var(--triangle-half) * -1);
+  margin-top: calc(var(--triangle-size) * -0.5);
+  z-index: 10;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.8)) drop-shadow(0 0 0 1px rgba(255,255,255,0.9));
 }
 
 /* Responsive Design */
