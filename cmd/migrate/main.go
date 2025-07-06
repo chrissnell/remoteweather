@@ -55,7 +55,9 @@ func main() {
 	// Execute command
 	switch *command {
 	case "up":
-		err = migrator.MigrateUp()
+		if err := migrator.MigrateUp(); err != nil {
+			log.Fatalf("Migration up failed: %v", err)
+		}
 	case "down":
 		if *targetVersion == "" {
 			fmt.Fprintf(os.Stderr, "Error: -target flag is required for down command\n")
@@ -65,7 +67,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("Invalid target version: %v", err)
 		}
-		err = migrator.MigrateDown(target)
+		if err := migrator.MigrateDown(target); err != nil {
+			log.Fatalf("Migration down failed: %v", err)
+		}
 	case "to":
 		if *targetVersion == "" {
 			fmt.Fprintf(os.Stderr, "Error: -target flag is required for to command\n")
@@ -75,7 +79,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("Invalid target version: %v", err)
 		}
-		err = migrator.MigrateTo(target)
+		if err := migrator.MigrateTo(target); err != nil {
+			log.Fatalf("Migration to target failed: %v", err)
+		}
 	case "version":
 		version, err := migrator.GetCurrentVersion()
 		if err != nil {
@@ -84,15 +90,13 @@ func main() {
 		fmt.Printf("Current version: %d\n", version)
 		return
 	case "status":
-		err = showStatus(migrator)
+		if err := showStatus(migrator); err != nil {
+			log.Fatalf("Status command failed: %v", err)
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", *command)
 		showHelp()
 		os.Exit(1)
-	}
-
-	if err != nil {
-		log.Fatalf("Migration command failed: %v", err)
 	}
 
 	fmt.Println("Migration completed successfully")
