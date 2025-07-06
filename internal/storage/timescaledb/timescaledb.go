@@ -23,7 +23,7 @@ type Storage struct {
 // Note: TimescaleDBClient functionality has been moved to internal/database package.
 // Use database.NewClient() for database operations like reading data and connection management.
 
-// We declare the Tabler interface for purposes of customizing the table name in the DB
+// Tabler interface allows customizing the table name in the database
 type Tabler interface {
 	TableName() string
 }
@@ -339,6 +339,13 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainStormTotalSQL).Error
 	if err != nil {
 		log.Warn("warning: could not add storm rainfall total function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding current rainfall rate function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createCurrentRainfallRateSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add current rainfall rate function")
 		return &Storage{}, err
 	}
 
