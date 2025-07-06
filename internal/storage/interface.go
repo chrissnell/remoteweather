@@ -1,3 +1,4 @@
+// Package storage defines interfaces and implementations for weather data storage backends.
 package storage
 
 import (
