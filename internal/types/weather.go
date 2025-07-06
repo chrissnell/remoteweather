@@ -1,3 +1,4 @@
+// Package types defines weather-related data structures and types.
 package types
 
 import (

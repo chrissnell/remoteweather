@@ -1,3 +1,4 @@
+// Package constants defines application-wide constants and version information.
 package constants
 
 import "runtime"
