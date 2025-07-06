@@ -1,16 +1,22 @@
 syntax = "proto3";
 
-option go_package = "github.com/chrissnell/remoteweather/protocols/remoteweather";
+option go_package = "github.com/chrissnell/remoteweather/protocols/remoteweather/v1";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/api/annotations.proto";
 
-service Weather {
+// Weather service v1.0 - comprehensive weather data API
+service WeatherV1 {
     rpc GetLiveWeather (LiveWeatherRequest) returns (stream WeatherReading) {}
     rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {
         option (google.api.http) = {
-            get:"/v1/getWeatherSpan/{spanDuration}"
+            get:"/v1/weather/span/{spanDuration}"
+        };
+    }
+    rpc GetLatestReading (LatestReadingRequest) returns (WeatherReading) {
+        option (google.api.http) = {
+            get:"/v1/weather/latest"
         };
     }
 }
@@ -21,6 +27,11 @@ message LiveWeatherRequest {
 
 message WeatherSpanRequest {
     google.protobuf.Duration spanDuration = 1;
+    optional string stationName = 2;
+}
+
+message LatestReadingRequest {
+    optional string stationName = 1;
 }
 
 message WeatherSpan {
@@ -28,19 +39,150 @@ message WeatherSpan {
     repeated WeatherReading reading = 2;
 }
 
+// Complete weather reading with all available sensor data
 message WeatherReading {
+    // Basic metadata
     google.protobuf.Timestamp readingTimestamp = 1;
-    float outsideTemperature = 2;
-    int32 outsideHumidity = 3;
-    float barometer = 4;
-    int32 windSpeed = 5;
-    int32 windDirection = 6;
-    float rainfallDay = 7;
-    float windChill = 8;
-    float heatIndex = 9;
-    float insideTemperature = 10;
-    int32 insideHumidity = 11;
-    string stationName = 12;
+    string stationName = 2;
+    string stationType = 3;
+    
+    // Primary environmental readings
+    float barometer = 4;                    // Barometric pressure
+    float insideTemperature = 5;            // Inside temperature
+    float insideHumidity = 6;               // Inside humidity percentage
+    float outsideTemperature = 7;           // Outside temperature
+    float outsideHumidity = 8;              // Outside humidity percentage
+    
+    // Wind measurements
+    float windSpeed = 9;                    // Current wind speed
+    float windSpeed10 = 10;                 // 10-minute average wind speed
+    float windDirection = 11;               // Wind direction in degrees
+    float windChill = 12;                   // Calculated wind chill
+    
+    // Temperature index
+    float heatIndex = 13;                   // Calculated heat index
+    
+    // Additional temperature sensors
+    float extraTemp1 = 14;                  // Extra temperature sensor 1
+    float extraTemp2 = 15;                  // Extra temperature sensor 2
+    float extraTemp3 = 16;                  // Extra temperature sensor 3
+    float extraTemp4 = 17;                  // Extra temperature sensor 4
+    float extraTemp5 = 18;                  // Extra temperature sensor 5
+    float extraTemp6 = 19;                  // Extra temperature sensor 6
+    float extraTemp7 = 20;                  // Extra temperature sensor 7
+    
+    // Soil temperature sensors
+    float soilTemp1 = 21;                   // Soil temperature sensor 1
+    float soilTemp2 = 22;                   // Soil temperature sensor 2
+    float soilTemp3 = 23;                   // Soil temperature sensor 3
+    float soilTemp4 = 24;                   // Soil temperature sensor 4
+    
+    // Leaf temperature sensors
+    float leafTemp1 = 25;                   // Leaf temperature sensor 1
+    float leafTemp2 = 26;                   // Leaf temperature sensor 2
+    float leafTemp3 = 27;                   // Leaf temperature sensor 3
+    float leafTemp4 = 28;                   // Leaf temperature sensor 4
+    
+    // Additional humidity sensors
+    float extraHumidity1 = 29;              // Extra humidity sensor 1
+    float extraHumidity2 = 30;              // Extra humidity sensor 2
+    float extraHumidity3 = 31;              // Extra humidity sensor 3
+    float extraHumidity4 = 32;              // Extra humidity sensor 4
+    float extraHumidity5 = 33;              // Extra humidity sensor 5
+    float extraHumidity6 = 34;              // Extra humidity sensor 6
+    float extraHumidity7 = 35;              // Extra humidity sensor 7
+    
+    // Rain measurements
+    float rainRate = 36;                    // Current rain rate
+    float rainIncremental = 37;             // Incremental rain since last reading
+    float stormRain = 38;                   // Rain during current storm
+    google.protobuf.Timestamp stormStart = 39; // Storm start timestamp
+    float dayRain = 40;                     // Rain for current day
+    float monthRain = 41;                   // Rain for current month
+    float yearRain = 42;                    // Rain for current year
+    
+    // Solar measurements
+    float solarWatts = 43;                  // Solar irradiance in watts/m²
+    float potentialSolarWatts = 44;         // Potential solar irradiance
+    float solarJoules = 45;                 // Solar energy in joules
+    float uv = 46;                          // UV index
+    float radiation = 47;                   // Solar radiation
+    
+    // Evapotranspiration
+    float dayET = 48;                       // Daily evapotranspiration
+    float monthET = 49;                     // Monthly evapotranspiration
+    float yearET = 50;                      // Yearly evapotranspiration
+    
+    // Soil moisture sensors
+    float soilMoisture1 = 51;               // Soil moisture sensor 1
+    float soilMoisture2 = 52;               // Soil moisture sensor 2
+    float soilMoisture3 = 53;               // Soil moisture sensor 3
+    float soilMoisture4 = 54;               // Soil moisture sensor 4
+    
+    // Leaf wetness sensors
+    float leafWetness1 = 55;                // Leaf wetness sensor 1
+    float leafWetness2 = 56;                // Leaf wetness sensor 2
+    float leafWetness3 = 57;                // Leaf wetness sensor 3
+    float leafWetness4 = 58;                // Leaf wetness sensor 4
+    
+    // Alarm states
+    uint32 insideAlarm = 59;                // Inside alarm status
+    uint32 rainAlarm = 60;                  // Rain alarm status
+    uint32 outsideAlarm1 = 61;              // Outside alarm 1 status
+    uint32 outsideAlarm2 = 62;              // Outside alarm 2 status
+    uint32 extraAlarm1 = 63;                // Extra alarm 1 status
+    uint32 extraAlarm2 = 64;                // Extra alarm 2 status
+    uint32 extraAlarm3 = 65;                // Extra alarm 3 status
+    uint32 extraAlarm4 = 66;                // Extra alarm 4 status
+    uint32 extraAlarm5 = 67;                // Extra alarm 5 status
+    uint32 extraAlarm6 = 68;                // Extra alarm 6 status
+    uint32 extraAlarm7 = 69;                // Extra alarm 7 status
+    uint32 extraAlarm8 = 70;                // Extra alarm 8 status
+    uint32 soilLeafAlarm1 = 71;             // Soil/leaf alarm 1 status
+    uint32 soilLeafAlarm2 = 72;             // Soil/leaf alarm 2 status
+    uint32 soilLeafAlarm3 = 73;             // Soil/leaf alarm 3 status
+    uint32 soilLeafAlarm4 = 74;             // Soil/leaf alarm 4 status
+    
+    // Battery and power status
+    uint32 txBatteryStatus = 75;            // Transmitter battery status
+    float consBatteryVoltage = 76;          // Console battery voltage
+    float stationBatteryVoltage = 77;       // Station battery voltage
+    
+    // Forecast information
+    uint32 forecastIcon = 78;               // Forecast icon identifier
+    uint32 forecastRule = 79;               // Forecast rule identifier
+    
+    // Astronomical data
+    google.protobuf.Timestamp sunrise = 80; // Sunrise time
+    google.protobuf.Timestamp sunset = 81;  // Sunset time
+    
+    // Snow measurements
+    float snowDistance = 82;                // Snow distance measurement
+    float snowDepth = 83;                   // Snow depth measurement
+    
+    // Extended float fields for custom data
+    float extraFloat1 = 84;                 // Extra float field 1
+    float extraFloat2 = 85;                 // Extra float field 2
+    float extraFloat3 = 86;                 // Extra float field 3
+    float extraFloat4 = 87;                 // Extra float field 4
+    float extraFloat5 = 88;                 // Extra float field 5
+    float extraFloat6 = 89;                 // Extra float field 6
+    float extraFloat7 = 90;                 // Extra float field 7
+    float extraFloat8 = 91;                 // Extra float field 8
+    float extraFloat9 = 92;                 // Extra float field 9
+    float extraFloat10 = 93;                // Extra float field 10
+    
+    // Extended text fields for custom data
+    string extraText1 = 94;                 // Extra text field 1
+    string extraText2 = 95;                 // Extra text field 2
+    string extraText3 = 96;                 // Extra text field 3
+    string extraText4 = 97;                 // Extra text field 4
+    string extraText5 = 98;                 // Extra text field 5
+    string extraText6 = 99;                 // Extra text field 6
+    string extraText7 = 100;                // Extra text field 7
+    string extraText8 = 101;                // Extra text field 8
+    string extraText9 = 102;                // Extra text field 9
+    string extraText10 = 103;               // Extra text field 10
 }
 
 message Empty {}
