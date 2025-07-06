@@ -74,7 +74,7 @@ func (h *Handlers) GetLogs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Add any additional fields
-		if entry.Fields != nil && len(entry.Fields) > 0 {
+		if len(entry.Fields) > 0 {
 			for key, value := range entry.Fields {
 				logEntry[key] = value
 			}
