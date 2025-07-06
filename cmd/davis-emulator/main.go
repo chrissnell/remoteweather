@@ -1,3 +1,4 @@
+// Package main provides a Davis weather station emulator with configurable hardware simulation.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// Package log provides centralized logging functionality using zap logger.
 package log
 
 import (

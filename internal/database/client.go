@@ -1,3 +1,4 @@
+// Package database provides database client functionality for TimescaleDB connections.
 package database
 
 import (

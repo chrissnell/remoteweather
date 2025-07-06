@@ -1,3 +1,4 @@
+// Package migrate provides database migration functionality with support for up/down migrations.
 package migrate
 
 import (

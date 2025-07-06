@@ -1,3 +1,4 @@
+// Package app provides the main application structure and orchestration for the remoteweather system.
 package app
 
 import (

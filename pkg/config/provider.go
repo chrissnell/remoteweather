@@ -1,3 +1,4 @@
+// Package config provides configuration management with support for multiple data sources and caching.
 package config
 
 import (

@@ -1,3 +1,4 @@
+// Package main provides a command-line database migration tool.
 package main
 
 import (

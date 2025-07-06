@@ -1,3 +1,4 @@
+// Package managers provides management functionality for controllers, storage, and weather stations.
 package managers
 
 import (

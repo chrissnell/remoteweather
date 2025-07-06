@@ -1,3 +1,4 @@
+// Package controllers provides utility functions and common functionality for weather service controllers.
 package controllers
 
 import (

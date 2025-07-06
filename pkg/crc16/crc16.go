@@ -1,3 +1,4 @@
+// Package crc16 provides CRC-16 checksum calculation for weather station communications.
 package crc16
 
 // Ported from Tom Keffer's weewx

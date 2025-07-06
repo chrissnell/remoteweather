@@ -1,3 +1,4 @@
+// Package aprs provides APRS (Automatic Packet Reporting System) utilities and calculations.
 package aprs
 
 import (

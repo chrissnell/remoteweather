@@ -1,3 +1,4 @@
+// Package interfaces defines common interface types used across the application.
 package interfaces
 
 import (
