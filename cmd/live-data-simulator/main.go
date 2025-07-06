@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -69,6 +70,7 @@ type StationServer struct {
 	tempVariation      float64
 	humidityVariation  float64
 	windSpeedVariation float64
+	windSpeedOffset    float64 // Larger offset for windy stations (0-15 mph)
 	pressureVariation  float64
 	windDirVariation   float64
 	batteryVariation   float64
@@ -252,7 +254,7 @@ func (s *LiveDataSimulator) startStationServers(ctx context.Context, basePort in
 	for i, station := range enabledStations {
 		port := basePort + i
 
-		if err := s.startStationServer(ctx, station, port); err != nil {
+		if err := s.startStationServer(ctx, station, port, i); err != nil {
 			s.logger.Printf("Failed to start server for station %s: %v", station.Name, err)
 			continue
 		}
@@ -261,7 +263,7 @@ func (s *LiveDataSimulator) startStationServers(ctx context.Context, basePort in
 	return nil
 }
 
-func (s *LiveDataSimulator) startStationServer(ctx context.Context, station config.DeviceData, port int) error {
+func (s *LiveDataSimulator) startStationServer(ctx context.Context, station config.DeviceData, port int, stationIndex int) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %d: %w", port, err)
@@ -272,8 +274,15 @@ func (s *LiveDataSimulator) startStationServer(ctx context.Context, station conf
 	humidityVar := (rand.Float64() - 0.5) * 4.0
 	windSpeedVar := (rand.Float64() - 0.5) * 2.0
 	pressureVar := (rand.Float64() - 0.5) * 0.04
-	windDirVar := (rand.Float64() - 0.5) * 10.0
+	windDirVar := (rand.Float64() - 0.5) * 60.0
 	batteryVar := (rand.Float64() - 0.5) * 0.2
+
+	// Some stations get a wind speed boost - make it deterministic based on station index
+	// Only every 3rd station gets the boost to ensure better distribution
+	var windOffset float64
+	if stationIndex%3 == 0 {
+		windOffset = 10.0 + rand.Float64()*5.0 // 10-15 mph boost
+	}
 
 	server := &StationServer{
 		station:            station,
@@ -281,6 +290,7 @@ func (s *LiveDataSimulator) startStationServer(ctx context.Context, station conf
 		tempVariation:      tempVar,
 		humidityVariation:  humidityVar,
 		windSpeedVariation: windSpeedVar,
+		windSpeedOffset:    windOffset,
 		pressureVariation:  pressureVar,
 		windDirVariation:   windDirVar,
 		batteryVariation:   batteryVar,
@@ -290,7 +300,11 @@ func (s *LiveDataSimulator) startStationServer(ctx context.Context, station conf
 	s.stationServers[station.Name] = server
 	s.serversMutex.Unlock()
 
-	s.logger.Printf("Started server for station %s on port %d (altitude: %.0fm)", station.Name, port, station.Altitude)
+	windInfo := ""
+	if windOffset > 0 {
+		windInfo = fmt.Sprintf(", +%.1f mph wind", windOffset)
+	}
+	s.logger.Printf("Started server for station %s on port %d (altitude: %.0fm%s)", station.Name, port, station.Altitude, windInfo)
 
 	// Start accepting connections
 	go s.handleStationConnections(ctx, server)
@@ -406,12 +420,30 @@ func (s *LiveDataSimulator) applySkewing(liveData *LiveWeatherData, server *Stat
 	// Calculate temperature adjustment based on altitude difference
 	// Standard atmospheric lapse rate: ~2°C per 1000m (3.5°F per 1000m)
 	altitudeDiff := stationAltitude - referenceAltitude
-	tempAdjustment := -(altitudeDiff / 1000.0) * 3.5 // Cooler at higher altitude, warmer at lower
+	baseTempAdjustment := -(altitudeDiff / 1000.0) * 3.5 // Cooler at higher altitude, warmer at lower
+
+	// Additional evening cooling effect for higher elevations
+	// Evening effect is strongest around 8-10 PM, weakest around 2-4 PM
+	now := time.Now()
+	hourOfDay := float64(now.Hour()) + float64(now.Minute())/60.0
+
+	// Create inverted bell curve: strongest cooling effect in evening (20-22 hours)
+	// Uses cosine wave shifted so peak cooling is around 9 PM
+	eveningCoolingFactor := (1.0 + math.Cos((hourOfDay-21.0)*math.Pi/12.0)) / 2.0
+
+	// Additional cooling for higher elevations in evening (up to 15°F more cooling)
+	var eveningCooling float64
+	if altitudeDiff > 0 { // Only apply to stations above reference altitude
+		eveningCooling = -(altitudeDiff / 1000.0) * 15.0 * eveningCoolingFactor
+	}
+
+	tempAdjustment := baseTempAdjustment + eveningCooling
 
 	// Use consistent variations that were generated once per station
 	tempVariation := server.tempVariation
 	humidityVariation := server.humidityVariation
 	windSpeedVariation := server.windSpeedVariation
+	windSpeedOffset := server.windSpeedOffset
 	pressureVariation := server.pressureVariation
 	windDirVariation := server.windDirVariation
 	batteryVariation := server.batteryVariation
@@ -421,8 +453,13 @@ func (s *LiveDataSimulator) applySkewing(liveData *LiveWeatherData, server *Stat
 
 	// Apply small variations to other parameters (no multiplicative skewing)
 	adjustedHumidity := liveData.OutHumidity + humidityVariation
-	adjustedWindSpeed := liveData.WindSpeed + windSpeedVariation
-	adjustedWindDir := liveData.WindDir + windDirVariation
+
+	// Wind gets additional random variation each update on top of the consistent base
+	additionalWindSpeedVar := (rand.Float64() - 0.5) * 3.0 // ±1.5 mph additional variation
+	additionalWindDirVar := (rand.Float64() - 0.5) * 10.0  // ±5 degrees additional variation
+
+	adjustedWindSpeed := liveData.WindSpeed + windSpeedVariation + windSpeedOffset + additionalWindSpeedVar
+	adjustedWindDir := liveData.WindDir + windDirVariation + additionalWindDirVar
 
 	// Apply bounds checking
 	if adjustedHumidity < 0 {
