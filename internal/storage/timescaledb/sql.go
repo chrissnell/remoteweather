@@ -536,6 +536,61 @@ const addRetentionPolicy1dSQL = `SELECT add_retention_policy('weather_1d', INTER
 
 const addSnowDepthCalculations = `SELECT 1;` // Combined into one statement to execute snow functions
 
+const createCurrentSnowfallRateSQL = `CREATE OR REPLACE FUNCTION calculate_current_snowfall_rate(
+    p_stationname TEXT
+) RETURNS FLOAT AS $$
+DECLARE
+    current_snowdistance FLOAT;
+    past_snowdistance FLOAT;
+    snowfall_30min FLOAT;
+    hourly_rate FLOAT;
+    current_time TIMESTAMPTZ;
+    past_time TIMESTAMPTZ;
+BEGIN
+    -- Get the current time
+    current_time := now();
+    past_time := current_time - interval '30 minutes';
+
+    -- Get the most recent snowdistance reading
+    SELECT snowdistance INTO current_snowdistance
+    FROM weather_1m
+    WHERE weather_1m.stationname = p_stationname
+      AND bucket >= current_time - interval '5 minutes'  -- Within last 5 minutes
+      AND snowdistance IS NOT NULL
+    ORDER BY bucket DESC
+    LIMIT 1;
+
+    -- Get the snowdistance from 30 minutes ago (closest reading)
+    SELECT snowdistance INTO past_snowdistance
+    FROM weather_1m
+    WHERE weather_1m.stationname = p_stationname
+      AND bucket >= past_time - interval '2 minutes'  -- Allow 2-minute window
+      AND bucket <= past_time + interval '2 minutes'
+      AND snowdistance IS NOT NULL
+    ORDER BY abs(extract(epoch from (bucket - past_time)))
+    LIMIT 1;
+
+    -- If we don't have both readings, return 0
+    IF current_snowdistance IS NULL OR past_snowdistance IS NULL THEN
+        RETURN 0.0;
+    END IF;
+
+    -- Calculate 30-minute snowfall (positive values only)
+    snowfall_30min := past_snowdistance - current_snowdistance;
+    
+    -- If no positive snowfall, return 0
+    IF snowfall_30min <= 0 THEN
+        RETURN 0.0;
+    END IF;
+
+    -- Extrapolate to hourly rate (30 minutes * 2 = 60 minutes)
+    hourly_rate := snowfall_30min * 2;
+
+    -- Return the estimated hourly snowfall rate
+    RETURN hourly_rate;
+END;
+$$ LANGUAGE plpgsql;`
+
 const createSnowDelta72hSQL = `CREATE OR REPLACE FUNCTION get_new_snow_72h(
     p_stationname TEXT,
     p_base_distance FLOAT
@@ -748,6 +803,128 @@ END;
 $$ LANGUAGE plpgsql;
 `
 
+const createRainStormTotalSQL = `CREATE OR REPLACE FUNCTION calculate_storm_rainfall(
+    p_stationname TEXT
+) RETURNS TABLE (
+    storm_start TIMESTAMPTZ,
+    storm_end TIMESTAMPTZ,
+    total_rainfall FLOAT
+) AS $$
+DECLARE
+    storm_start_ts TIMESTAMPTZ := NULL;
+    storm_end_ts TIMESTAMPTZ := NULL;
+    total_rainfall_amount FLOAT := 0.0;
+    current_bucket TIMESTAMPTZ;
+    current_rainfall FLOAT;
+    consecutive_no_rainfall INTEGER := 0;
+    found_storm_start BOOLEAN := FALSE;
+    buckets_array TIMESTAMPTZ[];
+    rainfall_array FLOAT[];
+    i INTEGER;
+    j INTEGER;
+BEGIN
+    -- First, collect all hourly data into arrays for easier processing
+    SELECT array_agg(bucket ORDER BY bucket DESC), array_agg(COALESCE(period_rain, 0) ORDER BY bucket DESC)
+    INTO buckets_array, rainfall_array
+    FROM weather_1h
+    WHERE weather_1h.stationname = p_stationname
+      AND bucket >= now() - interval '30 days'  -- Look back 30 days maximum
+    ORDER BY bucket DESC;
+
+    -- If no data, return zeros
+    IF buckets_array IS NULL OR array_length(buckets_array, 1) = 0 THEN
+        RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, 0::FLOAT;
+        RETURN;
+    END IF;
+
+    -- Step 1: Find storm end (most recent positive rainfall within 24h)
+    FOR i IN 1..array_length(buckets_array, 1) LOOP
+        current_bucket := buckets_array[i];
+        current_rainfall := rainfall_array[i];
+
+        -- Check if this hour had positive rainfall (any amount)
+        IF current_rainfall > 0 THEN
+            -- Found positive rainfall
+            IF storm_end_ts IS NULL THEN
+                -- This is our storm end (most recent positive rainfall)
+                storm_end_ts := current_bucket;
+            END IF;
+        END IF;
+
+        -- Stop looking if we're beyond 24 hours
+        IF current_bucket < now() - interval '24 hours' THEN
+            EXIT;
+        END IF;
+    END LOOP;
+
+    -- If no storm end found, no recent storm
+    IF storm_end_ts IS NULL THEN
+        RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, 0::FLOAT;
+        RETURN;
+    END IF;
+
+    -- Step 2: Find storm start (working backward from storm end, find first bucket with 5 consecutive no-rainfall buckets before it)
+    FOR i IN 1..array_length(buckets_array, 1) LOOP
+        current_bucket := buckets_array[i];
+        
+        -- Stop if we've gone past our storm end
+        IF current_bucket > storm_end_ts THEN
+            CONTINUE;
+        END IF;
+
+        -- Check if this bucket has 5 consecutive no-rainfall buckets before it
+        consecutive_no_rainfall := 0;
+        
+        -- Look at the 5 buckets before this one
+        FOR j IN (i+1)..(i+5) LOOP
+            -- Make sure we don't go beyond array bounds
+            IF j > array_length(buckets_array, 1) THEN
+                EXIT;
+            END IF;
+            
+            -- Check if this bucket had no positive rainfall
+            IF rainfall_array[j] <= 0 THEN
+                consecutive_no_rainfall := consecutive_no_rainfall + 1;
+            ELSE
+                EXIT; -- Break the inner loop if we found positive rainfall
+            END IF;
+        END LOOP;
+
+        -- If we found 5 consecutive hours of no rainfall, this is our storm start
+        IF consecutive_no_rainfall = 5 THEN
+            storm_start_ts := current_bucket;
+            found_storm_start := TRUE;
+            EXIT;
+        END IF;
+    END LOOP;
+
+    -- If no storm start found, use the earliest bucket in our dataset
+    IF NOT found_storm_start THEN
+        storm_start_ts := buckets_array[array_length(buckets_array, 1)];
+    END IF;
+
+    -- Step 3: Calculate total rainfall between storm start and storm end
+    FOR i IN 1..array_length(buckets_array, 1) LOOP
+        current_bucket := buckets_array[i];
+        
+        -- Skip buckets outside our storm window
+        IF current_bucket > storm_end_ts OR current_bucket < storm_start_ts THEN
+            CONTINUE;
+        END IF;
+
+        current_rainfall := rainfall_array[i];
+
+        -- Add positive rainfall
+        IF current_rainfall > 0 THEN
+            total_rainfall_amount := total_rainfall_amount + current_rainfall;
+        END IF;
+    END LOOP;
+
+    -- Return the storm information
+    RETURN QUERY SELECT storm_start_ts, storm_end_ts, total_rainfall_amount;
+END;
+$$ LANGUAGE plpgsql;`
+
 const createSnowStormTotalSQL = `CREATE OR REPLACE FUNCTION calculate_storm_snowfall(
     p_stationname TEXT
 ) RETURNS TABLE (
@@ -756,6 +933,7 @@ const createSnowStormTotalSQL = `CREATE OR REPLACE FUNCTION calculate_storm_snow
     total_snowfall FLOAT
 ) AS $$
 DECLARE
+    significant_snow_threshold FLOAT := 10.0;  -- Minimum snowfall (mm) to be considered significant
     storm_start_ts TIMESTAMPTZ := NULL;
     storm_end_ts TIMESTAMPTZ := NULL;
     total_snowfall_amount FLOAT := 0.0;
@@ -796,8 +974,8 @@ BEGIN
         current_snowdistance := snowdistance_array[i];
         previous_snowdistance := snowdistance_array[i-1];
 
-        -- Check if this hour had positive snowfall (>= 10mm decrease)
-        IF previous_snowdistance - current_snowdistance >= 10 THEN
+        -- Check if this hour had positive snowfall (>= significant snow threshold decrease)
+        IF previous_snowdistance - current_snowdistance >= significant_snow_threshold THEN
             -- Found positive snowfall
             IF storm_end_ts IS NULL THEN
                 -- This is our storm end (most recent positive snowfall)
@@ -843,7 +1021,7 @@ BEGIN
             END IF;
             
             -- Check if this bucket had no positive snowfall
-            IF snowdistance_array[j+1] - snowdistance_array[j] < 10 THEN
+            IF snowdistance_array[j+1] - snowdistance_array[j] < significant_snow_threshold THEN
                 consecutive_no_snowfall := consecutive_no_snowfall + 1;
             ELSE
                 EXIT; -- Break the inner loop if we found positive snowfall
