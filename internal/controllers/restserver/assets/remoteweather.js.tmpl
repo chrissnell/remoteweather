@@ -478,7 +478,8 @@ async function refreshLiveReadings() {
                 updateIfChanged('rdg-snow-since-midnight', snowData.snowtoday?.toFixed(2) ?? 'N/A');
                 updateIfChanged('rdg-snow-last-24h', snowData.snowlast24?.toFixed(2) ?? 'N/A');
                 updateIfChanged('rdg-snow-last-72h', snowData.snowlast72?.toFixed(2) ?? 'N/A');
-                updateIfChanged('rdg-snow-season', snowData.snowdepth ? (parseFloat(snowData.snowdepth) + 51).toFixed(2) : 'N/A');
+                updateIfChanged('rdg-snow-season', snowData.snowseason?.toFixed(2) ?? 'N/A');
+                updateIfChanged('rdg-snow-storm', snowData.snowstorm?.toFixed(2) ?? 'N/A');
             });
         } else if (debug) {
             console.warn('No snow data received from {{ .SnowDevice }}');

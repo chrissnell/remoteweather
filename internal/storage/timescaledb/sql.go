@@ -544,18 +544,18 @@ DECLARE
     past_snowdistance FLOAT;
     snowfall_30min FLOAT;
     hourly_rate FLOAT;
-    current_time TIMESTAMPTZ;
-    past_time TIMESTAMPTZ;
+    current_ts TIMESTAMPTZ;
+    past_ts TIMESTAMPTZ;
 BEGIN
     -- Get the current time
-    current_time := now();
-    past_time := current_time - interval '30 minutes';
+    current_ts := now();
+    past_ts := current_ts - interval '30 minutes';
 
     -- Get the most recent snowdistance reading
     SELECT snowdistance INTO current_snowdistance
     FROM weather_1m
     WHERE weather_1m.stationname = p_stationname
-      AND bucket >= current_time - interval '5 minutes'  -- Within last 5 minutes
+      AND bucket >= current_ts - interval '5 minutes'  -- Within last 5 minutes
       AND snowdistance IS NOT NULL
     ORDER BY bucket DESC
     LIMIT 1;
@@ -564,10 +564,10 @@ BEGIN
     SELECT snowdistance INTO past_snowdistance
     FROM weather_1m
     WHERE weather_1m.stationname = p_stationname
-      AND bucket >= past_time - interval '2 minutes'  -- Allow 2-minute window
-      AND bucket <= past_time + interval '2 minutes'
+      AND bucket >= past_ts - interval '2 minutes'  -- Allow 2-minute window
+      AND bucket <= past_ts + interval '2 minutes'
       AND snowdistance IS NOT NULL
-    ORDER BY abs(extract(epoch from (bucket - past_time)))
+    ORDER BY abs(extract(epoch from (bucket - past_ts)))
     LIMIT 1;
 
     -- If we don't have both readings, return 0
@@ -597,19 +597,19 @@ const createCurrentRainfallRateSQL = `CREATE OR REPLACE FUNCTION calculate_curre
 DECLARE
     rainfall_30min FLOAT := 0.0;
     hourly_rate FLOAT;
-    current_time TIMESTAMPTZ;
-    past_time TIMESTAMPTZ;
+    current_ts TIMESTAMPTZ;
+    past_ts TIMESTAMPTZ;
 BEGIN
     -- Get the current time
-    current_time := now();
-    past_time := current_time - interval '30 minutes';
+    current_ts := now();
+    past_ts := current_ts - interval '30 minutes';
 
     -- Sum all rainfall in the last 30 minutes from weather_1m
     SELECT COALESCE(SUM(period_rain), 0) INTO rainfall_30min
     FROM weather_1m
     WHERE weather_1m.stationname = p_stationname
-      AND bucket >= past_time
-      AND bucket <= current_time
+      AND bucket >= past_ts
+      AND bucket <= current_ts
       AND period_rain IS NOT NULL;
 
     -- If no rainfall in the last 30 minutes, return 0
@@ -738,7 +738,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`
 
-const createSnowSeasonTotalSQL = `CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
+const createSnowSeasonTotalSQL = `DROP FUNCTION IF EXISTS calculate_total_season_snowfall(TEXT, FLOAT, TIMESTAMPTZ);
+CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
     p_stationname TEXT,
     base_distance FLOAT,
     start_of_season TIMESTAMPTZ = NULL
@@ -753,9 +754,6 @@ DECLARE
     current_year INTEGER;
     current_month INTEGER;
     today_snowfall FLOAT := 0.0;
-    today_previous_snowdistance FLOAT := NULL;
-    today_current_snowdistance FLOAT;
-    midnight TIMESTAMPTZ;
 BEGIN
     -- Determine the current snow season (October 1 to May 1)
     IF start_of_season IS NULL THEN
@@ -803,32 +801,40 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- Add today's snowfall from weather_1h since midnight (only if we're in the current season)
+    -- Add today's snowfall by comparing latest reading to most recent weather_1d value (only if we're in the current season)
     IF now() >= local_start_of_season AND now() < season_end THEN
-        midnight := date_trunc('day', now());
-        
-        FOR current_bucket, today_current_snowdistance IN 
-            SELECT bucket, snowdistance 
-            FROM weather_1h 
-            WHERE weather_1h.stationname = p_stationname
-              AND bucket >= midnight
+        DECLARE
+            latest_raw_snowdistance FLOAT;
+            latest_daily_snowdistance FLOAT;
+            today_start_snowdistance FLOAT;
+        BEGIN
+            -- Get the most recent raw snowdistance reading
+            SELECT snowdistance INTO latest_raw_snowdistance
+            FROM weather
+            WHERE weather.stationname = p_stationname
               AND snowdistance IS NOT NULL
-            ORDER BY bucket
-        LOOP
-            -- Check if the current snowdistance is valid (not exceeding base_distance)
-            IF today_current_snowdistance <= base_distance THEN
-                -- Handle initial case where previous_snowdistance is NULL
-                IF today_previous_snowdistance IS NOT NULL THEN
-                    -- Calculate snowfall: if snowdistance decreased, snow fell
-                    IF today_current_snowdistance < today_previous_snowdistance THEN
-                        today_snowfall := today_snowfall + (today_previous_snowdistance - today_current_snowdistance);
-                    END IF;
+              AND snowdistance <= base_distance
+            ORDER BY time DESC
+            LIMIT 1;
+
+            -- Get the most recent daily aggregated snowdistance (yesterday or earlier)
+            SELECT snowdistance INTO latest_daily_snowdistance
+            FROM weather_1d
+            WHERE weather_1d.stationname = p_stationname
+              AND bucket < date_trunc('day', now())  -- Before today
+              AND snowdistance IS NOT NULL
+            ORDER BY bucket DESC
+            LIMIT 1;
+
+            -- If we have both readings, calculate today's snowfall
+            IF latest_raw_snowdistance IS NOT NULL AND latest_daily_snowdistance IS NOT NULL THEN
+                today_snowfall := latest_daily_snowdistance - latest_raw_snowdistance;
+                -- Only add positive snowfall
+                IF today_snowfall > 0 THEN
+                    total_snowfall := total_snowfall + today_snowfall;
                 END IF;
-                today_previous_snowdistance := today_current_snowdistance;
             END IF;
-        END LOOP;
-        
-        total_snowfall := total_snowfall + today_snowfall;
+        END;
     END IF;
 
     -- Return the total snowfall, ensuring it's not negative
@@ -845,114 +851,28 @@ const createRainStormTotalSQL = `CREATE OR REPLACE FUNCTION calculate_storm_rain
     total_rainfall FLOAT
 ) AS $$
 DECLARE
-    storm_start_ts TIMESTAMPTZ := NULL;
-    storm_end_ts TIMESTAMPTZ := NULL;
+    storm_start_ts TIMESTAMPTZ;
+    storm_end_ts TIMESTAMPTZ;
     total_rainfall_amount FLOAT := 0.0;
-    current_bucket TIMESTAMPTZ;
-    current_rainfall FLOAT;
-    consecutive_no_rainfall INTEGER := 0;
-    found_storm_start BOOLEAN := FALSE;
-    buckets_array TIMESTAMPTZ[];
-    rainfall_array FLOAT[];
-    i INTEGER;
-    j INTEGER;
 BEGIN
-    -- First, collect all hourly data into arrays for easier processing
-    SELECT array_agg(bucket ORDER BY bucket DESC), array_agg(COALESCE(period_rain, 0) ORDER BY bucket DESC)
-    INTO buckets_array, rainfall_array
-    FROM weather_1h
-    WHERE weather_1h.stationname = p_stationname
-      AND bucket >= now() - interval '30 days'  -- Look back 30 days maximum
-    ORDER BY bucket DESC;
+    -- Simple approach: storm is any rainfall in the last 24 hours
+    -- Calculate total rainfall in the last 24 hours
+    SELECT COALESCE(SUM(period_rain), 0) INTO total_rainfall_amount
+    FROM weather_5m
+    WHERE weather_5m.stationname = p_stationname
+      AND bucket >= now() - interval '24 hours'
+      AND period_rain IS NOT NULL
+      AND period_rain > 0;
 
-    -- If no data, return zeros
-    IF buckets_array IS NULL OR array_length(buckets_array, 1) = 0 THEN
+    -- If no rainfall, return no storm
+    IF total_rainfall_amount <= 0 THEN
         RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, 0::FLOAT;
         RETURN;
     END IF;
 
-    -- Step 1: Find storm end (most recent positive rainfall within 24h)
-    FOR i IN 1..array_length(buckets_array, 1) LOOP
-        current_bucket := buckets_array[i];
-        current_rainfall := rainfall_array[i];
-
-        -- Check if this hour had positive rainfall (any amount)
-        IF current_rainfall > 0 THEN
-            -- Found positive rainfall
-            IF storm_end_ts IS NULL THEN
-                -- This is our storm end (most recent positive rainfall)
-                storm_end_ts := current_bucket;
-            END IF;
-        END IF;
-
-        -- Stop looking if we're beyond 24 hours
-        IF current_bucket < now() - interval '24 hours' THEN
-            EXIT;
-        END IF;
-    END LOOP;
-
-    -- If no storm end found, no recent storm
-    IF storm_end_ts IS NULL THEN
-        RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, 0::FLOAT;
-        RETURN;
-    END IF;
-
-    -- Step 2: Find storm start (working backward from storm end, find first bucket with 5 consecutive no-rainfall buckets before it)
-    FOR i IN 1..array_length(buckets_array, 1) LOOP
-        current_bucket := buckets_array[i];
-        
-        -- Stop if we've gone past our storm end
-        IF current_bucket > storm_end_ts THEN
-            CONTINUE;
-        END IF;
-
-        -- Check if this bucket has 5 consecutive no-rainfall buckets before it
-        consecutive_no_rainfall := 0;
-        
-        -- Look at the 5 buckets before this one
-        FOR j IN (i+1)..(i+5) LOOP
-            -- Make sure we don't go beyond array bounds
-            IF j > array_length(buckets_array, 1) THEN
-                EXIT;
-            END IF;
-            
-            -- Check if this bucket had no positive rainfall
-            IF rainfall_array[j] <= 0 THEN
-                consecutive_no_rainfall := consecutive_no_rainfall + 1;
-            ELSE
-                EXIT; -- Break the inner loop if we found positive rainfall
-            END IF;
-        END LOOP;
-
-        -- If we found 5 consecutive hours of no rainfall, this is our storm start
-        IF consecutive_no_rainfall = 5 THEN
-            storm_start_ts := current_bucket;
-            found_storm_start := TRUE;
-            EXIT;
-        END IF;
-    END LOOP;
-
-    -- If no storm start found, use the earliest bucket in our dataset
-    IF NOT found_storm_start THEN
-        storm_start_ts := buckets_array[array_length(buckets_array, 1)];
-    END IF;
-
-    -- Step 3: Calculate total rainfall between storm start and storm end
-    FOR i IN 1..array_length(buckets_array, 1) LOOP
-        current_bucket := buckets_array[i];
-        
-        -- Skip buckets outside our storm window
-        IF current_bucket > storm_end_ts OR current_bucket < storm_start_ts THEN
-            CONTINUE;
-        END IF;
-
-        current_rainfall := rainfall_array[i];
-
-        -- Add positive rainfall
-        IF current_rainfall > 0 THEN
-            total_rainfall_amount := total_rainfall_amount + current_rainfall;
-        END IF;
-    END LOOP;
+    -- Set storm period as last 24 hours
+    storm_start_ts := now() - interval '24 hours';
+    storm_end_ts := now();
 
     -- Return the storm information
     RETURN QUERY SELECT storm_start_ts, storm_end_ts, total_rainfall_amount;
@@ -967,137 +887,49 @@ const createSnowStormTotalSQL = `CREATE OR REPLACE FUNCTION calculate_storm_snow
     total_snowfall FLOAT
 ) AS $$
 DECLARE
-    significant_snow_threshold FLOAT := 10.0;  -- Minimum snowfall (mm) to be considered significant
-    storm_start_ts TIMESTAMPTZ := NULL;
-    storm_end_ts TIMESTAMPTZ := NULL;
+    storm_start_ts TIMESTAMPTZ;
+    storm_end_ts TIMESTAMPTZ;
     total_snowfall_amount FLOAT := 0.0;
-    current_bucket TIMESTAMPTZ;
-    current_snowdistance FLOAT;
-    previous_snowdistance FLOAT;
-    snowfall_this_hour FLOAT;
-    consecutive_no_snowfall INTEGER := 0;
-    found_storm_start BOOLEAN := FALSE;
-    buckets_array TIMESTAMPTZ[];
-    snowdistance_array FLOAT[];
-    i INTEGER;
-    j INTEGER;
+    first_reading FLOAT;
+    latest_reading FLOAT;
 BEGIN
-    -- First, collect all hourly data into arrays for easier processing
-    SELECT array_agg(bucket ORDER BY bucket DESC), array_agg(snowdistance ORDER BY bucket DESC)
-    INTO buckets_array, snowdistance_array
-    FROM weather_1h
-    WHERE weather_1h.stationname = p_stationname
-      AND bucket >= now() - interval '30 days'  -- Look back 30 days maximum
+    -- Simple approach: storm is any snowfall in the last 24 hours
+    -- Get the earliest snowdistance reading in the last 24 hours
+    SELECT snowdistance INTO first_reading
+    FROM weather
+    WHERE weather.stationname = p_stationname
+      AND time >= now() - interval '24 hours'
       AND snowdistance IS NOT NULL
-    ORDER BY bucket DESC;
+    ORDER BY time ASC
+    LIMIT 1;
 
-    -- If no data, return zeros
-    IF buckets_array IS NULL OR array_length(buckets_array, 1) = 0 THEN
+    -- Get the latest snowdistance reading in the last 24 hours
+    SELECT snowdistance INTO latest_reading
+    FROM weather
+    WHERE weather.stationname = p_stationname
+      AND time >= now() - interval '24 hours'
+      AND snowdistance IS NOT NULL
+    ORDER BY time DESC
+    LIMIT 1;
+
+    -- If no readings, return no storm
+    IF first_reading IS NULL OR latest_reading IS NULL THEN
         RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, 0::FLOAT;
         RETURN;
     END IF;
 
-    -- Step 1: Find storm end (most recent positive snowfall within 24h, or current time if recent)
-    FOR i IN 1..array_length(buckets_array, 1) LOOP
-        -- Skip first bucket (no previous to compare with)
-        IF i = 1 THEN
-            CONTINUE;
-        END IF;
-
-        current_bucket := buckets_array[i];
-        current_snowdistance := snowdistance_array[i];
-        previous_snowdistance := snowdistance_array[i-1];
-
-        -- Check if this hour had positive snowfall (>= significant snow threshold decrease)
-        IF previous_snowdistance - current_snowdistance >= significant_snow_threshold THEN
-            -- Found positive snowfall
-            IF storm_end_ts IS NULL THEN
-                -- This is our storm end (most recent positive snowfall)
-                storm_end_ts := current_bucket;
-            END IF;
-        END IF;
-
-        -- Stop looking if we're beyond 24 hours
-        IF current_bucket < now() - interval '24 hours' THEN
-            EXIT;
-        END IF;
-    END LOOP;
-
-    -- If no storm end found, no recent storm
-    IF storm_end_ts IS NULL THEN
+    -- Calculate total snowfall as difference between first and latest readings
+    total_snowfall_amount := first_reading - latest_reading;
+    
+    -- If no positive snowfall, return no storm
+    IF total_snowfall_amount <= 0 THEN
         RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, 0::FLOAT;
         RETURN;
     END IF;
 
-    -- Step 2: Find storm start (working backward from storm end, find first bucket with 5 consecutive no-snowfall buckets before it)
-    FOR i IN 1..array_length(buckets_array, 1) LOOP
-        current_bucket := buckets_array[i];
-        
-        -- Stop if we've gone past our storm end
-        IF current_bucket > storm_end_ts THEN
-            CONTINUE;
-        END IF;
-
-        -- Check if this bucket has 5 consecutive no-snowfall buckets before it
-        consecutive_no_snowfall := 0;
-        
-        -- Look at the 5 buckets before this one
-        FOR j IN (i+1)..(i+5) LOOP
-            -- Make sure we don't go beyond array bounds
-            IF j > array_length(buckets_array, 1) THEN
-                EXIT;
-            END IF;
-            
-            -- Skip if this is the first bucket in the sequence (no previous to compare)
-            IF j = array_length(buckets_array, 1) THEN
-                consecutive_no_snowfall := consecutive_no_snowfall + 1;
-                CONTINUE;
-            END IF;
-            
-            -- Check if this bucket had no positive snowfall
-            IF snowdistance_array[j+1] - snowdistance_array[j] < significant_snow_threshold THEN
-                consecutive_no_snowfall := consecutive_no_snowfall + 1;
-            ELSE
-                EXIT; -- Break the inner loop if we found positive snowfall
-            END IF;
-        END LOOP;
-
-        -- If we found 5 consecutive hours of no snowfall, this is our storm start
-        IF consecutive_no_snowfall = 5 THEN
-            storm_start_ts := current_bucket;
-            found_storm_start := TRUE;
-            EXIT;
-        END IF;
-    END LOOP;
-
-    -- If no storm start found, use the earliest bucket in our dataset
-    IF NOT found_storm_start THEN
-        storm_start_ts := buckets_array[array_length(buckets_array, 1)];
-    END IF;
-
-    -- Step 3: Calculate total snowfall between storm start and storm end
-    FOR i IN 1..array_length(buckets_array, 1) LOOP
-        current_bucket := buckets_array[i];
-        
-        -- Skip buckets outside our storm window
-        IF current_bucket > storm_end_ts OR current_bucket < storm_start_ts THEN
-            CONTINUE;
-        END IF;
-
-        -- Skip first bucket (no previous to compare with)
-        IF i = 1 THEN
-            CONTINUE;
-        END IF;
-
-        current_snowdistance := snowdistance_array[i];
-        previous_snowdistance := snowdistance_array[i-1];
-
-        -- Add positive snowfall (snowdistance decreased)
-        snowfall_this_hour := previous_snowdistance - current_snowdistance;
-        IF snowfall_this_hour > 0 THEN
-            total_snowfall_amount := total_snowfall_amount + snowfall_this_hour;
-        END IF;
-    END LOOP;
+    -- Set storm period as last 24 hours
+    storm_start_ts := now() - interval '24 hours';
+    storm_end_ts := now();
 
     -- Return the storm information
     RETURN QUERY SELECT storm_start_ts, storm_end_ts, total_snowfall_amount;

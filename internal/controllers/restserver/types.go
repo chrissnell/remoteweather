@@ -115,6 +115,8 @@ type SnowReading struct {
 	SnowToday   float32 `json:"snowtoday"`
 	SnowLast24  float32 `json:"snowlast24"`
 	SnowLast72  float32 `json:"snowlast72"`
+	SnowSeason  float32 `json:"snowseason"`
+	SnowStorm   float32 `json:"snowstorm"`
 }
 
 // SnowSeasonReading represents seasonal snow data
@@ -126,6 +128,15 @@ type SnowSeasonReading struct {
 // SnowDeltaResult represents snow delta calculation result
 type SnowDeltaResult struct {
 	Snowfall float32
+}
+
+// SnowAllCalculationsResult represents all snow calculations in a single query
+type SnowAllCalculationsResult struct {
+	SnowSinceMidnight float32 `gorm:"column:snow_since_midnight"`
+	SnowLast24        float32 `gorm:"column:snow_last_24h"`
+	SnowLast72        float32 `gorm:"column:snow_last_72h"`
+	SnowSeason        float32 `gorm:"column:snow_season"`
+	SnowStorm         float32 `gorm:"column:snow_storm"`
 }
 
 // Utility functions
