@@ -213,9 +213,6 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Utilities endpoints
 	api.HandleFunc("/utils/change-token", c.handlers.ChangeAdminToken).Methods("POST")
 
-	// WebSocket endpoint for real-time logs (requires authentication)
-	api.HandleFunc("/logs/ws", c.handlers.LogsWebSocket).Methods("GET")
-
 	// REST endpoint for logs (requires authentication)
 	api.HandleFunc("/logs", c.handlers.GetLogs).Methods("GET")
 
