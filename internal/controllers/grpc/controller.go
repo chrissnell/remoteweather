@@ -177,12 +177,12 @@ func (c *Controller) GetWeatherSpan(ctx context.Context, request *weather.Weathe
 	// Transform readings to protobuf format using shared utility
 	readings := grpcutil.TransformBucketReadings(&dbFetchedReadings)
 
-	span_response := &weather.WeatherSpan{
+	spanResponse := &weather.WeatherSpan{
 		SpanStart: timestamppb.New(spanStart),
 		Reading:   readings,
 	}
 
-	return span_response, nil
+	return spanResponse, nil
 }
 
 // GetLatestReading handles requests for the latest weather reading
