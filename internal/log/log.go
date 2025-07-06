@@ -17,9 +17,9 @@ func Init(debug bool) error {
 	var err error
 
 	if debug {
-		zapLogger, err = zap.NewDevelopment(zap.AddCallerSkip(1))
+		zapLogger, err = zap.NewDevelopment()
 	} else {
-		zapLogger, err = zap.NewProduction(zap.AddCallerSkip(1))
+		zapLogger, err = zap.NewProduction()
 	}
 	if err != nil {
 		return fmt.Errorf("can't initialize zap logger: %v", err)
@@ -34,7 +34,7 @@ func Init(debug bool) error {
 func GetZapLogger() *zap.Logger {
 	if baseLogger == nil {
 		// Fallback logger if not initialized
-		baseLogger, _ = zap.NewProduction(zap.AddCallerSkip(1))
+		baseLogger, _ = zap.NewProduction()
 		log = baseLogger.Sugar()
 	}
 	return baseLogger
@@ -44,7 +44,7 @@ func GetZapLogger() *zap.Logger {
 func GetSugaredLogger() *zap.SugaredLogger {
 	if log == nil {
 		// Fallback logger if not initialized
-		baseLogger, _ = zap.NewProduction(zap.AddCallerSkip(1))
+		baseLogger, _ = zap.NewProduction()
 		log = baseLogger.Sugar()
 	}
 	return log
@@ -59,63 +59,63 @@ func Sync() {
 
 // Package-level convenience functions
 func Debug(args ...interface{}) {
-	log.Debug(args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Debug(args...)
 }
 
 func Debugf(template string, args ...interface{}) {
-	log.Debugf(template, args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Debugf(template, args...)
 }
 
 func Debugw(msg string, keysAndValues ...interface{}) {
-	log.Debugw(msg, keysAndValues...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Debugw(msg, keysAndValues...)
 }
 
 func Info(args ...interface{}) {
-	log.Info(args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Info(args...)
 }
 
 func Infof(template string, args ...interface{}) {
-	log.Infof(template, args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Infof(template, args...)
 }
 
 func Infow(msg string, keysAndValues ...interface{}) {
-	log.Infow(msg, keysAndValues...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Infow(msg, keysAndValues...)
 }
 
 func Warn(args ...interface{}) {
-	log.Warn(args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Warn(args...)
 }
 
 func Warnf(template string, args ...interface{}) {
-	log.Warnf(template, args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Warnf(template, args...)
 }
 
 func Warnw(msg string, keysAndValues ...interface{}) {
-	log.Warnw(msg, keysAndValues...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Warnw(msg, keysAndValues...)
 }
 
 func Error(args ...interface{}) {
-	log.Error(args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Error(args...)
 }
 
 func Errorf(template string, args ...interface{}) {
-	log.Errorf(template, args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Errorf(template, args...)
 }
 
 func Errorw(msg string, keysAndValues ...interface{}) {
-	log.Errorw(msg, keysAndValues...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Errorw(msg, keysAndValues...)
 }
 
 func Errorln(args ...interface{}) {
-	log.Error(args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Error(args...)
 }
 
 func Fatal(args ...interface{}) {
-	log.Fatal(args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Fatal(args...)
 	os.Exit(1)
 }
 
 func Fatalf(template string, args ...interface{}) {
-	log.Fatalf(template, args...)
+	baseLogger.WithOptions(zap.AddCallerSkip(1)).Sugar().Fatalf(template, args...)
 	os.Exit(1)
 }
