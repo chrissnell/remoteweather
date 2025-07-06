@@ -558,11 +558,6 @@ func EncodeBase91Telemetry(l uint16) ([]byte, error) {
 	return b91, nil
 }
 
-//lint:ignore U1000 For future use
-func mphToKnots(m float64) float64 {
-	return m * 0.8689758
-}
-
 func round(x float64) float64 {
 	if x > 0 {
 		return math.Floor(x + 0.5)
