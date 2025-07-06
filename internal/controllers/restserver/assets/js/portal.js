@@ -171,7 +171,21 @@ class WeatherPortal {
         
         // Create custom marker icon with data display
         const iconClass = this.getMarkerClass(station);
-        const iconHtml = `<div class="weather-station-marker ${iconClass}" style="background-color: ${dataColor};">${formattedValue}</div>`;
+        let iconHtml = `<div class="weather-station-marker ${iconClass}" style="background-color: ${dataColor};">${formattedValue}`;
+        
+        // Add wind direction indicator if displaying wind speed
+        if (this.currentDisplayType === 'wind' && station.weather && station.weather.windd) {
+            const windDirection = parseFloat(station.weather.windd);
+            const windSpeed = station.weather.winds ? parseFloat(station.weather.winds) : 0;
+            const triangleColor = this.getWindTriangleColor(windSpeed);
+            // Wind direction is where wind is coming FROM, so we rotate the triangle to point in that direction
+            // Rotate first, then translate (CSS transforms apply right-to-left)
+            // Move inboard by triangle_side/sqrt(3) so tip touches circle, not centroid
+            // Plus border thickness to account for white circle border
+            iconHtml += `<div class="wind-direction-indicator" style="border-bottom-color: ${triangleColor}; transform: rotate(${windDirection}deg) translateY(calc(var(--marker-radius) * -1 + var(--triangle-size) * 0.577 + var(--marker-border)));"></div>`;
+        }
+        
+        iconHtml += `</div>`;
         
         const customIcon = L.divIcon({
             html: iconHtml,
@@ -206,7 +220,21 @@ class WeatherPortal {
         
         // Update marker icon with data display
         const iconClass = this.getMarkerClass(station);
-        const iconHtml = `<div class="weather-station-marker ${iconClass}" style="background-color: ${dataColor};">${formattedValue}</div>`;
+        let iconHtml = `<div class="weather-station-marker ${iconClass}" style="background-color: ${dataColor};">${formattedValue}`;
+        
+        // Add wind direction indicator if displaying wind speed
+        if (this.currentDisplayType === 'wind' && station.weather && station.weather.windd) {
+            const windDirection = parseFloat(station.weather.windd);
+            const windSpeed = station.weather.winds ? parseFloat(station.weather.winds) : 0;
+            const triangleColor = this.getWindTriangleColor(windSpeed);
+            // Wind direction is where wind is coming FROM, so we rotate the triangle to point in that direction
+            // Rotate first, then translate (CSS transforms apply right-to-left)
+            // Move inboard by triangle_side/sqrt(3) so tip touches circle, not centroid
+            // Plus border thickness to account for white circle border
+            iconHtml += `<div class="wind-direction-indicator" style="border-bottom-color: ${triangleColor}; transform: rotate(${windDirection}deg) translateY(calc(var(--marker-radius) * -1 + var(--triangle-size) * 0.577 + var(--marker-border)));"></div>`;
+        }
+        
+        iconHtml += `</div>`;
         
         const customIcon = L.divIcon({
             html: iconHtml,
@@ -696,6 +724,17 @@ class WeatherPortal {
         if (windSpeed >= 10) return '#3498db'; // Blue (light)
         if (windSpeed >= 5) return '#2980b9'; // Darker blue (very light)
         return '#1f4e79'; // Dark blue (calm)
+    }
+    
+    getWindTriangleColor(windSpeed) {
+        // Return contrasting triangle color based on wind speed circle color
+        if (windSpeed >= 40) return '#00ff7f'; // Bright green (contrasts with dark red)
+        if (windSpeed >= 30) return '#00bfff'; // Deep sky blue (contrasts with fire brick)
+        if (windSpeed >= 20) return '#ffffff'; // White (contrasts with indian red)
+        if (windSpeed >= 15) return '#1f4e79'; // Dark blue (contrasts with orange)
+        if (windSpeed >= 10) return '#ff6b35'; // Orange (contrasts with blue)
+        if (windSpeed >= 5) return '#ff6b35'; // Orange (contrasts with darker blue)
+        return '#ff6b35'; // Orange (contrasts with dark blue - calm)
     }
 }
 
