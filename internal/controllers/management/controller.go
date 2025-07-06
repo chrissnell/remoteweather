@@ -210,6 +210,15 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/health/storage", c.handlers.GetStorageHealthStatus).Methods("GET")
 	api.HandleFunc("/health/storage/{type}", c.handlers.GetSingleStorageHealth).Methods("GET")
 
+	// Utilities endpoints
+	api.HandleFunc("/utils/change-token", c.handlers.ChangeAdminToken).Methods("POST")
+
+	// WebSocket endpoint for real-time logs (requires authentication)
+	api.HandleFunc("/logs/ws", c.handlers.LogsWebSocket).Methods("GET")
+
+	// REST endpoint for logs (requires authentication)
+	api.HandleFunc("/logs", c.handlers.GetLogs).Methods("GET")
+
 	return router
 }
 
@@ -231,6 +240,8 @@ func (c *Controller) setupManagementInterface(router *mux.Router) {
 	router.HandleFunc("/controllers", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/storage", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/websites", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/logs", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/utilities", c.serveManagementInterface).Methods("GET")
 }
 
 // serveManagementInterface serves the main management interface HTML
@@ -251,12 +262,16 @@ func (c *Controller) serveManagementInterface(w http.ResponseWriter, r *http.Req
 	w.Write(content)
 }
 
-// loggingMiddleware logs all requests
+// loggingMiddleware logs all requests except for noisy endpoints
 func (c *Controller) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		c.logger.Infof("%s %s %s %v", r.Method, r.RequestURI, r.RemoteAddr, time.Since(start))
+
+		// Don't log requests to /api/logs to avoid cluttering the log viewer
+		if r.RequestURI != "/api/logs" {
+			c.logger.Infof("%s %s %s %v", r.Method, r.RequestURI, r.RemoteAddr, time.Since(start))
+		}
 	})
 }
 
@@ -279,24 +294,36 @@ func (c *Controller) corsMiddleware(next http.Handler) http.Handler {
 // authMiddleware validates the bearer token or session cookie
 func (c *Controller) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c.logger.Debugf("Auth check for %s", r.URL.Path)
+		c.logger.Debugf("All cookies: %v", r.Header.Get("Cookie"))
+
 		// Check for Bearer token first
 		authHeader := r.Header.Get("Authorization")
 		if authHeader != "" {
 			expectedAuth := "Bearer " + c.managementConfig.AuthToken
 			if authHeader == expectedAuth {
+				c.logger.Debugf("Auth successful via Bearer token")
 				next.ServeHTTP(w, r)
 				return
 			}
+			c.logger.Debugf("Bearer token mismatch: got %s, expected %s", authHeader, expectedAuth)
 		}
 
 		// Check for session cookie
 		cookie, err := r.Cookie("rw_session")
-		if err == nil && cookie.Value == c.managementConfig.AuthToken {
-			next.ServeHTTP(w, r)
-			return
+		if err == nil {
+			if cookie.Value == c.managementConfig.AuthToken {
+				c.logger.Debugf("Auth successful via session cookie")
+				next.ServeHTTP(w, r)
+				return
+			}
+			c.logger.Debugf("Session cookie mismatch: got %s, expected %s", cookie.Value, c.managementConfig.AuthToken)
+		} else {
+			c.logger.Debugf("No session cookie found: %v", err)
 		}
 
 		// Neither authentication method worked
+		c.logger.Debugf("Auth failed for %s - no valid token or cookie", r.URL.Path)
 		http.Error(w, "Authentication required", http.StatusUnauthorized)
 	})
 }
