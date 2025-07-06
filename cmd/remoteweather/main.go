@@ -1,3 +1,4 @@
+// Package main provides the main remoteweather application for collecting and serving weather data.
 package main
 
 import (

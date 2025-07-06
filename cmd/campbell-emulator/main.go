@@ -1,3 +1,4 @@
+// Package main provides a Campbell Scientific weather station emulator for testing.
 package main
 
 import (
