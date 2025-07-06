@@ -591,6 +591,40 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`
 
+const createCurrentRainfallRateSQL = `CREATE OR REPLACE FUNCTION calculate_current_rainfall_rate(
+    p_stationname TEXT
+) RETURNS FLOAT AS $$
+DECLARE
+    rainfall_30min FLOAT := 0.0;
+    hourly_rate FLOAT;
+    current_time TIMESTAMPTZ;
+    past_time TIMESTAMPTZ;
+BEGIN
+    -- Get the current time
+    current_time := now();
+    past_time := current_time - interval '30 minutes';
+
+    -- Sum all rainfall in the last 30 minutes from weather_1m
+    SELECT COALESCE(SUM(period_rain), 0) INTO rainfall_30min
+    FROM weather_1m
+    WHERE weather_1m.stationname = p_stationname
+      AND bucket >= past_time
+      AND bucket <= current_time
+      AND period_rain IS NOT NULL;
+
+    -- If no rainfall in the last 30 minutes, return 0
+    IF rainfall_30min <= 0 THEN
+        RETURN 0.0;
+    END IF;
+
+    -- Extrapolate to hourly rate (30 minutes * 2 = 60 minutes)
+    hourly_rate := rainfall_30min * 2;
+
+    -- Return the estimated hourly rainfall rate
+    RETURN hourly_rate;
+END;
+$$ LANGUAGE plpgsql;`
+
 const createSnowDelta72hSQL = `CREATE OR REPLACE FUNCTION get_new_snow_72h(
     p_stationname TEXT,
     p_base_distance FLOAT
