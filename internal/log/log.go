@@ -17,9 +17,9 @@ func Init(debug bool) error {
 	var err error
 
 	if debug {
-		zapLogger, err = zap.NewDevelopment()
+		zapLogger, err = zap.NewDevelopment(zap.AddCallerSkip(1))
 	} else {
-		zapLogger, err = zap.NewProduction()
+		zapLogger, err = zap.NewProduction(zap.AddCallerSkip(1))
 	}
 	if err != nil {
 		return fmt.Errorf("can't initialize zap logger: %v", err)
@@ -34,7 +34,7 @@ func Init(debug bool) error {
 func GetZapLogger() *zap.Logger {
 	if baseLogger == nil {
 		// Fallback logger if not initialized
-		baseLogger, _ = zap.NewProduction()
+		baseLogger, _ = zap.NewProduction(zap.AddCallerSkip(1))
 		log = baseLogger.Sugar()
 	}
 	return baseLogger
@@ -44,7 +44,7 @@ func GetZapLogger() *zap.Logger {
 func GetSugaredLogger() *zap.SugaredLogger {
 	if log == nil {
 		// Fallback logger if not initialized
-		baseLogger, _ = zap.NewProduction()
+		baseLogger, _ = zap.NewProduction(zap.AddCallerSkip(1))
 		log = baseLogger.Sugar()
 	}
 	return log
