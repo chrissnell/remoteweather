@@ -75,6 +75,7 @@ type WeatherReading struct {
 	YearRain              json.Number `json:"yearrain,omitempty"`
 	Barometer             json.Number `json:"bar,omitempty"`
 	WindSpeed             json.Number `json:"winds,omitempty"`
+	WindGust              json.Number `json:"windgust,omitempty"`
 	WindDirection         json.Number `json:"windd,omitempty"`
 	CardinalDirection     string      `json:"windcard,omitempty"`
 	RainfallDay           json.Number `json:"rainday,omitempty"`

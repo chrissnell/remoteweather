@@ -229,6 +229,21 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
 		}
 
+		// Calculate wind gust from last 10 minutes
+		if len(dbFetchedReadings) > 0 {
+			type WindGustResult struct {
+				WindGust float32
+			}
+			var windGustResult WindGustResult
+			query := "SELECT calculate_wind_gust(?) AS wind_gust"
+			err := h.controller.DB.Raw(query, dbFetchedReadings[0].StationName).Scan(&windGustResult).Error
+			if err != nil {
+				log.Errorf("error getting wind gust from DB: %v", err)
+			} else {
+				latestReading.WindGust = float32ToJSONNumber(windGustResult.WindGust)
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		err := json.NewEncoder(w).Encode(latestReading)
