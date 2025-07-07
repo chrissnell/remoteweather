@@ -504,6 +504,12 @@ function updateLiveReadings(data) {
     // Precipitation
     updateElement('rain-today', `${data.dayrain !== null && data.dayrain !== undefined ? parseFloat(data.dayrain).toFixed(2) : '--'}`);
     updateElement('rain-rate', `${data.rainrate !== null && data.rainrate !== undefined ? parseFloat(data.rainrate).toFixed(2) : '--'}`);
+    
+    // Rainfall totals
+    updateElement('rain-24hr', `${data.rainfall24h !== null && data.rainfall24h !== undefined ? parseFloat(data.rainfall24h).toFixed(2) : '--'}`);
+    updateElement('rain-48hr', `${data.rainfall48h !== null && data.rainfall48h !== undefined ? parseFloat(data.rainfall48h).toFixed(2) : '--'}`);
+    updateElement('rain-72hr', `${data.rainfall72h !== null && data.rainfall72h !== undefined ? parseFloat(data.rainfall72h).toFixed(2) : '--'}`);
+    updateElement('rain-storm-total', `${data.rainfallstorm !== null && data.rainfallstorm !== undefined ? parseFloat(data.rainfallstorm).toFixed(2) : '--'}`);
   
           {{ if .SnowEnabled }}
       // Snow data - show 0.00 for nil/null/0 values

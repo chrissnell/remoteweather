@@ -229,6 +229,52 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
 		}
 
+		// Calculate rainfall totals for different time periods
+		if len(dbFetchedReadings) > 0 {
+			stationName := dbFetchedReadings[0].StationName
+
+			// 24-hour rainfall total
+			var rainfall24h Rainfall
+			h.controller.DB.Raw(`
+				SELECT COALESCE(SUM(period_rain), 0) as total_rain
+				FROM weather_5m 
+				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '24 hours'
+			`, stationName).Scan(&rainfall24h)
+			latestReading.Rainfall24h = float32ToJSONNumber(rainfall24h.TotalRain)
+
+			// 48-hour rainfall total
+			var rainfall48h Rainfall
+			h.controller.DB.Raw(`
+				SELECT COALESCE(SUM(period_rain), 0) as total_rain
+				FROM weather_5m 
+				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '48 hours'
+			`, stationName).Scan(&rainfall48h)
+			latestReading.Rainfall48h = float32ToJSONNumber(rainfall48h.TotalRain)
+
+			// 72-hour rainfall total
+			var rainfall72h Rainfall
+			h.controller.DB.Raw(`
+				SELECT COALESCE(SUM(period_rain), 0) as total_rain
+				FROM weather_5m 
+				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '72 hours'
+			`, stationName).Scan(&rainfall72h)
+			latestReading.Rainfall72h = float32ToJSONNumber(rainfall72h.TotalRain)
+
+			// Storm rainfall total using existing function
+			type StormRainResult struct {
+				StormStart    *time.Time `gorm:"column:storm_start"`
+				StormEnd      *time.Time `gorm:"column:storm_end"`
+				TotalRainfall float32    `gorm:"column:total_rainfall"`
+			}
+			var stormResult StormRainResult
+			err := h.controller.DB.Raw("SELECT * FROM calculate_storm_rainfall(?) LIMIT 1", stationName).Scan(&stormResult).Error
+			if err != nil {
+				log.Errorf("error getting storm rainfall from DB: %v", err)
+			} else {
+				latestReading.RainfallStorm = float32ToJSONNumber(stormResult.TotalRainfall)
+			}
+		}
+
 		// Calculate wind gust from last 10 minutes
 		if len(dbFetchedReadings) > 0 {
 			type WindGustResult struct {
