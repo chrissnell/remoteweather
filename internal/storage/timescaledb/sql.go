@@ -935,3 +935,21 @@ BEGIN
     RETURN QUERY SELECT storm_start_ts, storm_end_ts, total_snowfall_amount;
 END;
 $$ LANGUAGE plpgsql;`
+
+const createWindGustSQL = `CREATE OR REPLACE FUNCTION calculate_wind_gust(
+    p_stationname TEXT
+) RETURNS FLOAT AS $$
+DECLARE
+    max_windspeed FLOAT;
+BEGIN
+    -- Get the maximum windspeed from the last 10 minutes
+    SELECT MAX(windspeed) INTO max_windspeed
+    FROM weather
+    WHERE weather.stationname = p_stationname
+      AND time >= now() - interval '10 minutes'
+      AND windspeed IS NOT NULL;
+
+    -- Return the maximum windspeed, or 0 if no readings found
+    RETURN COALESCE(max_windspeed, 0.0);
+END;
+$$ LANGUAGE plpgsql;`
