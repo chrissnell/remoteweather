@@ -30,8 +30,16 @@
       <div class="header-content">
         <h1 class="station-name">{{ .StationName }}</h1>
         <div class="header-status">
-          <div class="live-indicator" id="live-indicator">●</div>
-          <div class="last-update" id="last-update">Updated just now</div>
+          <div class="status-line">
+            <div class="div-block-11" id="live-indicator-dot"></div>
+            <div class="live-indicator">
+              <div class="text-block-23">LIVE</div>
+            </div>
+            <div class="last-update" id="last-update">Updated just now</div>
+          </div>
+          <div class="battery-info" id="battery-info" style="display: none;">
+            Station Battery: <span id="battery-voltage">--</span>V (<span id="battery-status">--</span>)
+          </div>
         </div>
       </div>
     </div>
@@ -139,21 +147,7 @@
             </div>
           </div>
         </div>
-        
-        <!-- Station Group -->
-        <div class="metric-group">
-          <div class="group-title">STATION</div>
-          <div class="group-metrics">
-            <div class="metric-item">
-              <div class="metric-label">Battery</div>
-              <div class="metric-value" id="battery">--</div><span class="metric-unit">V</span>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">Battery Status</div>
-              <div class="metric-value" id="battery-status">--</div>
-            </div>
-          </div>
-        </div>
+
         
       </div>
       

@@ -8,6 +8,7 @@ let humidityChart, temperatureChart, barometerChart, snowdepthChart, windspeedCh
 // Timer variables  
 let liveDataTimer;
 let chartRefreshTimer;
+let secondsSinceLastUpdate = 0;
 
 // Constants
 const LIVE_DATA_REFRESH_INTERVAL = 3500; // 3.5 seconds
@@ -528,9 +529,8 @@ function updateLiveReadings(data) {
       updateElement('snow-accumulation-rate', accumulationRate);
       {{ end }}
   
-    // Station Status
-    updateElement('battery', `${data.stationbatteryvoltage ? parseFloat(data.stationbatteryvoltage).toFixed(2) : '--'}`);
-    updateElement('battery-status', getBatteryStatus(data.stationbatteryvoltage));
+    // Battery Status (now in header)
+    updateBatteryInfo(data.stationbatteryvoltage);
 }
 
 function updateElement(id, value) {
@@ -614,6 +614,31 @@ function getBatteryStatus(voltage) {
     return 'Low';
 }
 
+function updateBatteryInfo(voltage) {
+    const batteryInfoElement = document.getElementById('battery-info');
+    const batteryVoltageElement = document.getElementById('battery-voltage');
+    const batteryStatusElement = document.getElementById('battery-status');
+    
+    if (!voltage || parseFloat(voltage) === 0) {
+        // Hide battery info if voltage is null, undefined, or 0
+        if (batteryInfoElement) {
+            batteryInfoElement.style.display = 'none';
+        }
+    } else {
+        // Show battery info with voltage and status
+        const v = parseFloat(voltage);
+        if (batteryInfoElement) {
+            batteryInfoElement.style.display = 'block';
+        }
+        if (batteryVoltageElement) {
+            batteryVoltageElement.textContent = v.toFixed(2);
+        }
+        if (batteryStatusElement) {
+            batteryStatusElement.textContent = getBatteryStatus(voltage);
+        }
+    }
+}
+
 function updateWindrose(direction, speed, cardinalDir) {
     // Update the windrose circle rotation (original implementation)
     const windDirElement = document.getElementById('rdg-winddir');
@@ -635,15 +660,38 @@ function updateWindrose(direction, speed, cardinalDir) {
 }
 
 function updateLiveIndicator(isLive = true) {
-    const indicator = document.getElementById('live-indicator');
+    const indicatorDot = document.getElementById('live-indicator-dot');
     const update = document.getElementById('last-update');
   
-    if (indicator) {
-        indicator.style.color = isLive ? '#ffffff' : '#888';
+    if (indicatorDot) {
+        if (isLive) {
+            // Show green flashing dot
+            indicatorDot.style.display = 'flex';
+            indicatorDot.style.animation = 'livePulse 2s infinite';
+        } else {
+            // Show dimmed/offline state
+            indicatorDot.style.animation = 'none';
+            indicatorDot.style.opacity = '0.3';
+            indicatorDot.style.backgroundColor = '#666';
+        }
     }
   
     if (update) {
-        update.textContent = isLive ? 'Updated just now' : 'Update failed';
+        if (isLive) {
+            secondsSinceLastUpdate = 0;
+            update.textContent = 'Last updated 0s ago';
+        } else {
+            update.textContent = 'Update failed';
+        }
+    }
+}
+
+// Increment timer for last updated display
+function incrementUpdateTimer() {
+    secondsSinceLastUpdate++;
+    const updateElement = document.getElementById('last-update');
+    if (updateElement) {
+        updateElement.textContent = `Last updated ${secondsSinceLastUpdate}s ago`;
     }
 }
 
@@ -667,4 +715,14 @@ window.addEventListener('beforeunload', function() {
         clearInterval(liveDataTimer);
     }
     clearCharts();
+});
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    // Start the update timer
+    setInterval(incrementUpdateTimer, 1000);
+    
+    // Start live data refresh
+    refreshLiveData();
+    liveDataTimer = setInterval(refreshLiveData, LIVE_DATA_REFRESH_INTERVAL);
 }); 
