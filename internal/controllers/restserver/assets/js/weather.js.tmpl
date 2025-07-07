@@ -152,7 +152,7 @@ let chartList = {
         "additionalSeries": [{
             name: "Maximum Potential Solar Radiation",
             data: [],
-            color: '#FFA500' // Orange
+            color: 'rgb(255, 81, 0)' // Orange
         }]
     },
     "voltage": {
@@ -358,6 +358,17 @@ async function fetchAndCreateCharts(tabKey) {
         if (!data) return;
         
         processData(data, chartList);
+        
+        {{- if .SnowEnabled }}
+        // Process snow data separately if available
+        if (snowData && Array.isArray(snowData)) {
+            chartList.snowdepth.initialSeries = [];
+            snowData.forEach(item => {
+                chartList.snowdepth.initialSeries.push([item.ts, item.snowdepth]);
+            });
+        }
+        {{- end }}
+        
         await createCharts(tabKey, chartList);
         
     } catch (error) {
@@ -447,11 +458,17 @@ function clearCharts() {
 }
 
 function refreshLiveData() {
-    fetch('/latest')
-        .then(response => response.json())
-        .then(data => {
-            if (data) {
-                updateLiveReadings(data);
+    const fetchPromises = [fetch('/latest').then(response => response.json())];
+    
+    {{ if .SnowEnabled }}
+    fetchPromises.push(fetch('/snow').then(response => response.json()));
+    {{ end }}
+    
+    Promise.all(fetchPromises)
+        .then(results => {
+            const [weatherData, snowData] = results;
+            if (weatherData) {
+                updateLiveReadings(weatherData, snowData);
                 updateLiveIndicator();
             }
         })
@@ -461,7 +478,7 @@ function refreshLiveData() {
         });
 }
 
-function updateLiveReadings(data) {
+function updateLiveReadings(data, snowData = null) {
     // Temperature & Atmospheric
     updateElement('temperature', formatTemperatureValue(data.otemp));
     
@@ -513,20 +530,29 @@ function updateLiveReadings(data) {
     updateElement('rain-storm-total', `${data.rainfallstorm !== null && data.rainfallstorm !== undefined ? parseFloat(data.rainfallstorm).toFixed(2) : '--'}`);
   
           {{ if .SnowEnabled }}
-      // Snow data - show 0.00 for nil/null/0 values
-      updateElement('snow-depth', `${(data.snowdepth !== null && data.snowdepth !== undefined) ? parseFloat(data.snowdepth).toFixed(2) : '0.00'}`);
-      updateElement('snow-24hr', `${(data.snowlast24 !== null && data.snowlast24 !== undefined) ? parseFloat(data.snowlast24).toFixed(2) : '0.00'}`);
-      updateElement('snow-72hr', `${(data.snowlast72 !== null && data.snowlast72 !== undefined) ? parseFloat(data.snowlast72).toFixed(2) : '0.00'}`);
-      updateElement('snow-storm-total', `${(data.snowstorm !== null && data.snowstorm !== undefined) ? parseFloat(data.snowstorm).toFixed(2) : '0.00'}`);
-      // Use server-calculated snowfall rate if available, otherwise calculate manually
-      let accumulationRate = '0.00';
-      if (data.snowfallrate !== undefined && data.snowfallrate !== null && data.snowfallrate > 0) {
-        accumulationRate = parseFloat(data.snowfallrate).toFixed(3);
-      } else if (data.snowlast24 && data.snowlast24 > 0) {
-        // Fallback: calculate rate from 24-hour total
-        accumulationRate = (data.snowlast24 / 24).toFixed(3);
+      // Snow data - use snowData parameter from /snow endpoint
+      if (snowData) {
+        updateElement('snow-depth', `${(snowData.snowdepth !== null && snowData.snowdepth !== undefined) ? parseFloat(snowData.snowdepth).toFixed(2) : '0.00'}`);
+        updateElement('snow-24hr', `${(snowData.snowlast24 !== null && snowData.snowlast24 !== undefined) ? parseFloat(snowData.snowlast24).toFixed(2) : '0.00'}`);
+        updateElement('snow-72hr', `${(snowData.snowlast72 !== null && snowData.snowlast72 !== undefined) ? parseFloat(snowData.snowlast72).toFixed(2) : '0.00'}`);
+        updateElement('snow-storm-total', `${(snowData.snowstorm !== null && snowData.snowstorm !== undefined) ? parseFloat(snowData.snowstorm).toFixed(2) : '0.00'}`);
+        // Use server-calculated snowfall rate if available, otherwise calculate manually
+        let accumulationRate = '0.00';
+        if (snowData.snowfallrate !== undefined && snowData.snowfallrate !== null && snowData.snowfallrate > 0) {
+          accumulationRate = parseFloat(snowData.snowfallrate).toFixed(3);
+        } else if (snowData.snowlast24 && snowData.snowlast24 > 0) {
+          // Fallback: calculate rate from 24-hour total
+          accumulationRate = (snowData.snowlast24 / 24).toFixed(3);
+        }
+        updateElement('snow-accumulation-rate', accumulationRate);
+      } else {
+        // No snow data available, show default values
+        updateElement('snow-depth', '0.00');
+        updateElement('snow-24hr', '0.00');
+        updateElement('snow-72hr', '0.00');
+        updateElement('snow-storm-total', '0.00');
+        updateElement('snow-accumulation-rate', '0.00');
       }
-      updateElement('snow-accumulation-rate', accumulationRate);
       {{ end }}
   
     // Battery Status (now in header)
