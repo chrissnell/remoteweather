@@ -110,13 +110,14 @@ type WeatherReading struct {
 
 // SnowReading represents snow data for JSON output
 type SnowReading struct {
-	StationName string  `json:"stationname"`
-	SnowDepth   float32 `json:"snowdepth"`
-	SnowToday   float32 `json:"snowtoday"`
-	SnowLast24  float32 `json:"snowlast24"`
-	SnowLast72  float32 `json:"snowlast72"`
-	SnowSeason  float32 `json:"snowseason"`
-	SnowStorm   float32 `json:"snowstorm"`
+	StationName  string  `json:"stationname"`
+	SnowDepth    float32 `json:"snowdepth"`
+	SnowToday    float32 `json:"snowtoday"`
+	SnowLast24   float32 `json:"snowlast24"`
+	SnowLast72   float32 `json:"snowlast72"`
+	SnowSeason   float32 `json:"snowseason"`
+	SnowStorm    float32 `json:"snowstorm"`
+	SnowfallRate float32 `json:"snowfallrate"`
 }
 
 // SnowSeasonReading represents seasonal snow data

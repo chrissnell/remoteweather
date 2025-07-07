@@ -1,0 +1,484 @@
+/* Weather Dashboard CSS - Dark Theme with Grouped Layout */
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  line-height: 1.4;
+  font-size: 14px;
+}
+
+.weather-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Header */
+.weather-header {
+  background: #1a1a1a;
+  color: white;
+  padding: 12px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.station-name {
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.9rem;
+}
+
+.live-indicator {
+  color: #ffffff;
+  font-size: 1.2rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.last-update {
+  opacity: 0.9;
+}
+
+/* Main layout */
+.weather-main {
+  padding: 16px 0;
+}
+
+.metric-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.metric-group {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #404040;
+}
+
+.group-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #C70039;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #404040;
+  padding-bottom: 4px;
+}
+
+.group-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.group-metrics.wind-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.metric-item {
+  background: #1a1a1a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid #333;
+}
+
+.metric-item.span-two {
+  grid-column: 1 / -1;
+}
+
+.metric-group.span-full {
+  grid-column: 1 / -1;
+  margin-top: 16px;
+}
+
+.metric-group.span-full .metric-group-content {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.metric-group.span-full .metric-item {
+  flex: 1;
+  min-width: 150px;
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ffaa00;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: 'Inconsolata', monospace;
+  line-height: 1.2;
+  display: inline;
+}
+
+.metric-value.large {
+  font-size: 1.8rem;
+}
+
+.metric-unit {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #888;
+  margin-left: 4px;
+  display: inline;
+}
+
+.metric-sub {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* Wind Rose */
+.windrose-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80px;
+  grid-column: 1 / -1;
+}
+
+.windrose-compass {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border: 2px solid #C70039;
+  border-radius: 50%;
+  background: #1a1a1a;
+}
+
+.windrose-arrow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: #C70039;
+  transform-origin: center bottom;
+  transform: translate(-50%, -100%) rotate(0deg);
+  transition: transform 0.3s ease;
+}
+
+.windrose-arrow::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 8px solid #C70039;
+}
+
+.windrose-labels {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.compass-label {
+  position: absolute;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff500;
+}
+
+.compass-label.n { top: 2px; left: 50%; transform: translateX(-50%); }
+.compass-label.e { right: 2px; top: 50%; transform: translateY(-50%); }
+.compass-label.s { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.compass-label.w { left: 2px; top: 50%; transform: translateY(-50%); }
+
+/* Charts Section */
+.charts-section {
+  margin-top: 24px;
+}
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.chart-controls {
+  margin-bottom: 16px;
+}
+
+.chart-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.chart-tab {
+  background: #2a2a2a;
+  border: 1px solid #C70039;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #C70039;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chart-tab:hover {
+  background: #C70039;
+  color: white;
+}
+
+.chart-tab.active {
+  background: #C70039;
+  color: white;
+  box-shadow: 0 2px 4px rgba(199, 0, 57, 0.3);
+}
+
+/* Chart Containers */
+.charts-container {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #404040;
+}
+
+.chart-range-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-wrapper {
+  background: #1a1a1a;
+  border-radius: 6px;
+  padding: 12px;
+  border: 1px solid #333;
+}
+
+.chart-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffaa00;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.chart-container {
+  height: 300px;
+  width: 100%;
+  position: relative;
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+/* Chart-specific classes matching index.html.tmpl */
+.temperaturechart,
+.windspeedchart,
+.winddirectionchart,
+.humiditychart,
+.barometerchart,
+.rainfallchart,
+.solarwattschart,
+.voltagechart,
+.snowdepthchart {
+  height: 300px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .metric-groups {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .group-metrics {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .group-metrics.wind-group {
+    grid-template-columns: 1fr;
+    align-items: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .weather-container {
+    padding: 0 12px;
+  }
+  
+  .header-content {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  
+  .station-name {
+    font-size: 1.3rem;
+  }
+  
+  .metric-groups {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .group-metrics {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  
+  .group-metrics.wind-group {
+    grid-template-columns: 1fr;
+    align-items: center;
+  }
+  
+  .metric-group {
+    padding: 12px;
+  }
+  
+  .metric-value {
+    font-size: 1.2rem;
+  }
+  
+  .metric-value.large {
+    font-size: 1.5rem;
+  }
+  
+  .windrose-compass {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .windrose-arrow {
+    height: 16px;
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .weather-main {
+    padding: 12px 0;
+  }
+  
+  .metric-groups {
+    gap: 6px;
+  }
+  
+  .metric-group {
+    padding: 8px;
+  }
+  
+  .group-metrics {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  
+  .group-metrics.wind-group {
+    grid-template-columns: 1fr;
+    align-items: center;
+  }
+  
+  .metric-item {
+    padding: 6px 8px;
+  }
+  
+  .chart-container {
+    height: 200px;
+  }
+  
+  .chart-tabs {
+    gap: 4px;
+  }
+  
+  .chart-tab {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Loading States */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #C70039;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .metric-group {
+    border: 2px solid #ffffff;
+  }
+  
+  .metric-value {
+    color: #ffffff !important;
+  }
+} 

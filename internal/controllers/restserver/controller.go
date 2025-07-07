@@ -239,6 +239,10 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.HandleFunc("/", c.handlers.ServeIndexTemplate)
 	router.HandleFunc("/js/remoteweather.js", c.handlers.ServeJS)
 
+	// Modern weather website endpoints
+	router.HandleFunc("/weather", c.handlers.ServeWeatherTemplate)
+	router.HandleFunc("/js/weather.js", c.handlers.ServeWeatherJS)
+
 	// Portal endpoints
 	router.HandleFunc("/portal", c.handlers.ServePortal)
 

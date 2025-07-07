@@ -345,6 +345,17 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		log.Debugf("Storm total snowfall: %.2f mm\n", stormResult.TotalSnowfall)
 		snowStorm := mmToInches(stormResult.TotalSnowfall)
 
+		// Get the current snowfall rate
+		query = "SELECT calculate_current_snowfall_rate(?) AS snowfall"
+		err = h.controller.DB.Raw(query, website.SnowDeviceName).Scan(&result).Error
+		if err != nil {
+			log.Errorf("error getting current snowfall rate from DB: %v", err)
+			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+			return
+		}
+		log.Debugf("Current snowfall rate: %.2f mm/hr\n", result.Snowfall)
+		snowfallRate := mmToInches(result.Snowfall)
+
 		// Check if we have any readings from the snow gauge
 		var snowDepth float32 = 0.0
 		if len(dbFetchedReadings) > 0 {
@@ -354,13 +365,14 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		}
 
 		snowReading := SnowReading{
-			StationName: website.SnowDeviceName,
-			SnowDepth:   snowDepth,
-			SnowToday:   float32(snowSinceMidnight),
-			SnowLast24:  float32(snowLast24),
-			SnowLast72:  float32(snowLast72),
-			SnowSeason:  float32(snowSeason),
-			SnowStorm:   float32(snowStorm),
+			StationName:  website.SnowDeviceName,
+			SnowDepth:    snowDepth,
+			SnowToday:    float32(snowSinceMidnight),
+			SnowLast24:   float32(snowLast24),
+			SnowLast72:   float32(snowLast72),
+			SnowSeason:   float32(snowSeason),
+			SnowStorm:    float32(snowStorm),
+			SnowfallRate: float32(snowfallRate),
 		}
 
 		w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -558,6 +570,83 @@ func (h *Handlers) GetPortalJS(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Write(jsContent)
+}
+
+// ServeWeatherTemplate serves the modern weather HTML template
+func (h *Handlers) ServeWeatherTemplate(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Don't serve the modern weather template for portal websites
+	if website.IsPortal {
+		http.NotFound(w, req)
+		return
+	}
+
+	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
+	view := htmltemplate.Must(htmltemplate.New("weather.html.tmpl").ParseFS(*h.controller.FS, "weather.html.tmpl"))
+
+	// Create a template data structure with AboutStationHTML as safe HTML
+	templateData := struct {
+		StationName      string
+		PullFromDevice   string
+		SnowEnabled      bool
+		SnowDevice       string
+		SnowBaseDistance float32
+		PageTitle        string
+		AboutStationHTML htmltemplate.HTML
+	}{
+		StationName:      website.Name,
+		PullFromDevice:   primaryDevice,
+		SnowEnabled:      website.SnowEnabled,
+		SnowDevice:       website.SnowDeviceName,
+		SnowBaseDistance: h.getSnowBaseDistance(website),
+		PageTitle:        website.PageTitle,
+		AboutStationHTML: htmltemplate.HTML(website.AboutStationHTML),
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, templateData)
+	if err != nil {
+		log.Error("error executing weather template:", err)
+		return
+	}
+}
+
+// ServeWeatherJS serves the modern weather JavaScript template
+func (h *Handlers) ServeWeatherJS(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
+	view := template.Must(template.New("weather.js.tmpl").ParseFS(*h.controller.FS, "js/weather.js.tmpl"))
+
+	// Create JS template data structure
+	jsTemplateData := struct {
+		StationName      string
+		PullFromDevice   string
+		SnowEnabled      bool
+		SnowDevice       string
+		SnowBaseDistance float32
+		PageTitle        string
+		AboutStationHTML string
+	}{
+		StationName:      website.Name,
+		PullFromDevice:   primaryDevice,
+		SnowEnabled:      website.SnowEnabled,
+		SnowDevice:       website.SnowDeviceName,
+		SnowBaseDistance: h.getSnowBaseDistance(website),
+		PageTitle:        website.PageTitle,
+		AboutStationHTML: website.AboutStationHTML,
+	}
+
+	w.Header().Set("Content-Type", "text/javascript")
+	err := view.Execute(w, jsTemplateData)
+	if err != nil {
+		log.Error("error executing weather JavaScript template:", err)
+		return
+	}
 }
 
 // GetStations returns all weather stations with their location data
