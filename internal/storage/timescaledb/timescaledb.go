@@ -349,6 +349,13 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	log.Info("Adding wind gust calculation function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createWindGustSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add wind gust calculation function")
+		return &Storage{}, err
+	}
+
 	// Add indexes to speed up our most common queries
 	log.Info("Creating indexes...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createIndexesSQL).Error
