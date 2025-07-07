@@ -36,44 +36,49 @@ type WeatherReading struct {
 	ReadingTimestamp int64  `json:"ts"`
 	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
 	// instead of simply not including the field in the data structure
-	OutsideTemperature    json.Number `json:"otemp,omitempty"`
-	ExtraTemp1            json.Number `json:"extratemp1,omitempty"`
-	ExtraTemp2            json.Number `json:"extratemp2,omitempty"`
-	ExtraTemp3            json.Number `json:"extratemp3,omitempty"`
-	ExtraTemp4            json.Number `json:"extratemp4,omitempty"`
-	ExtraTemp5            json.Number `json:"extratemp5,omitempty"`
-	ExtraTemp6            json.Number `json:"extratemp6,omitempty"`
-	ExtraTemp7            json.Number `json:"extratemp7,omitempty"`
-	SoilTemp1             json.Number `json:"soiltemp1,omitempty"`
-	SoilTemp2             json.Number `json:"soiltemp2,omitempty"`
-	SoilTemp3             json.Number `json:"soiltemp3,omitempty"`
-	SoilTemp4             json.Number `json:"soiltemp4,omitempty"`
-	LeafTemp1             json.Number `json:"leaftemp1,omitempty"`
-	LeafTemp2             json.Number `json:"leaftemp2,omitempty"`
-	LeafTemp3             json.Number `json:"leaftemp3,omitempty"`
-	LeafTemp4             json.Number `json:"leaftemp4,omitempty"`
-	OutHumidity           json.Number `json:"outhumidity,omitempty"`
-	ExtraHumidity1        json.Number `json:"extrahumidity1,omitempty"`
-	ExtraHumidity2        json.Number `json:"extrahumidity2,omitempty"`
-	ExtraHumidity3        json.Number `json:"extrahumidity3,omitempty"`
-	ExtraHumidity4        json.Number `json:"extrahumidity4,omitempty"`
-	ExtraHumidity5        json.Number `json:"extrahumidity5,omitempty"`
-	ExtraHumidity6        json.Number `json:"extrahumidity6,omitempty"`
-	ExtraHumidity7        json.Number `json:"extrahumidity7,omitempty"`
-	OutsideHumidity       json.Number `json:"ohum,omitempty"`
-	RainRate              json.Number `json:"rainrate,omitempty"`
-	RainIncremental       json.Number `json:"rainincremental,omitempty"`
-	PeriodRain            json.Number `json:"period_rain,omitempty"`
-	SolarWatts            json.Number `json:"solarwatts,omitempty"`
-	PotentialSolarWatts   json.Number `json:"potentialsolarwatts,omitempty"`
-	SolarJoules           json.Number `json:"solarjoules,omitempty"`
-	UV                    json.Number `json:"uv,omitempty"`
-	Radiation             json.Number `json:"radiation,omitempty"`
-	StormRain             json.Number `json:"stormrain,omitempty"`
-	DayRain               json.Number `json:"dayrain,omitempty"`
-	MonthRain             json.Number `json:"monthrain,omitempty"`
-	YearRain              json.Number `json:"yearrain,omitempty"`
-	Barometer             json.Number `json:"bar,omitempty"`
+	OutsideTemperature  json.Number `json:"otemp,omitempty"`
+	ExtraTemp1          json.Number `json:"extratemp1,omitempty"`
+	ExtraTemp2          json.Number `json:"extratemp2,omitempty"`
+	ExtraTemp3          json.Number `json:"extratemp3,omitempty"`
+	ExtraTemp4          json.Number `json:"extratemp4,omitempty"`
+	ExtraTemp5          json.Number `json:"extratemp5,omitempty"`
+	ExtraTemp6          json.Number `json:"extratemp6,omitempty"`
+	ExtraTemp7          json.Number `json:"extratemp7,omitempty"`
+	SoilTemp1           json.Number `json:"soiltemp1,omitempty"`
+	SoilTemp2           json.Number `json:"soiltemp2,omitempty"`
+	SoilTemp3           json.Number `json:"soiltemp3,omitempty"`
+	SoilTemp4           json.Number `json:"soiltemp4,omitempty"`
+	LeafTemp1           json.Number `json:"leaftemp1,omitempty"`
+	LeafTemp2           json.Number `json:"leaftemp2,omitempty"`
+	LeafTemp3           json.Number `json:"leaftemp3,omitempty"`
+	LeafTemp4           json.Number `json:"leaftemp4,omitempty"`
+	OutHumidity         json.Number `json:"outhumidity,omitempty"`
+	ExtraHumidity1      json.Number `json:"extrahumidity1,omitempty"`
+	ExtraHumidity2      json.Number `json:"extrahumidity2,omitempty"`
+	ExtraHumidity3      json.Number `json:"extrahumidity3,omitempty"`
+	ExtraHumidity4      json.Number `json:"extrahumidity4,omitempty"`
+	ExtraHumidity5      json.Number `json:"extrahumidity5,omitempty"`
+	ExtraHumidity6      json.Number `json:"extrahumidity6,omitempty"`
+	ExtraHumidity7      json.Number `json:"extrahumidity7,omitempty"`
+	OutsideHumidity     json.Number `json:"ohum,omitempty"`
+	RainRate            json.Number `json:"rainrate,omitempty"`
+	RainIncremental     json.Number `json:"rainincremental,omitempty"`
+	PeriodRain          json.Number `json:"period_rain,omitempty"`
+	SolarWatts          json.Number `json:"solarwatts,omitempty"`
+	PotentialSolarWatts json.Number `json:"potentialsolarwatts,omitempty"`
+	SolarJoules         json.Number `json:"solarjoules,omitempty"`
+	UV                  json.Number `json:"uv,omitempty"`
+	Radiation           json.Number `json:"radiation,omitempty"`
+	StormRain           json.Number `json:"stormrain,omitempty"`
+	DayRain             json.Number `json:"dayrain,omitempty"`
+	MonthRain           json.Number `json:"monthrain,omitempty"`
+	YearRain            json.Number `json:"yearrain,omitempty"`
+	Barometer           json.Number `json:"bar,omitempty"`
+	// New rainfall total fields
+	Rainfall24h           json.Number `json:"rainfall24h,omitempty"`
+	Rainfall48h           json.Number `json:"rainfall48h,omitempty"`
+	Rainfall72h           json.Number `json:"rainfall72h,omitempty"`
+	RainfallStorm         json.Number `json:"rainfallstorm,omitempty"`
 	WindSpeed             json.Number `json:"winds,omitempty"`
 	WindGust              json.Number `json:"windgust,omitempty"`
 	WindDirection         json.Number `json:"windd,omitempty"`
