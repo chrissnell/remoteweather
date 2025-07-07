@@ -498,8 +498,8 @@ function updateLiveReadings(data) {
     updateElement('wind-direction', data.windcard || '--');
     updateElement('wind-degrees', `(${data.windd || '--'}°)`);
   
-    // Update windrose
-    updateWindrose(data.windd, data.winds);
+    // Update windrose - original implementation
+    updateWindrose(data.windd, data.winds, data.windcard);
   
     // Precipitation
     updateElement('rain-today', `${data.dayrain !== null && data.dayrain !== undefined ? parseFloat(data.dayrain).toFixed(2) : '--'}`);
@@ -608,10 +608,23 @@ function getBatteryStatus(voltage) {
     return 'Low';
 }
 
-function updateWindrose(direction, speed) {
-    const arrow = document.getElementById('windrose-arrow');
-    if (arrow && direction != null) {
-        arrow.style.transform = `translate(-50%, -100%) rotate(${direction}deg)`;
+function updateWindrose(direction, speed, cardinalDir) {
+    // Update the windrose circle rotation (original implementation)
+    const windDirElement = document.getElementById('rdg-winddir');
+    if (windDirElement && direction != null) {
+        windDirElement.style.transform = `rotate(${direction}deg)`;
+    }
+    
+    // Update the cardinal direction display
+    const cardinalElement = document.getElementById('rdg-winddir-cardinal');
+    if (cardinalElement) {
+        cardinalElement.textContent = cardinalDir || '---';
+    }
+    
+    // Update the wind speed display in the windrose
+    const speedElement = document.getElementById('rdg-windspeed');
+    if (speedElement) {
+        speedElement.textContent = speed ? Math.round(parseFloat(speed)) : '--';
     }
 }
 
