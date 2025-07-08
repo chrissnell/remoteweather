@@ -93,8 +93,14 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
 		stationName := req.URL.Query().Get("station")
 
-		// Validate station name if provided
-		if stationName != "" && !h.validateStationExists(stationName) {
+		// Require station parameter
+		if stationName == "" {
+			http.Error(w, "station parameter is required", http.StatusBadRequest)
+			return
+		}
+
+		// Validate station name
+		if !h.validateStationExists(stationName) {
 			http.Error(w, "station not found", http.StatusNotFound)
 			return
 		}
@@ -114,65 +120,33 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
 		switch {
 		case span < 1*Day:
-			if stationName != "" {
-				h.controller.DB.Table("weather_1m").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Where("stationname = ?", stationName).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			} else {
-				h.controller.DB.Table("weather_1m").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			}
+			h.controller.DB.Table("weather_1m").
+				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+				Where("bucket > ?", spanStart).
+				Where("stationname = ?", stationName).
+				Order("bucket").
+				Find(&dbFetchedReadings)
 		case span >= 1*Day && span < 7*Day:
-			if stationName != "" {
-				h.controller.DB.Table("weather_5m").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Where("stationname = ?", stationName).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			} else {
-				h.controller.DB.Table("weather_5m").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			}
+			h.controller.DB.Table("weather_5m").
+				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+				Where("bucket > ?", spanStart).
+				Where("stationname = ?", stationName).
+				Order("bucket").
+				Find(&dbFetchedReadings)
 		case span >= 7*Day && span < 2*Month:
-			if stationName != "" {
-				h.controller.DB.Table("weather_1h").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Where("stationname = ?", stationName).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			} else {
-				h.controller.DB.Table("weather_1h").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			}
+			h.controller.DB.Table("weather_1h").
+				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+				Where("bucket > ?", spanStart).
+				Where("stationname = ?", stationName).
+				Order("bucket").
+				Find(&dbFetchedReadings)
 		default:
-			if stationName != "" {
-				h.controller.DB.Table("weather_1h").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Where("stationname = ?", stationName).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			} else {
-				h.controller.DB.Table("weather_1h").
-					Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-					Where("bucket > ?", spanStart).
-					Order("bucket").
-					Find(&dbFetchedReadings)
-			}
+			h.controller.DB.Table("weather_1h").
+				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+				Where("bucket > ?", spanStart).
+				Where("stationname = ?", stationName).
+				Order("bucket").
+				Find(&dbFetchedReadings)
 		}
 
 		spanReadings := h.transformSpanReadings(&dbFetchedReadings)
