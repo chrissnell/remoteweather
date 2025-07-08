@@ -480,12 +480,20 @@
           </select>
         </label>
         
-        <label>
-          Snow Device
-          <select id="website-snow-device">
-            <option value="">None</option>
-          </select>
-        </label>
+        <fieldset>
+          <legend>Snow Configuration</legend>
+          <label class="checkbox-label">
+            <input type="checkbox" id="website-snow-enabled" />
+            Enable Snow Measurements
+          </label>
+          
+          <label id="snow-device-label">
+            Snow Device
+            <select id="website-snow-device">
+              <option value="">Select snow device...</option>
+            </select>
+          </label>
+        </fieldset>
         
         <label>
           Hostname
