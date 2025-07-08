@@ -1834,10 +1834,15 @@
     }
     
     if (!website.is_portal) {
-      if (website.snow_device_name) {
-        html += `<div><strong>Snow Device:</strong> ${website.snow_device_name}</div>`;
+      if (website.snow_enabled) {
+        html += `<div><strong>Snow Enabled:</strong> <span style="color: #1a8ca7;">Yes</span></div>`;
+        if (website.snow_device_name) {
+          html += `<div><strong>Snow Device:</strong> ${website.snow_device_name}</div>`;
+        } else {
+          html += '<div><strong>Snow Device:</strong> <span style="color: #c1121f;">None (Required)</span></div>';
+        }
       } else {
-        html += '<div><strong>Snow Device:</strong> None</div>';
+        html += '<div><strong>Snow Enabled:</strong> No</div>';
       }
     }
     
@@ -1889,6 +1894,7 @@
     document.getElementById('website-form-mode').value = 'add';
     websiteModal.classList.remove('hidden');
     loadDeviceSelectsForWebsite();
+    setupSnowToggle();
   }
 
   function closeWebsiteModal() {
@@ -1936,9 +1942,19 @@
       const deviceId = website.device_id || '';
       document.getElementById('website-device').value = deviceId;
       
-      // Set snow device dropdown
+      // Set snow enabled toggle and device dropdown
+      const snowEnabled = website.snow_enabled || false;
       const snowDevice = website.snow_device_name || '';
+      document.getElementById('website-snow-enabled').checked = snowEnabled;
       document.getElementById('website-snow-device').value = snowDevice;
+      
+      // Set visual feedback based on enabled state
+      const snowDeviceSelect = document.getElementById('website-snow-device');
+      if (snowEnabled) {
+        snowDeviceSelect.style.opacity = '1';
+      } else {
+        snowDeviceSelect.style.opacity = '0.6';
+      }
       
       websiteModal.classList.remove('hidden');
     } catch (err) {
@@ -1972,6 +1988,9 @@
     // Reset device dropdown to default state
     document.getElementById('website-device').value = '';
     document.getElementById('website-snow-device').value = '';
+    // Reset snow toggle and visual feedback
+    document.getElementById('website-snow-enabled').checked = false;
+    document.getElementById('website-snow-device').style.opacity = '0.6';
   }
 
   function resetPortalForm() {
@@ -1998,7 +2017,7 @@
       
       // Populate snow device dropdown with only snow gauges (still using names for snow devices)
       const snowSelect = document.getElementById('website-snow-device');
-      snowSelect.innerHTML = '<option value="">None</option>';
+      snowSelect.innerHTML = '<option value="">Select snow device...</option>';
       devices.filter(device => device.type === 'snowgauge').forEach(device => {
         const option = document.createElement('option');
         option.value = device.name; // Snow devices still use names
@@ -2010,11 +2029,33 @@
     }
   }
 
+  // Handle snow enabled toggle
+  function setupSnowToggle() {
+    const snowToggle = document.getElementById('website-snow-enabled');
+    const snowDeviceLabel = document.getElementById('snow-device-label');
+    
+    if (snowToggle && snowDeviceLabel) {
+      // Always show the snow device dropdown to preserve associations
+      snowDeviceLabel.classList.remove('hidden');
+      
+      // Optional: Add visual feedback to show when snow is disabled
+      snowToggle.addEventListener('change', function() {
+        const snowDeviceSelect = document.getElementById('website-snow-device');
+        if (this.checked) {
+          snowDeviceSelect.style.opacity = '1';
+        } else {
+          snowDeviceSelect.style.opacity = '0.6';
+        }
+      });
+    }
+  }
+
   async function saveWebsite() {
     const mode = document.getElementById('website-form-mode').value;
     const id = document.getElementById('website-edit-id').value;
     
     try {
+      const snowEnabled = document.getElementById('website-snow-enabled').checked;
       const snowDevice = document.getElementById('website-snow-device').value;
       const deviceId = document.getElementById('website-device').value;
       
@@ -2024,7 +2065,7 @@
         hostname: document.getElementById('website-hostname').value,
         page_title: document.getElementById('website-page-title').value,
         about_station_html: document.getElementById('website-about-html').value,
-        snow_enabled: snowDevice !== "",
+        snow_enabled: snowEnabled,
         snow_device_name: snowDevice || "",
         tls_cert_path: document.getElementById('website-tls-cert').value,
         tls_key_path: document.getElementById('website-tls-key').value,
@@ -2175,6 +2216,9 @@
   async function init() {
     // Set up authentication event handlers
     setupAuthEventHandlers();
+    
+    // Set up snow toggle functionality
+    setupSnowToggle();
     
     // Debug: show current cookies
     console.log('Current cookies:', document.cookie);
