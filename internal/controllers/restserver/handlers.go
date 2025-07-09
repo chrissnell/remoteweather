@@ -478,8 +478,8 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// ServeIndexTemplate serves the main HTML template
-func (h *Handlers) ServeIndexTemplate(w http.ResponseWriter, req *http.Request) {
+// ServeOldWeatherWebsiteTemplate serves the old HTML template
+func (h *Handlers) ServeOldWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
 
@@ -607,8 +607,8 @@ func (h *Handlers) GetPortalJS(w http.ResponseWriter, req *http.Request) {
 	w.Write(jsContent)
 }
 
-// ServeWeatherTemplate serves the modern weather HTML template
-func (h *Handlers) ServeWeatherTemplate(w http.ResponseWriter, req *http.Request) {
+// ServeWeatherWebsiteTemplate serves the modern weather HTML template
+func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
 
@@ -649,8 +649,8 @@ func (h *Handlers) ServeWeatherTemplate(w http.ResponseWriter, req *http.Request
 	}
 }
 
-// ServeWeatherJS serves the modern weather JavaScript template
-func (h *Handlers) ServeWeatherJS(w http.ResponseWriter, req *http.Request) {
+// ServeWeatherWebsiteJS serves the modern weather JavaScript template
+func (h *Handlers) ServeWeatherWebsiteJS(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
 	primaryDevice := h.getPrimaryDeviceForWebsite(website)
