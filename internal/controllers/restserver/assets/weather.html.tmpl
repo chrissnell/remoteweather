@@ -5,6 +5,7 @@
   <title>{{ .StationName }} - Weather Station</title>
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="css/normalize.css" rel="stylesheet" type="text/css">
+  <link href="css/weather-station.webflow.css" rel="stylesheet" type="text/css">
   <link href="css/weather.css" rel="stylesheet" type="text/css">
   
   <!-- Fonts -->
@@ -203,6 +204,414 @@
         </div>
       </div>
       {{ end }}
+      
+      <!-- Forecast Section -->
+      <div class="forecast-section">
+        <div class="section-title">Weather Forecast</div>
+        
+        <div class="forecast-tabs">
+          <button class="forecast-tab active" data-forecast-type="week" id="forecast-tab-week">7 Days</button>
+          <button class="forecast-tab" data-forecast-type="day" id="forecast-tab-day">24 Hours</button>
+        </div>
+        
+        <!-- Week Forecast -->
+        <div class="forecast-container" id="forecast-week">
+          <div class="forecast-grid week-grid">
+            <div class="forecast-day" id="week-forecast-interval-0">
+              <div class="forecast-day-title" id="week-forecast-interval-0-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-0-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-0-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-0-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-0-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-0-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-0-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-1">
+              <div class="forecast-day-title" id="week-forecast-interval-1-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-1-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-1-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-1-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-1-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-1-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-1-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-2">
+              <div class="forecast-day-title" id="week-forecast-interval-2-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-2-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-2-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-2-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-2-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-2-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-2-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-3">
+              <div class="forecast-day-title" id="week-forecast-interval-3-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-3-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-3-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-3-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-3-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-3-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-3-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-4">
+              <div class="forecast-day-title" id="week-forecast-interval-4-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-4-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-4-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-4-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-4-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-4-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-4-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-5">
+              <div class="forecast-day-title" id="week-forecast-interval-5-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-5-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-5-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-5-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-5-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-5-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-5-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-6">
+              <div class="forecast-day-title" id="week-forecast-interval-6-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-6-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-6-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-6-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-6-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-6-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-6-precip">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="forecast-updated" id="forecast-week-last-updated">---</div>
+        </div>
+        
+        <!-- Day Forecast -->
+        <div class="forecast-container" id="forecast-day" style="display: none;">
+          <div class="forecast-grid day-grid">
+            <div class="forecast-hour" id="day-forecast-interval-0">
+              <div class="forecast-hour-title" id="day-forecast-interval-0-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-0-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-0-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-0-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-0-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-0-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-1">
+              <div class="forecast-hour-title" id="day-forecast-interval-1-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-1-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-1-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-1-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-1-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-1-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-2">
+              <div class="forecast-hour-title" id="day-forecast-interval-2-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-2-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-2-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-2-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-2-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-2-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-3">
+              <div class="forecast-hour-title" id="day-forecast-interval-3-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-3-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-3-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-3-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-3-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-3-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-4">
+              <div class="forecast-hour-title" id="day-forecast-interval-4-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-4-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-4-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-4-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-4-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-4-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-5">
+              <div class="forecast-hour-title" id="day-forecast-interval-5-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-5-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-5-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-5-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-5-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-5-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-6">
+              <div class="forecast-hour-title" id="day-forecast-interval-6-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-6-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-6-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-6-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-6-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-6-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-7">
+              <div class="forecast-hour-title" id="day-forecast-interval-7-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-7-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-7-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-7-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-7-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-7-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-8">
+              <div class="forecast-hour-title" id="day-forecast-interval-8-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-8-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-8-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-8-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-8-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-8-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-9">
+              <div class="forecast-hour-title" id="day-forecast-interval-9-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-9-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-9-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-9-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-9-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-9-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-10">
+              <div class="forecast-hour-title" id="day-forecast-interval-10-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-10-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-10-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-10-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-10-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-10-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-11">
+              <div class="forecast-hour-title" id="day-forecast-interval-11-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-11-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-11-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-11-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-11-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-11-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-12">
+              <div class="forecast-hour-title" id="day-forecast-interval-12-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-12-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-12-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-12-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-12-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-12-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-13">
+              <div class="forecast-hour-title" id="day-forecast-interval-13-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-13-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-13-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-13-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-13-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-13-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-14">
+              <div class="forecast-hour-title" id="day-forecast-interval-14-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-14-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-14-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-14-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-14-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-14-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-15">
+              <div class="forecast-hour-title" id="day-forecast-interval-15-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-15-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-15-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-15-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-15-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-15-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-16">
+              <div class="forecast-hour-title" id="day-forecast-interval-16-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-16-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-16-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-16-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-16-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-16-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-17">
+              <div class="forecast-hour-title" id="day-forecast-interval-17-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-17-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-17-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-17-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-17-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-17-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-18">
+              <div class="forecast-hour-title" id="day-forecast-interval-18-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-18-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-18-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-18-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-18-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-18-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-19">
+              <div class="forecast-hour-title" id="day-forecast-interval-19-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-19-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-19-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-19-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-19-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-19-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-20">
+              <div class="forecast-hour-title" id="day-forecast-interval-20-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-20-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-20-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-20-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-20-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-20-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-21">
+              <div class="forecast-hour-title" id="day-forecast-interval-21-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-21-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-21-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-21-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-21-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-21-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-22">
+              <div class="forecast-hour-title" id="day-forecast-interval-22-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-22-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-22-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-22-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-22-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-22-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-23">
+              <div class="forecast-hour-title" id="day-forecast-interval-23-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-23-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-23-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-23-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-23-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-23-precip">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="forecast-updated" id="forecast-day-last-updated">---</div>
+        </div>
+      </div>
       
       <!-- Charts Section -->
       <div class="charts-section">

@@ -13,10 +13,14 @@ let secondsSinceLastUpdate = 0;
 // Constants
 const LIVE_DATA_REFRESH_INTERVAL = 3500; // 3.5 seconds
 const CHART_REFRESH_INTERVAL = 300000; // 5 minutes
+const FORECAST_REFRESH_INTERVAL = 1000 * 60 * 60 * 4; // 4 hours
 const MAX_POINTS = 20;
 
 // Current chart range
 let currentRange = '24h';
+
+// Current forecast type
+let currentForecastType = 'week';
 
 // Debug flag
 const debug = new URLSearchParams(window.location.search).get('debug') === '1';
@@ -180,6 +184,9 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeWeatherDashboard() {
     // Set up chart tab event listeners
     setupChartTabs();
+    
+    // Set up forecast tab event listeners
+    setupForecastTabs();
   
     // Start data refresh cycles
     startLiveDataRefresh();
@@ -195,6 +202,18 @@ function setupChartTabs() {
             const range = this.dataset.range;
             if (range !== currentRange) {
                 switchChartRange(range);
+            }
+        });
+    });
+}
+
+function setupForecastTabs() {
+    const tabs = document.querySelectorAll('.forecast-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const forecastType = this.dataset.forecastType;
+            if (forecastType !== currentForecastType) {
+                switchForecastType(forecastType);
             }
         });
     });
@@ -225,12 +244,37 @@ function switchChartRange(range) {
     fetchAndCreateCharts(range);
 }
 
+function switchForecastType(forecastType) {
+    // Update active tab
+    document.querySelectorAll('.forecast-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`[data-forecast-type="${forecastType}"]`).classList.add('active');
+  
+    // Hide all forecast containers
+    document.querySelectorAll('.forecast-container').forEach(container => {
+        container.style.display = 'none';
+    });
+  
+    // Show selected forecast container
+    const targetContainer = document.getElementById(`forecast-${forecastType}`);
+    if (targetContainer) {
+        targetContainer.style.display = 'block';
+    }
+  
+    currentForecastType = forecastType;
+}
+
 function loadInitialData() {
     // Load live data first
     refreshLiveData();
   
     // Load initial chart range (24h)
     fetchAndCreateCharts('24h');
+    
+    // Load initial forecast data
+    refreshWeekForecastData();
+    refreshDayForecastData();
 }
 
 function startLiveDataRefresh() {
@@ -590,7 +634,12 @@ function updateLiveReadings(data, snowData = null) {
 function updateElement(id, value) {
     const element = document.getElementById(id);
     if (element) {
-        element.textContent = value;
+        // Use innerHTML if value contains HTML tags, otherwise use textContent
+        if (typeof value === 'string' && value.includes('<')) {
+            element.innerHTML = value;
+        } else {
+            element.textContent = value;
+        }
         if (debug && id === 'feels-like') {
             console.log('Updated feels-like element:', { id, value, element });
         }
@@ -770,6 +819,165 @@ window.addEventListener('beforeunload', function() {
     }
     clearCharts();
 });
+
+// Forecast data functions
+async function refreshWeekForecastData() {
+    if (debug) console.log("Fetching week forecast data...");
+    try {
+        const data = await fetchWithTimeout('/forecast/168');
+        if (!data) {
+            setTimeout(refreshWeekForecastData, 60000);
+            return;
+        }
+        
+        if (debug) console.log("Week forecast data received:", data);
+
+        const dayToDayName = {
+            0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday",
+            4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"
+        };
+
+        // Batch DOM updates
+        requestAnimationFrame(() => {
+            let i = 0;
+            for (const interval of data.data) {
+                let intervalDate = new Date(interval.dateTimeISO);
+                let dateLabel = i === 0 ? "Today" : dayToDayName[intervalDate.getDay()];
+                
+                updateElement(`week-forecast-interval-${i}-title`, dateLabel);
+                updateElement(`week-forecast-interval-${i}-high-temp`, interval.maxTempF);
+                updateElement(`week-forecast-interval-${i}-low-temp`, interval.minTempF);
+                updateElement(`week-forecast-interval-${i}-icon`, interval.weatherIcon);
+                updateElement(`week-forecast-interval-${i}-weather`, interval.compactWeather);
+
+                const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
+                const snow = snowRegex.test(interval.weatherPrimaryCoded);
+                const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
+                const rain = rainRegex.test(interval.weatherPrimaryCoded);
+
+                if (snow) {
+                    if (debug) console.log(`Week forecast interval ${i} - snow: `, interval.snowIN);
+                    updateElement(`week-forecast-interval-${i}-precip-icon`, "❄");
+                    updateElement(`week-forecast-interval-${i}-precip`, interval.snowIN + "\"");
+                } else if (rain) {
+                    if (debug) console.log(`Week forecast interval ${i} - rain: `, interval.precipIN);
+                    updateElement(`week-forecast-interval-${i}-precip-icon`, "⛆");
+                    updateElement(`week-forecast-interval-${i}-precip`, interval.precipIN + "\"");
+                } else {
+                    if (debug) console.log(`Week forecast interval ${i} - no precip`);
+                    updateElement(`week-forecast-interval-${i}-precip-icon`, "");
+                    updateElement(`week-forecast-interval-${i}-precip`, "");
+                }
+                i++;
+            }
+
+            const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
+            updateElement('forecast-week-last-updated', "Last Updated: " + lastUpdated);
+        });
+
+        setTimeout(refreshWeekForecastData, FORECAST_REFRESH_INTERVAL);
+    } catch (error) {
+        if (debug) console.error("Failed to fetch week forecast data:", error);
+        setTimeout(refreshWeekForecastData, 60000); // Retry in 1 minute
+    }
+}
+
+async function refreshDayForecastData() {
+    if (debug) console.log("Fetching day forecast data...");
+    try {
+        const data = await fetchWithTimeout('/forecast/24');
+        if (!data) {
+            setTimeout(refreshDayForecastData, 60000);
+            return;
+        }
+        
+        if (debug) console.log("Day forecast data received:", data);
+
+        // Pre-calculate temperature scaling (matching original algorithm)
+        let pixelsPerDegree = 0;
+        const tempSpreadPixels = 80;
+        const avgTemps = data.data.map((x) => x.avgTempF);
+        const lowTemp = Math.min.apply(null, avgTemps);
+        const highTemp = Math.max.apply(null, avgTemps);
+        const tempSpread = highTemp - lowTemp;
+        if (tempSpread > 0) {
+            pixelsPerDegree = tempSpreadPixels / tempSpread;
+        }
+        
+        // Debug temperature distribution
+        if (debug) {
+            console.log("Temperature distribution debug:", {
+                avgTemps,
+                lowTemp,
+                highTemp,
+                tempSpread,
+                pixelsPerDegree,
+                tempSpreadPixels
+            });
+        }
+
+        // Batch DOM updates
+        requestAnimationFrame(() => {
+            let i = 0;
+            for (const interval of data.data) {
+                let intervalDate = moment(interval.dateTimeISO, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ");
+                let dateLabel = (intervalDate.hour() === 0 || i === 0) 
+                    ? intervalDate.format("h A") + "<br>" + intervalDate.format("ddd") 
+                    : intervalDate.format("h A");
+                
+                updateElement(`day-forecast-interval-${i}-title`, dateLabel);
+                updateElement(`day-forecast-interval-${i}-avg-temp`, interval.avgTempF + "°");
+                updateElement(`day-forecast-interval-${i}-icon`, interval.weatherIcon);
+
+                // Apply temperature-dependent vertical positioning
+                const adjustableDiv = document.getElementById(`day-forecast-interval-${i}-adjustable-div`);
+                if (adjustableDiv) {
+                    const paddingValue = pixelsPerDegree * (highTemp - interval.avgTempF);
+                    adjustableDiv.style.paddingTop = paddingValue + "px";
+                    
+                    // Debug individual temperature positioning
+                    if (debug) {
+                        console.log(`Interval ${i} temp positioning:`, {
+                            temp: interval.avgTempF,
+                            highTemp,
+                            difference: highTemp - interval.avgTempF,
+                            paddingValue,
+                            paddingString: paddingValue + "px"
+                        });
+                    }
+                }
+
+                const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/g;
+                const snow = snowRegex.test(interval.weatherPrimaryCoded);
+                const rainRegex = /.*:.*:(R|RW|T|TO|UP|ZR|L|BY|ZY|ZR)$/g;
+                const rain = rainRegex.test(interval.weatherPrimaryCoded);
+
+                if (snow) {
+                    if (debug) console.log(`Day forecast interval ${i} - snow: `, interval.snowIN);
+                    updateElement(`day-forecast-interval-${i}-precip-icon`, "❄");
+                    updateElement(`day-forecast-interval-${i}-precip`, interval.snowIN + "\"");
+                } else if (rain) {
+                    if (debug) console.log(`Day forecast interval ${i} - rain: `, interval.precipIN);
+                    updateElement(`day-forecast-interval-${i}-precip-icon`, "⛆");
+                    updateElement(`day-forecast-interval-${i}-precip`, interval.precipIN + "\"");
+                } else {
+                    if (debug) console.log(`Day forecast interval ${i} - no precip`);
+                    updateElement(`day-forecast-interval-${i}-precip-icon`, "");
+                    updateElement(`day-forecast-interval-${i}-precip`, interval.pop + "%");
+                }
+                i++;
+            }
+
+            const lastUpdated = moment(data.lastUpdated, "YYYY-MM-DD HH:mm:ss.SSSSSS-ZZ").format("h:mm A, DD MMM YYYY");
+            updateElement('forecast-day-last-updated', "Last Updated: " + lastUpdated);
+        });
+
+        setTimeout(refreshDayForecastData, FORECAST_REFRESH_INTERVAL);
+    } catch (error) {
+        if (debug) console.error("Failed to fetch day forecast data:", error);
+        setTimeout(refreshDayForecastData, 60000); // Retry in 1 minute
+    }
+}
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', function() {
