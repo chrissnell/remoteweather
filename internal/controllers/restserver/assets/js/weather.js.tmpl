@@ -66,6 +66,11 @@ let chartTabList = {
     }
 };
 
+// Get CSS variables for theming
+function getCSSVariable(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 // Chart configuration object
 let chartList = {
     "temperature": {
@@ -152,7 +157,7 @@ let chartList = {
         "additionalSeries": [{
             name: "Maximum Potential Solar Radiation",
             data: [],
-            color: 'rgb(255, 81, 0)' // Orange
+            color: 'rgb(255, 81, 0)' // Will be overridden by CSS variable in createChart
         }]
     },
     "voltage": {
@@ -379,52 +384,58 @@ async function fetchAndCreateCharts(tabKey) {
 // Generic chart creation function (exactly like original)
 function createChart(chartName, targetDiv, data, title, options = {}) {
     const { yAxisTitle, chartType = 'spline', tooltipFormat, additionalSeries = [] } = options;
+    
+    // Get CSS variables for theming
+    const getCSSVariable = (name) => {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    };
+    
     const config = {
         chart: {
             type: chartType,
-            backgroundColor: '#1a1a1a',
+            backgroundColor: getCSSVariable('--chart-bg'),
             style: { 
                 fontFamily: 'Roboto, sans-serif',
-                color: '#ffffff'
+                color: getCSSVariable('--chart-text')
             },
             events: { load: () => markAsRendered(chartName) }
         },
         title: { 
             text: title,
-            style: { color: '#ffffff' }
+            style: { color: getCSSVariable('--chart-text') }
         },
         credits: { enabled: false },
         legend: { 
             enabled: additionalSeries.length > 0,
-            itemStyle: { color: '#ffffff' }
+            itemStyle: { color: getCSSVariable('--chart-text') }
         },
         xAxis: {
             type: 'datetime',
             dateTimeLabelFormats: { hour: '%l %p', minute: '%I:%M %p' },
-            lineColor: '#404040',
-            tickColor: '#404040',
-            labels: { style: { color: '#ffffff' } }
+            lineColor: getCSSVariable('--chart-grid'),
+            tickColor: getCSSVariable('--chart-grid'),
+            labels: { style: { color: getCSSVariable('--chart-text') } }
         },
         yAxis: chartType === 'vector' ? { visible: false } : { 
             title: { 
                 text: yAxisTitle,
-                style: { color: '#ffffff' }
+                style: { color: getCSSVariable('--chart-text') }
             },
-            gridLineColor: '#404040',
-            labels: { style: { color: '#ffffff' } }
+            gridLineColor: getCSSVariable('--chart-grid'),
+            labels: { style: { color: getCSSVariable('--chart-text') } }
         },
         time: { useUTC: false },
         tooltip: {
-            backgroundColor: '#2a2a2a',
-            borderColor: '#404040',
-            style: { color: '#ffffff' },
+            backgroundColor: getCSSVariable('--chart-tooltip-bg'),
+            borderColor: getCSSVariable('--chart-tooltip-border'),
+            style: { color: getCSSVariable('--chart-text') },
             ...(tooltipFormat || {})
         },
         series: [
             {
                 name: title,
                 data,
-                color: '#ffaa00', // Orange
+                color: getCSSVariable('--chart-series-color'),
                 marker: {
                     enabled: false,
                     states: {
@@ -435,7 +446,10 @@ function createChart(chartName, targetDiv, data, title, options = {}) {
                     }
                 }
             },
-            ...additionalSeries
+            ...additionalSeries.map(series => ({
+                ...series,
+                color: getCSSVariable('--chart-series-color-alt')
+            }))
         ]
     };
     return Highcharts.chart(targetDiv, config);
@@ -456,6 +470,20 @@ function clearCharts() {
         }
     }
 }
+
+// Refresh charts for theme change
+function refreshChartsForTheme() {
+    // Clear existing charts
+    clearCharts();
+    
+    // Recreate charts for current range
+    if (currentRange) {
+        fetchAndCreateCharts(currentRange);
+    }
+}
+
+// Make function globally available
+window.refreshChartsForTheme = refreshChartsForTheme;
 
 function refreshLiveData() {
     const fetchPromises = [fetch('/latest').then(response => response.json())];
