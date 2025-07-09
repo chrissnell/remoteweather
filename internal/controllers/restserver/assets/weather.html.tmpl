@@ -19,6 +19,25 @@
   <!-- Time library -->
   <script src="js/moment.min.js"></script>
   
+  <!-- Theme initialization script -->
+  <script>
+    // Initialize theme before page renders to prevent flashing
+    (function() {
+      const savedTheme = localStorage.getItem('weather-theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Use saved theme, or fall back to system preference
+      let theme = savedTheme;
+      if (!theme) {
+        theme = systemPrefersDark ? 'dark' : 'light';
+      }
+      
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  
   <!-- Weather JavaScript -->
   <script src="js/weather.js"></script>
 </head>
@@ -36,6 +55,9 @@
               <div class="text-block-23">LIVE</div>
             </div>
             <div class="last-update" id="last-update">Updated just now</div>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark theme">
+              <span>Theme</span>
+            </button>
           </div>
           <div class="battery-info" id="battery-info" style="display: none;">
             Station Battery: <span id="battery-voltage">--</span>V (<span id="battery-status">--</span>)
@@ -412,6 +434,97 @@
       
     </div>
   </div>
+  
+  <!-- Theme Toggle Script -->
+  <script>
+    (function() {
+      // Initialize theme variables
+      let currentTheme = 'dark';
+      
+      // Theme management functions
+      function setTheme(theme) {
+        console.log('Setting theme to:', theme);
+        console.log('Document element:', document.documentElement);
+        
+        if (theme === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+          console.log('Added data-theme="light"');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          console.log('Removed data-theme attribute');
+        }
+        
+        localStorage.setItem('weather-theme', theme);
+        currentTheme = theme;
+        
+        // Debug: Check computed styles
+        setTimeout(() => {
+          const bodyBg = getComputedStyle(document.body).backgroundColor;
+          const bodyColor = getComputedStyle(document.body).color;
+          const htmlTheme = document.documentElement.getAttribute('data-theme');
+          console.log('HTML data-theme:', htmlTheme);
+          console.log('Body background:', bodyBg);
+          console.log('Body color:', bodyColor);
+          
+          // Check if CSS variables are being applied
+          const computedBg = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary');
+          console.log('CSS variable --bg-primary:', computedBg);
+        }, 100);
+      }
+      
+      function getInitialTheme() {
+        const savedTheme = localStorage.getItem('weather-theme');
+        if (savedTheme) {
+          return savedTheme;
+        }
+        
+        // Check system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+          return 'light';
+        }
+        
+        return 'dark';
+      }
+      
+      // Set initial theme
+      currentTheme = getInitialTheme();
+      setTheme(currentTheme);
+      
+      // Initialize theme toggle when DOM is ready
+      document.addEventListener('DOMContentLoaded', function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        
+        if (!themeToggle) {
+          console.error('Theme toggle button not found');
+          return;
+        }
+        
+        console.log('Theme toggle button found, current theme:', currentTheme);
+        
+              // Theme toggle event listener
+      themeToggle.addEventListener('click', function() {
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        console.log('Theme toggle clicked, switching to:', newTheme);
+        setTheme(newTheme);
+        
+        // Refresh charts to apply new theme
+        if (window.refreshChartsForTheme) {
+          window.refreshChartsForTheme();
+        }
+      });
+        
+        // Listen for system theme changes
+        if (window.matchMedia) {
+          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+            // Only auto-switch if user hasn't manually set a preference
+            if (!localStorage.getItem('weather-theme')) {
+              setTheme(e.matches ? 'dark' : 'light');
+            }
+          });
+        }
+      });
+    })();
+  </script>
   
 </body>
 </html> 

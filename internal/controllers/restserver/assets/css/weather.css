@@ -1,4 +1,65 @@
-/* Weather Dashboard CSS - Dark Theme with Grouped Layout */
+/* Weather Dashboard CSS - Theme Support with Dark/Light Mode */
+
+/* CSS Variables for Theme Colors */
+:root {
+  /* Dark theme (default) */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --bg-tertiary: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  --text-accent: #ffaa00;
+  --text-danger: #FF3000;
+  --border-primary: #404040;
+  --border-secondary: #333333;
+  --header-bg: #1a1a1a;
+  --live-indicator: #1a8ca7;
+  --live-indicator-dim: #0f6a85;
+  --live-border: #328d32;
+  --windrose-border: #898989;
+  --shadow: rgba(0, 0, 0, 0.3);
+  
+  /* Highcharts theme variables */
+  --chart-bg: #1a1a1a;
+  --chart-text: #ffffff;
+  --chart-grid: #404040;
+  --chart-border: #404040;
+  --chart-tooltip-bg: #2a2a2a;
+  --chart-tooltip-border: #404040;
+  --chart-series-color: #ffaa00;
+  --chart-series-color-alt: #ff6600;
+}
+
+/* Light theme */
+html[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #fafafa;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-accent: #cc7700;
+  --text-danger: #d32f2f;
+  --border-primary: #e0e0e0;
+  --border-secondary: #cccccc;
+  --header-bg: #f8f8f8;
+  --live-indicator: #1976d2;
+  --live-indicator-dim: #1565c0;
+  --live-border: #4caf50;
+  --windrose-border: #666666;
+  --shadow: rgba(0, 0, 0, 0.1);
+  
+  /* Highcharts light theme variables */
+  --chart-bg: #ffffff;
+  --chart-text: #333333;
+  --chart-grid: #e0e0e0;
+  --chart-border: #e0e0e0;
+  --chart-tooltip-bg: #f5f5f5;
+  --chart-tooltip-border: #e0e0e0;
+  --chart-series-color: #cc7700;
+  --chart-series-color-alt: #ff6600;
+}
+
+
 
 /* Reset and Base Styles */
 * {
@@ -9,10 +70,11 @@
 
 body {
   font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   line-height: 1.4;
   font-size: 14px;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .weather-container {
@@ -23,10 +85,11 @@ body {
 
 /* Header */
 .weather-header {
-  background: #1a1a1a;
-  color: white;
+  background: var(--header-bg);
+  color: var(--text-primary);
   padding: 12px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px var(--shadow);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .header-content {
@@ -51,8 +114,6 @@ body {
   font-size: 0.9rem;
 }
 
-
-
 .last-update {
   opacity: 0.9;
 }
@@ -69,9 +130,52 @@ body {
   margin-top: 2px;
 }
 
+/* Theme Toggle Button */
+.theme-toggle {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--text-accent);
+}
+
+.theme-toggle::before {
+  content: "🌙";
+  font-size: 1rem;
+}
+
+html[data-theme="light"] .theme-toggle::before {
+  content: "☀️";
+}
+
+.theme-toggle span {
+  display: none;
+}
+
+/* Show text label on larger screens */
+@media (min-width: 768px) {
+  .theme-toggle span {
+    display: inline;
+  }
+}
+
 .div-block-11 {
-  background-color: #1a8ca7;
-  border: 1px solid #328d32;
+  background-color: var(--live-indicator);
+  border: 1px solid var(--live-border);
   border-radius: 5px;
   justify-content: center;
   align-items: center;
@@ -83,12 +187,12 @@ body {
 }
 
 @keyframes livePulse {
-  0%, 100% { opacity: 1; background-color: #1a8ca7; }
-  50% { opacity: 0.4; background-color: #0f6a85; }
+  0%, 100% { opacity: 1; background-color: var(--live-indicator); }
+  50% { opacity: 0.4; background-color: var(--live-indicator-dim); }
 }
 
 .live-indicator {
-  background-color: #c1121f;
+  background-color: var(--text-danger);
   border-radius: 5px;
   justify-content: center;
   align-items: center;
@@ -99,7 +203,7 @@ body {
 }
 
 .text-block-23 {
-  color: #fff;
+  color: var(--text-primary);
   font-size: 9px;
   font-weight: 700;
 }
@@ -118,20 +222,21 @@ body {
 }
 
 .metric-group {
-  background: #2a2a2a;
+  background: var(--bg-secondary);
   border-radius: 8px;
   padding: 16px;
-  border: 1px solid #404040;
+  border: 1px solid var(--border-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .group-title {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #FF3000;
+  color: var(--text-danger);
   margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #404040;
+  border-bottom: 1px solid var(--border-primary);
   padding-bottom: 4px;
 }
 
@@ -149,10 +254,11 @@ body {
 }
 
 .metric-item {
-  background: #1a1a1a;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   padding: 8px 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-secondary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .metric-item.span-two {
@@ -179,7 +285,7 @@ body {
 .metric-label {
   font-size: 0.75rem;
   font-weight: 500;
-  color: #ffaa00;
+  color: var(--text-accent);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -188,7 +294,7 @@ body {
 .metric-value {
   font-size: 1.8rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: 'Inconsolata', monospace;
   line-height: 1.2;
   display: inline;
@@ -201,14 +307,14 @@ body {
 .metric-unit {
   font-size: 0.9rem;
   font-weight: 400;
-  color: #888;
+  color: var(--text-secondary);
   margin-left: 4px;
   display: inline;
 }
 
 .metric-sub {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
@@ -237,8 +343,6 @@ body {
   height: auto;
 }
 
-
-
 .windrose-box-container {
   display: flex;
   justify-content: center;
@@ -249,18 +353,19 @@ body {
 }
 
 .windrose-circle {
-  border: 8px solid #898989;
+  border: 8px solid var(--windrose-border);
   border-radius: 50%;
   width: 160px;
   height: 160px;
   display: block;
   position: relative;
-  background-color: #1a1a1a;
+  background-color: var(--bg-tertiary);
   z-index: 1;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .windrose-arrow {
-  border-top: 36px solid #ffaa00;
+  border-top: 36px solid var(--text-accent);
   border-left: 12px solid transparent;
   border-right: 12px solid transparent;
   width: 0;
@@ -277,7 +382,7 @@ body {
   font-family: Inconsolata, monospace;
   font-size: 36px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
   position: absolute;
   top: 40%;
   left: 50%;
@@ -289,7 +394,7 @@ body {
   font-family: Inconsolata, monospace;
   font-size: 22px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   text-align: center;
   position: absolute;
   top: 60%;
@@ -313,7 +418,7 @@ body {
 .section-title {
   font-size: 1.4rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   margin-bottom: 16px;
   text-align: center;
 }
@@ -330,34 +435,35 @@ body {
 }
 
 .chart-tab {
-  background: #2a2a2a;
-  border: 1px solid #FF3000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--text-danger);
   border-radius: 6px;
   padding: 8px 16px;
   font-size: 0.85rem;
   font-weight: 500;
-  color: #FF3000;
+  color: var(--text-danger);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .chart-tab:hover {
-  background: #FF3000;
-  color: white;
+  background: var(--text-danger);
+  color: var(--bg-primary);
 }
 
 .chart-tab.active {
-  background: #FF3000;
-  color: white;
-  box-shadow: 0 2px 4px rgba(255, 48, 0, 0.3);
+  background: var(--text-danger);
+  color: var(--bg-primary);
+  box-shadow: 0 2px 4px var(--shadow);
 }
 
 /* Chart Containers */
 .charts-container {
-  background: #2a2a2a;
+  background: var(--bg-secondary);
   border-radius: 8px;
   padding: 16px;
-  border: 1px solid #404040;
+  border: 1px solid var(--border-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .chart-range-container {
@@ -367,16 +473,17 @@ body {
 }
 
 .chart-wrapper {
-  background: #1a1a1a;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   padding: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-secondary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .chart-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #ffaa00;
+  color: var(--text-accent);
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -387,8 +494,9 @@ body {
   height: 300px;
   width: 100%;
   position: relative;
-  background: #1a1a1a;
+  background: var(--bg-tertiary);
   border-radius: 4px;
+  transition: background-color 0.3s ease;
 }
 
 /* Chart-specific classes matching index.html.tmpl */
@@ -439,6 +547,16 @@ body {
     font-family: 'Roboto Slab', serif;
     font-size: 1.3rem;
     font-weight: 900;
+  }
+  
+  .theme-toggle {
+    margin-left: 8px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+  
+  .theme-toggle::before {
+    font-size: 0.9rem;
   }
   
   .metric-groups {
@@ -520,6 +638,16 @@ body {
   .chart-tab {
     padding: 6px 12px;
     font-size: 0.8rem;
+      }
+  
+  .theme-toggle {
+    margin-left: 4px;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+  
+  .theme-toggle::before {
+    font-size: 0.8rem;
   }
 }
 
@@ -537,7 +665,7 @@ body {
   width: 20px;
   height: 20px;
   margin: -10px 0 0 -10px;
-  border: 2px solid #FF3000;
+  border: 2px solid var(--text-danger);
   border-radius: 50%;
   border-top-color: transparent;
   animation: spin 1s linear infinite;
@@ -550,10 +678,10 @@ body {
 /* High contrast mode support */
 @media (prefers-contrast: high) {
   .metric-group {
-    border: 2px solid #ffffff;
+    border: 2px solid var(--text-primary);
   }
   
   .metric-value {
-    color: #ffffff !important;
+    color: var(--text-primary) !important;
   }
 } 
