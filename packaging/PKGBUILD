@@ -1,6 +1,6 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=remoteweather
-pkgver=5.0.0.rest_api
+pkgver=5.4.0_portal
 pkgrel=2
 pkgdesc="Weather station data collection and distribution system with REST API, management API, and dynamic configuration"
 arch=('x86_64' 'aarch64' 'armv7h')
@@ -9,7 +9,7 @@ license=('Apache')
 depends=('glibc')
 makedepends=('go' 'git')
 backup=('var/lib/remoteweather/config.yaml')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/v5.0-rest-api.tar.gz"
+source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/v5.4.0-portal.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
 sha256sums=('SKIP'  # Update with actual checksum
@@ -18,7 +18,7 @@ sha256sums=('SKIP'  # Update with actual checksum
 install=$pkgname.install
 
 build() {
-    cd "remoteweather-5.0-rest-api"
+    cd "remoteweather-5.4.0-portal"
     
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
@@ -33,6 +33,8 @@ build() {
     # Build emulators for development/testing
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
+    # Build migrate command
+    go build -o migrate ./cmd/migrate/
 }
 
 check() {
@@ -43,7 +45,7 @@ check() {
 }
 
 package() {
-    cd "remoteweather-5.0-rest-api"
+    cd "remoteweather-5.4.0-portal"
     
     # Install main binary
     install -Dm755 remoteweather "$pkgdir/usr/bin/remoteweather"
@@ -51,6 +53,8 @@ package() {
     # Install development/testing tools
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
+    # Install migrate tool
+    install -Dm755 migrate "$pkgdir/usr/bin/remoteweather-migrate"
     
     # Install systemd service
     install -Dm644 "$srcdir/remoteweather.service" "$pkgdir/usr/lib/systemd/system/remoteweather.service"
