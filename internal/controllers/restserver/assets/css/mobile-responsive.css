@@ -72,7 +72,7 @@
   
   /* ===== MEASUREMENTS GRID IMPROVEMENTS ===== */
   
-  .group-metrics {
+  .measurements-container {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
     grid-gap: 8px !important;
@@ -81,7 +81,7 @@
     border-top: 1px dotted #000 !important;
   }
   
-  .metric-item {
+  .measurement {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -94,14 +94,14 @@
     min-height: 100px !important;
   }
   
-  .metric-item .metric-label {
+  .measurement .text-block-9 {
     font-size: 12px !important;
     font-weight: 700 !important;
     margin-bottom: 4px !important;
     color: #333 !important;
   }
   
-  .metric-item .metric-value {
+  .measurement .readingval {
     font-size: 24px !important;
     font-weight: 700 !important;
     margin: 4px 0 !important;
@@ -109,7 +109,7 @@
     line-height: 1.1 !important;
   }
   
-  .metric-item .metric-sub {
+  .measurement .readingdescsubtitle {
     font-size: 11px !important;
     color: #666 !important;
     margin-top: 2px !important;
@@ -142,16 +142,14 @@
   
   .wind-cardinal-dir {
     font-size: 10px !important;
-    top: 75% !important; /* Move cardinal direction much lower */
   }
   
   .wind-speed {
     font-size: 16px !important;
-    top: 25% !important; /* Move wind speed much higher */
   }
   
   /* Combined wind display for mobile */
-  .metric-item.wind-item {
+  .measurement.textwind {
     display: flex !important; /* Override display: none from main CSS */
     grid-column: 1 / -1 !important; /* Span full width */
     flex-direction: row !important;
@@ -218,77 +216,19 @@
     gap: 8px !important;
     padding: 8px !important;
     -webkit-overflow-scrolling: touch !important;
-    width: 100% !important;
-    min-width: 0 !important;
   }
   
-  .week-grid .flex-block, .week-grid .forecast-day, .week-grid > div {
+  .week-grid .flex-block {
     flex: 0 0 120px !important;
     min-width: 120px !important;
-    max-width: 140px !important;
-    box-sizing: border-box !important;
   }
-  .day-forecast-unit.forecastspace.leftendcap, .week-grid .forecast-day {
+  
+  .day-forecast-unit.forecastspace.leftendcap {
     min-height: 180px !important;
     max-height: 180px !important;
     border: 1px solid #ccc !important;
     border-radius: 6px !important;
     background-color: #f9f9f9 !important;
-    padding: 8px 4px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-  }
-  .week-forecast-icon-div {
-    padding-top: 10px !important;
-    padding-bottom: 5px !important;
-    display: block !important;
-  }
-  .week-forecast-description {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 90% !important;
-    height: 30px !important;
-    margin-bottom: auto !important;
-  }
-  .week-forecast-icon {
-    font-size: 36px !important;
-    line-height: 36px !important;
-    text-align: center !important;
-    margin-bottom: 0 !important;
-  }
-  .week-day-title {
-    font-size: 16px !important;
-    font-weight: 600 !important;
-    margin-bottom: 2px !important;
-  }
-  .forecasttempquadrant {
-    font-size: 16px !important;
-  }
-  .forecasttempquadrant.uparrow, .forecasttempquadrant.downarrow {
-    width: 20px !important;
-    height: 20px !important;
-    font-size: 16px !important;
-  }
-  .forecasttempquadrant.lowtemp {
-    font-size: 16px !important;
-  }
-  /* Smooth scrolling for horizontal scroll areas */
-  .week-grid::-webkit-scrollbar {
-    height: 6px !important;
-  }
-  .week-grid::-webkit-scrollbar-track {
-    background: #f1f1f1 !important;
-    border-radius: 3px !important;
-  }
-  .week-grid::-webkit-scrollbar-thumb {
-    background: #c1c1c1 !important;
-    border-radius: 3px !important;
-  }
-  .week-grid::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1 !important;
   }
   
   /* Day forecast - stack in single column */
@@ -401,7 +341,7 @@
 @media screen and (min-width: 481px) and (max-width: 767px) {
   
   /* Measurements grid - 3 columns for medium mobile */
-  .group-metrics {
+  .measurements-container {
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 10px !important;
   }
@@ -430,15 +370,6 @@
     width: 70px !important;
     height: 70px !important;
   }
-  
-  /* Adjust text positioning for medium mobile windrose */
-  .wind-cardinal-dir {
-    top: 70% !important;
-  }
-  
-  .wind-speed {
-    top: 30% !important;
-  }
 }
 
 /* ====================================
@@ -448,7 +379,7 @@
 @media screen and (max-height: 667px) and (orientation: landscape) {
   
   /* Reduce vertical spacing in landscape */
-  .metric-item {
+  .measurement {
     min-height: 80px !important;
     padding: 8px 6px !important;
   }
@@ -526,7 +457,7 @@
    ==================================== */
 
 @media (prefers-color-scheme: dark) and (max-width: 767px) {
-  .metric-item {
+  .measurement {
     background-color: #2a2a2a !important;
     border-color: #444 !important;
     color: #fff !important;
@@ -775,141 +706,5 @@
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
-  }
-} 
-
-@media screen and (max-width: 700px) {
-  /* Week forecast - use grid with 4 columns, matching old design */
-  .week-grid {
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 6px !important;
-    padding: 8px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    overflow-x: unset !important;
-  }
-  .week-grid .flex-block, .week-grid .forecast-day, .week-grid > div {
-    flex: unset !important;
-    min-width: unset !important;
-    max-width: unset !important;
-    box-sizing: border-box !important;
-  }
-  /* Keep sizing and padding for forecast blocks */
-  .day-forecast-unit.forecastspace.leftendcap, .week-grid .forecast-day {
-    min-height: 180px !important;
-    max-height: 180px !important;
-    border: 1px solid #ccc !important;
-    border-radius: 6px !important;
-    background-color: #f9f9f9 !important;
-    padding: 8px 4px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-  }
-  /* Remove custom scrollbars for week-grid */
-  .week-grid::-webkit-scrollbar,
-  .week-grid::-webkit-scrollbar-track,
-  .week-grid::-webkit-scrollbar-thumb,
-  .week-grid::-webkit-scrollbar-thumb:hover {
-    display: none !important;
-    height: 0 !important;
-    background: none !important;
-  }
-}
-
-@media screen and (max-width: 700px) {
-  /* 24-hour forecast: 6 columns per row, taller blocks */
-  .day-grid {
-    display: grid !important;
-    grid-template-columns: repeat(6, 1fr) !important;
-    gap: 2px !important;
-    padding: 4px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    overflow-x: unset !important;
-  }
-  .forecast-hour {
-    min-height: 140px !important;
-    max-height: 160px !important;
-    padding: 2px 1px !important;
-    font-size: 12px !important;
-  }
-  .forecast-hour-title {
-    font-size: 0.7rem !important;
-    margin-bottom: 2px !important;
-    flex-shrink: 0 !important;
-    height: 24px !important;
-    min-height: 24px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  .forecast-icon {
-    font-size: 1.2rem !important;
-    margin-bottom: 2px !important;
-    min-height: 18px !important;
-  }
-  .forecast-temp {
-    font-size: 1rem !important;
-    margin: 0 !important;
-  }
-  .forecast-precip {
-    font-size: 0.7rem !important;
-    min-height: 12px !important;
-    flex-shrink: 0 !important;
-    margin-top: auto !important;
-  }
-  .day-forecast-adjustable-div {
-    height: 50px !important;
-    flex-shrink: 0 !important;
-  }
-}
-
-@media screen and (max-width: 480px) {
-  /* 24-hour forecast: 5 columns per row, taller blocks */
-  .day-grid {
-    display: grid !important;
-    grid-template-columns: repeat(5, 1fr) !important;
-    gap: 1px !important;
-    padding: 2px !important;
-    width: 100% !important;
-    min-width: 0 !important;
-    overflow-x: unset !important;
-  }
-  .forecast-hour {
-    min-height: 120px !important;
-    max-height: 140px !important;
-    padding: 1px 0 !important;
-    font-size: 11px !important;
-  }
-  .forecast-hour-title {
-    font-size: 0.6rem !important;
-    margin-bottom: 1px !important;
-    flex-shrink: 0 !important;
-    height: 20px !important;
-    min-height: 20px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  .forecast-icon {
-    font-size: 1rem !important;
-    margin-bottom: 1px !important;
-    min-height: 14px !important;
-  }
-  .forecast-temp {
-    font-size: 0.85rem !important;
-    margin: 0 !important;
-  }
-  .forecast-precip {
-    font-size: 0.6rem !important;
-    min-height: 10px !important;
-    flex-shrink: 0 !important;
-    margin-top: auto !important;
-  }
-  .day-forecast-adjustable-div {
-    height: 40px !important;
-    flex-shrink: 0 !important;
   }
 } 
