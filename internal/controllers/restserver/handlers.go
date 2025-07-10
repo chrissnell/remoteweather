@@ -480,12 +480,79 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 
 // ServeOldWeatherWebsiteTemplate serves the old HTML template
 func (h *Handlers) ServeOldWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
-	http.NotFound(w, req)
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// If this is a portal website, serve the portal instead
+	if website.IsPortal {
+		h.ServePortal(w, req)
+		return
+	}
+
+	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
+	view := htmltemplate.Must(htmltemplate.New("index.html.tmpl").ParseFS(*h.controller.FS, "index.html.tmpl"))
+
+	// Create a template data structure with AboutStationHTML as safe HTML
+	templateData := struct {
+		StationName      string
+		PullFromDevice   string
+		SnowEnabled      bool
+		SnowDevice       string
+		SnowBaseDistance float32
+		PageTitle        string
+		AboutStationHTML htmltemplate.HTML // Convert to template.HTML to prevent escaping
+	}{
+		StationName:      website.Name,
+		PullFromDevice:   primaryDevice,
+		SnowEnabled:      website.SnowEnabled,
+		SnowDevice:       website.SnowDeviceName,
+		SnowBaseDistance: h.getSnowBaseDistance(website),
+		PageTitle:        website.PageTitle,
+		AboutStationHTML: htmltemplate.HTML(website.AboutStationHTML),
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, templateData)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
 }
 
 // ServeJS serves the JavaScript template
 func (h *Handlers) ServeJS(w http.ResponseWriter, req *http.Request) {
-	http.NotFound(w, req)
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+
+	view := template.Must(template.New("remoteweather.js.tmpl").ParseFS(*h.controller.FS, "remoteweather.js.tmpl"))
+
+	// Create JS template data structure compatible with the old website system
+	jsTemplateData := struct {
+		StationName      string
+		PullFromDevice   string
+		SnowEnabled      bool
+		SnowDevice       string
+		SnowBaseDistance float32
+		PageTitle        string
+		AboutStationHTML string
+	}{
+		StationName:      website.Name,
+		PullFromDevice:   primaryDevice,
+		SnowEnabled:      website.SnowEnabled,
+		SnowDevice:       website.SnowDeviceName,
+		SnowBaseDistance: h.getSnowBaseDistance(website),
+		PageTitle:        website.PageTitle,
+		AboutStationHTML: website.AboutStationHTML,
+	}
+
+	w.Header().Set("Content-Type", "text/javascript")
+	err := view.Execute(w, jsTemplateData)
+	if err != nil {
+		log.Error("error executing template:", err)
+		return
+	}
 }
 
 // ServePortal serves the portal template for weather management portal websites
