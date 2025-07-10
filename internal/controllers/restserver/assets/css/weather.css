@@ -240,9 +240,10 @@ html[data-theme="light"] .theme-toggle::before {
   padding-bottom: 4px;
 }
 
+/* Force two-column layout for metrics on all screen sizes */
 .group-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
   gap: 8px;
 }
 
@@ -324,7 +325,7 @@ html[data-theme="light"] .theme-toggle::before {
   align-items: center;
   margin-left: 0;
   margin-right: 0;
-  margin-top: 16px;
+  margin-top: 40px;
   padding-top: 0;
   font-family: Inconsolata, monospace;
   display: flex;
@@ -845,6 +846,54 @@ html[data-theme="light"] .theme-toggle::before {
     padding: 6px 12px;
     font-size: 0.8rem;
   }
+  
+  /* Windrose text positioning for medium mobile - keep original size */
+  .wind-speed {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -100%);
+    z-index: 10;
+    text-align: center;
+  }
+  
+  .wind-cardinal-dir {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 0%);
+    z-index: 10;
+    text-align: center;
+    white-space: nowrap;
+  }
+  
+  /* Ensure windrose is centered in container */
+  .windrosecontainer {
+    margin: 44px auto 0px auto !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  
+  .windrose-box.measurement-part {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .windrose-box-container {
+    margin: 0 auto;
+  }
+  
+  .div-block-3 {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
 }
 
 @media (max-width: 480px) {
@@ -895,6 +944,54 @@ html[data-theme="light"] .theme-toggle::before {
   .forecast-section {
     margin-top: 16px;
   }
+  
+  /* Windrose text positioning for mobile - keep original size */
+  .wind-speed {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -100%);
+    z-index: 10;
+    text-align: center;
+  }
+  
+  .wind-cardinal-dir {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 0%);
+    z-index: 10;
+    text-align: center;
+    white-space: nowrap;
+  }
+  
+  /* Ensure windrose is centered in container */
+  .windrosecontainer {
+    margin: 44px auto 0px auto !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  
+  .windrose-box.measurement-part {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .windrose-box-container {
+    margin: 0 auto;
+  }
+  
+  .div-block-3 {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
 }
 
 /* Responsive Design */
@@ -903,83 +1000,39 @@ html[data-theme="light"] .theme-toggle::before {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
   .group-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .group-metrics.wind-group {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+@media (max-width: 700px) {
+  .metric-groups {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
+  .group-metrics {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
   .group-metrics.wind-group {
     grid-template-columns: 1fr;
     align-items: center;
   }
 }
 
-@media (max-width: 700px) {
-  .weather-container {
-    padding: 0 12px;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 8px;
-    text-align: center;
-  }
-  
-  .station-name {
-    font-family: 'Roboto Slab', serif;
-    font-size: 1.3rem;
-    font-weight: 900;
-  }
-  
-  .theme-toggle {
-    margin-left: 8px;
-    padding: 6px 10px;
-    font-size: 0.75rem;
-  }
-  
-  .theme-toggle::before {
-    font-size: 0.9rem;
-  }
-  
-  .metric-groups {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  
+@media (max-width: 480px) {
   .group-metrics {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 4px;
   }
-  
   .group-metrics.wind-group {
     grid-template-columns: 1fr;
     align-items: center;
-  }
-  
-  .metric-group {
-    padding: 12px;
-  }
-  
-  .metric-value {
-    font-size: 1.2rem;
-  }
-  
-  .metric-value.large {
-    font-size: 1.5rem;
-  }
-  
-  .windrose-compass {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .windrose-arrow {
-    height: 16px;
-  }
-  
-  .chart-container {
-    height: 250px;
   }
 }
 
@@ -1066,5 +1119,108 @@ html[data-theme="light"] .theme-toggle::before {
   
   .metric-value {
     color: var(--text-primary) !important;
+  }
+} 
+
+/* Force two-column layout for snow gauge metrics on all screen sizes */
+.metric-group-content {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px;
+} 
+
+@media (max-width: 700px) {
+  /* 24-hour forecast: 6 columns per row, taller blocks */
+  .day-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr) !important;
+    gap: 2px !important;
+    padding: 4px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: unset !important;
+  }
+  .forecast-hour {
+    min-height: 140px !important;
+    max-height: 160px !important;
+    padding: 2px 1px !important;
+    font-size: 12px !important;
+  }
+  .forecast-hour-title {
+    font-size: 0.7rem !important;
+    margin-bottom: 2px !important;
+    flex-shrink: 0 !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .forecast-icon {
+    font-size: 1.2rem !important;
+    margin-bottom: 2px !important;
+    min-height: 18px !important;
+  }
+  .forecast-temp {
+    font-size: 1rem !important;
+    margin: 0 !important;
+  }
+  .forecast-precip {
+    font-size: 0.7rem !important;
+    min-height: 12px !important;
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
+  }
+  .day-forecast-adjustable-div {
+    height: 50px !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 24-hour forecast: 5 columns per row, taller blocks */
+  .day-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 1px !important;
+    padding: 2px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: unset !important;
+  }
+  .forecast-hour {
+    min-height: 120px !important;
+    max-height: 140px !important;
+    padding: 1px 0 !important;
+    font-size: 11px !important;
+  }
+  .forecast-hour-title {
+    font-size: 0.6rem !important;
+    margin-bottom: 1px !important;
+    flex-shrink: 0 !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .forecast-icon {
+    font-size: 1rem !important;
+    margin-bottom: 1px !important;
+    min-height: 14px !important;
+  }
+  .forecast-temp {
+    font-size: 0.85rem !important;
+    margin: 0 !important;
+  }
+  .forecast-precip {
+    font-size: 0.6rem !important;
+    min-height: 10px !important;
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
+  }
+  .day-forecast-adjustable-div {
+    height: 40px !important;
+    flex-shrink: 0 !important;
   }
 } 
