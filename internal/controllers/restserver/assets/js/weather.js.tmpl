@@ -884,9 +884,11 @@ async function refreshDayForecastData() {
         
         if (debug) console.log("Day forecast data received:", data);
 
-        // Pre-calculate temperature scaling (matching original algorithm)
+        // Pre-calculate temperature scaling (mobile-aware algorithm)
         let pixelsPerDegree = 0;
-        const tempSpreadPixels = 80;
+        // Use smaller tempSpreadPixels for mobile devices to prevent collision
+        const isMobile = window.innerWidth <= 700;
+        const tempSpreadPixels = isMobile ? 25 : 80;
         const avgTemps = data.data.map((x) => x.avgTempF);
         const lowTemp = Math.min.apply(null, avgTemps);
         const highTemp = Math.max.apply(null, avgTemps);
@@ -898,6 +900,7 @@ async function refreshDayForecastData() {
         // Debug temperature distribution
         if (debug) {
             console.log("Temperature distribution debug:", {
+                isMobile,
                 avgTemps,
                 lowTemp,
                 highTemp,
