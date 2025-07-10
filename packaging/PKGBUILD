@@ -1,6 +1,6 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=remoteweather
-pkgver=5.4.1_portal_improved
+pkgver=5.4.2_improved_mobile
 pkgrel=1
 pkgdesc="Weather station data collection and distribution system with REST API, management API, and dynamic configuration"
 arch=('x86_64' 'aarch64' 'armv7h')
@@ -9,7 +9,7 @@ license=('Apache')
 depends=('glibc')
 makedepends=('go' 'git')
 backup=('var/lib/remoteweather/config.yaml')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/v5.4.1-portal-improved.tar.gz"
+source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/v5.0-rest-api.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
 sha256sums=('SKIP'
@@ -17,7 +17,7 @@ sha256sums=('SKIP'
             'SKIP')
 
 build() {
-    cd "$srcdir/remoteweather-$pkgver"
+    cd "$srcdir/remoteweather-v5.0-rest-api"
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
     export CGO_CXXFLAGS="${CXXFLAGS}"
@@ -37,7 +37,7 @@ build() {
 }
 
 package() {
-    cd "$srcdir/remoteweather-$pkgver"
+    cd "$srcdir/remoteweather-v5.0-rest-api"
     install -Dm755 bin/remoteweather "$pkgdir/usr/bin/remoteweather"
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
