@@ -37,7 +37,7 @@ html[data-theme="light"] {
   --bg-tertiary: #fafafa;
   --text-primary: #333333;
   --text-secondary: #666666;
-  --text-accent: #cc7700;
+  --text-accent: #1e7b79;
   --text-danger: #d32f2f;
   --border-primary: #e0e0e0;
   --border-secondary: #cccccc;
@@ -55,8 +55,8 @@ html[data-theme="light"] {
   --chart-border: #e0e0e0;
   --chart-tooltip-bg: #f5f5f5;
   --chart-tooltip-border: #e0e0e0;
-  --chart-series-color: #cc7700;
-  --chart-series-color-alt: #ff6600;
+  --chart-series-color: #d40000;
+  --chart-series-color-alt: #949494;
 }
 
 
@@ -203,7 +203,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .text-block-23 {
-  color: var(--text-primary);
+  color: white;
   font-size: 9px;
   font-weight: 700;
 }
@@ -609,36 +609,23 @@ html[data-theme="light"] .theme-toggle::before {
 
 .forecast-temps {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  margin-bottom: 8px;
+  gap: 18px;
+  /* margin-bottom: 8px; */
   font-family: 'Inconsolata', monospace;
 }
 
 .temp-high {
-  font-size: 1rem;
+  font-size: 2rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .temp-low {
-  font-size: 0.9rem;
+  font-size: 1.9rem;
   font-weight: 400;
   color: var(--text-secondary);
-}
-
-.forecast-temps::before {
-  content: "↑";
-  color: var(--text-danger);
-  font-size: 0.8rem;
-  margin-right: 4px;
-}
-
-.forecast-temps::after {
-  content: "↓";
-  color: var(--text-accent);
-  font-size: 0.8rem;
-  margin-left: 4px;
 }
 
 .forecast-precip {
