@@ -26,9 +26,8 @@ build() {
     export CGO_LDFLAGS="${LDFLAGS}"
     export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=mod -modcacherw"
     
-    # Build main application from cmd/remoteweather (clean architecture)
-    go build -o remoteweather ./cmd/remoteweather/
-
+    # Build main application using Makefile
+    make
 
     # Build emulators for development/testing
     go build -o campbell-emulator ./cmd/campbell-emulator/
@@ -47,8 +46,8 @@ check() {
 package() {
     cd "remoteweather-5.4.0-portal"
     
-    # Install main binary
-    install -Dm755 remoteweather "$pkgdir/usr/bin/remoteweather"
+    # Install main binary from Makefile output
+    install -Dm755 bin/remoteweather "$pkgdir/usr/bin/remoteweather"
         
     # Install development/testing tools
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
