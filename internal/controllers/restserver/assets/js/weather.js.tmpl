@@ -347,7 +347,7 @@ function processData(data, chartList) {
         }
         
         if (i % modVal === 0 || dataLength < 50) {
-            chartList.winddirection.initialSeries.push([ts, 5, item.winds, item.windd]);
+            chartList.winddirection.initialSeries.push([ts, 0, item.winds, item.windd]);
         }
     }
 }
