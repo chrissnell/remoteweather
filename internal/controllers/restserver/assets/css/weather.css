@@ -77,6 +77,11 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* All headers use Roboto Slab */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto Slab', serif;
+}
+
 .weather-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -230,6 +235,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .group-title {
+  font-family: 'Roboto Slab', serif;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-danger);
@@ -418,6 +424,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .section-title {
+  font-family: 'Roboto Slab', serif;
   font-size: 1.4rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -483,6 +490,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .chart-title {
+  font-family: 'Roboto Slab', serif;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-accent);
@@ -588,6 +596,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .forecast-day-title {
+  font-family: 'Roboto Slab', serif;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-accent);
@@ -687,6 +696,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .forecast-hour-title {
+  font-family: 'Roboto Slab', serif;
   font-size: 0.55rem;
   font-weight: 500;
   color: var(--text-accent);
@@ -1038,6 +1048,48 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 @media (max-width: 480px) {
+  /* Mobile Header Layout Fixes */
+  .header-content {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    position: relative !important;
+  }
+  
+  .station-name {
+    font-size: 1.6rem !important;
+    text-align: center !important;
+    margin-bottom: 0 !important;
+    padding-right: 0px !important; /* Make room for theme button */
+  }
+  
+  .header-status {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1px !important;
+  }
+  
+  .status-line {
+    justify-content: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  
+  .battery-info {
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    margin-top: 0 !important;
+  }
+  
+  .theme-toggle {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    margin-left: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 0.8rem !important;
+  }
+  
   .weather-main {
     padding: 12px 0;
   }
@@ -1076,12 +1128,6 @@ html[data-theme="light"] .theme-toggle::before {
     padding: 6px 12px;
     font-size: 0.8rem;
       }
-  
-  .theme-toggle {
-    margin-left: 4px;
-    padding: 4px 8px;
-    font-size: 0.7rem;
-  }
   
   .theme-toggle::before {
     font-size: 0.8rem;
