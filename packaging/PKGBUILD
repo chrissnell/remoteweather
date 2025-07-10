@@ -1,7 +1,7 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=remoteweather
-pkgver=5.4.0_portal
-pkgrel=2
+pkgver=5.4.1_portal_improved
+pkgrel=1
 pkgdesc="Weather station data collection and distribution system with REST API, management API, and dynamic configuration"
 arch=('x86_64' 'aarch64' 'armv7h')
 url="https://github.com/chrissnell/remoteweather"
@@ -9,72 +9,46 @@ license=('Apache')
 depends=('glibc')
 makedepends=('go' 'git')
 backup=('var/lib/remoteweather/config.yaml')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/v5.4.0-portal.tar.gz"
+source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/v5.4.1-portal-improved.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
-sha256sums=('SKIP'  # Update with actual checksum
-            'SKIP'  # Update with actual checksum
-            'SKIP') # Update with actual checksum
-install=$pkgname.install
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP')
 
 build() {
-    cd "remoteweather-5.4.0-portal"
-    
+    cd "$srcdir/remoteweather-$pkgver"
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
     export CGO_CXXFLAGS="${CXXFLAGS}"
     export CGO_LDFLAGS="${LDFLAGS}"
     export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=mod -modcacherw"
-    
-    # Build main application using Makefile
+    export GOOS=linux
+    case "$CARCH" in
+        x86_64)   export GOARCH=amd64 ;;
+        aarch64)  export GOARCH=arm64 ;;
+        armv7h)   export GOARCH=arm   ;;
+    esac
+    make clean
     make
-
-    # Build emulators for development/testing
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
-    # Build migrate command
     go build -o migrate ./cmd/migrate/
 }
 
-check() {
-    cd "remoteweather-5.0-rest-api"
-    
-    # Run basic tests if they exist
-    # go test ./...
-}
-
 package() {
-    cd "remoteweather-5.4.0-portal"
-    
-    # Install main binary from Makefile output
+    cd "$srcdir/remoteweather-$pkgver"
     install -Dm755 bin/remoteweather "$pkgdir/usr/bin/remoteweather"
-        
-    # Install development/testing tools
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
-    # Install migrate tool
     install -Dm755 migrate "$pkgdir/usr/bin/remoteweather-migrate"
-    
-    # Install systemd service
     install -Dm644 "$srcdir/remoteweather.service" "$pkgdir/usr/lib/systemd/system/remoteweather.service"
-    
-    # Install sysusers.d configuration
     install -Dm644 "$srcdir/remoteweather.sysusers" "$pkgdir/usr/lib/sysusers.d/remoteweather.conf"
-    
-    # Create application directories
     install -dm755 "$pkgdir/var/lib/remoteweather"
     install -dm755 "$pkgdir/etc/remoteweather"
-    
-    # Install documentation
     install -Dm644 README.md "$pkgdir/usr/share/doc/remoteweather/README.md"
-    
-    # Install docs directory
     install -dm755 "$pkgdir/usr/share/doc/remoteweather/docs"
     install -Dm644 docs/*.md "$pkgdir/usr/share/doc/remoteweather/docs/"
-    
-    # Install migration files
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
     install -Dm644 migrations/config/*.sql "$pkgdir/usr/share/remoteweather/migrations/config/"
-    
-
 } 
