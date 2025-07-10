@@ -80,7 +80,6 @@ let chartList = {
     "temperature": {
         "chart": temperatureChart,
         "divId": "temperatureChart",
-        "title": "Outside Temperature",
         "yAxisLabel": "Degrees F",
         "chartType": "spline",
         "pointName": "outsideTempPoint",
@@ -90,7 +89,6 @@ let chartList = {
     "humidity": {
         "chart": humidityChart,
         "divId": "humidityChart",
-        "title": "Humidity",
         "yAxisLabel": "Percent",
         "chartType": "spline",
         "pointName": "outsideHumidityPoint",
@@ -101,7 +99,6 @@ let chartList = {
     "snowdepth": {
         "chart": snowdepthChart,
         "divId": "snowChart",
-        "title": "Snow Depth",
         "yAxisLabel": "inches",
         "chartType": "spline",
         "pointName": "snowdepthPoint",
@@ -112,7 +109,6 @@ let chartList = {
     "barometer": {
         "chart": barometerChart,
         "divId": "barometerChart",
-        "title": "Barometer",
         "yAxisLabel": "inches Hg",
         "chartType": "spline",
         "pointName": "barometerPoint",
@@ -122,7 +118,6 @@ let chartList = {
     "windspeed": {
         "chart": windspeedChart,
         "divId": "windspeedChart",
-        "title": "Wind Speed",
         "yAxisLabel": "MPH",
         "chartType": "spline",
         "pointName": "windSpeedPoint",
@@ -132,7 +127,6 @@ let chartList = {
     "winddirection": {
         "chart": winddirectionChart,
         "divId": "winddirectionChart",
-        "title": "Wind Direction",
         "yAxisLabel": "",
         "chartType": "vector",
         "pointName": "windDirectionVectorPoint",
@@ -142,7 +136,6 @@ let chartList = {
     "rainfall": {
         "chart": rainfallChart,
         "divId": "rainfallChart",
-        "title": "Rainfall",
         "yAxisLabel": "Inches",
         "chartType": "column",
         "pointName": "rainfallPoint",
@@ -152,7 +145,6 @@ let chartList = {
     "solarwatts": {
         "chart": solarwattsChart,
         "divId": "solarChart",
-        "title": "Observed Solar Radiation",
         "yAxisLabel": "Watts/m²",
         "chartType": "spline",
         "pointName": "solarWattsPoint",
@@ -167,7 +159,6 @@ let chartList = {
     "voltage": {
         "chart": voltageChart,
         "divId": "voltageChart",
-        "title": "Station Battery Voltage",
         "yAxisLabel": "Volts",
         "chartType": "spline",
         "pointName": "voltagePoint",
@@ -439,7 +430,7 @@ function createChart(chartName, targetDiv, data, title, options = {}) {
             type: chartType,
             backgroundColor: getCSSVariable('--chart-bg'),
             style: { 
-                fontFamily: 'Roboto, sans-serif',
+                fontFamily: 'Inconsolata, Roboto, sans-serif',
                 color: getCSSVariable('--chart-text')
             },
             events: { load: () => markAsRendered(chartName) }
