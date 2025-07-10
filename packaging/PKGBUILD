@@ -8,7 +8,9 @@ url="https://github.com/chrissnell/remoteweather"
 license=('Apache')
 depends=('glibc')
 makedepends=('go' 'git')
-backup=('var/lib/remoteweather/config.yaml')
+# CRITICAL: config.db contains user configuration and must NEVER be overwritten
+# Both config.yaml and config.db are protected by pacman's backup mechanism
+backup=('var/lib/remoteweather/config.yaml' 'var/lib/remoteweather/config.db')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/v5.0-rest-api.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
@@ -51,4 +53,8 @@ package() {
     install -Dm644 docs/*.md "$pkgdir/usr/share/doc/remoteweather/docs/"
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
     install -Dm644 migrations/config/*.sql "$pkgdir/usr/share/remoteweather/migrations/config/"
+    # Install example configs for reference (never overwrite user configs in /var/lib)
+    install -dm755 "$pkgdir/usr/share/doc/remoteweather/examples/configs"
+    install -Dm644 examples/configs/*.yaml "$pkgdir/usr/share/doc/remoteweather/examples/configs/"
+    install -Dm644 examples/configs/README.md "$pkgdir/usr/share/doc/remoteweather/examples/configs/"
 } 
