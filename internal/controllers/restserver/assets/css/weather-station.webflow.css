@@ -1602,7 +1602,6 @@ a {
     order: 1;
     justify-content: center;
     align-items: center;
-    padding-left: 8px;
     display: flex;
     top: 0;
   }
@@ -2071,7 +2070,6 @@ a {
     justify-content: center;
     align-items: flex-end;
     padding-top: 0;
-    padding-left: 8px;
     display: flex;
     position: static;
     top: 0;
