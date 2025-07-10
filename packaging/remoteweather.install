@@ -18,10 +18,20 @@ post_install() {
     echo -e "${BLUE}==>${NC} Creating remoteweather user and assigning groups..."
     systemd-sysusers
     
+    # IMPORTANT: Never overwrite existing config.db - it contains user configuration
+    # Only set ownership and permissions, never replace the file
+    
     # Set proper ownership and permissions
     chown -R remoteweather:remoteweather /var/lib/remoteweather
     chmod 755 /var/lib/remoteweather
-    chmod 644 /var/lib/remoteweather/config.yaml
+    
+    # Set permissions on config files only if they exist
+    if [ -f /var/lib/remoteweather/config.yaml ]; then
+        chmod 644 /var/lib/remoteweather/config.yaml
+    fi
+    if [ -f /var/lib/remoteweather/config.db ]; then
+        chmod 644 /var/lib/remoteweather/config.db
+    fi
     
     # Reload systemd
     systemctl daemon-reload
@@ -29,8 +39,9 @@ post_install() {
     echo -e "${GREEN}==>${NC} RemoteWeather installation complete!"
     echo
     echo -e "${YELLOW}Configuration Setup:${NC}"
-    echo "  1. Edit configuration: /var/lib/remoteweather/config.yaml"
-    echo "  2. Or convert to SQLite:"
+    echo "  1. Copy example config: cp /usr/share/doc/remoteweather/examples/configs/weather-station-basic.yaml /var/lib/remoteweather/config.yaml"
+    echo "  2. Edit configuration: /var/lib/remoteweather/config.yaml"
+    echo "  3. Or convert to SQLite:"
     echo "     remoteweather-config-convert -yaml /var/lib/remoteweather/config.yaml -sqlite /var/lib/remoteweather/config.db"
     echo "     sudo chown remoteweather:remoteweather /var/lib/remoteweather/config.db"
     echo
@@ -46,8 +57,9 @@ post_install() {
     echo "  Database migration: remoteweather-migrate"
     echo
     echo -e "${YELLOW}Documentation:${NC}"
-    echo "  Examples: /usr/share/doc/remoteweather/examples/"
-    echo "  SQLite Backend: /usr/share/doc/remoteweather/SQLITE_CONFIG_BACKEND.md"
+    echo "  Examples: /usr/share/doc/remoteweather/examples/configs/"
+    echo "  Main docs: /usr/share/doc/remoteweather/docs/"
+    echo "  SQLite Backend: /usr/share/doc/remoteweather/docs/SQLITE_CONFIG_BACKEND.md"
     echo
     echo -e "${BLUE}Note:${NC} The default configuration uses example settings."
     echo "Please customize it for your weather station setup before starting the service."
@@ -66,8 +78,19 @@ pre_upgrade() {
 post_upgrade() {
     echo -e "${BLUE}==>${NC} Finalizing RemoteWeather upgrade..."
     
+    # IMPORTANT: Never overwrite existing config.db - it contains user configuration
+    # Only set ownership and permissions, never replace the file
+    
     # Ensure correct ownership
     chown -R remoteweather:remoteweather /var/lib/remoteweather
+    
+    # Set permissions on config files only if they exist
+    if [ -f /var/lib/remoteweather/config.yaml ]; then
+        chmod 644 /var/lib/remoteweather/config.yaml
+    fi
+    if [ -f /var/lib/remoteweather/config.db ]; then
+        chmod 644 /var/lib/remoteweather/config.db
+    fi
     
     # Reload systemd
     systemctl daemon-reload
