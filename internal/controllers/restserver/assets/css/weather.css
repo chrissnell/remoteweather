@@ -351,6 +351,7 @@ html[data-theme="light"] .theme-toggle::before {
   position: relative;
   width: 160px;
   height: 160px;
+  top: 10px;
 }
 
 .windrose-circle {
