@@ -17,7 +17,7 @@ sha256sums=('SKIP'
             'SKIP')
 
 build() {
-    cd "$srcdir/remoteweather-v5.0-rest-api"
+    cd "$srcdir/remoteweather-5.0-rest-api"
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
     export CGO_CXXFLAGS="${CXXFLAGS}"
@@ -37,7 +37,7 @@ build() {
 }
 
 package() {
-    cd "$srcdir/remoteweather-v5.0-rest-api"
+    cd "$srcdir/remoteweather-5.0-rest-api"
     install -Dm755 bin/remoteweather "$pkgdir/usr/bin/remoteweather"
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
