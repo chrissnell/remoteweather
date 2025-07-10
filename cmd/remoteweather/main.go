@@ -11,12 +11,11 @@ import (
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/app"
+	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/google/uuid"
 )
-
-const version = "5.0-" + runtime.GOOS + "/" + runtime.GOARCH
 
 func main() {
 	cfgFile := flag.String("config", "config.db", "Path to SQLite configuration database")
@@ -26,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("remoteweather %s\n", version)
+		fmt.Printf("remoteweather %s (%s/%s)\n", constants.Version, runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
 
