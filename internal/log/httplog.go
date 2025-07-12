@@ -34,11 +34,34 @@ func GetHTTPLogBuffer() *LogBuffer {
 }
 
 // LogHTTPRequest logs an HTTP request to the separate HTTP log buffer
-func LogHTTPRequest(method, path string, status int, duration time.Duration, size int, remoteAddr, userAgent, website string, err error) {
+func LogHTTPRequest(method, path string, status int, duration time.Duration, size int, remoteAddr, userAgent, website, referer string, err error) {
+	// Format timestamp in nginx style: [02/Jan/2006:15:04:05 -0700]
+	timestamp := time.Now().Format("02/Jan/2006:15:04:05 -0700")
+	
+	// Format request line
+	request := fmt.Sprintf("%s %s HTTP/1.1", method, path)
+	
+	// Use "-" for empty referer
+	if referer == "" {
+		referer = "-"
+	}
+	
+	// Format message in nginx access log style
+	// $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
+	message := fmt.Sprintf(`%s - - [%s] "%s" %d %d "%s" "%s"`,
+		remoteAddr,
+		timestamp,
+		request,
+		status,
+		size,
+		referer,
+		userAgent,
+	)
+	
 	entry := LogEntry{
 		Timestamp: time.Now(),
 		Level:     "info",
-		Message:   fmt.Sprintf("%s %s %d %v %d bytes", method, path, status, duration, size),
+		Message:   message,
 		Fields: map[string]any{
 			"method":      method,
 			"path":        path,
@@ -47,6 +70,7 @@ func LogHTTPRequest(method, path string, status int, duration time.Duration, siz
 			"size":        size,
 			"remote_addr": remoteAddr,
 			"user_agent":  userAgent,
+			"referer":     referer,
 		},
 	}
 
