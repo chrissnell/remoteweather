@@ -103,7 +103,7 @@ const WeatherDOM = (function() {
         
         updateElements({
             'rdg-winddir-cardinal': cardinalDir || '---',
-            'rdg-windspeed': speed || '--'
+            'rdg-windspeed': speed !== null && speed !== undefined ? speed : '--'
         });
     };
     
