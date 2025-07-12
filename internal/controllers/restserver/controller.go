@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
@@ -224,6 +225,9 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// Add middleware to identify the website based on Host header
 	router.Use(c.websiteMiddleware)
+	
+	// Add HTTP logging middleware
+	router.Use(c.httpLoggingMiddleware)
 
 	// API endpoints - these work for all websites
 	router.HandleFunc("/span/{span}", c.handlers.GetWeatherSpan)
@@ -279,6 +283,59 @@ func (c *Controller) websiteMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), websiteContextKey, website)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// httpLoggingMiddleware logs all HTTP requests to the separate HTTP log buffer
+func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		
+		// Wrap the ResponseWriter to capture status code and size
+		wrapped := &responseWriter{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+		
+		// Call the next handler
+		next.ServeHTTP(wrapped, r)
+		
+		// Log the request
+		duration := time.Since(start)
+		website := ""
+		if ws, ok := r.Context().Value(websiteContextKey).(*config.WeatherWebsiteData); ok && ws != nil {
+			website = ws.Name
+		}
+		
+		log.LogHTTPRequest(
+			r.Method,
+			r.URL.Path,
+			wrapped.statusCode,
+			duration,
+			wrapped.bytesWritten,
+			r.RemoteAddr,
+			r.UserAgent(),
+			website,
+			nil,
+		)
+	})
+}
+
+// responseWriter wraps http.ResponseWriter to capture status code and bytes written
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode   int
+	bytesWritten int
+}
+
+func (rw *responseWriter) WriteHeader(statusCode int) {
+	rw.statusCode = statusCode
+	rw.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(b)
+	rw.bytesWritten += n
+	return n, err
 }
 
 // RefreshDeviceNames rebuilds the device name map from current devices

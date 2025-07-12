@@ -22,6 +22,7 @@
       <button class="nav-tab" id="storage-tab" data-tab="storage">Storage</button>
       <button class="nav-tab" id="websites-tab" data-tab="websites">Weather Websites</button>
       <button class="nav-tab" id="logs-tab" data-tab="logs">Logs</button>
+      <button class="nav-tab" id="http-logs-tab" data-tab="http-logs">HTTP Logs</button>
       <button class="nav-tab" id="utilities-tab" data-tab="utilities">Utilities</button>
     </nav>
 
@@ -189,6 +190,22 @@
         </div>
         <div class="logs-container">
           <pre id="logs-content" class="logs-content">Loading logs...</pre>
+        </div>
+      </div>
+
+      <!-- HTTP Logs Pane -->
+      <div class="pane hidden" id="http-logs-pane">
+        <div class="pane-header">
+          <h2>HTTP Logs</h2>
+          <div class="logs-controls">
+                <button id="http-logs-tail-btn" class="btn btn-success">Live Tail</button>
+                <button id="refresh-http-logs-btn" class="btn btn-primary">Refresh</button>
+                <button id="copy-http-logs-btn" class="btn btn-secondary">Copy to Clipboard</button>
+                <button id="clear-http-logs-btn" class="btn btn-danger">Clear Logs</button>
+              </div>
+        </div>
+        <div class="logs-container">
+          <pre id="http-logs-content" class="logs-content">Loading HTTP logs...</pre>
         </div>
       </div>
 
