@@ -1397,24 +1397,15 @@
     const logDiv = document.createElement('div');
     logDiv.className = 'log-entry log-' + (log.level || 'info');
     
-    // Format the log entry specifically for HTTP logs
-    let logText = `[${log.timestamp}]`;
+    // The message is already formatted in nginx style, so just use it directly
+    logDiv.textContent = log.message;
     
-    // Add HTTP-specific fields
-    if (log.method) logText += ` ${log.method}`;
-    if (log.path) logText += ` ${log.path}`;
-    if (log.status) logText += ` ${log.status}`;
-    if (log.duration_ms !== undefined) logText += ` ${log.duration_ms}ms`;
-    if (log.size) logText += ` ${log.size} bytes`;
-    if (log.website) logText += ` [${log.website}]`;
-    if (log.remote_addr) logText += ` from ${log.remote_addr}`;
-    
-    // Add the message if different from the formatted text
-    if (log.message && !logText.includes(log.message)) {
-      logText += ' - ' + log.message;
+    // Add status-based coloring
+    if (log.status >= 500) {
+      logDiv.classList.add('log-error');
+    } else if (log.status >= 400) {
+      logDiv.classList.add('log-warning');
     }
-    
-    logDiv.textContent = logText;
     container.appendChild(logDiv);
     
     // Auto-scroll to bottom if tailing
