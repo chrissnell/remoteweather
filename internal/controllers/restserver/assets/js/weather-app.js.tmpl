@@ -1,0 +1,304 @@
+// Weather Dashboard Application Module
+// This is the main application that uses all the refactored modules
+
+const WeatherApp = (function() {
+    'use strict';
+    
+    // Configuration from template
+    const config = {
+        pullFromDevice: '{{ .PullFromDevice }}',
+        snowEnabled: {{ .SnowEnabled }},
+        snowDevice: '{{ .SnowDevice }}',
+        stationName: '{{ .StationName }}',
+        debug: new URLSearchParams(window.location.search).get('debug') === '1'
+    };
+    
+    // Application state
+    let state = {
+        currentRange: '24h',
+        currentForecastType: 'week',
+        secondsSinceLastUpdate: 0,
+        liveDataTimer: null,
+        updateTimerInterval: null,
+        chartRefreshTimer: null
+    };
+    
+    // Constants
+    const INTERVALS = {
+        LIVE_DATA: 3500,
+        CHART_REFRESH: 300000,
+        FORECAST_REFRESH: 4 * 60 * 60 * 1000
+    };
+    
+    const CHART_RANGES = {
+        '24h': 24,
+        '72h': 72,
+        '7d': 168,
+        '30d': 744,
+        '1y': 8760
+    };
+    
+    // Initialize the application
+    const init = () => {
+        if (config.debug) console.log('Initializing Weather App with config:', config);
+        
+        // Set up event listeners
+        setupEventListeners();
+        
+        // Start timers
+        startTimers();
+        
+        // Load initial data
+        loadInitialData();
+        
+        // Set up cleanup handlers
+        setupCleanupHandlers();
+    };
+    
+    // Set up event listeners
+    const setupEventListeners = () => {
+        // Chart tab listeners
+        document.querySelectorAll('.chart-tab').forEach(tab => {
+            tab.addEventListener('click', handleChartTabClick);
+        });
+        
+        // Forecast tab listeners
+        document.querySelectorAll('.forecast-tab').forEach(tab => {
+            tab.addEventListener('click', handleForecastTabClick);
+        });
+    };
+    
+    // Handle chart tab clicks
+    const handleChartTabClick = (event) => {
+        const range = event.currentTarget.dataset.range;
+        if (range && range !== state.currentRange) {
+            switchChartRange(range);
+        }
+    };
+    
+    // Handle forecast tab clicks
+    const handleForecastTabClick = (event) => {
+        const forecastType = event.currentTarget.dataset.forecastType;
+        if (forecastType && forecastType !== state.currentForecastType) {
+            switchForecastType(forecastType);
+        }
+    };
+    
+    // Switch chart range
+    const switchChartRange = async (range) => {
+        state.currentRange = range;
+        WeatherDOM.switchChartRange(range);
+        
+        // Clear existing charts
+        WeatherCharts.destroyAllCharts();
+        
+        // Load new charts
+        await loadChartsForRange(range);
+    };
+    
+    // Switch forecast type
+    const switchForecastType = (type) => {
+        state.currentForecastType = type;
+        WeatherDOM.switchForecastType(type);
+    };
+    
+    // Start timers
+    const startTimers = () => {
+        // Live data refresh timer
+        state.liveDataTimer = setInterval(refreshLiveData, INTERVALS.LIVE_DATA);
+        
+        // Update timer (for "last updated X seconds ago")
+        state.updateTimerInterval = setInterval(() => {
+            state.secondsSinceLastUpdate++;
+            WeatherDOM.updateLiveIndicator(true, state.secondsSinceLastUpdate);
+        }, 1000);
+    };
+    
+    // Load initial data
+    const loadInitialData = async () => {
+        // Load live data
+        await refreshLiveData();
+        
+        // Load initial charts
+        await loadChartsForRange(state.currentRange);
+        
+        // Load forecasts
+        refreshWeekForecast();
+        refreshDayForecast();
+    };
+    
+    // Refresh live data
+    const refreshLiveData = async () => {
+        try {
+            const { weather, snow } = await WeatherDataService.fetchLiveData(config.snowEnabled);
+            
+            if (weather) {
+                const processedWeather = WeatherDataService.processLiveWeatherData(weather);
+                const processedSnow = config.snowEnabled ? 
+                    WeatherDataService.processSnowData(snow) : null;
+                
+                WeatherDOM.updateLiveWeather(processedWeather, processedSnow);
+                
+                state.secondsSinceLastUpdate = 0;
+                WeatherDOM.updateLiveIndicator(true, 0);
+            } else {
+                WeatherDOM.updateLiveIndicator(false);
+            }
+        } catch (error) {
+            if (config.debug) console.error('Error refreshing live data:', error);
+            WeatherDOM.updateLiveIndicator(false);
+        }
+    };
+    
+    // Load charts for a specific range
+    const loadChartsForRange = async (range) => {
+        const hours = CHART_RANGES[range];
+        
+        try {
+            const { mainData, snowData } = await WeatherDataService.fetchChartData(hours, config);
+            
+            if (!mainData) return;
+            
+            // Create charts for each metric
+            const chartMetrics = Object.keys(WeatherCharts.chartTypeConfigs);
+            
+            for (const metric of chartMetrics) {
+                // Skip snow chart if not enabled
+                if (metric === 'snowdepth' && !config.snowEnabled) continue;
+                
+                const elementId = `${metric}Chart${range}`;
+                const element = WeatherDOM.getCachedElement(elementId);
+                
+                if (element) {
+                    // Process data for this chart type
+                    const chartData = WeatherCharts.processChartData(
+                        mainData, 
+                        metric, 
+                        { snowData: snowData }
+                    );
+                    
+                    // Get additional series if any
+                    const additionalSeries = WeatherCharts.getAdditionalSeriesData(mainData, metric);
+                    
+                    // Create the chart
+                    const chartConfig = WeatherCharts.getChartConfig(metric);
+                    const options = {
+                        ...chartConfig,
+                        additionalSeries: additionalSeries
+                    };
+                    
+                    // Create chart with proper title
+                    const title = metric.charAt(0).toUpperCase() + metric.slice(1).replace(/([A-Z])/g, ' $1');
+                    WeatherCharts.createChart(metric, element, chartData, title, options);
+                }
+            }
+        } catch (error) {
+            if (config.debug) console.error('Error loading charts:', error);
+        }
+    };
+    
+    // Refresh week forecast
+    const refreshWeekForecast = async () => {
+        try {
+            const data = await WeatherDataService.fetchForecast(168);
+            if (!data) {
+                setTimeout(refreshWeekForecast, 60000);
+                return;
+            }
+            
+            const processed = WeatherDataService.processForecastData(data, 'week');
+            const lastUpdated = WeatherUtils.formatLastUpdated(data.lastUpdated);
+            
+            WeatherDOM.updateWeekForecast(processed, lastUpdated);
+            
+            // Schedule next refresh
+            setTimeout(refreshWeekForecast, INTERVALS.FORECAST_REFRESH);
+        } catch (error) {
+            if (config.debug) console.error('Error refreshing week forecast:', error);
+            setTimeout(refreshWeekForecast, 60000);
+        }
+    };
+    
+    // Refresh day forecast
+    const refreshDayForecast = async () => {
+        try {
+            const data = await WeatherDataService.fetchForecast(24);
+            if (!data) {
+                setTimeout(refreshDayForecast, 60000);
+                return;
+            }
+            
+            const processed = WeatherDataService.processForecastData(data, 'day');
+            const lastUpdated = WeatherUtils.formatLastUpdated(data.lastUpdated);
+            
+            // Calculate temperature scaling for vertical positioning
+            const temps = processed.map(h => h.temp);
+            const minTemp = Math.min(...temps);
+            const maxTemp = Math.max(...temps);
+            const tempSpread = maxTemp - minTemp;
+            const isMobile = window.innerWidth <= 700;
+            const tempSpreadPixels = isMobile ? 25 : 80;
+            
+            const temperatureScaling = tempSpread > 0 ? {
+                pixelsPerDegree: tempSpreadPixels / tempSpread,
+                highTemp: maxTemp
+            } : null;
+            
+            WeatherDOM.updateDayForecast(processed, lastUpdated, temperatureScaling);
+            
+            // Schedule next refresh
+            setTimeout(refreshDayForecast, INTERVALS.FORECAST_REFRESH);
+        } catch (error) {
+            if (config.debug) console.error('Error refreshing day forecast:', error);
+            setTimeout(refreshDayForecast, 60000);
+        }
+    };
+    
+    // Setup cleanup handlers
+    const setupCleanupHandlers = () => {
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', cleanup);
+        
+        // Refresh when page becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                refreshLiveData();
+            }
+        });
+    };
+    
+    // Cleanup function
+    const cleanup = () => {
+        if (state.liveDataTimer) {
+            clearInterval(state.liveDataTimer);
+        }
+        if (state.updateTimerInterval) {
+            clearInterval(state.updateTimerInterval);
+        }
+        if (state.chartRefreshTimer) {
+            clearInterval(state.chartRefreshTimer);
+        }
+        
+        WeatherCharts.destroyAllCharts();
+        WeatherDOM.clearCache();
+    };
+    
+    // Global function for theme refresh
+    window.refreshChartsForTheme = () => {
+        WeatherCharts.destroyAllCharts();
+        loadChartsForRange(state.currentRange);
+    };
+    
+    // Public API
+    return {
+        init,
+        config,
+        refreshLiveData,
+        cleanup
+    };
+})();
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    WeatherApp.init();
+});
