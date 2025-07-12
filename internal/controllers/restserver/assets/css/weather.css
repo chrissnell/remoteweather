@@ -678,6 +678,7 @@ html[data-theme="light"] .theme-toggle::before {
 .precip-amount {
   font-family: 'Inconsolata', monospace;
   font-weight: 500;
+  font-size: 0.9rem;
 }
 
 /* Day Forecast Grid (24-hour) */
