@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html data-wf-page="weather" data-wf-site="weather-station">
+<head>
+  <meta charset="utf-8">
+  <title>{{ .StationName }} - Weather Station</title>
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link href="css/normalize.css" rel="stylesheet" type="text/css">
+  <link href="css/weather-station.webflow.css" rel="stylesheet" type="text/css">
+  <link href="css/weather.css" rel="stylesheet" type="text/css">
+  
+  <!-- Fonts -->
+  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+  <script>WebFont.load({  google: {    families: ["Roboto:300,400,500,700:latin,latin-ext","Roboto Slab:300,400,500,700,800,900:latin,latin-ext","Inconsolata:400,700:latin,latin-ext"]  }});</script>
+  
+  <!-- Chart libraries -->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+  <script src="https://code.highcharts.com/modules/vector.js"></script>
+  
+  <!-- Time library -->
+  <script src="js/moment.min.js"></script>
+  
+  <!-- Theme initialization script -->
+  <script>
+    // Initialize theme before page renders to prevent flashing
+    (function() {
+      const savedTheme = localStorage.getItem('weather-theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Use saved theme, or fall back to system preference
+      let theme = savedTheme;
+      if (!theme) {
+        theme = systemPrefersDark ? 'dark' : 'light';
+      }
+      
+      if (theme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  
+  <!-- Refactored Weather JavaScript Modules -->
+  <script src="js/weather-utils.js"></script>
+  <script src="js/weather-charts.js"></script>
+  <script src="js/weather-data-service.js"></script>
+  <script src="js/weather-dom.js"></script>
+  <script src="js/weather-app.js"></script>
+</head>
+<body class="weather-body">
+  
+  <!-- The body content remains exactly the same as weather.html.tmpl -->
+  <!-- Only the JavaScript includes have changed -->
+  
+  <!-- Compact Header -->
+  <div class="weather-header">
+    <div class="weather-container">
+      <div class="header-content">
+        <h1 class="station-name">{{ .StationName }}</h1>
+        <div class="header-status">
+          <div class="status-line">
+            <div class="div-block-11" id="live-indicator-dot"></div>
+            <div class="live-indicator">
+              <div class="text-block-23">LIVE</div>
+            </div>
+            <div class="last-update" id="last-update">Updated just now</div>
+            <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark theme">
+              <span>Theme</span>
+            </button>
+          </div>
+          <div class="battery-info" id="battery-info" style="display: none;">
+            Station Battery: <span id="battery-voltage">--</span>V (<span id="battery-status">--</span>)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Weather Dashboard -->
+  <div class="weather-main">
+    <div class="weather-container">
+      
+      <!-- Consolidated Metric Groups -->
+      <div class="metric-groups">
+        
+        <!-- Temperature & Atmospheric Group -->
+        <div class="metric-group">
+          <div class="group-title">TEMPERATURE & ATMOSPHERIC</div>
+          <div class="group-metrics">
+            <div class="metric-item">
+              <div class="metric-label">Temperature</div>
+              <div class="metric-value large" id="temperature">--</div><span class="metric-unit">°F</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Feels Like</div>
+              <div class="metric-value" id="feels-like">--</div><span class="metric-unit">°F</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Humidity</div>
+              <div class="metric-value" id="humidity">--</div><span class="metric-unit">%</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Dew Point</div>
+              <div class="metric-value" id="dew-point">--</div><span class="metric-unit">°F</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Barometer</div>
+              <div class="metric-value" id="barometer">--</div><span class="metric-unit">inHg</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Solar Radiation</div>
+              <div class="metric-value" id="solar">--</div><span class="metric-unit">W/m²</span>
+            </div>
+            <div class="metric-item span-two">
+              <div class="metric-label">Sky Conditions</div>
+              <div class="metric-value" id="sky-conditions">--</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Wind Group -->
+        <div class="metric-group">
+          <div class="group-title">WIND</div>
+          <div class="group-metrics wind-group">
+            <div class="metric-item">
+              <div class="metric-label">Speed</div>
+              <div class="metric-value large" id="wind-speed">--</div><span class="metric-unit">MPH</span>
+              <div class="metric-sub">Gusts: <span id="wind-gusts">--</span> MPH</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Direction</div>
+              <div class="metric-value" id="wind-direction">--</div>
+              <div class="metric-sub" id="wind-degrees">(--°)</div>
+            </div>
+            <div class="windrosecontainer">
+              <div class="windrose-box measurement-part">
+                <div class="div-block-3">
+                  <div id="rdg-winddir-cardinal" class="wind-cardinal-dir">---</div>
+                  <div id="rdg-windspeed" class="wind-speed">--</div>
+                  <div class="windrose-box-container">
+                    <div id="rdg-winddir" class="windrose-circle">
+                      <div class="windrose-arrow"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Rainfall Group -->
+        <div class="metric-group">
+          <div class="group-title">RAINFALL</div>
+          <div class="group-metrics">
+            <div class="metric-item">
+              <div class="metric-label">Today's Rain</div>
+              <div class="metric-value" id="rain-today">--</div><span class="metric-unit">in</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Rain Rate</div>
+              <div class="metric-value" id="rain-rate">--</div><span class="metric-unit">in/hr</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Rain 24HR</div>
+              <div class="metric-value" id="rain-24hr">--</div><span class="metric-unit">in</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Rain 48HR</div>
+              <div class="metric-value" id="rain-48hr">--</div><span class="metric-unit">in</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Rain 72HR</div>
+              <div class="metric-value" id="rain-72hr">--</div><span class="metric-unit">in</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">Storm Total</div>
+              <div class="metric-value" id="rain-storm-total">--</div><span class="metric-unit">in</span>
+            </div>
+          </div>
+        </div>
+
+        
+      </div>
+      
+      <!-- Snow Gauge -->
+      {{ if .SnowEnabled }}
+      <div class="metric-group span-full">
+        <div class="metric-group-header">
+          <h2>Snow Gauge</h2>
+        </div>
+        <div class="metric-group-content">
+          <div class="metric-item">
+            <div class="metric-label">Snow Depth</div>
+            <div class="metric-value" id="snow-depth">--</div><span class="metric-unit">in</span>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Snow 24hr</div>
+            <div class="metric-value" id="snow-24hr">--</div><span class="metric-unit">in</span>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">72 Hour Snowfall</div>
+            <div class="metric-value" id="snow-72hr">--</div><span class="metric-unit">in</span>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Storm Total</div>
+            <div class="metric-value" id="snow-storm-total">--</div><span class="metric-unit">in</span>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Accumulation Rate</div>
+            <div class="metric-value" id="snow-accumulation-rate">--</div><span class="metric-unit">in/hr</span>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+      
+      <!-- Forecast Section -->
+      <div class="forecast-section">
+        <div class="section-title">Weather Forecast</div>
+        
+        <div class="forecast-tabs">
+          <button class="forecast-tab active" data-forecast-type="week" id="forecast-tab-week">7 Days</button>
+          <button class="forecast-tab" data-forecast-type="day" id="forecast-tab-day">24 Hours</button>
+        </div>
+        
+        <!-- Week Forecast -->
+        <div class="forecast-container" id="forecast-week">
+          <div class="forecast-grid week-grid">
+            <div class="forecast-day" id="week-forecast-interval-0">
+              <div class="forecast-day-title" id="week-forecast-interval-0-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-0-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-0-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-0-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-0-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-0-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-0-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-1">
+              <div class="forecast-day-title" id="week-forecast-interval-1-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-1-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-1-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-1-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-1-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-1-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-1-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-2">
+              <div class="forecast-day-title" id="week-forecast-interval-2-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-2-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-2-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-2-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-2-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-2-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-2-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-3">
+              <div class="forecast-day-title" id="week-forecast-interval-3-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-3-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-3-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-3-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-3-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-3-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-3-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-4">
+              <div class="forecast-day-title" id="week-forecast-interval-4-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-4-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-4-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-4-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-4-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-4-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-4-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-5">
+              <div class="forecast-day-title" id="week-forecast-interval-5-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-5-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-5-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-5-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-5-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-5-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-5-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-day" id="week-forecast-interval-6">
+              <div class="forecast-day-title" id="week-forecast-interval-6-title">--</div>
+              <div class="forecast-icon" id="week-forecast-interval-6-icon">--</div>
+              <div class="forecast-weather" id="week-forecast-interval-6-weather">--</div>
+              <div class="forecast-temps">
+                <span class="temp-high" id="week-forecast-interval-6-high-temp">--</span>
+                <span class="temp-low" id="week-forecast-interval-6-low-temp">--</span>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="week-forecast-interval-6-precip-icon">--</span>
+                <span class="precip-amount" id="week-forecast-interval-6-precip">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="forecast-updated" id="forecast-week-last-updated">---</div>
+        </div>
+        
+        <!-- Day Forecast -->
+        <div class="forecast-container" id="forecast-day" style="display: none;">
+          <div class="forecast-grid day-grid">
+            <div class="forecast-hour" id="day-forecast-interval-0">
+              <div class="forecast-hour-title" id="day-forecast-interval-0-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-0-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-0-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-0-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-0-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-0-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-1">
+              <div class="forecast-hour-title" id="day-forecast-interval-1-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-1-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-1-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-1-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-1-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-1-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-2">
+              <div class="forecast-hour-title" id="day-forecast-interval-2-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-2-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-2-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-2-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-2-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-2-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-3">
+              <div class="forecast-hour-title" id="day-forecast-interval-3-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-3-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-3-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-3-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-3-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-3-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-4">
+              <div class="forecast-hour-title" id="day-forecast-interval-4-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-4-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-4-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-4-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-4-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-4-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-5">
+              <div class="forecast-hour-title" id="day-forecast-interval-5-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-5-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-5-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-5-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-5-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-5-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-6">
+              <div class="forecast-hour-title" id="day-forecast-interval-6-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-6-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-6-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-6-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-6-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-6-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-7">
+              <div class="forecast-hour-title" id="day-forecast-interval-7-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-7-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-7-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-7-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-7-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-7-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-8">
+              <div class="forecast-hour-title" id="day-forecast-interval-8-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-8-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-8-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-8-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-8-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-8-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-9">
+              <div class="forecast-hour-title" id="day-forecast-interval-9-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-9-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-9-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-9-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-9-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-9-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-10">
+              <div class="forecast-hour-title" id="day-forecast-interval-10-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-10-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-10-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-10-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-10-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-10-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-11">
+              <div class="forecast-hour-title" id="day-forecast-interval-11-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-11-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-11-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-11-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-11-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-11-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-12">
+              <div class="forecast-hour-title" id="day-forecast-interval-12-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-12-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-12-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-12-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-12-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-12-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-13">
+              <div class="forecast-hour-title" id="day-forecast-interval-13-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-13-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-13-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-13-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-13-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-13-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-14">
+              <div class="forecast-hour-title" id="day-forecast-interval-14-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-14-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-14-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-14-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-14-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-14-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-15">
+              <div class="forecast-hour-title" id="day-forecast-interval-15-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-15-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-15-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-15-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-15-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-15-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-16">
+              <div class="forecast-hour-title" id="day-forecast-interval-16-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-16-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-16-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-16-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-16-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-16-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-17">
+              <div class="forecast-hour-title" id="day-forecast-interval-17-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-17-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-17-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-17-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-17-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-17-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-18">
+              <div class="forecast-hour-title" id="day-forecast-interval-18-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-18-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-18-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-18-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-18-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-18-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-19">
+              <div class="forecast-hour-title" id="day-forecast-interval-19-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-19-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-19-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-19-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-19-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-19-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-20">
+              <div class="forecast-hour-title" id="day-forecast-interval-20-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-20-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-20-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-20-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-20-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-20-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-21">
+              <div class="forecast-hour-title" id="day-forecast-interval-21-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-21-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-21-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-21-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-21-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-21-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-22">
+              <div class="forecast-hour-title" id="day-forecast-interval-22-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-22-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-22-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-22-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-22-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-22-precip">--</span>
+              </div>
+            </div>
+            
+            <div class="forecast-hour" id="day-forecast-interval-23">
+              <div class="forecast-hour-title" id="day-forecast-interval-23-title">--</div>
+              <div class="day-forecast-adjustable-div" id="day-forecast-interval-23-adjustable-div">
+                <div class="forecast-icon" id="day-forecast-interval-23-icon">--</div>
+                <div class="forecast-temp" id="day-forecast-interval-23-avg-temp">--</div>
+              </div>
+              <div class="forecast-precip">
+                <span class="precip-icon" id="day-forecast-interval-23-precip-icon">--</span>
+                <span class="precip-amount" id="day-forecast-interval-23-precip">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="forecast-updated" id="forecast-day-last-updated">---</div>
+        </div>
+      </div>
+      
+      <!-- Charts Section -->
+      <div class="charts-section">
+        <div class="section-title">Historical Data</div>
+        
+        <div class="chart-controls">
+          <div class="chart-tabs">
+            <button class="chart-tab active" data-range="24h" id="tab-24h">24 Hours</button>
+            <button class="chart-tab" data-range="72h" id="tab-72h">72 Hours</button>
+            <button class="chart-tab" data-range="7d" id="tab-7d">Week</button>
+            <button class="chart-tab" data-range="30d" id="tab-30d">Month</button>
+            <button class="chart-tab" data-range="1y" id="tab-1y">Year</button>
+          </div>
+        </div>
+        
+        <!-- Chart containers for each time range -->
+        <div class="charts-container">
+          <!-- 24 Hour Charts -->
+          <div class="chart-range-container" id="charts-24h">
+            <div class="chart-wrapper">
+              <div class="chart-title">Temperature</div>
+              <div class="chart-container" id="temperatureChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Speed</div>
+              <div class="chart-container" id="windspeedChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Direction</div>
+              <div class="chart-container-wind" id="winddirectionChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Humidity</div>
+              <div class="chart-container" id="humidityChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Barometer</div>
+              <div class="chart-container" id="barometerChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Rainfall</div>
+              <div class="chart-container" id="rainfallChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Solar Radiation</div>
+              <div class="chart-container" id="solarwattsChart24h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Battery Voltage</div>
+              <div class="chart-container" id="voltageChart24h"></div>
+            </div>
+            {{ if .SnowEnabled }}
+            <div class="chart-wrapper">
+              <div class="chart-title">Snow Depth</div>
+              <div class="chart-container" id="snowdepthChart24h"></div>
+            </div>
+            {{ end }}
+          </div>
+          
+          <!-- 72 Hour Charts -->
+          <div class="chart-range-container" id="charts-72h" style="display: none;">
+            <div class="chart-wrapper">
+              <div class="chart-title">Temperature</div>
+              <div class="chart-container" id="temperatureChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Speed</div>
+              <div class="chart-container" id="windspeedChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Direction</div>
+              <div class="chart-container" id="winddirectionChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Humidity</div>
+              <div class="chart-container" id="humidityChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Barometer</div>
+              <div class="chart-container" id="barometerChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Rainfall</div>
+              <div class="chart-container" id="rainfallChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Solar Radiation</div>
+              <div class="chart-container" id="solarwattsChart72h"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Battery Voltage</div>
+              <div class="chart-container" id="voltageChart72h"></div>
+            </div>
+            {{ if .SnowEnabled }}
+            <div class="chart-wrapper">
+              <div class="chart-title">Snow Depth</div>
+              <div class="chart-container" id="snowdepthChart72h"></div>
+            </div>
+            {{ end }}
+          </div>
+          
+          <!-- 7 Day Charts -->
+          <div class="chart-range-container" id="charts-7d" style="display: none;">
+            <div class="chart-wrapper">
+              <div class="chart-title">Temperature</div>
+              <div class="chart-container" id="temperatureChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Speed</div>
+              <div class="chart-container" id="windspeedChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Direction</div>
+              <div class="chart-container" id="winddirectionChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Humidity</div>
+              <div class="chart-container" id="humidityChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Barometer</div>
+              <div class="chart-container" id="barometerChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Rainfall</div>
+              <div class="chart-container" id="rainfallChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Solar Radiation</div>
+              <div class="chart-container" id="solarwattsChart7d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Battery Voltage</div>
+              <div class="chart-container" id="voltageChart7d"></div>
+            </div>
+            {{ if .SnowEnabled }}
+            <div class="chart-wrapper">
+              <div class="chart-title">Snow Depth</div>
+              <div class="chart-container" id="snowdepthChart7d"></div>
+            </div>
+            {{ end }}
+          </div>
+          
+          <!-- 30 Day Charts -->
+          <div class="chart-range-container" id="charts-30d" style="display: none;">
+            <div class="chart-wrapper">
+              <div class="chart-title">Temperature</div>
+              <div class="chart-container" id="temperatureChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Speed</div>
+              <div class="chart-container" id="windspeedChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Direction</div>
+              <div class="chart-container" id="winddirectionChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Humidity</div>
+              <div class="chart-container" id="humidityChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Barometer</div>
+              <div class="chart-container" id="barometerChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Rainfall</div>
+              <div class="chart-container" id="rainfallChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Solar Radiation</div>
+              <div class="chart-container" id="solarwattsChart30d"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Battery Voltage</div>
+              <div class="chart-container" id="voltageChart30d"></div>
+            </div>
+            {{ if .SnowEnabled }}
+            <div class="chart-wrapper">
+              <div class="chart-title">Snow Depth</div>
+              <div class="chart-container" id="snowdepthChart30d"></div>
+            </div>
+            {{ end }}
+          </div>
+          
+          <!-- 1 Year Charts -->
+          <div class="chart-range-container" id="charts-1y" style="display: none;">
+            <div class="chart-wrapper">
+              <div class="chart-title">Temperature</div>
+              <div class="chart-container" id="temperatureChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Speed</div>
+              <div class="chart-container" id="windspeedChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Wind Direction</div>
+              <div class="chart-container" id="winddirectionChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Humidity</div>
+              <div class="chart-container" id="humidityChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Barometer</div>
+              <div class="chart-container" id="barometerChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Rainfall</div>
+              <div class="chart-container" id="rainfallChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Solar Radiation</div>
+              <div class="chart-container" id="solarwattsChart1y"></div>
+            </div>
+            <div class="chart-wrapper">
+              <div class="chart-title">Battery Voltage</div>
+              <div class="chart-container" id="voltageChart1y"></div>
+            </div>
+            {{ if .SnowEnabled }}
+            <div class="chart-wrapper">
+              <div class="chart-title">Snow Depth</div>
+              <div class="chart-container" id="snowdepthChart1y"></div>
+            </div>
+            {{ end }}
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+  
+  <!-- Theme Toggle Script -->
+  <script>
+    (function() {
+      // Initialize theme variables
+      let currentTheme = 'dark';
+      
+      // Theme management functions
+      function setTheme(theme) {
+        console.log('Setting theme to:', theme);
+        console.log('Document element:', document.documentElement);
+        
+        if (theme === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+          console.log('Added data-theme="light"');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          console.log('Removed data-theme attribute');
+        }
+        
+        localStorage.setItem('weather-theme', theme);
+        currentTheme = theme;
+        
+        // Debug: Check computed styles
+        setTimeout(() => {
+          const bodyBg = getComputedStyle(document.body).backgroundColor;
+          const bodyColor = getComputedStyle(document.body).color;
+          const htmlTheme = document.documentElement.getAttribute('data-theme');
+          console.log('HTML data-theme:', htmlTheme);
+          console.log('Body background:', bodyBg);
+          console.log('Body color:', bodyColor);
+          
+          // Check if CSS variables are being applied
+          const computedBg = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary');
+          console.log('CSS variable --bg-primary:', computedBg);
+        }, 100);
+      }
+      
+      function getInitialTheme() {
+        const savedTheme = localStorage.getItem('weather-theme');
+        if (savedTheme) {
+          return savedTheme;
+        }
+        
+        // Check system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+          return 'light';
+        }
+        
+        return 'dark';
+      }
+      
+      // Set initial theme
+      currentTheme = getInitialTheme();
+      setTheme(currentTheme);
+      
+      // Initialize theme toggle when DOM is ready
+      document.addEventListener('DOMContentLoaded', function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        
+        if (!themeToggle) {
+          console.error('Theme toggle button not found');
+          return;
+        }
+        
+        console.log('Theme toggle button found, current theme:', currentTheme);
+        
+              // Theme toggle event listener
+      themeToggle.addEventListener('click', function() {
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        console.log('Theme toggle clicked, switching to:', newTheme);
+        setTheme(newTheme);
+        
+        // Refresh charts to apply new theme
+        if (window.refreshChartsForTheme) {
+          window.refreshChartsForTheme();
+        }
+      });
+        
+        // Listen for system theme changes
+        if (window.matchMedia) {
+          window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+            // Only auto-switch if user hasn't manually set a preference
+            if (!localStorage.getItem('weather-theme')) {
+              setTheme(e.matches ? 'dark' : 'light');
+            }
+          });
+        }
+      });
+    })();
+  </script>
+  
+</body>
+</html>
