@@ -103,8 +103,7 @@ const WeatherCharts = (function() {
                 renderTo: targetDiv
             },
             title: { 
-                text: title,
-                style: { color: WeatherUtils.getCSSVariable('--chart-text') }
+                text: null  // Remove duplicate title
             },
             yAxis: chartType === 'vector' ? { visible: false } : { 
                 title: { 
