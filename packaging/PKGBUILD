@@ -20,6 +20,9 @@ sha256sums=('SKIP'
 
 build() {
     cd "$srcdir/remoteweather-5.0-rest-api"
+    make clean
+    rm -f campbell-emulator davis-emulator migrate
+    rm -rf bin/
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
     export CGO_CXXFLAGS="${CXXFLAGS}"
@@ -31,7 +34,6 @@ build() {
         aarch64)  export GOARCH=arm64 ;;
         armv7h)   export GOARCH=arm   ;;
     esac
-    make clean
     make VERSION="5.4.2"
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
@@ -48,12 +50,14 @@ package() {
     install -Dm644 "$srcdir/remoteweather.sysusers" "$pkgdir/usr/lib/sysusers.d/remoteweather.conf"
     install -dm755 "$pkgdir/var/lib/remoteweather"
     install -dm755 "$pkgdir/etc/remoteweather"
+    # Optionally install a default config.yaml to avoid backup warnings
+    # Uncomment the next line if you want to ship a default config
+    # install -Dm644 examples/configs/weather-station-basic.yaml "$pkgdir/var/lib/remoteweather/config.yaml"
     install -Dm644 README.md "$pkgdir/usr/share/doc/remoteweather/README.md"
     install -dm755 "$pkgdir/usr/share/doc/remoteweather/docs"
     install -Dm644 docs/*.md "$pkgdir/usr/share/doc/remoteweather/docs/"
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
     install -Dm644 migrations/config/*.sql "$pkgdir/usr/share/remoteweather/migrations/config/"
-    # Install example configs for reference (never overwrite user configs in /var/lib)
     install -dm755 "$pkgdir/usr/share/doc/remoteweather/examples/configs"
     install -Dm644 examples/configs/*.yaml "$pkgdir/usr/share/doc/remoteweather/examples/configs/"
     install -Dm644 examples/configs/README.md "$pkgdir/usr/share/doc/remoteweather/examples/configs/"
