@@ -507,29 +507,7 @@ func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetPortalJS returns the portal JavaScript code via REST API
-func (h *Handlers) GetPortalJS(w http.ResponseWriter, req *http.Request) {
-	// Get website from context
-	website := h.getWebsiteFromContext(req)
 
-	// Only serve portal JS if this website is configured as a portal
-	if !website.IsPortal {
-		http.Error(w, "portal JS not available for this website", http.StatusForbidden)
-		return
-	}
-
-	// Read portal JS from embedded filesystem
-	jsContent, err := fs.ReadFile(*h.controller.FS, "js/portal.js")
-	if err != nil {
-		log.Error("error reading portal.js:", err)
-		http.Error(w, "portal.js not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/javascript")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Write(jsContent)
-}
 
 // ServeWeatherWebsiteTemplate serves the weather HTML template
 func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
