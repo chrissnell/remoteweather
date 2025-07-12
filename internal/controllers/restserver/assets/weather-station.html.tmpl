@@ -858,15 +858,11 @@
       
       // Theme management functions
       function setTheme(theme) {
-        console.log('Setting theme to:', theme);
-        console.log('Document element:', document.documentElement);
         
         if (theme === 'light') {
           document.documentElement.setAttribute('data-theme', 'light');
-          console.log('Added data-theme="light"');
         } else {
           document.documentElement.removeAttribute('data-theme');
-          console.log('Removed data-theme attribute');
         }
         
         localStorage.setItem('weather-theme', theme);
@@ -877,13 +873,9 @@
           const bodyBg = getComputedStyle(document.body).backgroundColor;
           const bodyColor = getComputedStyle(document.body).color;
           const htmlTheme = document.documentElement.getAttribute('data-theme');
-          console.log('HTML data-theme:', htmlTheme);
-          console.log('Body background:', bodyBg);
-          console.log('Body color:', bodyColor);
           
           // Check if CSS variables are being applied
           const computedBg = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary');
-          console.log('CSS variable --bg-primary:', computedBg);
         }, 100);
       }
       
@@ -914,12 +906,10 @@
           return;
         }
         
-        console.log('Theme toggle button found, current theme:', currentTheme);
         
               // Theme toggle event listener
       themeToggle.addEventListener('click', function() {
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        console.log('Theme toggle clicked, switching to:', newTheme);
         setTheme(newTheme);
         
         // Refresh charts to apply new theme
