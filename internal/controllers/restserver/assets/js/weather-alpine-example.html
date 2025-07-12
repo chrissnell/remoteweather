@@ -1,0 +1,165 @@
+<!-- Example HTML structure for Alpine.js weather dashboard -->
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Include Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Include Highcharts -->
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/vector.js"></script>
+    <!-- Include Moment.js for date formatting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+</head>
+<body>
+    <!-- Main weather dashboard container -->
+    <div x-data="weatherDashboard" class="weather-dashboard">
+        
+        <!-- Header with live indicator and battery status -->
+        <header class="dashboard-header">
+            <div class="live-indicator">
+                <span class="live-dot" :class="{ 'offline': !isOnline }"></span>
+                <span x-text="`Last updated ${secondsSinceLastUpdate}s ago`"></span>
+            </div>
+            
+            <div x-show="showBattery" class="battery-info">
+                <span>Battery: <span x-text="batteryVoltage"></span>V</span>
+                <span x-text="batteryStatus"></span>
+            </div>
+        </header>
+        
+        <!-- Live Weather Data Section -->
+        <section class="live-weather">
+            <div class="weather-grid">
+                <!-- Temperature Card -->
+                <div class="weather-card">
+                    <h3>Temperature</h3>
+                    <div class="primary-value">
+                        <span x-text="temperature"></span>°F
+                    </div>
+                    <div class="secondary-values">
+                        <div>Feels like: <span x-text="feelsLike"></span>°F</div>
+                        <div>Dew point: <span x-text="dewPoint"></span>°F</div>
+                    </div>
+                </div>
+                
+                <!-- Atmospheric Card -->
+                <div class="weather-card">
+                    <h3>Atmospheric</h3>
+                    <div class="values">
+                        <div>Humidity: <span x-text="humidity"></span>%</div>
+                        <div>Barometer: <span x-text="barometer"></span> inHg</div>
+                        <div>Solar: <span x-text="solar"></span> W/m²</div>
+                        <div>Sky: <span x-text="skyConditions"></span></div>
+                    </div>
+                </div>
+                
+                <!-- Wind Card -->
+                <div class="weather-card">
+                    <h3>Wind</h3>
+                    <div class="wind-display">
+                        <div class="windrose" :style="`transform: rotate(${liveData.windd || 0}deg)`">
+                            <!-- SVG windrose graphic here -->
+                        </div>
+                        <div class="wind-values">
+                            <div>Speed: <span x-text="windSpeed"></span> MPH</div>
+                            <div>Gusts: <span x-text="windGusts"></span> MPH</div>
+                            <div>Direction: <span x-text="windDirection"></span> (<span x-text="windDegrees"></span>°)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Precipitation Card -->
+                <div class="weather-card">
+                    <h3>Precipitation</h3>
+                    <div class="values">
+                        <div>Today: <span x-text="rainToday"></span>"</div>
+                        <div>Rate: <span x-text="rainRate"></span>"/hr</div>
+                        <div>24hr: <span x-text="liveData.rainfall24h || '--'"></span>"</div>
+                        <div>Storm: <span x-text="liveData.rainfallstorm || '--'"></span>"</div>
+                    </div>
+                </div>
+                
+                <!-- Snow Card (conditional) -->
+                <template x-if="weatherConfig.snowEnabled">
+                    <div class="weather-card">
+                        <h3>Snow</h3>
+                        <div class="values">
+                            <div>Depth: <span x-text="snowData.snowdepth || '0.00'"></span>"</div>
+                            <div>24hr: <span x-text="snowData.snowlast24 || '0.00'"></span>"</div>
+                            <div>Rate: <span x-text="snowData.snowfallrate || '0.00'"></span>"/hr</div>
+                            <div>Storm: <span x-text="snowData.snowstorm || '0.00'"></span>"</div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </section>
+        
+        <!-- Charts Section -->
+        <section class="charts-section">
+            <!-- Chart Range Tabs -->
+            <div class="chart-tabs">
+                <button @click="switchChartRange('24h')" 
+                        :class="{ active: currentRange === '24h' }"
+                        class="chart-tab">24 Hours</button>
+                <button @click="switchChartRange('72h')" 
+                        :class="{ active: currentRange === '72h' }"
+                        class="chart-tab">3 Days</button>
+                <button @click="switchChartRange('7d')" 
+                        :class="{ active: currentRange === '7d' }"
+                        class="chart-tab">7 Days</button>
+                <button @click="switchChartRange('30d')" 
+                        :class="{ active: currentRange === '30d' }"
+                        class="chart-tab">30 Days</button>
+                <button @click="switchChartRange('1y')" 
+                        :class="{ active: currentRange === '1y' }"
+                        class="chart-tab">1 Year</button>
+            </div>
+            
+            <!-- Chart Containers -->
+            <div class="chart-grid">
+                <template x-for="range in ['24h', '72h', '7d', '30d', '1y']">
+                    <div x-show="currentRange === range" class="chart-range-container">
+                        <div :id="`temperatureChart${range}`" class="chart"></div>
+                        <div :id="`humidityChart${range}`" class="chart"></div>
+                        <div :id="`barometerChart${range}`" class="chart"></div>
+                        <div :id="`windspeedChart${range}`" class="chart"></div>
+                        <div :id="`winddirectionChart${range}`" class="chart"></div>
+                        <div :id="`rainfallChart${range}`" class="chart"></div>
+                        <div :id="`solarwattsChart${range}`" class="chart"></div>
+                        <div :id="`voltageChart${range}`" class="chart"></div>
+                        <template x-if="weatherConfig.snowEnabled">
+                            <div :id="`snowdepthChart${range}`" class="chart"></div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </section>
+        
+        <!-- Forecast Section -->
+        <section class="forecast-section">
+            <!-- Forecast Type Tabs -->
+            <div class="forecast-tabs">
+                <button @click="currentForecastType = 'week'" 
+                        :class="{ active: currentForecastType === 'week' }"
+                        class="forecast-tab">Week Forecast</button>
+                <button @click="currentForecastType = 'day'" 
+                        :class="{ active: currentForecastType === 'day' }"
+                        class="forecast-tab">24-Hour Forecast</button>
+            </div>
+            
+            <!-- Week Forecast -->
+            <div x-show="currentForecastType === 'week'" class="week-forecast">
+                <!-- Forecast cards would be dynamically populated -->
+            </div>
+            
+            <!-- Day Forecast -->
+            <div x-show="currentForecastType === 'day'" class="day-forecast">
+                <!-- Hourly forecast would be dynamically populated -->
+            </div>
+        </section>
+    </div>
+    
+    <!-- Include the refactored JavaScript -->
+    <script src="weather-refactored.js"></script>
+</body>
+</html>
