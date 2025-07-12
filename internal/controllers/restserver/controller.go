@@ -306,13 +306,24 @@ func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
 			website = ws.Name
 		}
 		
+		// Get client IP, preferring X-Forwarded-For if present
+		clientIP := r.RemoteAddr
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			// X-Forwarded-For can contain multiple IPs, take the first one
+			if comma := strings.Index(xff, ","); comma != -1 {
+				clientIP = strings.TrimSpace(xff[:comma])
+			} else {
+				clientIP = strings.TrimSpace(xff)
+			}
+		}
+		
 		log.LogHTTPRequest(
 			r.Method,
 			r.URL.Path,
 			wrapped.statusCode,
 			duration,
 			wrapped.bytesWritten,
-			r.RemoteAddr,
+			clientIP,
 			r.UserAgent(),
 			website,
 			nil,
