@@ -326,6 +326,7 @@ func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
 			clientIP,
 			r.UserAgent(),
 			website,
+			r.Header.Get("Referer"),
 			nil,
 		)
 	})
