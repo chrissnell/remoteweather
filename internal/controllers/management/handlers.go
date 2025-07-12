@@ -92,6 +92,46 @@ func (h *Handlers) GetLogs(w http.ResponseWriter, r *http.Request) {
 	h.sendJSON(w, response)
 }
 
+// GetHTTPLogs handles REST API requests for HTTP log entries from the REST server
+func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
+	httpLogBuffer := log.GetHTTPLogBuffer()
+
+	// Get all logs and clear the buffer to avoid duplicates on next call
+	logs := httpLogBuffer.GetLogs(true) // true = clear buffer
+
+	// Convert to API format
+	var logEntries []map[string]interface{}
+	for _, entry := range logs {
+		logEntry := map[string]interface{}{
+			"timestamp": entry.Timestamp.Format(time.RFC3339),
+			"level":     entry.Level,
+			"message":   entry.Message,
+		}
+
+		// Add caller if available
+		if entry.Caller != "" {
+			logEntry["caller"] = entry.Caller
+		}
+
+		// Add any additional fields
+		if len(entry.Fields) > 0 {
+			for key, value := range entry.Fields {
+				logEntry[key] = value
+			}
+		}
+
+		logEntries = append(logEntries, logEntry)
+	}
+
+	response := map[string]interface{}{
+		"logs":      logEntries,
+		"count":     len(logEntries),
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	h.sendJSON(w, response)
+}
+
 // Login handles the login request and sets a session cookie
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	var request struct {

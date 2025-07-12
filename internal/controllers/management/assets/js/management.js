@@ -16,6 +16,8 @@
   // Logs state
   let logsPollingInterval = null;
   let isLogsTailing = false;
+  let httpLogsPollingInterval = null;
+  let isHTTPLogsTailing = false;
 
   /* ---------------------------------------------------
      Coordinate Utilities
@@ -134,6 +136,7 @@
     '/storage': 'storage-pane',
     '/websites': 'websites-pane',
     '/logs': 'logs-pane',
+    '/http-logs': 'http-logs-pane',
     '/utilities': 'utilities-pane'
   };
 
@@ -144,6 +147,7 @@
     'storage-pane': '/storage',
     'websites-pane': '/websites',
     'logs-pane': '/logs',
+    'http-logs-pane': '/http-logs',
     'utilities-pane': '/utilities'
   };
 
@@ -154,13 +158,15 @@
     'storage': 'storage-pane',
     'websites': 'websites-pane',
     'logs': 'logs-pane',
+    'http-logs': 'http-logs-pane',
     'utilities': 'utilities-pane'
   };
 
   // Switch active tab
   function switchToTab(targetPaneId, updateHistory = true) {
     // Update active button
-    tabButtons.forEach(b => {
+    const allTabButtons = document.querySelectorAll('.nav-tab');
+    allTabButtons.forEach(b => {
       const buttonTarget = b.getAttribute('data-tab');
       const mappedTarget = tabToPaneMapping[buttonTarget];
       if (mappedTarget === targetPaneId) {
@@ -170,8 +176,9 @@
       }
     });
 
-    // Show / hide panes  
-    panes.forEach(p => {
+    // Show / hide panes
+    const allPanes = document.querySelectorAll('.pane');
+    allPanes.forEach(p => {
       if (p.id === targetPaneId) {
         p.classList.remove('hidden');
         p.classList.add('active');
@@ -185,10 +192,17 @@
     if (targetPaneId === 'logs-pane') {
       loadLogs(); // This is now async but we don't need to await here
       setupLogsEventHandlers();
+    } else if (targetPaneId === 'http-logs-pane') {
+      loadHTTPLogs(); // This is now async but we don't need to await here
+      setupHTTPLogsEventHandlers();
     } else {
       // Stop logs tailing when switching away from logs tab
       if (isLogsTailing) {
         stopLogsTailing();
+      }
+      // Stop HTTP logs tailing when switching away from HTTP logs tab
+      if (isHTTPLogsTailing) {
+        stopHTTPLogsTailing();
       }
       
       // Load data for other tabs
@@ -209,23 +223,8 @@
     }
   }
 
-  // Handle tab button clicks
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tabName = btn.getAttribute('data-tab');
-      const paneId = tabToPaneMapping[tabName];
-      if (paneId) {
-        switchToTab(paneId, true);
-      }
-    });
-  });
-
-  // Handle browser back/forward navigation
-  window.addEventListener('popstate', () => {
-    const currentPath = window.location.pathname;
-    const targetTab = urlToTab[currentPath] || 'weather-stations-pane';
-    switchToTab(targetTab, false);
-  });
+  // Tab button event listeners will be set up in init()
+  // Browser navigation handler moved to init()
 
   // Initialize tab based on current URL
   function initializeTab() {
@@ -234,11 +233,7 @@
     switchToTab(targetTab, false);
   }
 
-  // Initialize on page load
-  initializeTab();
-
-  // Setup coordinate handlers
-  setupCoordinateHandlers();
+  // These will be called from init() after DOM is loaded
 
   // Check authentication status using the dedicated auth endpoint
   async function checkAuthStatus() {
@@ -1352,6 +1347,253 @@
 
 
   /* ---------------------------------------------------
+     HTTP Logs Functions
+  --------------------------------------------------- */
+
+  async function loadHTTPLogs() {
+    // Only check authentication if we don't already know the user is authenticated
+    if (!isAuthenticated) {
+      const authenticated = await checkAuthStatus();
+      if (!authenticated) {
+        document.getElementById('http-logs-content').innerHTML = '<div class="log-status error">Please log in to view HTTP logs.</div>';
+        showLoginModal();
+        return;
+      }
+    }
+
+    // Clear existing logs and load initial logs
+    document.getElementById('http-logs-content').innerHTML = '<div class="log-status">Loading HTTP logs...</div>';
+    await loadInitialHTTPLogs();
+    
+    // Start live tail by default
+    startHTTPLogsTailing();
+  }
+
+  async function loadInitialHTTPLogs() {
+    try {
+      console.log('Loading initial HTTP logs...');
+      const response = await apiGet('/http-logs');
+      const logs = response.logs || [];
+      
+      console.log('Initial HTTP logs response:', logs.length, 'entries');
+      
+      // Clear loading message
+      document.getElementById('http-logs-content').innerHTML = '';
+      
+      // Add all logs
+      logs.forEach(log => appendHTTPLogEntry(log));
+      
+      console.log('Loaded', logs.length, 'HTTP log entries');
+    } catch (error) {
+      console.error('Failed to load HTTP logs:', error);
+      document.getElementById('http-logs-content').innerHTML = '<div class="log-status error">Failed to load HTTP logs: ' + error.message + '</div>';
+    }
+  }
+
+  function appendHTTPLogEntry(log) {
+    const container = document.getElementById('http-logs-content');
+    
+    // Create log entry element
+    const logDiv = document.createElement('div');
+    logDiv.className = 'log-entry log-' + (log.level || 'info');
+    
+    // Format the log entry specifically for HTTP logs
+    let logText = `[${log.timestamp}]`;
+    
+    // Add HTTP-specific fields
+    if (log.method) logText += ` ${log.method}`;
+    if (log.path) logText += ` ${log.path}`;
+    if (log.status) logText += ` ${log.status}`;
+    if (log.duration_ms !== undefined) logText += ` ${log.duration_ms}ms`;
+    if (log.size) logText += ` ${log.size} bytes`;
+    if (log.website) logText += ` [${log.website}]`;
+    if (log.remote_addr) logText += ` from ${log.remote_addr}`;
+    
+    // Add the message if different from the formatted text
+    if (log.message && !logText.includes(log.message)) {
+      logText += ' - ' + log.message;
+    }
+    
+    logDiv.textContent = logText;
+    container.appendChild(logDiv);
+    
+    // Auto-scroll to bottom if tailing
+    if (isHTTPLogsTailing) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  function startHTTPLogsTailing() {
+    if (isHTTPLogsTailing) return;
+    
+    isHTTPLogsTailing = true;
+    const tailBtn = document.getElementById('http-logs-tail-btn');
+    if (tailBtn) {
+      tailBtn.textContent = 'Stop Tail';
+      tailBtn.classList.remove('btn-success');
+      tailBtn.classList.add('btn-danger');
+    }
+    
+    // Poll for new logs every 2 seconds
+    httpLogsPollingInterval = setInterval(async () => {
+      await pollForNewHTTPLogs();
+    }, 2000);
+  }
+
+  function stopHTTPLogsTailing() {
+    if (!isHTTPLogsTailing) return;
+    
+    isHTTPLogsTailing = false;
+    const tailBtn = document.getElementById('http-logs-tail-btn');
+    if (tailBtn) {
+      tailBtn.textContent = 'Live Tail';
+      tailBtn.classList.remove('btn-danger');
+      tailBtn.classList.add('btn-success');
+    }
+    
+    if (httpLogsPollingInterval) {
+      clearInterval(httpLogsPollingInterval);
+      httpLogsPollingInterval = null;
+    }
+  }
+
+  function toggleHTTPLogsTail() {
+    if (isHTTPLogsTailing) {
+      stopHTTPLogsTailing();
+    } else {
+      startHTTPLogsTailing();
+    }
+  }
+
+  async function pollForNewHTTPLogs() {
+    if (!isAuthenticated || !isHTTPLogsTailing) {
+      console.log('Skipping HTTP log poll - authenticated:', isAuthenticated, 'tailing:', isHTTPLogsTailing);
+      return;
+    }
+    
+    try {
+      const response = await apiGet('/http-logs');
+      const logs = response.logs || [];
+      
+      if (logs.length > 0) {
+        console.log('Got', logs.length, 'new HTTP log entries');
+        logs.forEach(log => appendHTTPLogEntry(log));
+      }
+    } catch (error) {
+      console.error('Failed to poll for HTTP logs:', error);
+      // Don't stop tailing on error - just skip this poll
+    }
+  }
+
+  async function refreshHTTPLogs() {
+    // Remember if we were tailing before
+    const wasTailing = isHTTPLogsTailing;
+    
+    // Stop tailing, clear logs, and reload
+    stopHTTPLogsTailing();
+    document.getElementById('http-logs-content').innerHTML = '';
+    await loadInitialHTTPLogs();
+    
+    // Restart tailing if it was running before
+    if (wasTailing) {
+      startHTTPLogsTailing();
+    }
+  }
+
+  function clearHTTPLogs() {
+    if (!isAuthenticated) {
+        alert('Please log in to clear HTTP logs.');
+        return;
+    }
+
+    if (confirm('Are you sure you want to clear all HTTP logs?')) {
+        // For now, just clear the display since we're using polling only
+        document.getElementById('http-logs-content').innerHTML = '';
+        
+        // Show feedback
+        const clearBtn = document.getElementById('clear-http-logs-btn');
+        if (clearBtn) {
+          const originalText = clearBtn.textContent;
+          clearBtn.textContent = 'Cleared!';
+          setTimeout(() => {
+              clearBtn.textContent = originalText;
+          }, 2000);
+        }
+    }
+  }
+
+  function setupHTTPLogsEventHandlers() {
+    const tailBtn = document.getElementById('http-logs-tail-btn');
+    const refreshBtn = document.getElementById('refresh-http-logs-btn');
+    const copyBtn = document.getElementById('copy-http-logs-btn');
+    const clearBtn = document.getElementById('clear-http-logs-btn');
+    
+    if (tailBtn) {
+      tailBtn.removeEventListener('click', toggleHTTPLogsTail);
+      tailBtn.addEventListener('click', toggleHTTPLogsTail);
+    }
+    
+    if (refreshBtn) {
+      refreshBtn.removeEventListener('click', refreshHTTPLogs);
+      refreshBtn.addEventListener('click', refreshHTTPLogs);
+    }
+    
+    if (copyBtn) {
+      copyBtn.removeEventListener('click', copyHTTPLogsToClipboard);
+      copyBtn.addEventListener('click', copyHTTPLogsToClipboard);
+    }
+    
+    if (clearBtn) {
+      clearBtn.removeEventListener('click', clearHTTPLogs);
+      clearBtn.addEventListener('click', clearHTTPLogs);
+    }
+  }
+
+  function copyHTTPLogsToClipboard() {
+    const logsContent = document.getElementById('http-logs-content');
+    const logs = logsContent.innerText;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(logs).then(() => {
+        const copyBtn = document.getElementById('copy-http-logs-btn');
+        if (copyBtn) {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+          }, 2000);
+        }
+      }).catch(err => {
+        console.error('Failed to copy HTTP logs:', err);
+        alert('Failed to copy HTTP logs to clipboard');
+      });
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = logs;
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        const copyBtn = document.getElementById('copy-http-logs-btn');
+        if (copyBtn) {
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Failed to copy HTTP logs:', err);
+        alert('Failed to copy HTTP logs to clipboard');
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+  }
+
+  /* ---------------------------------------------------
      API write helpers
   --------------------------------------------------- */
   async function apiPost(path, body) {
@@ -2214,6 +2456,31 @@
      Initialization
   --------------------------------------------------- */
   async function init() {
+    // Re-query DOM elements to ensure they're available
+    const tabButtons = document.querySelectorAll('.nav-tab');
+    const panes = document.querySelectorAll('.pane');
+    
+    // Set up tab button click handlers
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabName = btn.getAttribute('data-tab');
+        const paneId = tabToPaneMapping[tabName];
+        if (paneId) {
+          switchToTab(paneId, true);
+        }
+      });
+    });
+    
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', () => {
+      const currentPath = window.location.pathname;
+      const targetTab = urlToTab[currentPath] || 'weather-stations-pane';
+      switchToTab(targetTab, false);
+    });
+    
+    // Setup coordinate handlers
+    setupCoordinateHandlers();
+    
     // Set up authentication event handlers
     setupAuthEventHandlers();
     
@@ -2231,10 +2498,17 @@
     if (authenticated) {
       console.log('User is authenticated, hiding login modal');
       hideLoginModal();
+      
+      // Initialize tab AFTER authentication is confirmed
+      initializeTab();
+      
       await loadInitialData();
     } else {
       console.log('User is not authenticated, showing login modal');
       showLoginModal();
+      
+      // Initialize tab even when not authenticated
+      initializeTab();
     }
   }
   

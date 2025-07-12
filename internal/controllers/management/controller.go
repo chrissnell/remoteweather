@@ -215,6 +215,7 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// REST endpoint for logs (requires authentication)
 	api.HandleFunc("/logs", c.handlers.GetLogs).Methods("GET")
+	api.HandleFunc("/http-logs", c.handlers.GetHTTPLogs).Methods("GET")
 
 	return router
 }
@@ -238,6 +239,7 @@ func (c *Controller) setupManagementInterface(router *mux.Router) {
 	router.HandleFunc("/storage", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/websites", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/logs", c.serveManagementInterface).Methods("GET")
+	router.HandleFunc("/http-logs", c.serveManagementInterface).Methods("GET")
 	router.HandleFunc("/utilities", c.serveManagementInterface).Methods("GET")
 }
 

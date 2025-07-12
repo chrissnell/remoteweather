@@ -47,7 +47,7 @@ func (lb *LogBuffer) Write(data []byte) (int, error) {
 	var logData map[string]interface{}
 	if err := json.Unmarshal(data, &logData); err != nil {
 		// If we can't parse as JSON, treat as plain text
-		lb.addEntry(LogEntry{
+		lb.AddEntry(LogEntry{
 			Timestamp: time.Now(),
 			Level:     "unknown",
 			Message:   string(data),
@@ -104,7 +104,7 @@ func (lb *LogBuffer) Write(data []byte) (int, error) {
 		}
 	}
 
-	lb.addEntry(entry)
+	lb.AddEntry(entry)
 	return len(data), nil
 }
 
@@ -153,7 +153,8 @@ func (lb *LogBuffer) Sync() error {
 }
 
 // addEntry adds a log entry to the circular buffer
-func (lb *LogBuffer) addEntry(entry LogEntry) {
+// AddEntry adds a log entry to the buffer
+func (lb *LogBuffer) AddEntry(entry LogEntry) {
 	lb.mutex.Lock()
 	defer lb.mutex.Unlock()
 
