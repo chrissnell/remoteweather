@@ -109,17 +109,13 @@ const WeatherDOM = (function() {
     
     // Update battery info display
     const updateBatteryInfo = (voltage) => {
-        const batteryInfoElement = getCachedElement('battery-info');
-        
         if (!voltage || parseFloat(voltage) === 0) {
-            if (batteryInfoElement) {
-                batteryInfoElement.style.display = 'none';
-            }
+            updateElements({
+                'battery-voltage': '--',
+                'battery-status': '--'
+            });
         } else {
             const v = parseFloat(voltage);
-            if (batteryInfoElement) {
-                batteryInfoElement.style.display = 'block';
-            }
             updateElements({
                 'battery-voltage': v.toFixed(2),
                 'battery-status': WeatherUtils.getBatteryStatus(voltage)
