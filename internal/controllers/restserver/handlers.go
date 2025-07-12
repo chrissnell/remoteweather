@@ -3,7 +3,6 @@ package restserver
 import (
 	"encoding/json"
 	htmltemplate "html/template"
-	"io/fs"
 	"net/http"
 	"regexp"
 	"text/template"
@@ -478,7 +477,6 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-
 // ServePortal serves the portal template for weather management portal websites
 func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
@@ -506,8 +504,6 @@ func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 }
-
-
 
 // ServeWeatherWebsiteTemplate serves the weather HTML template
 func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
@@ -684,4 +680,3 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 }
-
