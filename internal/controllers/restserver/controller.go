@@ -225,7 +225,7 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// Add middleware to identify the website based on Host header
 	router.Use(c.websiteMiddleware)
-	
+
 	// Add HTTP logging middleware
 	router.Use(c.httpLoggingMiddleware)
 
@@ -248,7 +248,6 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// Station API endpoints
 	router.HandleFunc("/api/stations", c.handlers.GetStations)
-	router.HandleFunc("/api/portal-js", c.handlers.GetPortalJS)
 
 	// Static file serving
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
@@ -289,23 +288,23 @@ func (c *Controller) websiteMiddleware(next http.Handler) http.Handler {
 func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Wrap the ResponseWriter to capture status code and size
 		wrapped := &responseWriter{
 			ResponseWriter: w,
 			statusCode:     http.StatusOK,
 		}
-		
+
 		// Call the next handler
 		next.ServeHTTP(wrapped, r)
-		
+
 		// Log the request
 		duration := time.Since(start)
 		website := ""
 		if ws, ok := r.Context().Value(websiteContextKey).(*config.WeatherWebsiteData); ok && ws != nil {
 			website = ws.Name
 		}
-		
+
 		// Get client IP, preferring X-Forwarded-For if present
 		clientIP := r.RemoteAddr
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
@@ -316,7 +315,7 @@ func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
 				clientIP = strings.TrimSpace(xff)
 			}
 		}
-		
+
 		log.LogHTTPRequest(
 			r.Method,
 			r.URL.Path,
