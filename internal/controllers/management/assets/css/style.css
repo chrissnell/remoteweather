@@ -20,6 +20,10 @@ body {
   background: var(--primary-bg);
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #ccc;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .app-title {
@@ -564,18 +568,15 @@ input:checked + .slider:before {
 
 /* Authentication Status */
 .auth-status {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
   background: var(--primary-bg);
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 0.5rem 1rem;
+  padding: 0.25rem 0.75rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   font-size: 0.85rem;
-  z-index: 1000;
+  margin-left: auto;
 }
 
 .auth-status #auth-message {
