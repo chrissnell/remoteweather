@@ -96,8 +96,8 @@ const WeatherDataService = (function() {
             ),
             
             // Wind
-            windSpeed: data.winds ? Math.round(parseFloat(data.winds)) : '--',
-            windGusts: data.windgust ? Math.round(parseFloat(data.windgust)) : '--',
+            windSpeed: data.winds !== null && data.winds !== undefined ? Math.round(parseFloat(data.winds)) : '--',
+            windGusts: data.windgust !== null && data.windgust !== undefined ? Math.round(parseFloat(data.windgust)) : '--',
             windDirection: data.windcard || '--',
             windDegrees: data.windd || '--',
             
