@@ -12,6 +12,11 @@
 <body>
   <header class="header-bar">
     <h1 class="app-title">RemoteWeather Management</h1>
+    <!-- Auth Status Container -->
+    <div id="auth-status" class="auth-status hidden">
+      <span id="auth-message">Not authenticated</span>
+      <button id="logout-btn" class="secondary-btn">Logout</button>
+    </div>
   </header>
 
   <main class="main-layout">
@@ -610,12 +615,16 @@
   </div>
   <!-- end login modal -->
 
-  <!-- Auth Status Container -->
-  <div id="auth-status" class="auth-status hidden">
-    <span id="auth-message">Not authenticated</span>
-    <button id="logout-btn" class="secondary-btn">Logout</button>
-  </div>
-
-  <script src="js/management.js"></script>
+  <!-- Refactored modular JavaScript files -->
+  <script src="js/management-utils.js"></script>
+  <script src="js/management-api-service.js"></script>
+  <script src="js/management-auth.js"></script>
+  <script src="js/management-navigation.js"></script>
+  <script src="js/management-weather-stations.js"></script>
+  <script src="js/management-storage.js"></script>
+  <script src="js/management-controllers.js"></script>
+  <script src="js/management-websites.js"></script>
+  <script src="js/management-logs.js"></script>
+  <script src="js/management-app.js"></script>
 </body>
 </html> 
