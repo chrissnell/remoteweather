@@ -27,7 +27,7 @@ Optional configuration:
 
 ### 2. Connection Management
 
-Forwarders must handle two connection types:
+Forwarders should handle connection types that are appropriate to the station hardware being forwarded.  Some stations are serial-only, some have network endpoints, and some have both.  Some stations export their data via HTTP post and will need a HTTP listener to send to.
 
 #### Serial Connection
 ```go
@@ -44,9 +44,9 @@ conn, err := net.DialTimeout("tcp", address, timeout)
 ### 3. Protocol Implementation
 
 Each weather station type has its own protocol. The forwarder must:
-1. Send appropriate commands to request data
+1. Send commands (where needed) to request data
 2. Parse the station's response format
-3. Handle protocol-specific quirks (wake sequences, packet formats)
+3. Handle protocol-specific quirks (wake sequences, packet formats, malformed data)
 
 ### 4. Data Conversion
 
