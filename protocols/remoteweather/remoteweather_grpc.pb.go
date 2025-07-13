@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	WeatherV1_GetLiveWeather_FullMethodName   = "/WeatherV1/GetLiveWeather"
-	WeatherV1_GetWeatherSpan_FullMethodName   = "/WeatherV1/GetWeatherSpan"
-	WeatherV1_GetLatestReading_FullMethodName = "/WeatherV1/GetLatestReading"
+	WeatherV1_SendWeatherReadings_FullMethodName = "/WeatherV1/SendWeatherReadings"
+	WeatherV1_GetLiveWeather_FullMethodName      = "/WeatherV1/GetLiveWeather"
+	WeatherV1_GetWeatherSpan_FullMethodName      = "/WeatherV1/GetWeatherSpan"
+	WeatherV1_GetLatestReading_FullMethodName    = "/WeatherV1/GetLatestReading"
 )
 
 // WeatherV1Client is the client API for WeatherV1 service.
@@ -30,6 +31,8 @@ const (
 //
 // Weather service v1.0 - comprehensive weather data API
 type WeatherV1Client interface {
+	// Streaming RPC for receiving weather readings from stations
+	SendWeatherReadings(ctx context.Context, opts ...grpc.CallOption) (WeatherV1_SendWeatherReadingsClient, error)
 	GetLiveWeather(ctx context.Context, in *LiveWeatherRequest, opts ...grpc.CallOption) (WeatherV1_GetLiveWeatherClient, error)
 	GetWeatherSpan(ctx context.Context, in *WeatherSpanRequest, opts ...grpc.CallOption) (*WeatherSpan, error)
 	GetLatestReading(ctx context.Context, in *LatestReadingRequest, opts ...grpc.CallOption) (*WeatherReading, error)
@@ -43,9 +46,44 @@ func NewWeatherV1Client(cc grpc.ClientConnInterface) WeatherV1Client {
 	return &weatherV1Client{cc}
 }
 
+func (c *weatherV1Client) SendWeatherReadings(ctx context.Context, opts ...grpc.CallOption) (WeatherV1_SendWeatherReadingsClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &WeatherV1_ServiceDesc.Streams[0], WeatherV1_SendWeatherReadings_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &weatherV1SendWeatherReadingsClient{ClientStream: stream}
+	return x, nil
+}
+
+type WeatherV1_SendWeatherReadingsClient interface {
+	Send(*WeatherReading) error
+	CloseAndRecv() (*Empty, error)
+	grpc.ClientStream
+}
+
+type weatherV1SendWeatherReadingsClient struct {
+	grpc.ClientStream
+}
+
+func (x *weatherV1SendWeatherReadingsClient) Send(m *WeatherReading) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *weatherV1SendWeatherReadingsClient) CloseAndRecv() (*Empty, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(Empty)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *weatherV1Client) GetLiveWeather(ctx context.Context, in *LiveWeatherRequest, opts ...grpc.CallOption) (WeatherV1_GetLiveWeatherClient, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &WeatherV1_ServiceDesc.Streams[0], WeatherV1_GetLiveWeather_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &WeatherV1_ServiceDesc.Streams[1], WeatherV1_GetLiveWeather_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +140,8 @@ func (c *weatherV1Client) GetLatestReading(ctx context.Context, in *LatestReadin
 //
 // Weather service v1.0 - comprehensive weather data API
 type WeatherV1Server interface {
+	// Streaming RPC for receiving weather readings from stations
+	SendWeatherReadings(WeatherV1_SendWeatherReadingsServer) error
 	GetLiveWeather(*LiveWeatherRequest, WeatherV1_GetLiveWeatherServer) error
 	GetWeatherSpan(context.Context, *WeatherSpanRequest) (*WeatherSpan, error)
 	GetLatestReading(context.Context, *LatestReadingRequest) (*WeatherReading, error)
@@ -112,6 +152,9 @@ type WeatherV1Server interface {
 type UnimplementedWeatherV1Server struct {
 }
 
+func (UnimplementedWeatherV1Server) SendWeatherReadings(WeatherV1_SendWeatherReadingsServer) error {
+	return status.Errorf(codes.Unimplemented, "method SendWeatherReadings not implemented")
+}
 func (UnimplementedWeatherV1Server) GetLiveWeather(*LiveWeatherRequest, WeatherV1_GetLiveWeatherServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetLiveWeather not implemented")
 }
@@ -132,6 +175,32 @@ type UnsafeWeatherV1Server interface {
 
 func RegisterWeatherV1Server(s grpc.ServiceRegistrar, srv WeatherV1Server) {
 	s.RegisterService(&WeatherV1_ServiceDesc, srv)
+}
+
+func _WeatherV1_SendWeatherReadings_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(WeatherV1Server).SendWeatherReadings(&weatherV1SendWeatherReadingsServer{ServerStream: stream})
+}
+
+type WeatherV1_SendWeatherReadingsServer interface {
+	SendAndClose(*Empty) error
+	Recv() (*WeatherReading, error)
+	grpc.ServerStream
+}
+
+type weatherV1SendWeatherReadingsServer struct {
+	grpc.ServerStream
+}
+
+func (x *weatherV1SendWeatherReadingsServer) SendAndClose(m *Empty) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *weatherV1SendWeatherReadingsServer) Recv() (*WeatherReading, error) {
+	m := new(WeatherReading)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _WeatherV1_GetLiveWeather_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -208,6 +277,11 @@ var WeatherV1_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "SendWeatherReadings",
+			Handler:       _WeatherV1_SendWeatherReadings_Handler,
+			ClientStreams: true,
+		},
 		{
 			StreamName:    "GetLiveWeather",
 			Handler:       _WeatherV1_GetLiveWeather_Handler,

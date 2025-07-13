@@ -79,6 +79,11 @@ const ManagementUtils = (function() {
   
   function getDeviceTypeDisplayName(type) {
     const names = {
+      'davis': 'Davis Instruments',
+      'campbellscientific': 'Campbell Scientific',
+      'snowgauge': 'Snow Gauge',
+      'ambient-customized': 'Ambient Weather (Customized)',
+      'grpcreceiver': 'gRPC Receiver',
       'davis_vantage_pro2': 'Davis Vantage Pro2',
       'davis_vantage_vue': 'Davis Vantage Vue',
       'acurite_iris': 'Acurite Iris',
