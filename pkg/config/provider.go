@@ -185,6 +185,8 @@ type DeviceData struct {
 	Solar             SolarData `json:"solar,omitempty"`
 	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
 	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
+	TLSCertPath       string    `json:"tls_cert_path,omitempty"`
+	TLSKeyPath        string    `json:"tls_key_path,omitempty"`
 }
 
 // SolarData holds configuration specific to solar calculations
@@ -364,7 +366,7 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		}
 
 		// Validate device type
-		validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized"}
+		validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver"}
 		if !contains(validTypes, device.Type) {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("devices[%d].type", i),
@@ -377,8 +379,9 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		hasSerial := device.SerialDevice != ""
 		hasNetwork := device.Hostname != "" && device.Port != ""
 		hasAmbientCustomized := device.Type == "ambient-customized" && device.Port != ""
+		hasGRPCReceiver := device.Type == "grpcreceiver" && device.Port != ""
 
-		if !hasSerial && !hasNetwork && !hasAmbientCustomized {
+		if !hasSerial && !hasNetwork && !hasAmbientCustomized && !hasGRPCReceiver {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("devices[%d]", i),
 				Value:   device.Name,
