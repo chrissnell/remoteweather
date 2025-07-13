@@ -1,10 +1,11 @@
 # Davis Instruments Weather Station Forwarder
 
-A standalone, lightweight forwarder for Davis Instruments weather stations that reads data via serial or network connection and forwards it to a gRPC receiver.
+A standalone, lightweight forwarder for Davis Instruments weather stations that reads data via serial or network connection and forwards it to a gRPC receiver. Network connections use the high-performance gnet library for improved scalability.
 
 ## Features
 
 - Supports both serial (USB/RS232) and network (TCP/IP) connections to Davis weather stations
+- Network connections use high-performance gnet event-driven library
 - Forwards weather data using gRPC protocol
 - Minimal resource usage - suitable for embedded hardware (Raspberry Pi, etc.)
 - Configurable via command-line flags or environment variables
