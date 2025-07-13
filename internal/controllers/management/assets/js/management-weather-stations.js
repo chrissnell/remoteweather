@@ -64,7 +64,12 @@ const ManagementWeatherStations = (function() {
       // APRS fields
       aprsEnabled: document.getElementById('aprs-enabled'),
       aprsCallsign: document.getElementById('aprs-callsign'),
-      aprsConfigFields: document.getElementById('aprs-config-fields')
+      aprsConfigFields: document.getElementById('aprs-config-fields'),
+      
+      // TLS fields
+      tlsFieldset: document.getElementById('tls-fieldset'),
+      tlsCertPath: document.getElementById('tls-cert-path'),
+      tlsKeyPath: document.getElementById('tls-key-path')
     };
   }
 
@@ -184,6 +189,11 @@ const ManagementWeatherStations = (function() {
       html += `<div><strong>APRS:</strong> Enabled (${dev.aprs_callsign})</div>`;
     }
     
+    // TLS configuration for grpcreceiver
+    if (dev.type === 'grpcreceiver' && dev.tls_cert_path && dev.tls_key_path) {
+      html += `<div><strong>TLS:</strong> Enabled</div>`;
+    }
+    
     html += '</div></div>';
     return html;
   }
@@ -225,6 +235,9 @@ const ManagementWeatherStations = (function() {
     
     modalElements.modal.classList.remove('hidden');
     
+    // Update field visibility based on initial station type
+    updateFieldsVisibility(formElements.stationType.value);
+    
     // Setup coordinate handlers for modal inputs
     setTimeout(() => setupCoordinateHandlers(), 100);
   }
@@ -254,8 +267,8 @@ const ManagementWeatherStations = (function() {
       formElements.connectionType.value = 'network';
     }
     
-    // For ambient-customized, disable connection type selector
-    if (dev.type === 'ambient-customized') {
+    // For ambient-customized and grpcreceiver, disable connection type selector
+    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver') {
       formElements.connectionType.disabled = true;
     } else {
       formElements.connectionType.disabled = false;
@@ -288,8 +301,17 @@ const ManagementWeatherStations = (function() {
 
     // Populate APRS fields
     populateAPRSFields(dev);
+    
+    // Populate TLS fields for grpcreceiver
+    if (dev.type === 'grpcreceiver') {
+      formElements.tlsCertPath.value = dev.tls_cert_path || '';
+      formElements.tlsKeyPath.value = dev.tls_key_path || '';
+    }
 
     modalElements.modal.classList.remove('hidden');
+    
+    // Update field visibility based on initial station type
+    updateFieldsVisibility(formElements.stationType.value);
     
     // Setup coordinate handlers for modal inputs
     setTimeout(() => setupCoordinateHandlers(), 100);
@@ -301,6 +323,7 @@ const ManagementWeatherStations = (function() {
     formElements.stationType.disabled = false;
     formElements.snowOptions.classList.add('hidden');
     formElements.aprsConfigFields.classList.add('hidden');
+    formElements.tlsFieldset.classList.add('hidden');
     formElements.connectionType.value = 'serial';
     formElements.connectionType.disabled = false;
     updateConnectionVisibility();
@@ -342,13 +365,14 @@ const ManagementWeatherStations = (function() {
       device.serial_device = serialDevice;
       if (serialBaud) device.baud = serialBaud;
     } else if (connType === 'network') {
-      // For ambient-customized, hostname is optional
-      if (type !== 'ambient-customized' && !hostname) {
+      // For ambient-customized and grpcreceiver, hostname is optional
+      if (type !== 'ambient-customized' && type !== 'grpcreceiver' && !hostname) {
         alert('Hostname is required for network connection');
         return null;
       }
       device.hostname = hostname || '0.0.0.0';
-      device.port = parseInt(port, 10) || (type === 'ambient-customized' ? 8080 : 3001);
+      const defaultPort = type === 'ambient-customized' ? 8080 : type === 'grpcreceiver' ? 50051 : 3001;
+      device.port = port || defaultPort.toString();
     }
 
     if (type === 'snowgauge' && snowDistanceVal) {
@@ -377,6 +401,20 @@ const ManagementWeatherStations = (function() {
       }
       device.aprs_enabled = true;
       device.aprs_callsign = aprsCallsign;
+    }
+    
+    // TLS configuration for grpcreceiver
+    if (type === 'grpcreceiver') {
+      const tlsCertPath = formElements.tlsCertPath.value.trim();
+      const tlsKeyPath = formElements.tlsKeyPath.value.trim();
+      
+      if (tlsCertPath && tlsKeyPath) {
+        device.tls_cert_path = tlsCertPath;
+        device.tls_key_path = tlsKeyPath;
+      } else if (tlsCertPath || tlsKeyPath) {
+        alert('Both TLS certificate and key paths must be provided');
+        return null;
+      }
     }
 
     return device;
@@ -433,17 +471,27 @@ const ManagementWeatherStations = (function() {
       ManagementUtils.hideElement(formElements.serialFieldset);
       ManagementUtils.showElement(formElements.networkFieldset);
       
-      // Update help text and placeholders for ambient-customized
+      // Update help text and placeholders for ambient-customized and grpcreceiver
+      const hostnameLabel = document.getElementById('hostname-label');
+      
       if (stationType === 'ambient-customized') {
         formElements.netHostname.placeholder = '0.0.0.0 or leave blank';
         formElements.netPort.value = '8080';
         formElements.hostnameHelp.textContent = 'Listen address (optional, defaults to 0.0.0.0)';
         formElements.portHelp.textContent = 'HTTP server port for receiving weather data';
+        if (hostnameLabel) hostnameLabel.textContent = 'Hostname';
+      } else if (stationType === 'grpcreceiver') {
+        formElements.netHostname.placeholder = '0.0.0.0 or leave blank';
+        formElements.netPort.value = '50051';
+        formElements.hostnameHelp.textContent = 'Listen address (optional, defaults to 0.0.0.0)';
+        formElements.portHelp.textContent = 'gRPC server port for receiving weather data';
+        if (hostnameLabel) hostnameLabel.textContent = 'Listen Address';
       } else {
         formElements.netHostname.placeholder = '192.168.1.50';
         formElements.netPort.placeholder = '3001';
         formElements.hostnameHelp.textContent = 'IP address or hostname of the device';
         formElements.portHelp.textContent = 'Port number for the connection';
+        if (hostnameLabel) hostnameLabel.textContent = 'Hostname';
       }
     }
     
@@ -452,6 +500,47 @@ const ManagementWeatherStations = (function() {
       formElements.snowOptions,
       stationType === 'snowgauge'
     );
+    
+    // Show TLS options for grpcreceiver
+    ManagementUtils.setElementVisibility(
+      formElements.tlsFieldset,
+      stationType === 'grpcreceiver' && selected === 'network'
+    );
+  }
+  
+  function updateFieldsVisibility(stationType) {
+    // Hide connection type selector and label for grpcreceiver
+    const connectionLabel = formElements.connectionType.parentElement;
+    ManagementUtils.setElementVisibility(
+      connectionLabel,
+      stationType !== 'grpcreceiver'
+    );
+    
+    // Find all fieldsets and check their legends
+    const fieldsets = document.querySelectorAll('#station-form fieldset');
+    
+    fieldsets.forEach(fieldset => {
+      const legend = fieldset.querySelector('legend');
+      if (legend) {
+        const legendText = legend.textContent.trim();
+        
+        // Hide Station Location fieldset for grpcreceiver (it comes from remote station)
+        if (legendText === 'Station Location') {
+          ManagementUtils.setElementVisibility(
+            fieldset,
+            stationType !== 'grpcreceiver'
+          );
+        }
+        
+        // Hide APRS fieldset for grpcreceiver (it comes from remote station)
+        if (legendText === 'APRS Configuration') {
+          ManagementUtils.setElementVisibility(
+            fieldset,
+            stationType !== 'grpcreceiver'
+          );
+        }
+      }
+    });
   }
 
   /* ---------------------------------------------------
@@ -592,8 +681,8 @@ const ManagementWeatherStations = (function() {
           stationType === 'snowgauge'
         );
         
-        // For ambient-customized, force network connection and hide the connection type selector
-        if (stationType === 'ambient-customized') {
+        // For ambient-customized and grpcreceiver, force network connection and hide the connection type selector
+        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver') {
           formElements.connectionType.value = 'network';
           formElements.connectionType.disabled = true;
         } else {
@@ -602,6 +691,9 @@ const ManagementWeatherStations = (function() {
         
         // Update connection visibility and help text
         updateConnectionVisibility();
+        
+        // Hide/show fields based on station type
+        updateFieldsVisibility(stationType);
       });
     }
 

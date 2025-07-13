@@ -8,6 +8,9 @@ import "google/api/annotations.proto";
 
 // Weather service v1.0 - comprehensive weather data API
 service WeatherV1 {
+    // Streaming RPC for receiving weather readings from stations
+    rpc SendWeatherReadings (stream WeatherReading) returns (Empty) {}
+    
     rpc GetLiveWeather (LiveWeatherRequest) returns (stream WeatherReading) {}
     rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {
         option (google.api.http) = {
@@ -45,6 +48,13 @@ message WeatherReading {
     google.protobuf.Timestamp readingTimestamp = 1;
     string stationName = 2;
     string stationType = 3;
+    
+    // Station location and APRS info
+    double stationLatitude = 188;           // Station latitude
+    double stationLongitude = 189;          // Station longitude
+    double stationAltitude = 190;           // Station altitude in meters
+    bool aprsEnabled = 191;                 // Whether APRS is enabled for this station
+    string aprsCallsign = 192;              // APRS callsign if enabled
     
     // Primary environmental readings
     float barometer = 4;                    // Barometric pressure
