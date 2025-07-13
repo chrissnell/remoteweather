@@ -80,7 +80,7 @@ func (h *Handlers) CreateWeatherStation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate device type
-	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized"}
+	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver"}
 	if !contains(validTypes, device.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid device type. Must be one of: %v", validTypes), nil)
 		return
@@ -150,7 +150,7 @@ func (h *Handlers) UpdateWeatherStation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate device type
-	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized"}
+	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver"}
 	if !contains(validTypes, device.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid device type. Must be one of: %v", validTypes), nil)
 		return
@@ -554,6 +554,13 @@ func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) e
 			return fmt.Errorf("port is required for ambient-customized device")
 		}
 		// Hostname is optional (defaults to 0.0.0.0 for listen address)
+	case "grpcreceiver":
+		// gRPC receiver stations use gRPC server - only port is required
+		if device.Port == "" {
+			return fmt.Errorf("port is required for grpcreceiver device")
+		}
+		// Hostname is optional (defaults to 0.0.0.0 for listen address)
+		// TLS cert and key are optional
 	default:
 		return fmt.Errorf("unsupported device type: %s", device.Type)
 	}
