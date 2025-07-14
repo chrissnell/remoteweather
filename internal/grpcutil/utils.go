@@ -199,6 +199,146 @@ func TransformBucketReadings(dbReadings *[]types.BucketReading) []*weather.Weath
 			ExtraText8:  r.ExtraText8,
 			ExtraText9:  r.ExtraText9,
 			ExtraText10: r.ExtraText10,
+
+			// Additional temperature sensors
+			Temp1:  r.Temp1,
+			Temp2:  r.Temp2,
+			Temp3:  r.Temp3,
+			Temp4:  r.Temp4,
+			Temp5:  r.Temp5,
+			Temp6:  r.Temp6,
+			Temp7:  r.Temp7,
+			Temp8:  r.Temp8,
+			Temp9:  r.Temp9,
+			Temp10: r.Temp10,
+
+			// Additional soil temperature sensors
+			SoilTemp5:  r.SoilTemp5,
+			SoilTemp6:  r.SoilTemp6,
+			SoilTemp7:  r.SoilTemp7,
+			SoilTemp8:  r.SoilTemp8,
+			SoilTemp9:  r.SoilTemp9,
+			SoilTemp10: r.SoilTemp10,
+
+			// Additional humidity sensors
+			Humidity1:  r.Humidity1,
+			Humidity2:  r.Humidity2,
+			Humidity3:  r.Humidity3,
+			Humidity4:  r.Humidity4,
+			Humidity5:  r.Humidity5,
+			Humidity6:  r.Humidity6,
+			Humidity7:  r.Humidity7,
+			Humidity8:  r.Humidity8,
+			Humidity9:  r.Humidity9,
+			Humidity10: r.Humidity10,
+
+			// Soil humidity sensors
+			SoilHum1:  r.SoilHum1,
+			SoilHum2:  r.SoilHum2,
+			SoilHum3:  r.SoilHum3,
+			SoilHum4:  r.SoilHum4,
+			SoilHum5:  r.SoilHum5,
+			SoilHum6:  r.SoilHum6,
+			SoilHum7:  r.SoilHum7,
+			SoilHum8:  r.SoilHum8,
+			SoilHum9:  r.SoilHum9,
+			SoilHum10: r.SoilHum10,
+
+			// Additional leaf wetness sensors
+			LeafWetness5: r.LeafWetness5,
+			LeafWetness6: r.LeafWetness6,
+			LeafWetness7: r.LeafWetness7,
+			LeafWetness8: r.LeafWetness8,
+
+			// Soil tension sensors
+			SoilTens1: r.SoilTens1,
+			SoilTens2: r.SoilTens2,
+			SoilTens3: r.SoilTens3,
+			SoilTens4: r.SoilTens4,
+
+			// Agricultural measurements
+			Gdd:  int32(r.GDD),
+			Etos: r.ETOS,
+			Etrs: r.ETRS,
+
+			// Leak detection sensors
+			Leak1: uint32(r.Leak1),
+			Leak2: uint32(r.Leak2),
+			Leak3: uint32(r.Leak3),
+			Leak4: uint32(r.Leak4),
+
+			// Additional battery status
+			BattOut:         uint32(r.BattOut),
+			BattIn:          uint32(r.BattIn),
+			Batt1:           uint32(r.Batt1),
+			Batt2:           uint32(r.Batt2),
+			Batt3:           uint32(r.Batt3),
+			Batt4:           uint32(r.Batt4),
+			Batt5:           uint32(r.Batt5),
+			Batt6:           uint32(r.Batt6),
+			Batt7:           uint32(r.Batt7),
+			Batt8:           uint32(r.Batt8),
+			Batt9:           uint32(r.Batt9),
+			Batt10:          uint32(r.Batt10),
+			Batt25:          uint32(r.Batt25),
+			BattLightning:   uint32(r.BattLightning),
+			BatLeak1:        uint32(r.BatLeak1),
+			BatLeak2:        uint32(r.BatLeak2),
+			BatLeak3:        uint32(r.BatLeak3),
+			BatLeak4:        uint32(r.BatLeak4),
+			BattSM1:         uint32(r.BattSM1),
+			BattSM2:         uint32(r.BattSM2),
+			BattSM3:         uint32(r.BattSM3),
+			BattSM4:         uint32(r.BattSM4),
+			BattCO2:         uint32(r.BattCO2),
+			BattCellGateway: uint32(r.BattCellGateway),
+
+			// Pressure measurements
+			BaromRelIn: r.BaromRelIn,
+			BaromAbsIn: r.BaromAbsIn,
+
+			// Relay states
+			Relay1:  uint32(r.Relay1),
+			Relay2:  uint32(r.Relay2),
+			Relay3:  uint32(r.Relay3),
+			Relay4:  uint32(r.Relay4),
+			Relay5:  uint32(r.Relay5),
+			Relay6:  uint32(r.Relay6),
+			Relay7:  uint32(r.Relay7),
+			Relay8:  uint32(r.Relay8),
+			Relay9:  uint32(r.Relay9),
+			Relay10: uint32(r.Relay10),
+
+			// Air quality measurements
+			Pm25:              r.PM25,
+			Pm25_24H:          r.PM25_24H,
+			Pm25In:            r.PM25In,
+			Pm25In24H:         r.PM25In24H,
+			Pm25InAQIN:        r.PM25InAQIN,
+			Pm25In24HAQIN:     r.PM25In24HAQIN,
+			Pm10InAQIN:        r.PM10InAQIN,
+			Pm10In24HAQIN:     r.PM10In24HAQIN,
+			Co2:               r.CO2,
+			Co2InAQIN:         r.CO2InAQIN,
+			Co2In24HAQIN:      r.CO2In24HAQIN,
+			PmInTempAQIN:      r.PMInTempAQIN,
+			PmInHumidityAQIN:  r.PMInHumidityAQIN,
+			AqiPM25AQIN:       r.AQIPM25AQIN,
+			AqiPM2524HAQIN:    r.AQIPM2524HAQIN,
+			AqiPM10AQIN:       r.AQIPM10AQIN,
+			AqiPM1024HAQIN:    r.AQIPM1024HAQIN,
+			AqiPM25In:         r.AQIPM25In,
+			AqiPM25In24H:      r.AQIPM25In24H,
+
+			// Lightning data
+			LightningDay:      r.LightningDay,
+			LightningHour:     r.LightningHour,
+			LightningTime:     timestamppb.New(r.LightningTime),
+			LightningDistance: r.LightningDistance,
+
+			// Time zone and timestamp
+			Tz:      r.TZ,
+			DateUTC: r.DateUTC,
 		})
 	}
 
@@ -347,6 +487,146 @@ func TransformReading(r types.Reading) *weather.WeatherReading {
 		ExtraText8:  r.ExtraText8,
 		ExtraText9:  r.ExtraText9,
 		ExtraText10: r.ExtraText10,
+
+		// Additional temperature sensors
+		Temp1:  r.Temp1,
+		Temp2:  r.Temp2,
+		Temp3:  r.Temp3,
+		Temp4:  r.Temp4,
+		Temp5:  r.Temp5,
+		Temp6:  r.Temp6,
+		Temp7:  r.Temp7,
+		Temp8:  r.Temp8,
+		Temp9:  r.Temp9,
+		Temp10: r.Temp10,
+
+		// Additional soil temperature sensors
+		SoilTemp5:  r.SoilTemp5,
+		SoilTemp6:  r.SoilTemp6,
+		SoilTemp7:  r.SoilTemp7,
+		SoilTemp8:  r.SoilTemp8,
+		SoilTemp9:  r.SoilTemp9,
+		SoilTemp10: r.SoilTemp10,
+
+		// Additional humidity sensors
+		Humidity1:  r.Humidity1,
+		Humidity2:  r.Humidity2,
+		Humidity3:  r.Humidity3,
+		Humidity4:  r.Humidity4,
+		Humidity5:  r.Humidity5,
+		Humidity6:  r.Humidity6,
+		Humidity7:  r.Humidity7,
+		Humidity8:  r.Humidity8,
+		Humidity9:  r.Humidity9,
+		Humidity10: r.Humidity10,
+
+		// Soil humidity sensors
+		SoilHum1:  r.SoilHum1,
+		SoilHum2:  r.SoilHum2,
+		SoilHum3:  r.SoilHum3,
+		SoilHum4:  r.SoilHum4,
+		SoilHum5:  r.SoilHum5,
+		SoilHum6:  r.SoilHum6,
+		SoilHum7:  r.SoilHum7,
+		SoilHum8:  r.SoilHum8,
+		SoilHum9:  r.SoilHum9,
+		SoilHum10: r.SoilHum10,
+
+		// Additional leaf wetness sensors
+		LeafWetness5: r.LeafWetness5,
+		LeafWetness6: r.LeafWetness6,
+		LeafWetness7: r.LeafWetness7,
+		LeafWetness8: r.LeafWetness8,
+
+		// Soil tension sensors
+		SoilTens1: r.SoilTens1,
+		SoilTens2: r.SoilTens2,
+		SoilTens3: r.SoilTens3,
+		SoilTens4: r.SoilTens4,
+
+		// Agricultural measurements
+		Gdd:  int32(r.GDD),
+		Etos: r.ETOS,
+		Etrs: r.ETRS,
+
+		// Leak detection sensors
+		Leak1: uint32(r.Leak1),
+		Leak2: uint32(r.Leak2),
+		Leak3: uint32(r.Leak3),
+		Leak4: uint32(r.Leak4),
+
+		// Additional battery status
+		BattOut:         uint32(r.BattOut),
+		BattIn:          uint32(r.BattIn),
+		Batt1:           uint32(r.Batt1),
+		Batt2:           uint32(r.Batt2),
+		Batt3:           uint32(r.Batt3),
+		Batt4:           uint32(r.Batt4),
+		Batt5:           uint32(r.Batt5),
+		Batt6:           uint32(r.Batt6),
+		Batt7:           uint32(r.Batt7),
+		Batt8:           uint32(r.Batt8),
+		Batt9:           uint32(r.Batt9),
+		Batt10:          uint32(r.Batt10),
+		Batt25:          uint32(r.Batt25),
+		BattLightning:   uint32(r.BattLightning),
+		BatLeak1:        uint32(r.BatLeak1),
+		BatLeak2:        uint32(r.BatLeak2),
+		BatLeak3:        uint32(r.BatLeak3),
+		BatLeak4:        uint32(r.BatLeak4),
+		BattSM1:         uint32(r.BattSM1),
+		BattSM2:         uint32(r.BattSM2),
+		BattSM3:         uint32(r.BattSM3),
+		BattSM4:         uint32(r.BattSM4),
+		BattCO2:         uint32(r.BattCO2),
+		BattCellGateway: uint32(r.BattCellGateway),
+
+		// Pressure measurements
+		BaromRelIn: r.BaromRelIn,
+		BaromAbsIn: r.BaromAbsIn,
+
+		// Relay states
+		Relay1:  uint32(r.Relay1),
+		Relay2:  uint32(r.Relay2),
+		Relay3:  uint32(r.Relay3),
+		Relay4:  uint32(r.Relay4),
+		Relay5:  uint32(r.Relay5),
+		Relay6:  uint32(r.Relay6),
+		Relay7:  uint32(r.Relay7),
+		Relay8:  uint32(r.Relay8),
+		Relay9:  uint32(r.Relay9),
+		Relay10: uint32(r.Relay10),
+
+		// Air quality measurements
+		Pm25:              r.PM25,
+		Pm25_24H:          r.PM25_24H,
+		Pm25In:            r.PM25In,
+		Pm25In24H:         r.PM25In24H,
+		Pm25InAQIN:        r.PM25InAQIN,
+		Pm25In24HAQIN:     r.PM25In24HAQIN,
+		Pm10InAQIN:        r.PM10InAQIN,
+		Pm10In24HAQIN:     r.PM10In24HAQIN,
+		Co2:               r.CO2,
+		Co2InAQIN:         r.CO2InAQIN,
+		Co2In24HAQIN:      r.CO2In24HAQIN,
+		PmInTempAQIN:      r.PMInTempAQIN,
+		PmInHumidityAQIN:  r.PMInHumidityAQIN,
+		AqiPM25AQIN:       r.AQIPM25AQIN,
+		AqiPM2524HAQIN:    r.AQIPM2524HAQIN,
+		AqiPM10AQIN:       r.AQIPM10AQIN,
+		AqiPM1024HAQIN:    r.AQIPM1024HAQIN,
+		AqiPM25In:         r.AQIPM25In,
+		AqiPM25In24H:      r.AQIPM25In24H,
+
+		// Lightning data
+		LightningDay:      r.LightningDay,
+		LightningHour:     r.LightningHour,
+		LightningTime:     timestamppb.New(r.LightningTime),
+		LightningDistance: r.LightningDistance,
+
+		// Time zone and timestamp
+		Tz:      r.TZ,
+		DateUTC: r.DateUTC,
 	}
 }
 
