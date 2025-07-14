@@ -30,10 +30,28 @@ type Reading struct {
 	ExtraTemp5            float32   `gorm:"column:extratemp5"`
 	ExtraTemp6            float32   `gorm:"column:extratemp6"`
 	ExtraTemp7            float32   `gorm:"column:extratemp7"`
+	// Additional temperature sensors (temp1f-10f)
+	Temp1                 float32   `gorm:"column:temp1"`
+	Temp2                 float32   `gorm:"column:temp2"`
+	Temp3                 float32   `gorm:"column:temp3"`
+	Temp4                 float32   `gorm:"column:temp4"`
+	Temp5                 float32   `gorm:"column:temp5"`
+	Temp6                 float32   `gorm:"column:temp6"`
+	Temp7                 float32   `gorm:"column:temp7"`
+	Temp8                 float32   `gorm:"column:temp8"`
+	Temp9                 float32   `gorm:"column:temp9"`
+	Temp10                float32   `gorm:"column:temp10"`
 	SoilTemp1             float32   `gorm:"column:soiltemp1"`
 	SoilTemp2             float32   `gorm:"column:soiltemp2"`
 	SoilTemp3             float32   `gorm:"column:soiltemp3"`
 	SoilTemp4             float32   `gorm:"column:soiltemp4"`
+	// Additional soil temperature sensors (soiltemp5f-10f)
+	SoilTemp5             float32   `gorm:"column:soiltemp5"`
+	SoilTemp6             float32   `gorm:"column:soiltemp6"`
+	SoilTemp7             float32   `gorm:"column:soiltemp7"`
+	SoilTemp8             float32   `gorm:"column:soiltemp8"`
+	SoilTemp9             float32   `gorm:"column:soiltemp9"`
+	SoilTemp10            float32   `gorm:"column:soiltemp10"`
 	LeafTemp1             float32   `gorm:"column:leaftemp1"`
 	LeafTemp2             float32   `gorm:"column:leaftemp2"`
 	LeafTemp3             float32   `gorm:"column:leaftemp3"`
@@ -46,6 +64,42 @@ type Reading struct {
 	ExtraHumidity5        float32   `gorm:"column:extrahumidity5"`
 	ExtraHumidity6        float32   `gorm:"column:extrahumidity6"`
 	ExtraHumidity7        float32   `gorm:"column:extrahumidity7"`
+	// Additional humidity sensors (humidity1-10)
+	Humidity1             float32   `gorm:"column:humidity1"`
+	Humidity2             float32   `gorm:"column:humidity2"`
+	Humidity3             float32   `gorm:"column:humidity3"`
+	Humidity4             float32   `gorm:"column:humidity4"`
+	Humidity5             float32   `gorm:"column:humidity5"`
+	Humidity6             float32   `gorm:"column:humidity6"`
+	Humidity7             float32   `gorm:"column:humidity7"`
+	Humidity8             float32   `gorm:"column:humidity8"`
+	Humidity9             float32   `gorm:"column:humidity9"`
+	Humidity10            float32   `gorm:"column:humidity10"`
+	// Soil humidity sensors (soilhum1-10)
+	SoilHum1              float32   `gorm:"column:soilhum1"`
+	SoilHum2              float32   `gorm:"column:soilhum2"`
+	SoilHum3              float32   `gorm:"column:soilhum3"`
+	SoilHum4              float32   `gorm:"column:soilhum4"`
+	SoilHum5              float32   `gorm:"column:soilhum5"`
+	SoilHum6              float32   `gorm:"column:soilhum6"`
+	SoilHum7              float32   `gorm:"column:soilhum7"`
+	SoilHum8              float32   `gorm:"column:soilhum8"`
+	SoilHum9              float32   `gorm:"column:soilhum9"`
+	SoilHum10             float32   `gorm:"column:soilhum10"`
+	LeafWetness1          float32   `gorm:"column:leafwetness1"`
+	LeafWetness2          float32   `gorm:"column:leafwetness2"`
+	LeafWetness3          float32   `gorm:"column:leafwetness3"`
+	LeafWetness4          float32   `gorm:"column:leafwetness4"`
+	// Additional leaf wetness sensors (leafwetness5-8)
+	LeafWetness5          float32   `gorm:"column:leafwetness5"`
+	LeafWetness6          float32   `gorm:"column:leafwetness6"`
+	LeafWetness7          float32   `gorm:"column:leafwetness7"`
+	LeafWetness8          float32   `gorm:"column:leafwetness8"`
+	// Soil tension sensors (soiltens1-4)
+	SoilTens1             float32   `gorm:"column:soiltens1"`
+	SoilTens2             float32   `gorm:"column:soiltens2"`
+	SoilTens3             float32   `gorm:"column:soiltens3"`
+	SoilTens4             float32   `gorm:"column:soiltens4"`
 	RainRate              float32   `gorm:"column:rainrate"`
 	RainIncremental       float32   `gorm:"column:rainincremental"`
 	SolarWatts            float32   `gorm:"column:solarwatts"`
@@ -61,14 +115,86 @@ type Reading struct {
 	DayET                 float32   `gorm:"column:dayet"`
 	MonthET               float32   `gorm:"column:monthet"`
 	YearET                float32   `gorm:"column:yearet"`
+	// Growing degree days and evapotranspiration
+	GDD                   int32     `gorm:"column:gdd"`
+	ETOS                  float32   `gorm:"column:etos"`
+	ETRS                  float32   `gorm:"column:etrs"`
 	SoilMoisture1         float32   `gorm:"column:soilmoisture1"`
 	SoilMoisture2         float32   `gorm:"column:soilmoisture2"`
 	SoilMoisture3         float32   `gorm:"column:soilmoisture3"`
 	SoilMoisture4         float32   `gorm:"column:soilmoisture4"`
-	LeafWetness1          float32   `gorm:"column:leafwetness1"`
-	LeafWetness2          float32   `gorm:"column:leafwetness2"`
-	LeafWetness3          float32   `gorm:"column:leafwetness3"`
-	LeafWetness4          float32   `gorm:"column:leafwetness4"`
+	// Leak detection sensors (leak1-4)
+	Leak1                 uint8     `gorm:"column:leak1"`
+	Leak2                 uint8     `gorm:"column:leak2"`
+	Leak3                 uint8     `gorm:"column:leak3"`
+	Leak4                 uint8     `gorm:"column:leak4"`
+	// Relay states (relay1-10)
+	Relay1                uint8     `gorm:"column:relay1"`
+	Relay2                uint8     `gorm:"column:relay2"`
+	Relay3                uint8     `gorm:"column:relay3"`
+	Relay4                uint8     `gorm:"column:relay4"`
+	Relay5                uint8     `gorm:"column:relay5"`
+	Relay6                uint8     `gorm:"column:relay6"`
+	Relay7                uint8     `gorm:"column:relay7"`
+	Relay8                uint8     `gorm:"column:relay8"`
+	Relay9                uint8     `gorm:"column:relay9"`
+	Relay10               uint8     `gorm:"column:relay10"`
+	// Air quality measurements
+	PM25                  float32   `gorm:"column:pm25"`
+	PM25_24H              float32   `gorm:"column:pm25_24h"`
+	PM25In                float32   `gorm:"column:pm25_in"`
+	PM25In24H             float32   `gorm:"column:pm25_in_24h"`
+	PM25InAQIN            float32   `gorm:"column:pm25_in_aqin"`
+	PM25In24HAQIN         float32   `gorm:"column:pm25_in_24h_aqin"`
+	PM10InAQIN            float32   `gorm:"column:pm10_in_aqin"`
+	PM10In24HAQIN         float32   `gorm:"column:pm10_in_24h_aqin"`
+	CO2                   float32   `gorm:"column:co2"`
+	CO2InAQIN             int32     `gorm:"column:co2_in_aqin"`
+	CO2In24HAQIN          int32     `gorm:"column:co2_in_24h_aqin"`
+	PMInTempAQIN          float32   `gorm:"column:pm_in_temp_aqin"`
+	PMInHumidityAQIN      int32     `gorm:"column:pm_in_humidity_aqin"`
+	AQIPM25AQIN           int32     `gorm:"column:aqi_pm25_aqin"`
+	AQIPM2524HAQIN        int32     `gorm:"column:aqi_pm25_24h_aqin"`
+	AQIPM10AQIN           int32     `gorm:"column:aqi_pm10_aqin"`
+	AQIPM1024HAQIN        int32     `gorm:"column:aqi_pm10_24h_aqin"`
+	AQIPM25In             int32     `gorm:"column:aqi_pm25_in"`
+	AQIPM25In24H          int32     `gorm:"column:aqi_pm25_in_24h"`
+	// Lightning data
+	LightningDay          int32     `gorm:"column:lightning_day"`
+	LightningHour         int32     `gorm:"column:lightning_hour"`
+	LightningTime         time.Time `gorm:"column:lightning_time"`
+	LightningDistance     float32   `gorm:"column:lightning_distance"`
+	// Pressure measurements
+	BaromRelIn            float32   `gorm:"column:baromrelin"`
+	BaromAbsIn            float32   `gorm:"column:baromabsin"`
+	// Battery status
+	BattOut               uint8     `gorm:"column:battout"`
+	BattIn                uint8     `gorm:"column:battin"`
+	Batt1                 uint8     `gorm:"column:batt1"`
+	Batt2                 uint8     `gorm:"column:batt2"`
+	Batt3                 uint8     `gorm:"column:batt3"`
+	Batt4                 uint8     `gorm:"column:batt4"`
+	Batt5                 uint8     `gorm:"column:batt5"`
+	Batt6                 uint8     `gorm:"column:batt6"`
+	Batt7                 uint8     `gorm:"column:batt7"`
+	Batt8                 uint8     `gorm:"column:batt8"`
+	Batt9                 uint8     `gorm:"column:batt9"`
+	Batt10                uint8     `gorm:"column:batt10"`
+	Batt25                uint8     `gorm:"column:batt_25"`
+	BattLightning         uint8     `gorm:"column:batt_lightning"`
+	BatLeak1              uint8     `gorm:"column:batleak1"`
+	BatLeak2              uint8     `gorm:"column:batleak2"`
+	BatLeak3              uint8     `gorm:"column:batleak3"`
+	BatLeak4              uint8     `gorm:"column:batleak4"`
+	BattSM1               uint8     `gorm:"column:battsm1"`
+	BattSM2               uint8     `gorm:"column:battsm2"`
+	BattSM3               uint8     `gorm:"column:battsm3"`
+	BattSM4               uint8     `gorm:"column:battsm4"`
+	BattCO2               uint8     `gorm:"column:batt_co2"`
+	BattCellGateway       uint8     `gorm:"column:batt_cellgateway"`
+	// Time zone and UTC time
+	TZ                    string    `gorm:"column:tz"`
+	DateUTC               int64     `gorm:"column:dateutc"`
 	InsideAlarm           uint8     `gorm:"column:insidealarm"`
 	RainAlarm             uint8     `gorm:"column:rainalarm"`
 	OutsideAlarm1         uint8     `gorm:"column:outsidealarm1"`
