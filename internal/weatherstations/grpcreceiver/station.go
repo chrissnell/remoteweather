@@ -244,6 +244,131 @@ func (s *Station) convertToInternalReading(pbReading *pb.WeatherReading) types.R
 		ExtraText8:            pbReading.ExtraText8,
 		ExtraText9:            pbReading.ExtraText9,
 		ExtraText10:           pbReading.ExtraText10,
+		// Additional temperature sensors
+		Temp1:                 pbReading.Temp1,
+		Temp2:                 pbReading.Temp2,
+		Temp3:                 pbReading.Temp3,
+		Temp4:                 pbReading.Temp4,
+		Temp5:                 pbReading.Temp5,
+		Temp6:                 pbReading.Temp6,
+		Temp7:                 pbReading.Temp7,
+		Temp8:                 pbReading.Temp8,
+		Temp9:                 pbReading.Temp9,
+		Temp10:                pbReading.Temp10,
+		// Additional soil temperature sensors
+		SoilTemp5:             pbReading.SoilTemp5,
+		SoilTemp6:             pbReading.SoilTemp6,
+		SoilTemp7:             pbReading.SoilTemp7,
+		SoilTemp8:             pbReading.SoilTemp8,
+		SoilTemp9:             pbReading.SoilTemp9,
+		SoilTemp10:            pbReading.SoilTemp10,
+		// Additional humidity sensors
+		Humidity1:             pbReading.Humidity1,
+		Humidity2:             pbReading.Humidity2,
+		Humidity3:             pbReading.Humidity3,
+		Humidity4:             pbReading.Humidity4,
+		Humidity5:             pbReading.Humidity5,
+		Humidity6:             pbReading.Humidity6,
+		Humidity7:             pbReading.Humidity7,
+		Humidity8:             pbReading.Humidity8,
+		Humidity9:             pbReading.Humidity9,
+		Humidity10:            pbReading.Humidity10,
+		// Soil humidity sensors
+		SoilHum1:              pbReading.SoilHum1,
+		SoilHum2:              pbReading.SoilHum2,
+		SoilHum3:              pbReading.SoilHum3,
+		SoilHum4:              pbReading.SoilHum4,
+		SoilHum5:              pbReading.SoilHum5,
+		SoilHum6:              pbReading.SoilHum6,
+		SoilHum7:              pbReading.SoilHum7,
+		SoilHum8:              pbReading.SoilHum8,
+		SoilHum9:              pbReading.SoilHum9,
+		SoilHum10:             pbReading.SoilHum10,
+		// Additional leaf wetness sensors
+		LeafWetness5:          pbReading.LeafWetness5,
+		LeafWetness6:          pbReading.LeafWetness6,
+		LeafWetness7:          pbReading.LeafWetness7,
+		LeafWetness8:          pbReading.LeafWetness8,
+		// Soil tension sensors
+		SoilTens1:             pbReading.SoilTens1,
+		SoilTens2:             pbReading.SoilTens2,
+		SoilTens3:             pbReading.SoilTens3,
+		SoilTens4:             pbReading.SoilTens4,
+		// Agricultural measurements
+		GDD:                   int32(pbReading.Gdd),
+		ETOS:                  pbReading.Etos,
+		ETRS:                  pbReading.Etrs,
+		// Leak detection sensors
+		Leak1:                 uint8(pbReading.Leak1),
+		Leak2:                 uint8(pbReading.Leak2),
+		Leak3:                 uint8(pbReading.Leak3),
+		Leak4:                 uint8(pbReading.Leak4),
+		// Additional battery status
+		BattOut:               uint8(pbReading.BattOut),
+		BattIn:                uint8(pbReading.BattIn),
+		Batt1:                 uint8(pbReading.Batt1),
+		Batt2:                 uint8(pbReading.Batt2),
+		Batt3:                 uint8(pbReading.Batt3),
+		Batt4:                 uint8(pbReading.Batt4),
+		Batt5:                 uint8(pbReading.Batt5),
+		Batt6:                 uint8(pbReading.Batt6),
+		Batt7:                 uint8(pbReading.Batt7),
+		Batt8:                 uint8(pbReading.Batt8),
+		Batt9:                 uint8(pbReading.Batt9),
+		Batt10:                uint8(pbReading.Batt10),
+		Batt25:                uint8(pbReading.Batt25),
+		BattLightning:         uint8(pbReading.BattLightning),
+		BatLeak1:              uint8(pbReading.BatLeak1),
+		BatLeak2:              uint8(pbReading.BatLeak2),
+		BatLeak3:              uint8(pbReading.BatLeak3),
+		BatLeak4:              uint8(pbReading.BatLeak4),
+		BattSM1:               uint8(pbReading.BattSM1),
+		BattSM2:               uint8(pbReading.BattSM2),
+		BattSM3:               uint8(pbReading.BattSM3),
+		BattSM4:               uint8(pbReading.BattSM4),
+		BattCO2:               uint8(pbReading.BattCO2),
+		BattCellGateway:       uint8(pbReading.BattCellGateway),
+		// Pressure measurements
+		BaromRelIn:            pbReading.BaromRelIn,
+		BaromAbsIn:            pbReading.BaromAbsIn,
+		// Relay states
+		Relay1:                uint8(pbReading.Relay1),
+		Relay2:                uint8(pbReading.Relay2),
+		Relay3:                uint8(pbReading.Relay3),
+		Relay4:                uint8(pbReading.Relay4),
+		Relay5:                uint8(pbReading.Relay5),
+		Relay6:                uint8(pbReading.Relay6),
+		Relay7:                uint8(pbReading.Relay7),
+		Relay8:                uint8(pbReading.Relay8),
+		Relay9:                uint8(pbReading.Relay9),
+		Relay10:               uint8(pbReading.Relay10),
+		// Air quality measurements
+		PM25:                  pbReading.Pm25,
+		PM25_24H:              pbReading.Pm25_24H,
+		PM25In:                pbReading.Pm25In,
+		PM25In24H:             pbReading.Pm25In24H,
+		PM25InAQIN:            pbReading.Pm25InAQIN,
+		PM25In24HAQIN:         pbReading.Pm25In24HAQIN,
+		PM10InAQIN:            pbReading.Pm10InAQIN,
+		PM10In24HAQIN:         pbReading.Pm10In24HAQIN,
+		CO2:                   pbReading.Co2,
+		CO2InAQIN:             int32(pbReading.Co2InAQIN),
+		CO2In24HAQIN:          int32(pbReading.Co2In24HAQIN),
+		PMInTempAQIN:          pbReading.PmInTempAQIN,
+		PMInHumidityAQIN:      int32(pbReading.PmInHumidityAQIN),
+		AQIPM25AQIN:           int32(pbReading.AqiPM25AQIN),
+		AQIPM2524HAQIN:        int32(pbReading.AqiPM2524HAQIN),
+		AQIPM10AQIN:           int32(pbReading.AqiPM10AQIN),
+		AQIPM1024HAQIN:        int32(pbReading.AqiPM1024HAQIN),
+		AQIPM25In:             int32(pbReading.AqiPM25In),
+		AQIPM25In24H:          int32(pbReading.AqiPM25In24H),
+		// Lightning data
+		LightningDay:          int32(pbReading.LightningDay),
+		LightningHour:         int32(pbReading.LightningHour),
+		LightningDistance:     pbReading.LightningDistance,
+		// Time zone and timestamp
+		TZ:                    pbReading.Tz,
+		DateUTC:               pbReading.DateUTC,
 	}
 
 	// Convert timestamps
@@ -258,6 +383,9 @@ func (s *Station) convertToInternalReading(pbReading *pb.WeatherReading) types.R
 	}
 	if pbReading.Sunset != nil {
 		reading.Sunset = pbReading.Sunset.AsTime()
+	}
+	if pbReading.LightningTime != nil {
+		reading.LightningTime = pbReading.LightningTime.AsTime()
 	}
 
 	return reading
