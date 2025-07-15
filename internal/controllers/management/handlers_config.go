@@ -554,6 +554,10 @@ func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) e
 			return fmt.Errorf("port is required for ambient-customized device")
 		}
 		// Hostname is optional (defaults to 0.0.0.0 for listen address)
+		// Path is optional (defaults to "/" if not specified)
+		if device.Path != "" && !strings.HasPrefix(device.Path, "/") {
+			return fmt.Errorf("path must start with / if provided")
+		}
 	case "grpcreceiver":
 		// gRPC receiver stations use gRPC server - only port is required
 		if device.Port == "" {
