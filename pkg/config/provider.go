@@ -186,6 +186,7 @@ type DeviceData struct {
 	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
 	TLSCertPath       string    `json:"tls_cert_path,omitempty"`
 	TLSKeyPath        string    `json:"tls_key_path,omitempty"`
+	Path              string    `json:"path,omitempty"`
 }
 
 
@@ -392,6 +393,18 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 					Field:   fmt.Sprintf("devices[%d].base_snow_distance", i),
 					Value:   fmt.Sprintf("%d", device.BaseSnowDistance),
 					Message: "snow gauge must have base_snow_distance > 0",
+				})
+			}
+		}
+
+		// Validate ambient-customized specific settings
+		if device.Type == "ambient-customized" && device.Path != "" {
+			// Ensure path starts with /
+			if !strings.HasPrefix(device.Path, "/") {
+				errors = append(errors, ValidationError{
+					Field:   fmt.Sprintf("devices[%d].path", i),
+					Value:   device.Path,
+					Message: "path must start with /",
 				})
 			}
 		}
