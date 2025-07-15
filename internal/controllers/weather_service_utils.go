@@ -111,15 +111,12 @@ func (wsc *WeatherServiceController) StartPeriodicReports(config WeatherServiceC
 
 // SendHTTPRequest sends an HTTP GET request with URL-encoded parameters
 func (wsc *WeatherServiceController) SendHTTPRequest(endpoint string, params url.Values) error {
-	// Build the full URL with query parameters
-	fullURL := fmt.Sprint(endpoint + "?" + params.Encode())
-	
-	req, err := http.NewRequest("GET", fullURL, nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s?%s", endpoint, params.Encode()), nil)
 	if err != nil {
 		return fmt.Errorf("error creating HTTP request: %v", err)
 	}
 
-	wsc.logger.Debugf("Making request to %s", fullURL)
+	wsc.logger.Debugf("Making request to %s?%s", endpoint, params.Encode())
 	req = req.WithContext(wsc.ctx)
 
 	resp, err := wsc.httpClient.Do(req)
@@ -137,16 +134,12 @@ func (wsc *WeatherServiceController) SendHTTPRequest(endpoint string, params url
 	wsc.logger.Debugf("Response body: %s", string(body))
 	
 	// Check HTTP status code first
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 400 {
 		return fmt.Errorf("bad response from server (status %d): %v", resp.StatusCode, string(body))
 	}
 	
-	// For now, accept any 200 OK response as success
+	// For successful status codes (200-399), we accept the response
 	// Different weather services have different success response formats
-	// Weather Underground returns "success\n", PWS Weather returns HTML sometimes
-	if len(body) == 0 {
-		return fmt.Errorf("empty response from server")
-	}
 
 	return nil
 }
