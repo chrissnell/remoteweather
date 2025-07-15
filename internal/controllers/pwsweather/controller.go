@@ -2,10 +2,13 @@
 package pwsweather
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
-	"strconv"
 	"sync"
 	"time"
 
@@ -16,6 +19,24 @@ import (
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
+
+// PWSWeatherPayload represents the JSON payload for PWS Weather API
+type PWSWeatherPayload struct {
+	SoftwareType   string  `json:"softwareType"`
+	DateTime       string  `json:"dateTime"`
+	Metric         bool    `json:"metric"`
+	Temp           float64 `json:"temp"`
+	DewPt          float64 `json:"dewpt,omitempty"`
+	Humidity       int     `json:"humidity"`
+	Barometer      float64 `json:"barometer"`
+	WindSpeed      int     `json:"windSpeed"`
+	WindGust       int     `json:"windGust"`
+	WindDir        int     `json:"windDir"`
+	RainRate       float64 `json:"rainRate,omitempty"`
+	RainTotal      float64 `json:"rainTotal"`
+	SolarRadiation float64 `json:"solarRadiation,omitempty"`
+	UV             float64 `json:"uv,omitempty"`
+}
 
 // PWSWeatherController holds our connection along with some mutexes for operation
 type PWSWeatherController struct {
@@ -85,25 +106,66 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(r *database.FetchedBucke
 		return err
 	}
 
-	v := url.Values{}
+	// Create the JSON payload
+	payload := PWSWeatherPayload{
+		SoftwareType:   fmt.Sprintf("RemoteWeather v%s", constants.Version),
+		DateTime:       time.Now().UTC().Format(time.RFC3339),
+		Metric:         false, // PWS Weather expects imperial units
+		Temp:           float64(r.OutTemp),
+		Humidity:       int(r.OutHumidity),
+		Barometer:      float64(r.Barometer),
+		WindSpeed:      int(r.WindSpeed),
+		WindGust:       int(r.MaxWindSpeed),
+		WindDir:        int(r.WindDir),
+		RainTotal:      float64(r.DayRain),
+		SolarRadiation: float64(r.SolarWatts),
+	}
 
-	// Add authentication parameters
-	v.Set("ID", p.PWSWeatherConfig.StationID)
-	v.Set("PASSWORD", p.PWSWeatherConfig.APIKey)
+	// Convert to JSON
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("error marshaling PWS Weather payload: %v", err)
+	}
 
-	now := time.Now().In(time.UTC)
-	v.Set("dateutc", now.Format("2006-01-02 15:04:05"))
+	// Create the request with authentication in URL
+	authURL := fmt.Sprintf("%s?ID=%s&PASSWORD=%s", 
+		p.PWSWeatherConfig.APIEndpoint,
+		url.QueryEscape(p.PWSWeatherConfig.StationID),
+		url.QueryEscape(p.PWSWeatherConfig.APIKey))
 
-	// Set weather metrics
-	v.Set("winddir", strconv.FormatInt(int64(r.WindDir), 10))
-	v.Set("windspeedmph", strconv.FormatInt(int64(r.WindSpeed), 10))
-	v.Set("windgustmph", strconv.FormatInt(int64(r.MaxWindSpeed), 10))
-	v.Set("humidity", strconv.FormatInt(int64(r.OutHumidity), 10))
-	v.Set("tempf", fmt.Sprintf("%.1f", r.OutTemp))
-	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
-	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
-	v.Set("solarradiation", fmt.Sprintf("%0.2f", r.SolarWatts))
-	v.Set("softwaretype", fmt.Sprintf("RemoteWeather-%v", constants.Version))
+	req, err := http.NewRequest("POST", authURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("error creating PWS Weather request: %v", err)
+	}
 
-	return p.SendHTTPRequest(p.PWSWeatherConfig.APIEndpoint, v)
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	// Use the HTTP client from the base controller
+	log.Debugf("Making POST request to PWS Weather: %s", p.PWSWeatherConfig.APIEndpoint)
+	log.Debugf("Payload: %s", string(jsonData))
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request to PWS Weather: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading PWS Weather response: %v", err)
+	}
+
+	log.Debugf("PWS Weather response status: %d, body: %s", resp.StatusCode, string(body))
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("PWS Weather API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
