@@ -182,17 +182,14 @@ type DeviceData struct {
 	Latitude          float64   `json:"latitude,omitempty"`
 	Longitude         float64   `json:"longitude,omitempty"`
 	Altitude          float64   `json:"altitude,omitempty"`
-	Solar             SolarData `json:"solar,omitempty"`
+	Solar             *bool     `json:"solar,omitempty"`
 	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
 	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
 	TLSCertPath       string    `json:"tls_cert_path,omitempty"`
 	TLSKeyPath        string    `json:"tls_key_path,omitempty"`
 }
 
-// SolarData holds configuration specific to solar calculations
-// Currently empty - may be used for solar-specific settings in the future
-type SolarData struct {
-}
+
 
 // StorageData holds the configuration for various storage backends
 type StorageData struct {
