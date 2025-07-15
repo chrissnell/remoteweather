@@ -2,6 +2,7 @@ package restserver
 
 import (
 	"encoding/json"
+	"fmt"
 	htmltemplate "html/template"
 	"net/http"
 	"regexp"
@@ -150,8 +151,21 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
 		spanReadings := h.transformSpanReadings(&dbFetchedReadings)
 
+		// Calculate cache duration based on data granularity
+		cacheMaxAge := 60 // Default to 60 seconds
+		if len(dbFetchedReadings) >= 2 {
+			// Calculate the time difference between first two readings
+			timeDiff := dbFetchedReadings[1].Bucket.Sub(dbFetchedReadings[0].Bucket)
+			// Set cache to 1 second less than the data interval
+			cacheSeconds := int(timeDiff.Seconds()) - 1
+			if cacheSeconds > 0 {
+				cacheMaxAge = cacheSeconds
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", cacheMaxAge))
 		err = json.NewEncoder(w).Encode(spanReadings)
 		if err != nil {
 			log.Error("error encoding weather span readings to JSON:", err)
@@ -265,6 +279,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		err := json.NewEncoder(w).Encode(latestReading)
 		if err != nil {
 			log.Error("error encoding latest weather readings to JSON:", err)
