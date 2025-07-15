@@ -102,7 +102,7 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 
 	// Set defaults
 	if a.AerisWeatherConfig.APIEndpoint == "" {
-		a.AerisWeatherConfig.APIEndpoint = "https://api.aerisapi.com"
+		a.AerisWeatherConfig.APIEndpoint = "https://data.api.xweather.com"
 	}
 
 	if a.AerisWeatherConfig.Latitude == 0 || a.AerisWeatherConfig.Longitude == 0 {

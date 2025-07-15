@@ -322,7 +322,7 @@ func (h *Handlers) TestAPIConnectivity(w http.ResponseWriter, r *http.Request) {
 				if controller.PWSWeather.APIEndpoint != "" {
 					endpoint = controller.PWSWeather.APIEndpoint
 				} else {
-					endpoint = "https://www.pwsweather.com/pwsweather/restapi" // Default
+					endpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx" // Default
 				}
 			}
 		case "wunderground":
@@ -331,7 +331,7 @@ func (h *Handlers) TestAPIConnectivity(w http.ResponseWriter, r *http.Request) {
 				if controller.WeatherUnderground.APIEndpoint != "" {
 					endpoint = controller.WeatherUnderground.APIEndpoint
 				} else {
-					endpoint = "https://rtupdate.wunderground.com/weatherstation/updateweatherstation.php" // Default
+					endpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php" // Default
 				}
 			}
 		case "aerisweather":
@@ -340,7 +340,7 @@ func (h *Handlers) TestAPIConnectivity(w http.ResponseWriter, r *http.Request) {
 				if controller.AerisWeather.APIEndpoint != "" {
 					endpoint = controller.AerisWeather.APIEndpoint
 				} else {
-					endpoint = "https://api.aerisapi.com" // Default
+					endpoint = "https://data.api.xweather.com" // Default
 				}
 			}
 		}
