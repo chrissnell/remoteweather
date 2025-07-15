@@ -52,10 +52,15 @@ func (s *Station) StationName() string {
 }
 
 func (s *Station) StartWeatherStation() error {
-	s.logger.Infof("Starting Ambient Weather customized server station [%s] on port %s", s.config.Name, s.config.Port)
+	// Use configured path or default to "/"
+	path := s.config.Path
+	if path == "" {
+		path = "/"
+	}
+	s.logger.Infof("Starting Ambient Weather customized server station [%s] on port %s, path %s", s.config.Name, s.config.Port, path)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handleWeatherUpdate)
+	mux.HandleFunc(path, s.handleWeatherUpdate)
 
 	listenAddr := "0.0.0.0"
 	if s.config.Hostname != "" {
