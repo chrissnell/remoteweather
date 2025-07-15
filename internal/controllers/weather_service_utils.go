@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
@@ -113,16 +111,15 @@ func (wsc *WeatherServiceController) StartPeriodicReports(config WeatherServiceC
 
 // SendHTTPRequest sends an HTTP GET request with URL-encoded parameters
 func (wsc *WeatherServiceController) SendHTTPRequest(endpoint string, params url.Values) error {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s?%s", endpoint, params.Encode()), nil)
+	// Build the full URL with query parameters
+	fullURL := fmt.Sprint(endpoint + "?" + params.Encode())
+	
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return fmt.Errorf("error creating HTTP request: %v", err)
 	}
 
-	// Add headers to avoid being blocked or redirected
-	req.Header.Set("User-Agent", fmt.Sprintf("RemoteWeather/%s", constants.Version))
-	req.Header.Set("Accept", "text/plain, */*")
-
-	wsc.logger.Debugf("Making request to %s?%s", endpoint, params.Encode())
+	wsc.logger.Debugf("Making request to %s", fullURL)
 	req = req.WithContext(wsc.ctx)
 
 	resp, err := wsc.httpClient.Do(req)
@@ -136,8 +133,19 @@ func (wsc *WeatherServiceController) SendHTTPRequest(endpoint string, params url
 		return fmt.Errorf("error reading response body: %v", err)
 	}
 
-	if !bytes.Contains(body, []byte("success")) {
-		return fmt.Errorf("bad response from server: %v", string(body))
+	// Log the response for debugging
+	wsc.logger.Debugf("Response body: %s", string(body))
+	
+	// Check HTTP status code first
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad response from server (status %d): %v", resp.StatusCode, string(body))
+	}
+	
+	// For now, accept any 200 OK response as success
+	// Different weather services have different success response formats
+	// Weather Underground returns "success\n", PWS Weather returns HTML sometimes
+	if len(body) == 0 {
+		return fmt.Errorf("empty response from server")
 	}
 
 	return nil

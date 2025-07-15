@@ -102,7 +102,7 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *datab
 	// Set weather metrics
 	v.Set("winddir", strconv.FormatInt(int64(r.WindDir), 10))
 	v.Set("windspeedmph", strconv.FormatInt(int64(r.WindSpeed), 10))
-	v.Set("humidity", strconv.FormatInt(int64(r.InHumidity), 10))
+	v.Set("humidity", strconv.FormatInt(int64(r.OutHumidity), 10))
 	v.Set("tempf", fmt.Sprintf("%.1f", r.OutTemp))
 	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
