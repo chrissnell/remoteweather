@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
@@ -116,6 +117,10 @@ func (wsc *WeatherServiceController) SendHTTPRequest(endpoint string, params url
 	if err != nil {
 		return fmt.Errorf("error creating HTTP request: %v", err)
 	}
+
+	// Add headers to avoid being blocked or redirected
+	req.Header.Set("User-Agent", fmt.Sprintf("RemoteWeather/%s", constants.Version))
+	req.Header.Set("Accept", "text/plain, */*")
 
 	wsc.logger.Debugf("Making request to %s?%s", endpoint, params.Encode())
 	req = req.WithContext(wsc.ctx)
