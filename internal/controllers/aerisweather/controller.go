@@ -149,7 +149,15 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 	} else {
 		// Only save to database if fetch was successful
 		log.Debugf("Attempting to save forecast to database for span %d hours", numPeriods*periodHours)
-		err = a.DB.DB.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
+		// Create or update the forecast record
+		locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+		err = a.DB.DB.Where("forecast_span_hours = ? AND location = ?", numPeriods*periodHours, locationStr).
+			Assign(AerisWeatherForecastRecord{
+				ForecastSpanHours: numPeriods * periodHours,
+				Location:          locationStr,
+				Data:              forecast.Data,
+			}).
+			FirstOrCreate(&AerisWeatherForecastRecord{}).Error
 		if err != nil {
 			log.Errorf("error saving forecast to database: %v", err)
 		} else {
@@ -182,7 +190,15 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 			} else {
 				// Only save to database if fetch was successful
 				log.Debugf("Attempting to save updated forecast to database for span %d hours", numPeriods*periodHours)
-				err = a.DB.DB.Model(&AerisWeatherForecastRecord{}).Where("forecast_span_hours = ?", numPeriods*periodHours).Update("data", forecast.Data).Error
+				// Create or update the forecast record
+				locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+				err = a.DB.DB.Where("forecast_span_hours = ? AND location = ?", numPeriods*periodHours, locationStr).
+					Assign(AerisWeatherForecastRecord{
+						ForecastSpanHours: numPeriods * periodHours,
+						Location:          locationStr,
+						Data:              forecast.Data,
+					}).
+					FirstOrCreate(&AerisWeatherForecastRecord{}).Error
 				if err != nil {
 					log.Errorf("error saving forecast to database: %v", err)
 				} else {
