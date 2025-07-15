@@ -180,9 +180,14 @@ func (h *Handlers) testAmbientCustomizedConnection(device *config.DeviceData, _ 
 		listenAddr = device.Hostname
 	}
 
+	path := device.Path
+	if path == "" {
+		path = "/"
+	}
+
 	return ConnectivityTestResult{
 		Success:    true,
-		Message:    fmt.Sprintf("Ambient Weather Customized Server configured to listen on %s:%s", listenAddr, device.Port),
+		Message:    fmt.Sprintf("Ambient Weather Customized Server configured to listen on %s:%s, path %s", listenAddr, device.Port, path),
 		DurationMs: time.Since(start).Milliseconds(),
 	}
 }
