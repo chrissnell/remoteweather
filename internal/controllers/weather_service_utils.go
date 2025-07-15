@@ -86,6 +86,28 @@ func (wsc *WeatherServiceController) StartPeriodicReports(config WeatherServiceC
 		return
 	}
 
+	// Perform initial upload after 15 seconds
+	wsc.logger.Infof("%s controller will perform initial upload in 15 seconds...", config.ServiceName)
+	initialTimer := time.NewTimer(15 * time.Second)
+	select {
+	case <-initialTimer.C:
+		wsc.logger.Debugf("Performing initial %s upload...", config.ServiceName)
+		br, err := wsc.DB.GetReadingsFromTimescaleDB(config.PullFromDevice)
+		if err != nil {
+			wsc.logger.Errorf("error getting initial readings from TimescaleDB: %v", err)
+		} else {
+			if err := sendFunc(&br); err != nil {
+				wsc.logger.Errorf("error sending initial readings to %s: %v", config.ServiceName, err)
+			} else {
+				wsc.logger.Infof("Initial %s upload successful", config.ServiceName)
+			}
+		}
+	case <-wsc.ctx.Done():
+		initialTimer.Stop()
+		return
+	}
+
+	// Continue with regular periodic reports
 	ticker := time.NewTicker(submitInterval)
 	defer ticker.Stop()
 
