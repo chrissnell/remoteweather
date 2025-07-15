@@ -182,7 +182,6 @@ type DeviceData struct {
 	Latitude          float64   `json:"latitude,omitempty"`
 	Longitude         float64   `json:"longitude,omitempty"`
 	Altitude          float64   `json:"altitude,omitempty"`
-	Solar             *bool     `json:"solar,omitempty"`
 	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
 	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
 	TLSCertPath       string    `json:"tls_cert_path,omitempty"`
