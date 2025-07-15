@@ -384,7 +384,6 @@ const ManagementWeatherStations = (function() {
 
     // Solar location fields
     if (latitude || longitude || altitude) {
-      device.solar = true;
       if (latitude) device.latitude = parseFloat(latitude);
       if (longitude) device.longitude = parseFloat(longitude);
       if (altitude) device.altitude = parseFloat(altitude);
