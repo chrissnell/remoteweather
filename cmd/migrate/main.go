@@ -2,6 +2,7 @@
 package main
 
 import (
+
 	"database/sql"
 	"flag"
 	"fmt"
@@ -11,13 +12,28 @@ import (
 
 	"github.com/chrissnell/remoteweather/pkg/migrate"
 	_ "modernc.org/sqlite" // SQLite driver
+	"runtime"
 )
+
+// getDefaultMigrationDir returns the OS-specific default migration directory
+func getDefaultMigrationDir() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "/usr/share/remoteweather/migrations/config"
+	case "darwin":
+		return "/usr/local/share/remoteweather/migrations/config"
+	case "windows":
+		return "C:\ProgramData\remoteweather\migrations\config"
+	default:
+		return "migrations"
+	}
+}
 
 func main() {
 	var (
 		dbDriver       = flag.String("driver", "sqlite", "Database driver (sqlite, postgres)")
 		dbDSN          = flag.String("dsn", "", "Database connection string")
-		migrationDir   = flag.String("dir", "migrations", "Migration directory")
+		migrationDir   = flag.String("dir", getDefaultMigrationDir(), "Migration directory")
 		migrationTable = flag.String("table", "schema_migrations", "Migration table name")
 		command        = flag.String("command", "up", "Migration command: up, down, version, status")
 		targetVersion  = flag.String("target", "", "Target version for down/to commands")
@@ -136,7 +152,8 @@ func showHelp() {
 	fmt.Println("Flags:")
 	fmt.Println("  -driver string     Database driver (default: sqlite)")
 	fmt.Println("  -dsn string        Database connection string (required)")
-	fmt.Println("  -dir string        Migration directory (default: migrations)")
+	fmt.Printf("  -dir string        Migration directory (default: %s)
+", getDefaultMigrationDir())
 	fmt.Println("  -table string      Migration table name (default: schema_migrations)")
 	fmt.Println("  -command string    Migration command (default: up)")
 	fmt.Println("  -target string     Target version for down/to commands")
