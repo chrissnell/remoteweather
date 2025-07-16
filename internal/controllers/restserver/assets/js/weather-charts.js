@@ -12,7 +12,7 @@ const WeatherCharts = (function() {
         chart: {
             backgroundColor: WeatherUtils.getCSSVariable('--chart-bg'),
             style: { 
-                fontFamily: 'Roboto, sans-serif',
+                fontFamily: 'Inconsolata, Roboto, sans-serif',
                 color: WeatherUtils.getCSSVariable('--chart-text')
             }
         },
@@ -35,34 +35,34 @@ const WeatherCharts = (function() {
     // Chart type configurations
     const chartTypeConfigs = {
         temperature: {
-            yAxisLabel: "Temperature",
+            yAxisLabel: "Degrees F",
             chartType: "spline",
             tooltipDecimals: 1,
             unit: "°F"
         },
         humidity: {
-            yAxisLabel: "Humidity",
+            yAxisLabel: "Percent",
             chartType: "spline",
             tooltipDecimals: 1,
             unit: "%"
         },
         snowdepth: {
-            yAxisLabel: "Snow Depth",
+            yAxisLabel: "inches",
             chartType: "spline",
             tooltipDecimals: 2,
-            unit: "in"
+            unit: " in"
         },
         barometer: {
-            yAxisLabel: "Barometric Pressure",
+            yAxisLabel: "inches Hg",
             chartType: "spline",
             tooltipDecimals: 2,
-            unit: "inHg"
+            unit: " inHg"
         },
         windspeed: {
-            yAxisLabel: "Wind Speed",
+            yAxisLabel: "MPH",
             chartType: "spline",
             tooltipDecimals: 1,
-            unit: "MPH"
+            unit: " MPH"
         },
         winddirection: {
             yAxisLabel: "",
@@ -72,16 +72,16 @@ const WeatherCharts = (function() {
             }
         },
         rainfall: {
-            yAxisLabel: "Rainfall",
+            yAxisLabel: "Inches",
             chartType: "column",
             tooltipDecimals: 2,
-            unit: "in"
+            unit: " in"
         },
         solarwatts: {
-            yAxisLabel: "Solar Radiation",
+            yAxisLabel: "Watts/m²",
             chartType: "spline",
             tooltipDecimals: 1,
-            unit: "W/m²",
+            unit: " W/m²",
             additionalSeries: [{
                 name: "Maximum Potential Solar Radiation",
                 data: [],
@@ -89,10 +89,10 @@ const WeatherCharts = (function() {
             }]
         },
         voltage: {
-            yAxisLabel: "Battery Voltage",
+            yAxisLabel: "Volts",
             chartType: "spline",
             tooltipDecimals: 2,
-            unit: "V"
+            unit: " V"
         }
     };
     
@@ -115,7 +115,7 @@ const WeatherCharts = (function() {
             },
             yAxis: chartType === 'vector' ? { visible: false } : { 
                 title: { 
-                    text: yAxisLabel + (config.unit ? ' (' + config.unit.trim() + ')' : ''),
+                    text: yAxisLabel,
                     style: { color: WeatherUtils.getCSSVariable('--chart-text') }
                 },
                 gridLineColor: WeatherUtils.getCSSVariable('--chart-grid'),
@@ -127,8 +127,7 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
-                ...(tooltipFormat ? tooltipFormat : {
-                    pointFormat: '<span style="color:{point.color}">●</span> {series.name}: <b>{point.y:.' + (config.tooltipDecimals || 2) + 'f}' + (config.unit || '') + '</b><br/>',
+                ...(tooltipFormat || {
                     valueDecimals: config.tooltipDecimals || 2,
                     valueSuffix: config.unit || ''
                 })
