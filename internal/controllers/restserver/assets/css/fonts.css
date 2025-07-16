@@ -1,12 +1,4 @@
-/* Roboto Regular */
-@font-face {
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 300;
-  font-display: swap;
-  src: url('../fonts/roboto-300.ttf') format('truetype');
-}
-
+/* Essential Roboto weights only */
 @font-face {
   font-family: 'Roboto';
   font-style: normal;
@@ -31,23 +23,7 @@
   src: url('../fonts/roboto-700.ttf') format('truetype');
 }
 
-/* Roboto Slab */
-@font-face {
-  font-family: 'Roboto Slab';
-  font-style: normal;
-  font-weight: 300;
-  font-display: swap;
-  src: url('../fonts/roboto-slab-300.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Roboto Slab';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/roboto-slab-400.ttf') format('truetype');
-}
-
+/* Essential Roboto Slab weights only */
 @font-face {
   font-family: 'Roboto Slab';
   font-style: normal;
@@ -64,18 +40,7 @@
   src: url('../fonts/roboto-slab-700.ttf') format('truetype');
 }
 
-@font-face {
-  font-family: 'Roboto Slab';
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url('../fonts/roboto-slab-800.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Roboto Slab';
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
-  src: url('../fonts/roboto-slab-900.ttf') format('truetype');
-}
+/* Note: Removed unused font weights to improve First Contentful Paint
+   - Roboto: 300 (light) - not used in CSS
+   - Roboto Slab: 300, 400, 800, 900 - not used in CSS
+   Font-weight 600 will automatically use 700 as fallback */
