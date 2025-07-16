@@ -23,7 +23,7 @@ func getDefaultMigrationDir() string {
 	case "darwin":
 		return "/usr/local/share/remoteweather/migrations/config"
 	case "windows":
-		return "C:\ProgramData\remoteweather\migrations\config"
+		return "C:\\ProgramData\\remoteweather\\migrations\\config"
 	default:
 		return "migrations"
 	}
@@ -152,8 +152,7 @@ func showHelp() {
 	fmt.Println("Flags:")
 	fmt.Println("  -driver string     Database driver (default: sqlite)")
 	fmt.Println("  -dsn string        Database connection string (required)")
-	fmt.Printf("  -dir string        Migration directory (default: %s)
-", getDefaultMigrationDir())
+	fmt.Printf("  -dir string        Migration directory (default: %s)\n", getDefaultMigrationDir())
 	fmt.Println("  -table string      Migration table name (default: schema_migrations)")
 	fmt.Println("  -command string    Migration command (default: up)")
 	fmt.Println("  -target string     Target version for down/to commands")
