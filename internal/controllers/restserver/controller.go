@@ -249,7 +249,10 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Station API endpoints
 	router.HandleFunc("/api/stations", c.handlers.GetStations)
 
-	// Static file serving
+	// Serve fonts with long-term caching headers
+	router.PathPrefix("/fonts/").Handler(c.cachingMiddleware(365*24*time.Hour, http.FileServer(http.FS(*c.FS))))
+	
+	// Static file serving for other assets
 	router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
 
 	return router
@@ -347,6 +350,20 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	n, err := rw.ResponseWriter.Write(b)
 	rw.bytesWritten += n
 	return n, err
+}
+
+// cachingMiddleware adds cache control headers for static assets
+func (c *Controller) cachingMiddleware(maxAge time.Duration, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set cache control headers
+		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d, immutable", int(maxAge.Seconds())))
+		
+		// Add ETag support for better caching
+		w.Header().Set("Vary", "Accept-Encoding")
+		
+		// Call the next handler
+		next.ServeHTTP(w, r)
+	})
 }
 
 // RefreshDeviceNames rebuilds the device name map from current devices
