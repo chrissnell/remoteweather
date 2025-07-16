@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"strings"
@@ -82,23 +81,33 @@ func main() {
 
 	// Build query
 	query := "SELECT * FROM weather"
+	countQuery := "SELECT COUNT(*) FROM weather"
 	if cfg.Query != "" {
 		query += " WHERE " + cfg.Query
+		countQuery += " WHERE " + cfg.Query
 	}
 	query += " ORDER BY time"
+
+	// Get total count for progress tracking
+	var totalCount int64
+	err = pool.QueryRow(ctx, countQuery).Scan(&totalCount)
+	if err != nil {
+		log.Fatalf("Failed to get record count: %v", err)
+	}
+	log.Printf("Found %d records to backup", totalCount)
 
 	// Execute backup based on format
 	switch cfg.Format {
 	case FormatCSV:
-		if err := backupToCSV(ctx, pool, query, cfg.Output+".csv"); err != nil {
+		if err := backupToCSV(ctx, pool, query, cfg.Output+".csv", totalCount); err != nil {
 			log.Fatalf("CSV backup failed: %v", err)
 		}
 	case FormatJSON:
-		if err := backupToJSON(ctx, pool, query, cfg.Output+".json"); err != nil {
+		if err := backupToJSON(ctx, pool, query, cfg.Output+".json", totalCount); err != nil {
 			log.Fatalf("JSON backup failed: %v", err)
 		}
 	case FormatSQL:
-		if err := backupToSQL(ctx, pool, query, cfg.Output+".sql"); err != nil {
+		if err := backupToSQL(ctx, pool, query, cfg.Output+".sql", totalCount); err != nil {
 			log.Fatalf("SQL backup failed: %v", err)
 		}
 	}
@@ -106,7 +115,7 @@ func main() {
 	log.Printf("Backup completed successfully")
 }
 
-func backupToCSV(ctx context.Context, pool *pgxpool.Pool, query string, filename string) error {
+func backupToCSV(ctx context.Context, pool *pgxpool.Pool, query string, filename string, totalCount int64) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
@@ -134,7 +143,8 @@ func backupToCSV(ctx context.Context, pool *pgxpool.Pool, query string, filename
 		return fmt.Errorf("failed to write headers: %w", err)
 	}
 
-	count := 0
+	count := int64(0)
+	lastProgress := -1
 	for rows.Next() {
 		values, err := pgx.RowToMap(rows)
 		if err != nil {
@@ -154,7 +164,14 @@ func backupToCSV(ctx context.Context, pool *pgxpool.Pool, query string, filename
 		}
 
 		count++
-		if count%10000 == 0 {
+		// Show progress at each percentage point
+		if totalCount > 0 {
+			progress := int(count * 100 / totalCount)
+			if progress != lastProgress {
+				log.Printf("Progress: %d%% (%d/%d records)", progress, count, totalCount)
+				lastProgress = progress
+			}
+		} else if count%10000 == 0 {
 			log.Printf("Processed %d records...", count)
 		}
 	}
@@ -167,7 +184,7 @@ func backupToCSV(ctx context.Context, pool *pgxpool.Pool, query string, filename
 	return nil
 }
 
-func backupToJSON(ctx context.Context, pool *pgxpool.Pool, query string, filename string) error {
+func backupToJSON(ctx context.Context, pool *pgxpool.Pool, query string, filename string, totalCount int64) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
@@ -188,7 +205,8 @@ func backupToJSON(ctx context.Context, pool *pgxpool.Pool, query string, filenam
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("  ", "  ")
 
-	count := 0
+	count := int64(0)
+	lastProgress := -1
 	first := true
 	for rows.Next() {
 		values, err := pgx.RowToMap(rows)
@@ -213,7 +231,14 @@ func backupToJSON(ctx context.Context, pool *pgxpool.Pool, query string, filenam
 		}
 
 		count++
-		if count%10000 == 0 {
+		// Show progress at each percentage point
+		if totalCount > 0 {
+			progress := int(count * 100 / totalCount)
+			if progress != lastProgress {
+				log.Printf("Progress: %d%% (%d/%d records)", progress, count, totalCount)
+				lastProgress = progress
+			}
+		} else if count%10000 == 0 {
 			log.Printf("Processed %d records...", count)
 		}
 	}
@@ -231,7 +256,7 @@ func backupToJSON(ctx context.Context, pool *pgxpool.Pool, query string, filenam
 	return nil
 }
 
-func backupToSQL(ctx context.Context, pool *pgxpool.Pool, query string, filename string) error {
+func backupToSQL(ctx context.Context, pool *pgxpool.Pool, query string, filename string, totalCount int64) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
@@ -251,7 +276,8 @@ func backupToSQL(ctx context.Context, pool *pgxpool.Pool, query string, filename
 	}
 	defer rows.Close()
 
-	count := 0
+	count := int64(0)
+	lastProgress := -1
 	
 	for rows.Next() {
 		values, err := pgx.RowToMap(rows)
@@ -290,7 +316,14 @@ func backupToSQL(ctx context.Context, pool *pgxpool.Pool, query string, filename
 			strings.Join(cols, ", "), strings.Join(vals, ", "))
 
 		count++
-		if count%10000 == 0 {
+		// Show progress at each percentage point
+		if totalCount > 0 {
+			progress := int(count * 100 / totalCount)
+			if progress != lastProgress {
+				log.Printf("Progress: %d%% (%d/%d records)", progress, count, totalCount)
+				lastProgress = progress
+			}
+		} else if count%10000 == 0 {
 			log.Printf("Processed %d records...", count)
 		}
 	}
