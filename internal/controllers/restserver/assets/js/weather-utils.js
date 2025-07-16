@@ -113,7 +113,13 @@ const WeatherUtils = (function() {
     
     // Chart data processing utilities
     const calculateDataModulo = (dataLength, maxPoints = 50) => {
-        return Math.max(1, Math.floor(dataLength / maxPoints));
+        // Detect if viewing on mobile device
+        const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        
+        // Reduce maxPoints to 1/3 for mobile devices to prevent crowding
+        const adjustedMaxPoints = isMobile ? Math.floor(maxPoints / 3) : maxPoints;
+        
+        return Math.max(1, Math.floor(dataLength / adjustedMaxPoints));
     };
     
     // Public API
