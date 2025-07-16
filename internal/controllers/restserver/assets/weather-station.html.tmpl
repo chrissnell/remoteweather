@@ -8,10 +8,13 @@
   <link href="css/fonts.css" rel="stylesheet" type="text/css">
   <link href="css/weather.css" rel="stylesheet" type="text/css">
   
-  <!-- Chart libraries -->
-  <script src="https://code.highcharts.com/highcharts.js"></script>
-  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-  <script src="https://code.highcharts.com/modules/vector.js"></script>
+  <!-- Preconnect to Highcharts CDN for faster loading -->
+  <link rel="preconnect" href="https://code.highcharts.com">
+  
+  <!-- Chart libraries - deferred to not block initial render -->
+  <script defer src="https://code.highcharts.com/highcharts.js"></script>
+  <script defer src="https://code.highcharts.com/modules/accessibility.js"></script>
+  <script defer src="https://code.highcharts.com/modules/vector.js"></script>
   
   <!-- Time library -->
   <script src="js/moment.min.js"></script>
