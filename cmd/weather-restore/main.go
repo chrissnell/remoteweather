@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/csv"
 	"flag"
@@ -9,7 +8,9 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -96,7 +97,7 @@ func main() {
 	log.Printf("Found %d columns in CSV: %v", len(headers), headers)
 
 	// Verify weather table exists and get its schema
-	tableColumns, err := getTableColumns(ctx, pool, "weather")
+	tableColumns, columnTypes, err := getTableColumns(ctx, pool, "weather")
 	if err != nil {
 		log.Fatalf("Failed to get table schema: %v", err)
 	}
@@ -135,16 +136,16 @@ func main() {
 	}
 
 	// Restore data
-	if err := restoreData(ctx, pool, csvReader, matchedColumns, columnIndices, cfg.BatchSize, progressReader); err != nil {
+	if err := restoreData(ctx, pool, csvReader, matchedColumns, columnIndices, columnTypes, cfg.BatchSize, progressReader); err != nil {
 		log.Fatalf("Failed to restore data: %v", err)
 	}
 
 	log.Println("Restore completed successfully!")
 }
 
-func getTableColumns(ctx context.Context, pool *pgxpool.Pool, tableName string) ([]string, error) {
+func getTableColumns(ctx context.Context, pool *pgxpool.Pool, tableName string) ([]string, map[string]string, error) {
 	query := `
-		SELECT column_name 
+		SELECT column_name, data_type 
 		FROM information_schema.columns 
 		WHERE table_name = $1 
 		ORDER BY ordinal_position
@@ -152,31 +153,57 @@ func getTableColumns(ctx context.Context, pool *pgxpool.Pool, tableName string) 
 	
 	rows, err := pool.Query(ctx, query, tableName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query table schema: %w", err)
+		return nil, nil, fmt.Errorf("failed to query table schema: %w", err)
 	}
 	defer rows.Close()
 
 	var columns []string
+	columnTypes := make(map[string]string)
+	
 	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			return nil, fmt.Errorf("failed to scan column: %w", err)
+		var column, dataType string
+		if err := rows.Scan(&column, &dataType); err != nil {
+			return nil, nil, fmt.Errorf("failed to scan column: %w", err)
 		}
 		columns = append(columns, column)
+		columnTypes[column] = dataType
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row error: %w", err)
+		return nil, nil, fmt.Errorf("row error: %w", err)
 	}
 
 	if len(columns) == 0 {
-		return nil, fmt.Errorf("table %s not found or has no columns", tableName)
+		return nil, nil, fmt.Errorf("table %s not found or has no columns", tableName)
 	}
 
-	return columns, nil
+	return columns, columnTypes, nil
 }
 
-func restoreData(ctx context.Context, pool *pgxpool.Pool, reader *csv.Reader, columns []string, columnIndices map[string]int, batchSize int, progress *progressReader) error {
+// parseTimestamp parses various timestamp formats
+func parseTimestamp(value string) (time.Time, error) {
+	// Try common timestamp formats
+	formats := []string{
+		"2006-01-02 15:04:05.999999 -0700 MST",  // Format from the error message
+		"2006-01-02 15:04:05.999999 -0700",
+		"2006-01-02 15:04:05.999999",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05.999999Z",
+		"2006-01-02T15:04:05Z",
+		time.RFC3339,
+		time.RFC3339Nano,
+	}
+	
+	for _, format := range formats {
+		if t, err := time.Parse(format, value); err == nil {
+			return t, nil
+		}
+	}
+	
+	return time.Time{}, fmt.Errorf("unable to parse timestamp: %s", value)
+}
+
+func restoreData(ctx context.Context, pool *pgxpool.Pool, reader *csv.Reader, columns []string, columnIndices map[string]int, columnTypes map[string]string, batchSize int, progress *progressReader) error {
 	// Start transaction
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -184,24 +211,8 @@ func restoreData(ctx context.Context, pool *pgxpool.Pool, reader *csv.Reader, co
 	}
 	defer tx.Rollback(ctx)
 
-	// Prepare the COPY statement
-	copyQuery := fmt.Sprintf("COPY weather (%s) FROM STDIN WITH (FORMAT csv)", strings.Join(columns, ", "))
-	
-	// Create a pipe for writing CSV data
-	pr, pw := io.Pipe()
-	
-	// Error channel for COPY operation
-	copyErr := make(chan error, 1)
-	
-	// Start COPY in a goroutine
-	go func() {
-		_, err := tx.Conn().PgConn().CopyFrom(ctx, pr, copyQuery)
-		copyErr <- err
-		pr.Close()
-	}()
-
-	// Write CSV data to the pipe
-	csvWriter := csv.NewWriter(pw)
+	// Prepare rows channel for batch processing
+	rows := make([][]interface{}, 0, batchSize)
 	rowCount := 0
 	
 	for {
@@ -210,42 +221,97 @@ func restoreData(ctx context.Context, pool *pgxpool.Pool, reader *csv.Reader, co
 			break
 		}
 		if err != nil {
-			pw.Close()
 			return fmt.Errorf("failed to read CSV record: %w", err)
 		}
 
 		// Extract only the columns we need
-		row := make([]string, len(columns))
+		row := make([]interface{}, len(columns))
 		for i, col := range columns {
 			csvIndex := columnIndices[col]
-			if csvIndex < len(record) {
-				row[i] = record[csvIndex]
+			if csvIndex < len(record) && record[csvIndex] != "" {
+				value := record[csvIndex]
+				colType := columnTypes[col]
+				
+				// Convert based on column type
+				switch colType {
+				case "timestamp with time zone", "timestamp without time zone":
+					// Parse various timestamp formats
+					parsedTime, err := parseTimestamp(value)
+					if err != nil {
+						return fmt.Errorf("failed to parse timestamp for column %s: %w", col, err)
+					}
+					row[i] = parsedTime
+				case "integer", "bigint", "smallint":
+					if value == "" {
+						row[i] = nil
+					} else {
+						intVal, err := strconv.ParseInt(value, 10, 64)
+						if err != nil {
+							row[i] = nil // Convert parse errors to NULL
+						} else {
+							row[i] = intVal
+						}
+					}
+				case "numeric", "real", "double precision":
+					if value == "" {
+						row[i] = nil
+					} else {
+						floatVal, err := strconv.ParseFloat(value, 64)
+						if err != nil {
+							row[i] = nil // Convert parse errors to NULL
+						} else {
+							row[i] = floatVal
+						}
+					}
+				case "boolean":
+					if value == "" {
+						row[i] = nil
+					} else {
+						row[i] = (value == "true" || value == "t" || value == "1")
+					}
+				default:
+					// For text, varchar, and other types, use string as-is
+					row[i] = value
+				}
 			} else {
-				row[i] = "" // Empty string for NULL
+				row[i] = nil
 			}
 		}
 
-		// Write to COPY
-		if err := csvWriter.Write(row); err != nil {
-			pw.Close()
-			return fmt.Errorf("failed to write to COPY: %w", err)
-		}
-
+		rows = append(rows, row)
 		rowCount++
-		if rowCount%10000 == 0 {
-			csvWriter.Flush()
+
+		// Process batch when full
+		if len(rows) >= batchSize {
+			_, err := tx.CopyFrom(
+				ctx,
+				pgx.Identifier{"weather"},
+				columns,
+				pgx.CopyFromRows(rows),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to copy batch: %w", err)
+			}
+			
 			percentage := float64(progress.progress) / float64(progress.total) * 100
 			log.Printf("Processed %d rows (%.1f%%)", rowCount, percentage)
+			
+			// Clear the rows slice for next batch
+			rows = rows[:0]
 		}
 	}
 
-	// Flush any remaining data
-	csvWriter.Flush()
-	pw.Close()
-
-	// Wait for COPY to complete
-	if err := <-copyErr; err != nil {
-		return fmt.Errorf("COPY failed: %w", err)
+	// Process any remaining rows
+	if len(rows) > 0 {
+		_, err := tx.CopyFrom(
+			ctx,
+			pgx.Identifier{"weather"},
+			columns,
+			pgx.CopyFromRows(rows),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to copy final batch: %w", err)
+		}
 	}
 
 	// Commit transaction
