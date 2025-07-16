@@ -37,27 +37,32 @@ const WeatherCharts = (function() {
         temperature: {
             yAxisLabel: "Degrees F",
             chartType: "spline",
-            tooltipDecimals: 1
+            tooltipDecimals: 1,
+            unit: "°F"
         },
         humidity: {
             yAxisLabel: "Percent",
             chartType: "spline",
-            tooltipDecimals: 1
+            tooltipDecimals: 1,
+            unit: "%"
         },
         snowdepth: {
             yAxisLabel: "inches",
             chartType: "spline",
-            tooltipDecimals: 2
+            tooltipDecimals: 2,
+            unit: " in"
         },
         barometer: {
             yAxisLabel: "inches Hg",
             chartType: "spline",
-            tooltipDecimals: 2
+            tooltipDecimals: 2,
+            unit: " inHg"
         },
         windspeed: {
             yAxisLabel: "MPH",
             chartType: "spline",
-            tooltipDecimals: 1
+            tooltipDecimals: 1,
+            unit: " MPH"
         },
         winddirection: {
             yAxisLabel: "",
@@ -69,12 +74,14 @@ const WeatherCharts = (function() {
         rainfall: {
             yAxisLabel: "Inches",
             chartType: "column",
-            tooltipDecimals: 2
+            tooltipDecimals: 2,
+            unit: " in"
         },
         solarwatts: {
             yAxisLabel: "Watts/m²",
             chartType: "spline",
             tooltipDecimals: 1,
+            unit: " W/m²",
             additionalSeries: [{
                 name: "Maximum Potential Solar Radiation",
                 data: [],
@@ -84,14 +91,15 @@ const WeatherCharts = (function() {
         voltage: {
             yAxisLabel: "Volts",
             chartType: "spline",
-            tooltipDecimals: 2
+            tooltipDecimals: 2,
+            unit: " V"
         }
     };
     
     // Create a single chart
     const createChart = (chartName, targetDiv, data, title, customOptions = {}) => {
         const config = chartTypeConfigs[chartName] || {};
-        const { yAxisTitle, chartType = 'spline', tooltipFormat, additionalSeries = [] } = { ...config, ...customOptions };
+        const { yAxisLabel, chartType = 'spline', tooltipFormat, additionalSeries = [] } = { ...config, ...customOptions };
         
         const baseOptions = getDefaultChartOptions();
         
@@ -107,7 +115,7 @@ const WeatherCharts = (function() {
             },
             yAxis: chartType === 'vector' ? { visible: false } : { 
                 title: { 
-                    text: yAxisTitle,
+                    text: yAxisLabel,
                     style: { color: WeatherUtils.getCSSVariable('--chart-text') }
                 },
                 gridLineColor: WeatherUtils.getCSSVariable('--chart-grid'),
@@ -119,7 +127,10 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
-                ...(tooltipFormat || { valueDecimals: config.tooltipDecimals || 2 })
+                ...(tooltipFormat || {
+                    valueDecimals: config.tooltipDecimals || 2,
+                    valueSuffix: config.unit || ''
+                })
             },
             series: [
                 {
