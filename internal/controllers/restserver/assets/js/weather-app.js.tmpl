@@ -200,7 +200,7 @@ const WeatherApp = (function() {
     // Refresh week forecast
     const refreshWeekForecast = async () => {
         try {
-            const data = await WeatherDataService.fetchForecast(168);
+            const data = await WeatherDataService.fetchForecast(240);
             if (!data) {
                 setTimeout(refreshWeekForecast, 60000);
                 return;
