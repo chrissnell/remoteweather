@@ -588,10 +588,10 @@ html[data-theme="light"] .theme-toggle::before {
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Week Forecast Grid */
+/* Week Forecast Grid - Default to 5 columns (2 rows) for desktop/tablet */
 .week-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -772,7 +772,7 @@ html[data-theme="light"] .theme-toggle::before {
 /* Responsive Design for Forecast */
 @media (max-width: 1200px) {
   .week-grid {
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
   }
   
@@ -817,8 +817,19 @@ html[data-theme="light"] .theme-toggle::before {
 
 @media (max-width: 700px) {
   .week-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
+  }
+  
+  /* Hide the 10th forecast day on mobile */
+  #week-forecast-interval-9 {
+    display: none;
+  }
+  
+  /* Adjust font size for longer day names */
+  .forecast-day-title {
+    font-size: 0.65rem;
+    letter-spacing: 0.2px;
   }
   
   .forecast-day {
@@ -929,6 +940,17 @@ html[data-theme="light"] .theme-toggle::before {
   .week-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
+  }
+  
+  /* Hide the 10th forecast day on mobile */
+  #week-forecast-interval-9 {
+    display: none;
+  }
+  
+  /* Further adjust font size for smaller screens */
+  .forecast-day-title {
+    font-size: 0.6rem;
+    letter-spacing: 0;
   }
   
   .forecast-day {

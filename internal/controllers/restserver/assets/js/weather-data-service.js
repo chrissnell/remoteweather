@@ -150,13 +150,25 @@ const WeatherDataService = (function() {
         if (!data || !data.data) return null;
         
         if (type === 'week') {
-            return data.data.slice(0, 7).map((interval, i) => {
+            return data.data.slice(0, 10).map((interval, i) => {
                 const date = new Date(interval.dateTimeISO);
                 const isSnow = WeatherUtils.isSnowWeather(interval.weatherPrimaryCoded);
                 const isRain = WeatherUtils.isRainWeather(interval.weatherPrimaryCoded);
                 
+                let dayName;
+                if (i === 0) {
+                    dayName = "Today";
+                } else if (i === 1) {
+                    dayName = "Tomorrow";
+                } else if (i >= 7) {
+                    // For days 7+, add "Next" prefix
+                    dayName = "Next " + WeatherUtils.getDayName(date.getDay());
+                } else {
+                    dayName = WeatherUtils.getDayName(date.getDay());
+                }
+                
                 return {
-                    dayName: i === 0 ? "Today" : WeatherUtils.getDayName(date.getDay()),
+                    dayName: dayName,
                     highTemp: interval.maxTempF,
                     lowTemp: interval.minTempF,
                     icon: interval.weatherIcon,
