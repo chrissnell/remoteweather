@@ -607,12 +607,16 @@ html[data-theme="light"] .theme-toggle::before {
 
 .forecast-day-title {
   font-family: 'Roboto Slab', serif;
-  font-size: 0.8rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-accent);
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  min-height: 2.4rem;
+  display: flex;
+  align-items: top;
+  justify-content: center;
 }
 
 .forecast-icon {
@@ -828,7 +832,7 @@ html[data-theme="light"] .theme-toggle::before {
   
   /* Adjust font size for longer day names */
   .forecast-day-title {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     letter-spacing: 0.2px;
   }
   
@@ -949,7 +953,7 @@ html[data-theme="light"] .theme-toggle::before {
   
   /* Further adjust font size for smaller screens */
   .forecast-day-title {
-    font-size: 0.6rem;
+    font-size: 0.8rem;
     letter-spacing: 0;
   }
   
