@@ -130,7 +130,7 @@ func (a *AerisWeatherController) StartController() error {
 	defer a.wg.Done()
 
 	// Start a refresh of the weekly forecast
-	go a.refreshForecastPeriodically(7, 24)
+	go a.refreshForecastPeriodically(10, 24)
 	// Start a refresh of the hourly forecast
 	go a.refreshForecastPeriodically(24, 1)
 	return nil
@@ -151,13 +151,24 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 		log.Debugf("Attempting to save forecast to database for span %d hours", numPeriods*periodHours)
 		// Create or update the forecast record
 		locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+		// Upsert the forecast record
+		var existingRecord AerisWeatherForecastRecord
 		err = a.DB.DB.Where("forecast_span_hours = ? AND location = ?", numPeriods*periodHours, locationStr).
-			Assign(AerisWeatherForecastRecord{
+			First(&existingRecord).Error
+		
+		if err == gorm.ErrRecordNotFound {
+			// Create new record
+			newRecord := AerisWeatherForecastRecord{
 				ForecastSpanHours: numPeriods * periodHours,
 				Location:          locationStr,
 				Data:              forecast.Data,
-			}).
-			FirstOrCreate(&AerisWeatherForecastRecord{}).Error
+			}
+			err = a.DB.DB.Create(&newRecord).Error
+		} else if err == nil {
+			// Update existing record
+			existingRecord.Data = forecast.Data
+			err = a.DB.DB.Save(&existingRecord).Error
+		}
 		if err != nil {
 			log.Errorf("error saving forecast to database: %v", err)
 		} else {
@@ -192,13 +203,24 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 				log.Debugf("Attempting to save updated forecast to database for span %d hours", numPeriods*periodHours)
 				// Create or update the forecast record
 				locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+				// Upsert the forecast record
+				var existingRecord AerisWeatherForecastRecord
 				err = a.DB.DB.Where("forecast_span_hours = ? AND location = ?", numPeriods*periodHours, locationStr).
-					Assign(AerisWeatherForecastRecord{
+					First(&existingRecord).Error
+				
+				if err == gorm.ErrRecordNotFound {
+					// Create new record
+					newRecord := AerisWeatherForecastRecord{
 						ForecastSpanHours: numPeriods * periodHours,
 						Location:          locationStr,
 						Data:              forecast.Data,
-					}).
-					FirstOrCreate(&AerisWeatherForecastRecord{}).Error
+					}
+					err = a.DB.DB.Create(&newRecord).Error
+				} else if err == nil {
+					// Update existing record
+					existingRecord.Data = forecast.Data
+					err = a.DB.DB.Save(&existingRecord).Error
+				}
 				if err != nil {
 					log.Errorf("error saving forecast to database: %v", err)
 				} else {
