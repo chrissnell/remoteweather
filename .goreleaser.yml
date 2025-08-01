@@ -46,10 +46,6 @@ nfpms:
       - deb
       - rpm
     bindir: /usr/bin
-    replacements:
-      amd64: x86_64
-      arm64: aarch64
-      arm: armhf
     contents:
       - src: packaging/systemd/remoteweather.service
         dst: /usr/lib/systemd/system/remoteweather.service
@@ -59,7 +55,7 @@ nfpms:
       preremove: packaging/deb/prerm
     overrides:
       rpm:
-        file_name_template: "{{ .ProjectName }}-{{ .Version }}-1.{{ .Arch }}"
+        file_name_template: '{{ .ProjectName }}-{{ .Version }}-1.{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else if eq .Arch "arm" }}armhf{{ else }}{{ .Arch }}{{ end }}'
         contents:
           - src: packaging/systemd/remoteweather.service
             dst: /usr/lib/systemd/system/remoteweather.service
@@ -86,7 +82,7 @@ nfpms:
             systemctl disable remoteweather.service || true
             exit 0
       deb:
-        file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+        file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ if eq .Arch "arm" }}armhf{{ else }}{{ .Arch }}{{ end }}'
 
 checksum:
   name_template: 'checksums.txt'
