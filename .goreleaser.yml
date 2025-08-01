@@ -26,6 +26,8 @@ builds:
     ldflags:
       - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
     binary: remoteweather
+    tags:
+      - noserial
 
 archives:
   - format: tar.gz
