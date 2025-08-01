@@ -82,6 +82,7 @@ builds:
     
   # Darwin AMD64 with CGO
   - id: darwin-amd64
+    skip: true # Darwin builds are handled separately
     env:
       - CGO_ENABLED=1
     goos:
