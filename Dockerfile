@@ -1,34 +1,25 @@
-# --- Stage 1: Build the Go binary ---
-        FROM golang:1.24-alpine AS builder
+# GoReleaser will provide the binary
+FROM alpine:3.19
 
-        # Install git (needed for fetching dependencies)
-        RUN apk add --no-cache git
-        
-        # Set the working directory inside the container
-        WORKDIR /app
-        
-        # Copy go.mod and go.sum first for dependency resolution
-        COPY go.mod go.sum ./
-        
-        # Download dependencies
-        RUN go mod download
-        
-        # Copy the rest of the application source code
-        COPY . .
-        
-        # Ensure the build is for Linux x86_64
-        RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o remoteweather .
-        
-        # --- Stage 2: Create a minimal runtime image ---
-        FROM alpine:latest
-        
-        # Set working directory inside the container
-        WORKDIR /app
-        
-        # Copy only the built binary from the builder stage
-        COPY --from=builder /app/remoteweather .
-        COPY entrypoint.sh .
-        
-        # Set the default command to run the application
-        CMD ["./entrypoint.sh"]
-        
+# Install ca-certificates and create non-root user
+RUN apk --no-cache add ca-certificates tzdata && \
+    adduser -D -u 65532 -g remoteweather remoteweather && \
+    mkdir -p /var/lib/remoteweather && \
+    chown -R remoteweather:remoteweather /var/lib/remoteweather
+
+WORKDIR /
+
+# Copy the pre-built binary from GoReleaser
+COPY remoteweather /usr/local/bin/remoteweather
+
+# Switch to non-root user
+USER remoteweather
+
+# Data volume
+VOLUME ["/var/lib/remoteweather"]
+
+# Default port (adjust if needed)
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/remoteweather"]
+CMD ["-config", "/var/lib/remoteweather/config.db"]

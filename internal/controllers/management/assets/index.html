@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RemoteWeather Management</title>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Core stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header-bar">
+    <h1 class="app-title">RemoteWeather Management</h1>
+    <!-- Auth Status Container -->
+    <div id="auth-status" class="auth-status hidden">
+      <span id="auth-message">Not authenticated</span>
+      <button id="logout-btn" class="secondary-btn">Logout</button>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Vertical tab navigation -->
+    <nav class="side-nav" id="side-nav">
+      <button class="nav-tab active" id="weather-stations-tab" data-tab="weather-stations">Weather Stations</button>
+      <button class="nav-tab" id="controllers-tab" data-tab="controllers">Controllers</button>
+      <button class="nav-tab" id="storage-tab" data-tab="storage">Storage</button>
+      <button class="nav-tab" id="websites-tab" data-tab="websites">Weather Websites</button>
+      <button class="nav-tab" id="logs-tab" data-tab="logs">Logs</button>
+      <button class="nav-tab" id="http-logs-tab" data-tab="http-logs">HTTP Logs</button>
+      <button class="nav-tab" id="utilities-tab" data-tab="utilities">Utilities</button>
+    </nav>
+
+    <!-- Content area -->
+    <section class="content-area">
+      <!-- Weather Stations Pane -->
+      <div class="pane active" id="weather-stations-pane">
+        <header class="pane-header">
+          <h2>Weather Stations</h2>
+          <button id="add-station-btn" class="primary-btn">+ Add Station</button>
+        </header>
+        <div id="ws-list" class="list-container">Loading…</div>
+
+        <!-- Modal for add/edit station -->
+        <div id="station-modal" class="modal hidden">
+          <div class="modal-content">
+            <header class="modal-header">
+              <h3 id="modal-title">Add Station</h3>
+              <button class="close-btn" id="modal-close">×</button>
+            </header>
+
+            <form id="station-form" class="station-form">
+              <input type="hidden" id="form-mode" value="add" />
+              <input type="hidden" id="original-name" value="" />
+
+              <label>
+                Name
+                <input type="text" id="station-name" required />
+              </label>
+
+              <label>
+                Type
+                <select id="station-type" required>
+                  <option value="davis">Davis Instruments</option>
+                  <option value="campbellscientific">Campbell Scientific</option>
+                  <option value="snowgauge">Snow Gauge</option>
+                  <option value="ambient-customized">Ambient Weather (Customized Server)</option>
+                  <option value="grpcreceiver">gRPC Receiver</option>
+                </select>
+              </label>
+
+              <label>
+                Connection
+                <select id="connection-type" required>
+                  <option value="serial">Serial</option>
+                  <option value="network">Network</option>
+                </select>
+              </label>
+
+              <fieldset id="serial-fieldset" class="conn-fieldset hidden">
+                <legend>Serial Connection</legend>
+                <label>
+                  Device Path
+                  <select id="serial-device">
+                    <option value="">Select a serial port...</option>
+                  </select>
+                </label>
+                <label>
+                  Baud
+                  <input type="number" id="serial-baud" placeholder="9600" />
+                </label>
+              </fieldset>
+
+              <fieldset id="network-fieldset" class="conn-fieldset hidden">
+                <legend>Network Connection</legend>
+                <label>
+                  <span id="hostname-label">Hostname</span>
+                  <input type="text" id="net-hostname" placeholder="192.168.1.50" />
+                  <span class="help-text" id="hostname-help">IP address or hostname of the device</span>
+                </label>
+                <label>
+                  Port
+                  <input type="text" id="net-port" placeholder="3001" />
+                  <span class="help-text" id="port-help">Port number for the connection</span>
+                </label>
+              </fieldset>
+
+              <div id="snow-options" class="snow-options hidden">
+                <label>
+                  Base Snow Distance (mm)
+                  <input type="number" id="snow-distance" />
+                </label>
+              </div>
+
+              <fieldset id="tls-fieldset" class="conn-fieldset hidden">
+                <legend>TLS Configuration (Optional)</legend>
+                <label>
+                  TLS Certificate Path
+                  <input type="text" id="tls-cert-path" placeholder="/path/to/cert.pem" />
+                  <span class="help-text">Path to TLS certificate file</span>
+                </label>
+                <label>
+                  TLS Key Path
+                  <input type="text" id="tls-key-path" placeholder="/path/to/key.pem" />
+                  <span class="help-text">Path to TLS private key file</span>
+                </label>
+              </fieldset>
+
+              <fieldset class="conn-fieldset">
+                <legend>Station Location</legend>
+                <label>
+                  Latitude
+                  <input type="text" id="solar-latitude" placeholder="40.712800" />
+                  <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
+                </label>
+                <label>
+                  Longitude
+                  <input type="text" id="solar-longitude" placeholder="-74.006000" />
+                  <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
+                </label>
+                <label>
+                  Altitude (meters)
+                  <input type="number" id="solar-altitude" placeholder="10" />
+                </label>
+              </fieldset>
+
+              <fieldset class="conn-fieldset">
+                <legend>APRS Configuration</legend>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="aprs-enabled" /> Enable APRS
+                </label>
+                <div id="aprs-config-fields" class="hidden">
+                  <label>
+                    APRS Callsign
+                    <input type="text" id="aprs-callsign" placeholder="N0CALL" />
+                  </label>
+                  <p class="help-text">APRS will use the latitude and longitude from Station Location above. The passcode will be calculated automatically from your callsign.</p>
+                </div>
+              </fieldset>
+
+              <footer class="modal-footer">
+                <button type="submit" class="primary-btn" id="save-station-btn">Save</button>
+                <button type="button" class="secondary-btn" id="cancel-station-btn">Cancel</button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controllers Pane -->
+      <div class="pane hidden" id="controllers-pane">
+        <div class="pane-header">
+          <h2>Controllers</h2>
+          <button class="primary-btn" id="add-controller-btn">+ Add Controller</button>
+        </div>
+        <div id="controller-list" class="list-container">Loading…</div>
+      </div>
+
+      <!-- Storage Pane -->
+      <div class="pane hidden" id="storage-pane">
+        <div class="pane-header">
+          <h2>Storage</h2>
+          <button class="primary-btn" id="add-storage-btn">Add Storage</button>
+        </div>
+        <div id="storage-list" class="list-container">Loading…</div>
+      </div>
+
+      <!-- Weather Websites Pane -->
+      <div class="pane hidden" id="websites-pane">
+        <div class="pane-header">
+          <h2>Weather Websites</h2>
+          <div class="button-group">
+            <button class="primary-btn" id="add-website-btn">+ Add Website</button>
+            <button class="secondary-btn" id="add-portal-btn">+ Add Multi-Station Portal</button>
+          </div>
+        </div>
+        <div id="website-list" class="list-container">Loading…</div>
+      </div>
+
+      <!-- Logs Pane -->
+      <div class="pane hidden" id="logs-pane">
+        <div class="pane-header">
+          <h2>Logs</h2>
+          <div class="logs-controls">
+                <button id="logs-tail-btn" class="btn btn-success">Live Tail</button>
+                <button id="refresh-logs-btn" class="btn btn-primary">Refresh</button>
+                <button id="copy-logs-btn" class="btn btn-secondary">Copy to Clipboard</button>
+                <button id="clear-logs-btn" class="btn btn-danger">Clear Logs</button>
+              </div>
+        </div>
+        <div class="logs-container">
+          <pre id="logs-content" class="logs-content">Loading logs...</pre>
+        </div>
+      </div>
+
+      <!-- HTTP Logs Pane -->
+      <div class="pane hidden" id="http-logs-pane">
+        <div class="pane-header">
+          <h2>HTTP Logs</h2>
+          <div class="logs-controls">
+                <button id="http-logs-tail-btn" class="btn btn-success">Live Tail</button>
+                <button id="refresh-http-logs-btn" class="btn btn-primary">Refresh</button>
+                <button id="copy-http-logs-btn" class="btn btn-secondary">Copy to Clipboard</button>
+                <button id="clear-http-logs-btn" class="btn btn-danger">Clear Logs</button>
+              </div>
+        </div>
+        <div class="logs-container">
+          <pre id="http-logs-content" class="logs-content">Loading HTTP logs...</pre>
+        </div>
+      </div>
+
+      <!-- Utilities Pane -->
+      <div class="pane hidden" id="utilities-pane">
+        <div class="pane-header">
+          <h2>Utilities</h2>
+        </div>
+        <div class="utilities-container">
+          <div class="utility-section">
+            <h3>Administrator Token Management</h3>
+            <p>Change the administrator token used for API authentication and web interface access.</p>
+            <form id="change-token-form" class="station-form">
+              <label>
+                New Token
+                <input type="password" id="new-token" placeholder="Enter new token" required />
+              </label>
+              <label>
+                Confirm New Token
+                <input type="password" id="confirm-new-token" placeholder="Confirm new token" required />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn">Change Token</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Storage Modal -->
+  <div id="storage-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="storage-modal-title">Add Storage Backend</h3>
+        <button class="close-btn" id="storage-modal-close">×</button>
+      </div>
+      <form id="storage-form" class="station-form">
+        <input type="hidden" id="storage-form-mode" value="add" />
+        <label>
+          Storage Type
+          <select id="storage-type">
+            <option value="timescaledb">TimescaleDB</option>
+            <option value="grpc">gRPC</option>
+          </select>
+        </label>
+        <div id="timescaledb-fields">
+          <label>
+            Host
+            <input type="text" id="timescale-host" placeholder="localhost" value="localhost" />
+          </label>
+          <label>
+            Port
+            <input type="number" id="timescale-port" placeholder="5432" value="5432" min="1" max="65535" />
+          </label>
+          <label>
+            Database
+            <input type="text" id="timescale-database" placeholder="weather" value="weather" />
+          </label>
+          <label>
+            User
+            <input type="text" id="timescale-user" placeholder="weather" value="weather" />
+          </label>
+          <label>
+            Password
+            <input type="password" id="timescale-password" placeholder="password" />
+          </label>
+          <label>
+            SSL Mode
+            <select id="timescale-ssl-mode">
+              <option value="disable">Disable</option>
+              <option value="prefer" selected>Prefer</option>
+              <option value="require">Require</option>
+              <option value="verify-ca">Verify CA</option>
+              <option value="verify-full">Verify Full</option>
+            </select>
+          </label>
+          <label>
+            Timezone (optional)
+            <input type="text" id="timescale-timezone" placeholder="UTC" />
+          </label>
+        </div>
+        <div id="grpc-fields" class="hidden">
+          <label>
+            Listen Port
+            <input type="number" id="grpc-port" placeholder="5555" />
+          </label>
+          <label>
+            Pull From Device
+            <select id="grpc-device-select"></select>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-storage-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-storage-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end storage modal -->
+
+  <!-- Controller Modal -->
+  <div id="controller-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="controller-modal-title">Add Controller</h3>
+        <button class="close-btn" id="controller-modal-close">×</button>
+      </div>
+      <form id="controller-form" class="station-form">
+        <input type="hidden" id="controller-form-mode" value="add" />
+        <label>
+          Controller Type
+          <select id="controller-type">
+            <option value="pwsweather">PWS Weather</option>
+            <option value="weatherunderground">Weather Underground</option>
+            <option value="aerisweather">Aeris Weather</option>
+            <option value="rest">REST Server</option>
+            <option value="management">Management API</option>
+            <option value="aprs">APRS</option>
+          </select>
+        </label>
+        
+        <!-- PWS Weather fields -->
+        <div id="pwsweather-fields" class="controller-fields hidden">
+          <label>
+            Station ID
+            <input type="text" id="pws-station-id" placeholder="STATION123" />
+          </label>
+          <label>
+            API Key
+            <input type="password" id="pws-api-key" placeholder="your-api-key" />
+          </label>
+          <label>
+            API Endpoint
+            <input type="text" id="pws-api-endpoint" value="https://www.pwsweather.com/pwsweather/restapi" />
+          </label>
+          <label>
+            Upload Interval
+            <input type="text" id="pws-upload-interval" value="5m" />
+          </label>
+          <label>
+            Pull From Device
+            <select id="pws-device-select"></select>
+          </label>
+        </div>
+        
+        <!-- Weather Underground fields -->
+        <div id="weatherunderground-fields" class="controller-fields hidden">
+          <label>
+            Station ID
+            <input type="text" id="wu-station-id" placeholder="STATION123" />
+          </label>
+          <label>
+            API Key
+            <input type="password" id="wu-api-key" placeholder="your-api-key" />
+          </label>
+          <label>
+            API Endpoint
+            <input type="text" id="wu-api-endpoint" value="https://rtupdate.wunderground.com/weatherstation/updateweatherstation.php" />
+          </label>
+          <label>
+            Upload Interval
+            <input type="text" id="wu-upload-interval" placeholder="5m" />
+          </label>
+          <label>
+            Pull From Device
+            <select id="wu-device-select"></select>
+          </label>
+        </div>
+        
+        <!-- Aeris Weather fields -->
+        <div id="aerisweather-fields" class="controller-fields hidden">
+          <label>
+            API Client ID
+            <input type="text" id="aeris-client-id" placeholder="your-client-id" />
+          </label>
+          <label>
+            API Client Secret
+            <input type="password" id="aeris-client-secret" placeholder="your-client-secret" />
+          </label>
+          <label>
+            API Endpoint
+            <input type="text" id="aeris-api-endpoint" value="https://api.aerisapi.com" />
+          </label>
+          <label>
+            Latitude
+            <input type="text" id="aeris-latitude" placeholder="44.9778" />
+            <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
+          </label>
+          <label>
+            Longitude
+            <input type="text" id="aeris-longitude" placeholder="-93.2650" />
+            <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
+          </label>
+        </div>
+        
+        <!-- REST Server fields -->
+        <div id="rest-fields" class="controller-fields hidden">
+          <label>
+            HTTP Port
+            <input type="number" id="rest-http-port" value="80" />
+          </label>
+          <label>
+            HTTPS Port (optional)
+            <input type="number" id="rest-https-port" value="443" />
+          </label>
+          <label>
+            Listen Address (optional)
+            <input type="text" id="rest-listen-addr" value="0.0.0.0" />
+          </label>
+          <label>
+            TLS Certificate Path (optional)
+            <input type="text" id="rest-tls-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path (optional)
+            <input type="text" id="rest-tls-key" placeholder="/path/to/key.pem" />
+          </label>
+        </div>
+        
+        <!-- Management API fields -->
+        <div id="management-fields" class="controller-fields hidden">
+          <label>
+            Port
+            <input type="number" id="mgmt-port" placeholder="8081" />
+          </label>
+          <label>
+            Listen Address
+            <input type="text" id="mgmt-listen-addr" value="127.0.0.1" />
+          </label>
+          <label>
+            TLS Certificate Path (optional)
+            <input type="text" id="mgmt-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path (optional)
+            <input type="text" id="mgmt-key" placeholder="/path/to/key.pem" />
+          </label>
+        </div>
+        
+        <!-- APRS fields -->
+        <div id="aprs-fields" class="controller-fields hidden">
+          <label>
+            APRS-IS Server
+            <input type="text" id="aprs-server" value="noam.aprs2.net:14580" />
+          </label>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-controller-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-controller-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end controller modal -->
+
+  <!-- Weather Website Modal -->
+  <div id="website-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="website-modal-title">Add Weather Website</h3>
+        <button class="close-btn" id="website-modal-close">×</button>
+      </div>
+      <form id="website-form" class="station-form">
+        <input type="hidden" id="website-form-mode" value="add" />
+        <input type="hidden" id="website-edit-id" value="" />
+        
+        <label>
+          Website Name
+          <input type="text" id="website-name" placeholder="Weather Station Website" required />
+        </label>
+        
+        <label>
+          Page Title
+          <input type="text" id="website-page-title" placeholder="My Weather Station" />
+        </label>
+        
+        <label>
+          About Station HTML
+          <textarea id="website-about-html" rows="4" placeholder="<p>Welcome to my weather station...</p>"></textarea>
+        </label>
+        
+        <label>
+          Weather Station Device
+          <select id="website-device" required>
+            <option value="">Select a device...</option>
+          </select>
+        </label>
+        
+        <fieldset>
+          <legend>Snow Configuration</legend>
+          <label class="checkbox-label">
+            <input type="checkbox" id="website-snow-enabled" />
+            Enable Snow Measurements
+          </label>
+          
+          <label id="snow-device-label">
+            Snow Device
+            <select id="website-snow-device">
+              <option value="">Select snow device...</option>
+            </select>
+          </label>
+        </fieldset>
+        
+        <label>
+          Hostname
+          <input type="text" id="website-hostname" placeholder="weather.example.com" required />
+        </label>
+        
+        <fieldset>
+          <legend>TLS Configuration (Optional)</legend>
+          <label>
+            TLS Certificate Path
+            <input type="text" id="website-tls-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path
+            <input type="text" id="website-tls-key" placeholder="/path/to/key.pem" />
+          </label>
+        </fieldset>
+        
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-website-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-website-btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end website modal -->
+
+  <!-- Multi-Station Portal Modal -->
+  <div id="portal-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="portal-modal-title">Add Multi-Station Portal</h3>
+        <button class="close-btn" id="portal-modal-close">×</button>
+      </div>
+      <form id="portal-form" class="station-form">
+        <input type="hidden" id="portal-form-mode" value="add" />
+        <input type="hidden" id="portal-edit-id" value="" />
+        
+        <label>
+          Portal Name
+          <input type="text" id="portal-name" placeholder="Weather Station Portal" required />
+        </label>
+        
+        <label>
+          Page Title
+                      <input type="text" id="portal-page-title" placeholder="Weather Management Portal" />
+        </label>
+        
+        <label>
+          About Portal HTML
+          <textarea id="portal-about-html" rows="4" placeholder="<p>Welcome to our weather station portal...</p>"></textarea>
+        </label>
+        
+        <label>
+          Hostname
+          <input type="text" id="portal-hostname" placeholder="weather-portal.example.com" required />
+        </label>
+        
+        <fieldset>
+          <legend>TLS Configuration (Optional)</legend>
+          <label>
+            TLS Certificate Path
+            <input type="text" id="portal-tls-cert" placeholder="/path/to/cert.pem" />
+          </label>
+          <label>
+            TLS Key Path
+            <input type="text" id="portal-tls-key" placeholder="/path/to/key.pem" />
+          </label>
+        </fieldset>
+        
+        <div class="modal-footer">
+          <button type="button" class="secondary-btn" id="cancel-portal-btn">Cancel</button>
+          <button type="submit" class="primary-btn" id="save-portal-btn">Save Portal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end portal modal -->
+
+  <!-- Login Modal -->
+  <div id="login-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Login to RemoteWeather Management</h3>
+      </div>
+      <form id="login-form" class="station-form">
+        <p>Please enter your management API token to access the interface.</p>
+        <label>
+          Management API Token
+          <input type="password" id="login-token" placeholder="Enter your API token" required />
+        </label>
+        <div class="modal-footer">
+          <button type="submit" class="primary-btn" id="login-btn">Login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- end login modal -->
+
+  <!-- Refactored modular JavaScript files -->
+  <script src="js/management-utils.js"></script>
+  <script src="js/management-api-service.js"></script>
+  <script src="js/management-auth.js"></script>
+  <script src="js/management-navigation.js"></script>
+  <script src="js/management-weather-stations.js"></script>
+  <script src="js/management-storage.js"></script>
+  <script src="js/management-controllers.js"></script>
+  <script src="js/management-websites.js"></script>
+  <script src="js/management-logs.js"></script>
+  <script src="js/management-app.js"></script>
+</body>
+</html> 
