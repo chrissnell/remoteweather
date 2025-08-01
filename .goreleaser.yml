@@ -16,12 +16,15 @@ builds:
       - arm64
       - arm
     goarm:
+      - "6"
       - "7"
     ignore:
       - goos: windows
         goarch: arm
       - goos: windows
         goarch: arm64
+      - goos: darwin
+        goarch: arm
     main: ./cmd/remoteweather
     ldflags:
       - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
@@ -126,6 +129,23 @@ dockers:
     dockerfile: Dockerfile
     
   - image_templates:
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv6"
+      - "ghcr.io/chrissnell/remoteweather:latest-armv6"
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
+    goarch: arm
+    goarm: "6"
+    goos: linux
+    dockerfile: Dockerfile
+    
+  - image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
       - "ghcr.io/chrissnell/remoteweather:latest-armv7"
     use: buildx
@@ -147,12 +167,14 @@ docker_manifests:
     image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-amd64"
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-arm64"
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv6"
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
       
   - name_template: "ghcr.io/chrissnell/remoteweather:latest"
     image_templates:
       - "ghcr.io/chrissnell/remoteweather:latest-amd64"
       - "ghcr.io/chrissnell/remoteweather:latest-arm64"
+      - "ghcr.io/chrissnell/remoteweather:latest-armv6"
       - "ghcr.io/chrissnell/remoteweather:latest-armv7"
 
 changelog:
