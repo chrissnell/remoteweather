@@ -1,6 +1,6 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=remoteweather
-pkgver=5.4.2_improved_mobile
+pkgver=5.5.6
 pkgrel=1
 pkgdesc="Weather station data collection and distribution system with REST API, management API, and dynamic configuration"
 arch=('x86_64' 'aarch64' 'armv7h')
@@ -11,7 +11,7 @@ makedepends=('go' 'git')
 # CRITICAL: config.db contains user configuration and must NEVER be overwritten
 # Both config.yaml and config.db are protected by pacman's backup mechanism
 backup=('var/lib/remoteweather/config.yaml' 'var/lib/remoteweather/config.db')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/v5.0-rest-api.tar.gz"
+source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/master.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
 sha256sums=('SKIP'
@@ -19,7 +19,7 @@ sha256sums=('SKIP'
             'SKIP')
 
 build() {
-    cd "$srcdir/remoteweather-5.0-rest-api"
+    cd "$srcdir/remoteweather-master"
     make clean
     rm -f campbell-emulator davis-emulator migrate
     rm -rf bin/
@@ -34,14 +34,14 @@ build() {
         aarch64)  export GOARCH=arm64 ;;
         armv7h)   export GOARCH=arm   ;;
     esac
-    make VERSION="5.4.2"
+    make VERSION="5.5.6"
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
     go build -o migrate ./cmd/migrate/
 }
 
 package() {
-    cd "$srcdir/remoteweather-5.0-rest-api"
+    cd "$srcdir/remoteweather-master"
     install -Dm755 bin/remoteweather "$pkgdir/usr/bin/remoteweather"
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
