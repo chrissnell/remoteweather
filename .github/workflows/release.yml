@@ -87,8 +87,6 @@ jobs:
           mkdir -p release-assets
           mv ./darwin-archives/* release-assets/
           rm -rf ./darwin-archives
-          # Add to .gitignore to keep git clean
-          echo "release-assets/" >> .gitignore
 
       - name: Setup QEMU for multi-arch Docker builds
         uses: docker/setup-qemu-action@v3
