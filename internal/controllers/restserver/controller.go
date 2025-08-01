@@ -3,6 +3,7 @@ package restserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -78,8 +79,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		return nil, fmt.Errorf("error loading weather websites: %v", err)
 	}
 
+	// Allow REST server to start without websites configured
 	if len(websites) == 0 {
-		return nil, fmt.Errorf("no weather websites configured - at least one website must be configured for the REST server")
+		ctrl.logger.Warn("No weather websites configured - REST server will start but won't serve weather data")
 	}
 
 	// Build hostname -> website mapping and device -> website associations
@@ -120,7 +122,8 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		ctrl.DevicesByWebsite[website.ID] = websiteDevices
 	}
 
-	if ctrl.DefaultWebsite == nil {
+	// DefaultWebsite can be nil if no websites are configured
+	if ctrl.DefaultWebsite == nil && len(websites) > 0 {
 		return nil, fmt.Errorf("no default website could be determined")
 	}
 
@@ -272,6 +275,19 @@ func (c *Controller) websiteMiddleware(next http.Handler) http.Handler {
 			host = host[:colonIndex]
 		}
 
+		// If no websites are configured and request is not to localhost, return error
+		if len(c.WeatherWebsites) == 0 && c.DefaultWebsite == nil {
+			if host != "localhost" && host != "127.0.0.1" && host != "" {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]string{
+					"error": "No weather websites are configured",
+					"message": "The REST server is running but no weather websites have been configured yet",
+				})
+				return
+			}
+		}
+
 		// Find matching website
 		var website *config.WeatherWebsiteData
 		if mappedWebsite, exists := c.WeatherWebsites[host]; exists {
@@ -386,8 +402,9 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 		return fmt.Errorf("error loading weather websites: %v", err)
 	}
 
+	// Allow REST server to operate without websites configured
 	if len(websites) == 0 {
-		return fmt.Errorf("no weather websites configured - at least one website must be configured for the REST server")
+		c.logger.Warn("No weather websites configured after reload - REST server will continue but won't serve weather data")
 	}
 
 	// Rebuild hostname -> website mapping and device -> website associations
@@ -429,7 +446,8 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 		c.DevicesByWebsite[website.ID] = websiteDevices
 	}
 
-	if c.DefaultWebsite == nil {
+	// DefaultWebsite can be nil if no websites are configured
+	if c.DefaultWebsite == nil && len(websites) > 0 {
 		return fmt.Errorf("no default website could be determined")
 	}
 

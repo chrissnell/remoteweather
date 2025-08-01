@@ -42,6 +42,9 @@ func (h *Handlers) getWebsiteFromContext(req *http.Request) *config.WeatherWebsi
 // getPrimaryDeviceForWebsite returns the primary device associated with a website
 // Prefers enabled devices, but falls back to disabled devices if no enabled devices are available
 func (h *Handlers) getPrimaryDeviceForWebsite(website *config.WeatherWebsiteData) string {
+	if website == nil {
+		return ""
+	}
 	devices := h.controller.DevicesByWebsite[website.ID]
 	if len(devices) == 0 {
 		return ""
@@ -60,11 +63,12 @@ func (h *Handlers) getPrimaryDeviceForWebsite(website *config.WeatherWebsiteData
 
 // getSnowBaseDistance returns the snow base distance from the snow device configuration for a website
 func (h *Handlers) getSnowBaseDistance(website *config.WeatherWebsiteData) float32 {
-	if website.SnowDeviceName != "" {
-		for _, device := range h.controller.Devices {
-			if device.Name == website.SnowDeviceName {
-				return float32(device.BaseSnowDistance)
-			}
+	if website == nil || website.SnowDeviceName == "" {
+		return 0.0
+	}
+	for _, device := range h.controller.Devices {
+		if device.Name == website.SnowDeviceName {
+			return float32(device.BaseSnowDistance)
 		}
 	}
 	return 0.0
@@ -82,6 +86,18 @@ func (h *Handlers) validateStationExists(stationName string) bool {
 
 // GetWeatherSpan handles requests for weather data over a time span
 func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
+	// Check if any website is configured
+	website := h.getWebsiteFromContext(req)
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "Weather data is not available until at least one weather website is configured",
+		})
+		return
+	}
+
 	if h.controller.DBEnabled {
 		// Enable SQL debugging if RW-Debug header is set to "1"
 		if req.Header.Get("RW-Debug") == "1" {
@@ -115,8 +131,7 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 		}
 
 		spanStart := time.Now().Add(-span)
-		// Get website from context and snow base distance
-		website := h.getWebsiteFromContext(req)
+		// Snow base distance already retrieved from website
 		baseDistance := h.getSnowBaseDistance(website)
 
 		switch {
@@ -179,6 +194,18 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 
 // GetWeatherLatest handles requests for the latest weather data
 func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
+	// Check if any website is configured
+	website := h.getWebsiteFromContext(req)
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "Weather data is not available until at least one weather website is configured",
+		})
+		return
+	}
+
 	if h.controller.DBEnabled {
 		var dbFetchedReadings []types.BucketReading
 
@@ -190,8 +217,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// Get website from context and find primary device
-		website := h.getWebsiteFromContext(req)
+		// Find primary device for the website
 		primaryDevice := h.getPrimaryDeviceForWebsite(website)
 
 		if stationName != "" {
@@ -295,6 +321,15 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 	// Get website from context and check if snow is enabled
 	website := h.getWebsiteFromContext(req)
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "Snow data is not available until at least one weather website is configured",
+		})
+		return
+	}
 	if !website.SnowEnabled {
 		http.Error(w, "snow data not enabled for this website", http.StatusNotFound)
 		return
@@ -443,6 +478,18 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 
 // GetForecast handles requests for forecast data
 func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
+	// Check if any website is configured
+	website := h.getWebsiteFromContext(req)
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "Forecast data is not available until at least one weather website is configured",
+		})
+		return
+	}
+
 	if h.controller.DBEnabled {
 		// Enable SQL debugging if RW-Debug header is set to "1"
 		if req.Header.Get("RW-Debug") == "1" {
@@ -498,6 +545,17 @@ func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
 
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
+
 	// Only serve portal if this website is configured as a portal
 	if !website.IsPortal {
 		http.NotFound(w, req)
@@ -525,6 +583,17 @@ func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
+
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
 
 	// If this is a portal website, serve the portal instead
 	if website.IsPortal {
@@ -569,6 +638,18 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
+	
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
+	
 	primaryDevice := h.getPrimaryDeviceForWebsite(website)
 
 	view := template.Must(template.New("weather-app.js.tmpl").ParseFS(*h.controller.FS, "js/weather-app.js.tmpl"))
@@ -604,6 +685,17 @@ func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
+
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
 
 	// Only allow station API access for portal websites
 	if !website.IsPortal {

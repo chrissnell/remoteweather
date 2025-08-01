@@ -429,14 +429,9 @@ func (h *Handlers) validateControllerConfig(controllerType string, controller *c
 			return fmt.Errorf("REST Server HTTP port must be between 1 and 65535")
 		}
 
-		// Check if any weather websites are configured
-		websites, err := h.controller.ConfigProvider.GetWeatherWebsites()
-		if err != nil {
-			return fmt.Errorf("failed to check weather websites: %w", err)
-		}
-		if len(websites) == 0 {
-			return fmt.Errorf("REST Server requires at least one weather website to be configured. Please create a weather website first.")
-		}
+		// REST Server can now start without weather websites configured
+		// The server will return appropriate error messages for weather endpoints
+		// when no websites are configured
 
 	case "management":
 		if controller.ManagementAPI == nil {
