@@ -24,13 +24,15 @@ jobs:
         with:
           go-version: stable
 
-      - name: Build Darwin binaries
+      - name: Build Darwin AMD64 and ARM64 binaries with CGO
         run: |
           mkdir -p dist
+          echo "Building Darwin AMD64..."
           CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
             -ldflags="-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
             -o dist/remoteweather_darwin_amd64/remoteweather \
             ./cmd/remoteweather
+          echo "Building Darwin ARM64..."
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
             -ldflags="-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
             -o dist/remoteweather_darwin_arm64/remoteweather \
@@ -64,7 +66,7 @@ jobs:
         with:
           go-version: stable
 
-      - name: Install cross-compilation toolchains
+      - name: Install ARM cross-compilation toolchains for Raspberry Pi builds
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -77,7 +79,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: darwin-archives
-          path: dist/
+          path: ./darwin-archives/
 
       - name: Setup QEMU for multi-arch Docker builds
         uses: docker/setup-qemu-action@v3
@@ -92,7 +94,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run GoReleaser
+      - name: Build and release all platforms (Linux, Windows, Docker)
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
