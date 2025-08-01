@@ -81,12 +81,14 @@ jobs:
           name: darwin-archives
           path: ./darwin-archives/
 
-      - name: Move Darwin archives and clean up
+      - name: Prepare Darwin archives for release
         run: |
-          # Move Darwin archives to a temporary location outside the git repo
-          mkdir -p /tmp/darwin-archives
-          mv ./darwin-archives/* /tmp/darwin-archives/
+          # Move Darwin archives to release-assets directory
+          mkdir -p release-assets
+          mv ./darwin-archives/* release-assets/
           rm -rf ./darwin-archives
+          # Add to .gitignore to keep git clean
+          echo "release-assets/" >> .gitignore
 
       - name: Setup QEMU for multi-arch Docker builds
         uses: docker/setup-qemu-action@v3
