@@ -81,6 +81,13 @@ jobs:
           name: darwin-archives
           path: ./darwin-archives/
 
+      - name: Move Darwin archives and clean up
+        run: |
+          # Move Darwin archives to a temporary location outside the git repo
+          mkdir -p /tmp/darwin-archives
+          mv ./darwin-archives/* /tmp/darwin-archives/
+          rm -rf ./darwin-archives
+
       - name: Setup QEMU for multi-arch Docker builds
         uses: docker/setup-qemu-action@v3
 
