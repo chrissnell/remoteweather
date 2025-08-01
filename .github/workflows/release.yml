@@ -37,6 +37,10 @@ jobs:
             -ldflags="-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
             -o dist/remoteweather_darwin_arm64/remoteweather \
             ./cmd/remoteweather
+          
+          echo "Ad-hoc signing macOS binaries..."
+          codesign --force --deep --sign - dist/remoteweather_darwin_amd64/remoteweather
+          codesign --force --deep --sign - dist/remoteweather_darwin_arm64/remoteweather
 
       - name: Create Darwin archives
         run: |
