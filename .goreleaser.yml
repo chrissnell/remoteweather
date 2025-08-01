@@ -46,6 +46,10 @@ nfpms:
       - deb
       - rpm
     bindir: /usr/bin
+    replacements:
+      amd64: x86_64
+      arm64: aarch64
+      arm: armhf
     contents:
       - src: packaging/systemd/remoteweather.service
         dst: /usr/lib/systemd/system/remoteweather.service
@@ -56,9 +60,6 @@ nfpms:
     overrides:
       rpm:
         file_name_template: "{{ .ProjectName }}-{{ .Version }}-1.{{ .Arch }}"
-        replacements:
-          amd64: x86_64
-          arm64: aarch64
         contents:
           - src: packaging/systemd/remoteweather.service
             dst: /usr/lib/systemd/system/remoteweather.service
@@ -86,10 +87,6 @@ nfpms:
             exit 0
       deb:
         file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
-        replacements:
-          amd64: amd64
-          arm64: arm64
-          arm: armhf
 
 checksum:
   name_template: 'checksums.txt'
