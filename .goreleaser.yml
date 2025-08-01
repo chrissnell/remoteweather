@@ -1,8 +1,85 @@
 project_name: remoteweather
 
-# Skip the build phase - we're using pre-built binaries from GitHub Actions
+before:
+  hooks:
+    - go mod tidy
+
 builds:
-  - skip: true
+  # Windows builds (no CGO needed for serial on Windows)
+  - id: windows
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
+
+  # Linux AMD64 with CGO
+  - id: linux-amd64
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
+
+  # Linux ARM64 with CGO (Raspberry Pi 3/4/5 64-bit)
+  - id: linux-arm64
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    goos:
+      - linux
+    goarch:
+      - arm64
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
+
+  # Linux ARMv7 with CGO (Raspberry Pi 2/3/4 32-bit)
+  - id: linux-armv7
+    env:
+      - CGO_ENABLED=1
+      - CC=arm-linux-gnueabihf-gcc
+      - CXX=arm-linux-gnueabihf-g++
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "7"
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
+
+  # Linux ARMv6 with CGO (Raspberry Pi Zero/1)
+  - id: linux-armv6
+    env:
+      - CGO_ENABLED=1
+      - CC=arm-linux-gnueabi-gcc
+      - CXX=arm-linux-gnueabi-g++
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "6"
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
+
 
 archives:
   - format: tar.gz
@@ -10,6 +87,8 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - none*  # Only include the binary
 
 nfpms:
   - id: packages
@@ -54,6 +133,8 @@ dockers:
   - image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-amd64"
       - "ghcr.io/chrissnell/remoteweather:latest-amd64"
+    ids:
+      - linux-amd64
     use: buildx
     build_flag_templates:
       - "--pull"
@@ -70,6 +151,8 @@ dockers:
   - image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-arm64"
       - "ghcr.io/chrissnell/remoteweather:latest-arm64"
+    ids:
+      - linux-arm64
     use: buildx
     build_flag_templates:
       - "--pull"
@@ -86,6 +169,8 @@ dockers:
   - image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
       - "ghcr.io/chrissnell/remoteweather:latest-armv7"
+    ids:
+      - linux-armv7
     use: buildx
     build_flag_templates:
       - "--pull"
@@ -103,6 +188,8 @@ dockers:
   - image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv6"
       - "ghcr.io/chrissnell/remoteweather:latest-armv6"
+    ids:
+      - linux-armv6
     use: buildx
     build_flag_templates:
       - "--pull"
@@ -139,3 +226,7 @@ changelog:
       - '^docs:'
       - '^test:'
       - '^chore:'
+
+release:
+  extra_files:
+    - glob: ./dist/remoteweather_*_darwin_*.tar.gz
