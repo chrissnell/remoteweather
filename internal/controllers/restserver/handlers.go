@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -544,6 +545,7 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		SnowBaseDistance float32
 		PageTitle        string
 		AboutStationHTML htmltemplate.HTML
+		Version          string
 	}{
 		StationName:      website.Name,
 		PullFromDevice:   primaryDevice,
@@ -552,6 +554,7 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		SnowBaseDistance: h.getSnowBaseDistance(website),
 		PageTitle:        website.PageTitle,
 		AboutStationHTML: htmltemplate.HTML(website.AboutStationHTML),
+		Version:          constants.Version,
 	}
 
 	w.Header().Set("Content-Type", "text/html")
