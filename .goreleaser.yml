@@ -1,0 +1,169 @@
+project_name: remoteweather
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+nfpms:
+  - id: packages
+    package_name: remoteweather
+    vendor: Chris Snell
+    homepage: https://github.com/chrissnell/remoteweather
+    maintainer: Chris Snell
+    description: Weather station data collection and distribution system
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    contents:
+      - src: packaging/systemd/remoteweather.service
+        dst: /usr/lib/systemd/system/remoteweather.service
+        type: config
+    scripts:
+      postinstall: packaging/deb/postinst
+      preremove: packaging/deb/prerm
+    overrides:
+      rpm:
+        file_name_template: "{{ .ProjectName }}-{{ .Version }}-1.{{ .Arch }}"
+        replacements:
+          amd64: x86_64
+          arm64: aarch64
+        contents:
+          - src: packaging/systemd/remoteweather.service
+            dst: /usr/lib/systemd/system/remoteweather.service
+            type: config
+        scripts:
+          preinstall: |
+            #!/bin/sh
+            getent group remoteweather >/dev/null || groupadd -r remoteweather
+            getent passwd remoteweather >/dev/null || \
+                useradd -r -g remoteweather -d /var/lib/remoteweather -s /sbin/nologin \
+                -c "RemoteWeather daemon" remoteweather
+            exit 0
+          postinstall: |
+            #!/bin/sh
+            mkdir -p /var/lib/remoteweather
+            chown remoteweather:remoteweather /var/lib/remoteweather
+            chmod 755 /var/lib/remoteweather
+            systemctl daemon-reload
+            systemctl enable remoteweather.service
+            exit 0
+          preremove: |
+            #!/bin/sh
+            systemctl stop remoteweather.service || true
+            systemctl disable remoteweather.service || true
+            exit 0
+      deb:
+        file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+        replacements:
+          amd64: amd64
+          arm64: arm64
+          arm: armhf
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-amd64"
+      - "ghcr.io/chrissnell/remoteweather:latest-amd64"
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
+    goarch: amd64
+    goos: linux
+    dockerfile: Dockerfile
+    
+  - image_templates:
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-arm64"
+      - "ghcr.io/chrissnell/remoteweather:latest-arm64"
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
+    goarch: arm64
+    goos: linux
+    dockerfile: Dockerfile
+    
+  - image_templates:
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
+      - "ghcr.io/chrissnell/remoteweather:latest-armv7"
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
+    goarch: arm
+    goarm: "7"
+    goos: linux
+    dockerfile: Dockerfile
+
+docker_manifests:
+  - name_template: "ghcr.io/chrissnell/remoteweather:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-amd64"
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-arm64"
+      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
+      
+  - name_template: "ghcr.io/chrissnell/remoteweather:latest"
+    image_templates:
+      - "ghcr.io/chrissnell/remoteweather:latest-amd64"
+      - "ghcr.io/chrissnell/remoteweather:latest-arm64"
+      - "ghcr.io/chrissnell/remoteweather:latest-armv7"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
