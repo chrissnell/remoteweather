@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   darwin-builds:
-    name: Build Darwin binaries
+    name: Build macOS/Darwin binaries (AMD64 & ARM64)
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -52,7 +52,7 @@ jobs:
           retention-days: 1
 
   release:
-    name: Release
+    name: Build Linux/Windows binaries and create release
     runs-on: ubuntu-latest
     needs: darwin-builds
     steps:
