@@ -5,32 +5,32 @@ before:
     - go mod tidy
 
 builds:
-  - env:
+  # Windows builds (no CGO needed)
+  - id: windows
+    env:
       - CGO_ENABLED=0
     goos:
-      - linux
-      - darwin
       - windows
     goarch:
       - amd64
-      - arm64
-      - arm
-    goarm:
-      - "6"
-      - "7"
-    ignore:
-      - goos: windows
-        goarch: arm
-      - goos: windows
-        goarch: arm64
-      - goos: darwin
-        goarch: arm
     main: ./cmd/remoteweather
     ldflags:
       - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
     binary: remoteweather
-    tags:
-      - noserial
+    
+  # Native builds with CGO for serial support
+  - id: native
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+    main: ./cmd/remoteweather
+    ldflags:
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+    binary: remoteweather
 
 archives:
   - format: tar.gz
@@ -99,6 +99,8 @@ dockers:
   - image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-amd64"
       - "ghcr.io/chrissnell/remoteweather:latest-amd64"
+    ids:
+      - native
     use: buildx
     build_flag_templates:
       - "--pull"
@@ -111,71 +113,15 @@ dockers:
     goarch: amd64
     goos: linux
     dockerfile: Dockerfile
-    
-  - image_templates:
-      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-arm64"
-      - "ghcr.io/chrissnell/remoteweather:latest-arm64"
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
-    goarch: arm64
-    goos: linux
-    dockerfile: Dockerfile
-    
-  - image_templates:
-      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv6"
-      - "ghcr.io/chrissnell/remoteweather:latest-armv6"
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm/v6"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
-    goarch: arm
-    goarm: "6"
-    goos: linux
-    dockerfile: Dockerfile
-    
-  - image_templates:
-      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
-      - "ghcr.io/chrissnell/remoteweather:latest-armv7"
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--platform=linux/arm/v7"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source=https://github.com/chrissnell/remoteweather"
-    goarch: arm
-    goarm: "7"
-    goos: linux
-    dockerfile: Dockerfile
 
 docker_manifests:
   - name_template: "ghcr.io/chrissnell/remoteweather:{{ .Version }}"
     image_templates:
       - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-amd64"
-      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-arm64"
-      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv6"
-      - "ghcr.io/chrissnell/remoteweather:{{ .Version }}-armv7"
       
   - name_template: "ghcr.io/chrissnell/remoteweather:latest"
     image_templates:
       - "ghcr.io/chrissnell/remoteweather:latest-amd64"
-      - "ghcr.io/chrissnell/remoteweather:latest-arm64"
-      - "ghcr.io/chrissnell/remoteweather:latest-armv6"
-      - "ghcr.io/chrissnell/remoteweather:latest-armv7"
 
 changelog:
   sort: asc
