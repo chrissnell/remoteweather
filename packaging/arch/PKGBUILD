@@ -9,8 +9,7 @@ license=('Apache')
 depends=('glibc')
 makedepends=('go' 'git')
 # CRITICAL: config.db contains user configuration and must NEVER be overwritten
-# Both config.yaml and config.db are protected by pacman's backup mechanism
-backup=('var/lib/remoteweather/config.yaml' 'var/lib/remoteweather/config.db')
+backup=('var/lib/remoteweather/config.db')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/master.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
@@ -50,15 +49,9 @@ package() {
     install -Dm644 "$srcdir/remoteweather.sysusers" "$pkgdir/usr/lib/sysusers.d/remoteweather.conf"
     install -dm755 "$pkgdir/var/lib/remoteweather"
     install -dm755 "$pkgdir/etc/remoteweather"
-    # Optionally install a default config.yaml to avoid backup warnings
-    # Uncomment the next line if you want to ship a default config
-    # install -Dm644 examples/configs/weather-station-basic.yaml "$pkgdir/var/lib/remoteweather/config.yaml"
     install -Dm644 README.md "$pkgdir/usr/share/doc/remoteweather/README.md"
     install -dm755 "$pkgdir/usr/share/doc/remoteweather/docs"
     install -Dm644 docs/*.md "$pkgdir/usr/share/doc/remoteweather/docs/"
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
     install -Dm644 migrations/config/*.sql "$pkgdir/usr/share/remoteweather/migrations/config/"
-    install -dm755 "$pkgdir/usr/share/doc/remoteweather/examples/configs"
-    install -Dm644 examples/configs/*.yaml "$pkgdir/usr/share/doc/remoteweather/examples/configs/"
-    install -Dm644 examples/configs/README.md "$pkgdir/usr/share/doc/remoteweather/examples/configs/"
 } 
