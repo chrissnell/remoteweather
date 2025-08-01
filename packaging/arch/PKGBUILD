@@ -33,7 +33,7 @@ build() {
         aarch64)  export GOARCH=arm64 ;;
         armv7h)   export GOARCH=arm   ;;
     esac
-    make VERSION="v5.5.6"
+    make VERSION="v${pkgver}"
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
     go build -o migrate ./cmd/migrate/
