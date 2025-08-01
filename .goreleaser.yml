@@ -128,26 +128,9 @@ nfpms:
             dst: /usr/lib/systemd/system/remoteweather.service
             type: config
         scripts:
-          preinstall: |
-            #!/bin/sh
-            getent group remoteweather >/dev/null || groupadd -r remoteweather
-            getent passwd remoteweather >/dev/null || \
-                useradd -r -g remoteweather -d /var/lib/remoteweather -s /sbin/nologin \
-                -c "RemoteWeather daemon" remoteweather
-            exit 0
-          postinstall: |
-            #!/bin/sh
-            mkdir -p /var/lib/remoteweather
-            chown remoteweather:remoteweather /var/lib/remoteweather
-            chmod 755 /var/lib/remoteweather
-            systemctl daemon-reload
-            systemctl enable remoteweather.service
-            exit 0
-          preremove: |
-            #!/bin/sh
-            systemctl stop remoteweather.service || true
-            systemctl disable remoteweather.service || true
-            exit 0
+          preinstall: packaging/rpm/preinstall.sh
+          postinstall: packaging/rpm/postinstall.sh
+          preremove: packaging/rpm/preremove.sh
       deb:
         file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ if eq .Arch "arm" }}armhf{{ else }}{{ .Arch }}{{ end }}'
 
