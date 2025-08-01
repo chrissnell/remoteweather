@@ -10,76 +10,266 @@ permissions:
   packages: write
 
 jobs:
-  # Build Darwin binaries on macOS runners
-  build-darwin:
+  # Build all binaries in parallel
+  build-darwin-amd64:
+    name: Build macOS AMD64
     runs-on: macos-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
+      - name: Setup Go environment
         uses: actions/setup-go@v5
         with:
           go-version: stable
 
-      - name: Build Darwin AMD64
+      - name: Build Darwin AMD64 binary with CGO
         env:
           CGO_ENABLED: 1
           GOOS: darwin
           GOARCH: amd64
         run: |
+          mkdir -p dist/remoteweather_darwin_amd64_v1
           go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
             -o dist/remoteweather_darwin_amd64_v1/remoteweather ./cmd/remoteweather
 
-      - name: Build Darwin ARM64
+      - name: Upload Darwin AMD64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-amd64-binary
+          path: dist/
+
+  build-darwin-arm64:
+    name: Build macOS ARM64
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build Darwin ARM64 binary with CGO
         env:
           CGO_ENABLED: 1
           GOOS: darwin
           GOARCH: arm64
         run: |
+          mkdir -p dist/remoteweather_darwin_arm64
           go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
             -o dist/remoteweather_darwin_arm64/remoteweather ./cmd/remoteweather
 
-      - name: Upload Darwin artifacts
+      - name: Upload Darwin ARM64 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: darwin-binaries
+          name: darwin-arm64-binary
           path: dist/
 
-  # Main release job on Linux
-  release:
+  build-linux-amd64:
+    name: Build Linux AMD64
     runs-on: ubuntu-latest
-    needs: build-darwin
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
+      - name: Setup Go environment
         uses: actions/setup-go@v5
         with:
           go-version: stable
 
-      - name: Download Darwin artifacts
-        uses: actions/download-artifact@v4
+      - name: Build Linux AMD64 binary with CGO
+        env:
+          CGO_ENABLED: 1
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          mkdir -p dist/remoteweather_linux_amd64_v1
+          go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
+            -o dist/remoteweather_linux_amd64_v1/remoteweather ./cmd/remoteweather
+
+      - name: Upload Linux AMD64 artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: darwin-binaries
+          name: linux-amd64-binary
           path: dist/
 
-      - name: Install cross-compilation tools
+  build-linux-arm64:
+    name: Build Linux ARM64 (RPi 3/4/5 64-bit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install ARM64 cross-compilation toolchain
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Build Linux ARM64 binary with CGO
+        env:
+          CGO_ENABLED: 1
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          mkdir -p dist/remoteweather_linux_arm64
+          go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
+            -o dist/remoteweather_linux_arm64/remoteweather ./cmd/remoteweather
+
+      - name: Upload Linux ARM64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-binary
+          path: dist/
+
+  build-linux-armv7:
+    name: Build Linux ARMv7 (RPi 2/3/4 32-bit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install ARMv7 cross-compilation toolchain
+        run: |
+          sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+
+      - name: Build Linux ARMv7 binary with CGO
+        env:
+          CGO_ENABLED: 1
+          CC: arm-linux-gnueabihf-gcc
+          CXX: arm-linux-gnueabihf-g++
+          GOOS: linux
+          GOARCH: arm
+          GOARM: 7
+        run: |
+          mkdir -p dist/remoteweather_linux_arm_7
+          go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
+            -o dist/remoteweather_linux_arm_7/remoteweather ./cmd/remoteweather
+
+      - name: Upload Linux ARMv7 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-armv7-binary
+          path: dist/
+
+  build-linux-armv6:
+    name: Build Linux ARMv6 (RPi Zero/1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install ARMv6 cross-compilation toolchain
+        run: |
+          sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
 
-      - name: Set up QEMU
+      - name: Build Linux ARMv6 binary with CGO
+        env:
+          CGO_ENABLED: 1
+          CC: arm-linux-gnueabi-gcc
+          CXX: arm-linux-gnueabi-g++
+          GOOS: linux
+          GOARCH: arm
+          GOARM: 6
+        run: |
+          mkdir -p dist/remoteweather_linux_arm_6
+          go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
+            -o dist/remoteweather_linux_arm_6/remoteweather ./cmd/remoteweather
+
+      - name: Upload Linux ARMv6 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-armv6-binary
+          path: dist/
+
+  build-windows:
+    name: Build Windows AMD64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build Windows binary (no CGO required)
+        env:
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          mkdir -p dist/remoteweather_windows_amd64_v1
+          go build -ldflags "-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
+            -o dist/remoteweather_windows_amd64_v1/remoteweather.exe ./cmd/remoteweather
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: dist/
+
+  # Package and release after all builds complete
+  release:
+    name: Package and Release
+    runs-on: ubuntu-latest
+    needs: [build-darwin-amd64, build-darwin-arm64, build-linux-amd64, build-linux-arm64, build-linux-armv7, build-linux-armv6, build-windows]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Setup QEMU for multi-arch Docker builds
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
@@ -89,7 +279,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run GoReleaser
+      - name: Run GoReleaser for packaging and release
         uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
