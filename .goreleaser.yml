@@ -229,4 +229,4 @@ changelog:
 
 release:
   extra_files:
-    - glob: ./darwin-archives/*.tar.gz
+    - glob: /tmp/darwin-archives/*.tar.gz
