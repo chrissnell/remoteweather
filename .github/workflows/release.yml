@@ -10,55 +10,9 @@ permissions:
   packages: write
 
 jobs:
-  darwin-builds:
-    name: Build macOS/Darwin binaries (AMD64 & ARM64)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - name: Build Darwin AMD64 and ARM64 binaries with CGO
-        run: |
-          mkdir -p dist
-          echo "Building Darwin AMD64..."
-          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build \
-            -ldflags="-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
-            -o dist/remoteweather_darwin_amd64/remoteweather \
-            ./cmd/remoteweather
-          echo "Building Darwin ARM64..."
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build \
-            -ldflags="-s -w -X github.com/chrissnell/remoteweather/internal/constants.Version=${{ github.ref_name }}" \
-            -o dist/remoteweather_darwin_arm64/remoteweather \
-            ./cmd/remoteweather
-          
-          echo "Ad-hoc signing macOS binaries..."
-          codesign --force --deep --sign - dist/remoteweather_darwin_amd64/remoteweather
-          codesign --force --deep --sign - dist/remoteweather_darwin_arm64/remoteweather
-
-      - name: Create Darwin archives
-        run: |
-          cd dist
-          tar czf remoteweather_${{ github.ref_name }}_darwin_amd64.tar.gz -C remoteweather_darwin_amd64 remoteweather
-          tar czf remoteweather_${{ github.ref_name }}_darwin_arm64.tar.gz -C remoteweather_darwin_arm64 remoteweather
-
-      - name: Upload Darwin archives
-        uses: actions/upload-artifact@v4
-        with:
-          name: darwin-archives
-          path: dist/*.tar.gz
-          retention-days: 1
-
   release:
     name: Build Linux/Windows binaries and create release
     runs-on: ubuntu-latest
-    needs: darwin-builds
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,19 +32,6 @@ jobs:
             gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
             gcc-arm-linux-gnueabi g++-arm-linux-gnueabi \
             gcc-mingw-w64-x86-64
-
-      - name: Download Darwin archives
-        uses: actions/download-artifact@v4
-        with:
-          name: darwin-archives
-          path: ./darwin-archives/
-
-      - name: Prepare Darwin archives for release
-        run: |
-          # Move Darwin archives to release-assets directory
-          mkdir -p release-assets
-          mv ./darwin-archives/* release-assets/
-          rm -rf ./darwin-archives
 
       - name: Setup QEMU for multi-arch Docker builds
         uses: docker/setup-qemu-action@v3
