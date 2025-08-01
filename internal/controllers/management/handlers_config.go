@@ -319,12 +319,20 @@ func (h *Handlers) CreateStorageConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Debug log the raw request data
+	h.controller.logger.Debugf("CreateStorageConfig raw request: type=%s, config=%+v", 
+		requestData.Type, requestData.Config)
+	
 	// Convert config to appropriate type
 	storageConfig, err := h.convertStorageConfig(requestData.Type, requestData.Config)
 	if err != nil {
 		h.sendError(w, http.StatusBadRequest, "Invalid storage configuration", err)
 		return
 	}
+	
+	// Debug log to see what we're getting
+	h.controller.logger.Debugf("CreateStorageConfig: type=%s, config=%+v, converted=%+v", 
+		requestData.Type, requestData.Config, storageConfig)
 
 	// Validate storage configuration
 	if err := h.validateStorageConfig(requestData.Type, storageConfig); err != nil {
@@ -579,6 +587,9 @@ func (h *Handlers) convertStorageConfig(storageType string, configData interface
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal config data: %w", err)
 	}
+	
+	// Debug logging
+	h.controller.logger.Debugf("convertStorageConfig: type=%s, jsonData=%s", storageType, string(jsonData))
 
 	switch storageType {
 	case "timescaledb":
@@ -586,6 +597,7 @@ func (h *Handlers) convertStorageConfig(storageType string, configData interface
 		if err := json.Unmarshal(jsonData, &timescaleConfig); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal TimescaleDB config: %w", err)
 		}
+		h.controller.logger.Debugf("convertStorageConfig: unmarshaled TimescaleDB config=%+v", timescaleConfig)
 		return &timescaleConfig, nil
 	case "grpc":
 		var grpcConfig config.GRPCData
@@ -607,26 +619,21 @@ func (h *Handlers) validateStorageConfig(storageType string, configData interfac
 			return fmt.Errorf("invalid TimescaleDB config type")
 		}
 
-		// Validate individual components if provided
-		if timescale.Host != "" || timescale.Port != 0 || timescale.Database != "" || timescale.User != "" || timescale.Password != "" {
-			if timescale.Host == "" {
-				return fmt.Errorf("host is required for TimescaleDB")
-			}
-			if timescale.Port <= 0 || timescale.Port > 65535 {
-				return fmt.Errorf("port must be between 1 and 65535 for TimescaleDB")
-			}
-			if timescale.Database == "" {
-				return fmt.Errorf("database is required for TimescaleDB")
-			}
-			if timescale.User == "" {
-				return fmt.Errorf("user is required for TimescaleDB")
-			}
-			if timescale.Password == "" {
-				return fmt.Errorf("password is required for TimescaleDB")
-			}
-		} else {
-			// If no individual components are provided, require all of them
-			return fmt.Errorf("host, port, database, user, and password are required for TimescaleDB")
+		// All fields are required for TimescaleDB
+		if timescale.Host == "" {
+			return fmt.Errorf("host is required for TimescaleDB (received: %+v)", timescale)
+		}
+		if timescale.Port <= 0 || timescale.Port > 65535 {
+			return fmt.Errorf("port must be between 1 and 65535 for TimescaleDB")
+		}
+		if timescale.Database == "" {
+			return fmt.Errorf("database is required for TimescaleDB")
+		}
+		if timescale.User == "" {
+			return fmt.Errorf("user is required for TimescaleDB")
+		}
+		if timescale.Password == "" {
+			return fmt.Errorf("password is required for TimescaleDB")
 		}
 	case "grpc":
 		grpc, ok := configData.(*config.GRPCData)

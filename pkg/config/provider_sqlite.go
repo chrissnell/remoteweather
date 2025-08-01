@@ -991,7 +991,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 			name = ?, type = ?, enabled = ?, hostname = ?, port = ?, serial_device = ?,
 			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
 			latitude = ?, longitude = ?, altitude = ?, aprs_enabled = ?, aprs_callsign = ?,
-			tls_cert_path = ?, tls_key_path = ?, path = ?
+			tls_cert_file = ?, tls_key_file = ?, path = ?
 		WHERE name = ?
 	`
 

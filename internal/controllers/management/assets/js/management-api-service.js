@@ -210,7 +210,7 @@ const ManagementAPIService = (function() {
 
   async function saveStorage(mode, storageType, config) {
     if (mode === 'add') {
-      return await apiPost('/config/storage', { type: storageType, ...config });
+      return await apiPost('/config/storage', { type: storageType, config: config });
     }
     // For now, only add is supported
     throw new Error('Storage update not implemented');
