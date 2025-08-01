@@ -228,5 +228,3 @@ changelog:
       - '^chore:'
 
 release:
-  extra_files:
-    - glob: ./release-assets/*.tar.gz
