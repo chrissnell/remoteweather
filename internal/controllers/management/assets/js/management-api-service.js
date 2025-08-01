@@ -233,7 +233,7 @@ const ManagementAPIService = (function() {
     if (mode === 'edit') {
       return await apiPut(`/config/controllers/${controllerType}`, config);
     } else {
-      return await apiPost(`/config/controllers/${controllerType}`, config);
+      return await apiPost('/config/controllers', { type: controllerType, config: config });
     }
   }
 
