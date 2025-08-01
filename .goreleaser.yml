@@ -229,4 +229,4 @@ changelog:
 
 release:
   extra_files:
-    - glob: ./dist/remoteweather_*_darwin_*.tar.gz
+    - glob: ./darwin-archives/*.tar.gz

@@ -1,9 +1,0 @@
-<svg width="300" height="100" viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon: Minimal weather station (anemometer-like) -->
-  <g transform="translate(10, 30)">
-    <circle cx="15" cy="15" r="10" fill="none" stroke="#000000" stroke-width="3"/>
-    <path d="M15 5 L15 10 M10 15 H20 M12 12 L18 18 M12 18 L18 12" stroke="#000000" stroke-width="2"/>
-  </g>
-  <!-- Text: RemoteWeather -->
-  <text x="50" y="60" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="bold" fill="#000000">RemoteWeather</text>
-</svg>
