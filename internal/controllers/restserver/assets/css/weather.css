@@ -1371,4 +1371,30 @@ html[data-theme="light"] .theme-toggle::before {
     height: 40px !important;
     flex-shrink: 0 !important;
   }
+}
+
+/* Footer styles */
+.footer {
+  margin-top: 40px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+}
+
+.footer-content {
+  text-align: center;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.footer-content a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.footer-content a:hover {
+  border-bottom-color: var(--text-secondary);
 } 
