@@ -111,7 +111,7 @@ nfpms:
       preremove: packaging/deb/prerm
     overrides:
       rpm:
-        file_name_template: '{{ .ProjectName }}-{{ .Version }}-1.{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else if eq .Arch "arm" }}armhf{{ else }}{{ .Arch }}{{ end }}'
+        file_name_template: '{{ .ProjectName }}-{{ .Version }}-1.{{ if eq .Arch "amd64" }}x86_64{{ else if eq .Arch "arm64" }}aarch64{{ else if eq .Arch "arm" }}{{ if eq .Arm "6" }}armv6{{ else if eq .Arm "7" }}armv7{{ else }}armhf{{ end }}{{ else }}{{ .Arch }}{{ end }}'
         contents:
           - src: packaging/systemd/remoteweather.service
             dst: /usr/lib/systemd/system/remoteweather.service
@@ -121,7 +121,7 @@ nfpms:
           postinstall: packaging/rpm/postinstall.sh
           preremove: packaging/rpm/preremove.sh
       deb:
-        file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ if eq .Arch "arm" }}armhf{{ else }}{{ .Arch }}{{ end }}'
+        file_name_template: '{{ .ProjectName }}_{{ .Version }}_{{ if eq .Arch "arm" }}{{ if eq .Arm "6" }}armv6{{ else if eq .Arm "7" }}armv7{{ else }}armhf{{ end }}{{ else }}{{ .Arch }}{{ end }}'
 
 checksum:
   name_template: 'checksums.txt'
