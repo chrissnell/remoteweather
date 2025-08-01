@@ -1,0 +1,40 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create user and group if they don't exist
+        if ! getent group remoteweather >/dev/null; then
+            addgroup --system remoteweather
+        fi
+        if ! getent passwd remoteweather >/dev/null; then
+            adduser --system --ingroup remoteweather --home /var/lib/remoteweather \
+                --no-create-home --gecos "RemoteWeather daemon" \
+                --shell /usr/sbin/nologin remoteweather
+        fi
+
+        # Create and set permissions for data directory
+        mkdir -p /var/lib/remoteweather
+        chown remoteweather:remoteweather /var/lib/remoteweather
+        chmod 755 /var/lib/remoteweather
+
+        # Enable and start service
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+            systemctl enable remoteweather.service
+            deb-systemd-invoke start remoteweather.service || true
+        fi
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

@@ -7,11 +7,6 @@ github.com/google/uuid
 # github.com/gorilla/mux v1.8.1
 ## explicit; go 1.20
 github.com/gorilla/mux
-# github.com/influxdata/influxdb v1.11.8
-## explicit; go 1.22
-github.com/influxdata/influxdb/client/v2
-github.com/influxdata/influxdb/models
-github.com/influxdata/influxdb/pkg/escape
 # github.com/jackc/pgio v1.0.0
 ## explicit; go 1.12
 github.com/jackc/pgio
@@ -48,21 +43,38 @@ github.com/jinzhu/inflection
 # github.com/jinzhu/now v1.1.5
 ## explicit; go 1.12
 github.com/jinzhu/now
-# github.com/kr/pretty v0.3.1
-## explicit; go 1.12
 # github.com/mattn/go-isatty v0.0.20
 ## explicit; go 1.15
 github.com/mattn/go-isatty
-# github.com/mattn/go-sqlite3 v1.14.22
-## explicit; go 1.19
 # github.com/ncruces/go-strftime v0.1.9
 ## explicit; go 1.17
 github.com/ncruces/go-strftime
+# github.com/panjf2000/ants/v2 v2.11.3
+## explicit; go 1.18
+github.com/panjf2000/ants/v2
+github.com/panjf2000/ants/v2/pkg/sync
+# github.com/panjf2000/gnet/v2 v2.9.1
+## explicit; go 1.20
+github.com/panjf2000/gnet/v2
+github.com/panjf2000/gnet/v2/internal/gfd
+github.com/panjf2000/gnet/v2/pkg/bs
+github.com/panjf2000/gnet/v2/pkg/buffer/elastic
+github.com/panjf2000/gnet/v2/pkg/buffer/linkedlist
+github.com/panjf2000/gnet/v2/pkg/buffer/ring
+github.com/panjf2000/gnet/v2/pkg/errors
+github.com/panjf2000/gnet/v2/pkg/io
+github.com/panjf2000/gnet/v2/pkg/logging
+github.com/panjf2000/gnet/v2/pkg/math
+github.com/panjf2000/gnet/v2/pkg/netpoll
+github.com/panjf2000/gnet/v2/pkg/pool/bytebuffer
+github.com/panjf2000/gnet/v2/pkg/pool/byteslice
+github.com/panjf2000/gnet/v2/pkg/pool/goroutine
+github.com/panjf2000/gnet/v2/pkg/pool/ringbuffer
+github.com/panjf2000/gnet/v2/pkg/queue
+github.com/panjf2000/gnet/v2/pkg/socket
 # github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec
 ## explicit; go 1.12
 github.com/remyoudompheng/bigfft
-# github.com/rogpeppe/go-internal v1.12.0
-## explicit; go 1.20
 # github.com/soniakeys/meeus/v3 v3.0.1
 ## explicit
 github.com/soniakeys/meeus/v3/base
@@ -73,6 +85,9 @@ github.com/soniakeys/unit
 # github.com/tarm/goserial v0.0.0-20151007205400-b3440c3c6355
 ## explicit
 github.com/tarm/goserial
+# github.com/valyala/bytebufferpool v1.0.0
+## explicit
+github.com/valyala/bytebufferpool
 # go.uber.org/multierr v1.11.0
 ## explicit; go 1.19
 go.uber.org/multierr
@@ -104,6 +119,7 @@ golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
 # golang.org/x/sync v0.14.0
 ## explicit; go 1.23.0
+golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 # golang.org/x/sys v0.33.0
 ## explicit; go 1.23.0
@@ -233,14 +249,12 @@ google.golang.org/protobuf/types/gofeaturespb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/yaml.v2 v2.4.0
-## explicit; go 1.15
-gopkg.in/yaml.v2
+# gopkg.in/natefinch/lumberjack.v2 v2.2.1
+## explicit; go 1.13
+gopkg.in/natefinch/lumberjack.v2
 # gorm.io/driver/postgres v1.5.11
 ## explicit; go 1.19
 gorm.io/driver/postgres
-# gorm.io/driver/sqlite v1.6.0
-## explicit; go 1.20
 # gorm.io/gorm v1.30.0
 ## explicit; go 1.18
 gorm.io/gorm

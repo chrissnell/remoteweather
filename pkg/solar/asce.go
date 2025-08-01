@@ -1,3 +1,4 @@
+// Package solar provides solar radiation calculations using various models including ASCE.
 package solar
 
 import (

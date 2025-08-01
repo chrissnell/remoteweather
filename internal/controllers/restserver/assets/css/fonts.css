@@ -1,0 +1,74 @@
+/* Essential Roboto weights only */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/roboto-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/roboto-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/roboto-700.ttf') format('truetype');
+}
+
+/* Essential Roboto Slab weights only */
+@font-face {
+  font-family: 'Roboto Slab';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/roboto-slab-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto Slab';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/roboto-slab-700.ttf') format('truetype');
+}
+
+/* Inconsolata monospace font for charts and data display */
+@font-face {
+  font-family: 'Inconsolata';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/inconsolata-400.woff2') format('woff2'),
+       url('../fonts/inconsolata-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inconsolata';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/inconsolata-500.woff2') format('woff2'),
+       url('../fonts/inconsolata-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inconsolata';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/inconsolata-700.woff2') format('woff2'),
+       url('../fonts/inconsolata-700.ttf') format('truetype');
+}
+
+/* Note: Removed unused font weights to improve First Contentful Paint
+   - Roboto: 300 (light) - not used in CSS
+   - Roboto Slab: 300, 400, 800, 900 - not used in CSS
+   Font-weight 600 will automatically use 700 as fallback */

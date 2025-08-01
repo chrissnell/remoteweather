@@ -1,0 +1,829 @@
+/* RemoteWeather Management UI Styles */
+
+:root {
+  --primary-bg: #edf2f4; /* light grey similar to restserver tabs */
+  --accent: #1a8ca7;      /* cyan accent used for active elements */
+  --danger: #c1121f;      /* red accent used in headers */
+  --text: #000;
+  --font-family: 'Inconsolata', monospace;
+}
+
+/* Reset margin for body */
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background: #fff;
+  color: var(--text);
+}
+
+.header-bar {
+  background: var(--primary-bg);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #ccc;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-title {
+  margin: 0;
+  color: var(--danger);
+  font-size: 1.75rem;
+  text-align: center;
+}
+
+/* Main layout */
+.main-layout {
+  display: flex;
+  height: calc(100vh - 60px);
+}
+
+.side-nav {
+  background: var(--primary-bg);
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ccc;
+}
+
+.nav-tab {
+  background: none;
+  border: none;
+  padding: 1rem;
+  text-align: left;
+  font-size: 1rem;
+  font-family: var(--font-family);
+  cursor: pointer;
+  color: var(--text);
+  border-left: 4px solid transparent;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-tab:hover {
+  background: #d9e2e5;
+}
+
+.nav-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-left-color: var(--danger);
+}
+
+.content-area {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.pane {
+  display: block;
+}
+
+.pane.hidden {
+  display: none;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  color: var(--accent);
+}
+
+.list-container {
+  margin-top: 1rem;
+  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Table styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.table th {
+  background: var(--primary-bg);
+}
+
+/* Buttons */
+.primary-btn, .secondary-btn, .close-btn, .edit-btn, .delete-btn {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #fff;
+}
+
+.primary-btn:hover {
+  background: #14768c;
+}
+
+.secondary-btn {
+  background: #ccc;
+  color: #000;
+}
+
+.secondary-btn:hover {
+  background: #b3b3b3;
+}
+
+.edit-btn {
+  background: rgb(26, 140, 167);
+}
+
+.edit-btn:hover {
+  background: rgb(20, 118, 140);
+}
+
+.delete-btn {
+  background: rgb(193, 18, 31);
+}
+
+.delete-btn:hover {
+  background: rgb(160, 15, 25);
+}
+
+.close-btn {
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+}
+
+/* Toggle switch - Square design */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.toggle-label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #ccc;
+  box-sizing: border-box;
+  background-color: transparent;
+  transition: 0.3s;
+  border-radius: 0;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 0;
+}
+
+input:checked + .slider {
+  border-color: rgb(26, 140, 167);
+}
+
+input:checked + .slider:before {
+  background-color: rgb(26, 140, 167);
+  transform: translate(18px, -50%); /* Adjusted to stop 2px from the right */
+}
+
+/* Pane header */
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Cards layout */
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: var(--danger);
+}
+
+.card .meta {
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.card .actions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Checkbox styling within cards */
+.card .checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 6px;
+  width: 420px;
+  max-width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Form controls */
+.station-form label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+/* Override for checkbox labels - make them row instead of column */
+.station-form label.checkbox-label {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+.station-form input,
+.station-form select {
+  padding: 0.45rem 0.55rem;
+  font-family: var(--font-family);
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 0.35rem; /* adds space between label text and field */
+}
+
+.conn-fieldset {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0; /* more breathing room above and below */
+}
+
+/* Override for checkbox labels in fieldsets */
+.conn-fieldset label.checkbox-label {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+.conn-fieldset legend {
+  font-size: 0.9rem;
+  padding: 0 0.25rem;
+}
+
+.checkbox-label {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+/* Ensure checkboxes and their containers are left-aligned */
+.station-form .checkbox-label {
+  justify-content: flex-start !important;
+}
+
+.conn-fieldset .checkbox-label {
+  justify-content: flex-start !important;
+}
+
+.help-text {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin: 0.5rem 0;
+  font-style: italic;
+}
+
+/* Hide helper */
+.hidden {
+  display: none !important;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: #666;
+}
+
+.status-online {
+  background: #28a745;
+}
+
+.status-offline {
+  background: #dc3545;
+}
+
+
+
+/* Age / staleness badges */
+.age-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: #6c757d;
+  color: #fff;
+}
+
+.age-badge.fresh {
+  background: #28a745; /* green */
+}
+
+.age-badge.stale {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Configuration display styles */
+.config-display {
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.config-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.config-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--accent);
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.25rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.config-grid:last-child {
+  margin-bottom: 0;
+}
+
+.config-grid div {
+  font-size: 0.9rem;
+}
+
+.config-stack {
+  margin-bottom: 0.75rem;
+}
+
+.config-stack:last-child {
+  margin-bottom: 0;
+}
+
+.config-stack div {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.config-stack div:last-child {
+  margin-bottom: 0;
+}
+
+.config-error {
+  color: var(--danger);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.config-raw {
+  background: #f5f7f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  max-height: 120px;
+  overflow: auto;
+  margin: 0;
+}
+
+/* Health status styling */
+.health-info {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  padding: 0.5rem;
+}
+
+.health-info div {
+  margin-bottom: 0.25rem;
+}
+
+.health-info div:last-child {
+  margin-bottom: 0;
+}
+
+.health-healthy {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.health-unhealthy {
+  color: var(--danger);
+  font-weight: bold;
+}
+
+.health-unknown {
+  color: #6c757d;
+  font-weight: bold;
+}
+
+.health-stale {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+/* Login Modal Styles */
+#login-modal {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+#login-modal .modal-content {
+  max-width: 400px;
+  margin: 10% auto;
+}
+
+#login-modal .modal-header h3 {
+  color: var(--accent);
+  margin: 0;
+}
+
+#login-modal p {
+  margin-bottom: 1rem;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Authentication Status */
+.auth-status {
+  background: var(--primary-bg);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  margin-left: auto;
+}
+
+.auth-status #auth-message {
+  color: var(--text);
+}
+
+.auth-status #logout-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+} 
+
+/* Dashboard checkbox styling */
+.checkbox-wrapper {
+  margin: 16px 0;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+}
+
+/* Utilities styling */
+.utilities-container {
+  margin-top: 1rem;
+}
+
+.utility-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.utility-section h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+.utility-section p {
+  margin-bottom: 1rem;
+  color: #6c757d;
+}
+
+.form-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.checkbox-wrapper .checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.checkbox-wrapper .checkbox-label input[type="checkbox"] {
+  margin-right: 8px;
+  width: auto;
+}
+
+.checkbox-wrapper small {
+  display: block;
+  color: #6c757d;
+  font-size: 12px;
+  margin-left: 24px;
+}
+
+/* Logs section */
+.logs-container {
+  height: calc(100vh - 300px);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.logs-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  transition: background-color 0.2s;
+}
+
+.btn-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #14768c;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #a10e1f;
+}
+
+.logs-content {
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding: 1rem;
+  margin: 0;
+  background: #fafafa;
+  color: #333;
+  height: 100%;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.log-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin-bottom: 0;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+}
+
+.log-timestamp {
+  color: #666;
+  font-size: 0.85rem;
+  font-family: 'Inconsolata', monospace;
+  margin-right: 0.75rem;
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+.log-level {
+  display: inline-block;
+  width: 50px;
+  text-align: center;
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  margin-right: 0.75rem;
+  font-weight: bold;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.log-level.debug {
+  background-color: #6c757d;
+  color: white;
+}
+
+.log-level.info {
+  background-color: #007bff;
+  color: white;
+}
+
+.log-level.warn {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.log-level.error {
+  background-color: #dc3545;
+  color: white;
+}
+
+.log-level.fatal {
+  background-color: #6f42c1;
+  color: white;
+}
+
+.log-message {
+  flex: 1;
+  min-width: 0;
+  word-wrap: break-word;
+  font-family: 'Inconsolata', monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.log-caller {
+  color: #999;
+  font-size: 0.75rem;
+  font-family: 'Inconsolata', monospace;
+  margin-left: 0.75rem;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.logs-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.logs-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.logs-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.logs-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.log-status {
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+}
+
+.log-status.error {
+  color: #dc3545;
+  font-weight: bold;
+} 

@@ -1,6 +1,8 @@
+// Package main provides a command-line database migration tool.
 package main
 
 import (
+
 	"database/sql"
 	"flag"
 	"fmt"
@@ -10,13 +12,28 @@ import (
 
 	"github.com/chrissnell/remoteweather/pkg/migrate"
 	_ "modernc.org/sqlite" // SQLite driver
+	"runtime"
 )
+
+// getDefaultMigrationDir returns the OS-specific default migration directory
+func getDefaultMigrationDir() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "/usr/share/remoteweather/migrations/config"
+	case "darwin":
+		return "/usr/local/share/remoteweather/migrations/config"
+	case "windows":
+		return "C:\\ProgramData\\remoteweather\\migrations\\config"
+	default:
+		return "migrations"
+	}
+}
 
 func main() {
 	var (
 		dbDriver       = flag.String("driver", "sqlite", "Database driver (sqlite, postgres)")
 		dbDSN          = flag.String("dsn", "", "Database connection string")
-		migrationDir   = flag.String("dir", "migrations", "Migration directory")
+		migrationDir   = flag.String("dir", getDefaultMigrationDir(), "Migration directory")
 		migrationTable = flag.String("table", "schema_migrations", "Migration table name")
 		command        = flag.String("command", "up", "Migration command: up, down, version, status")
 		targetVersion  = flag.String("target", "", "Target version for down/to commands")
@@ -55,7 +72,9 @@ func main() {
 	// Execute command
 	switch *command {
 	case "up":
-		err = migrator.MigrateUp()
+		if err := migrator.MigrateUp(); err != nil {
+			log.Fatalf("Migration up failed: %v", err)
+		}
 	case "down":
 		if *targetVersion == "" {
 			fmt.Fprintf(os.Stderr, "Error: -target flag is required for down command\n")
@@ -65,7 +84,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("Invalid target version: %v", err)
 		}
-		err = migrator.MigrateDown(target)
+		if err := migrator.MigrateDown(target); err != nil {
+			log.Fatalf("Migration down failed: %v", err)
+		}
 	case "to":
 		if *targetVersion == "" {
 			fmt.Fprintf(os.Stderr, "Error: -target flag is required for to command\n")
@@ -75,7 +96,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("Invalid target version: %v", err)
 		}
-		err = migrator.MigrateTo(target)
+		if err := migrator.MigrateTo(target); err != nil {
+			log.Fatalf("Migration to target failed: %v", err)
+		}
 	case "version":
 		version, err := migrator.GetCurrentVersion()
 		if err != nil {
@@ -84,15 +107,13 @@ func main() {
 		fmt.Printf("Current version: %d\n", version)
 		return
 	case "status":
-		err = showStatus(migrator)
+		if err := showStatus(migrator); err != nil {
+			log.Fatalf("Status command failed: %v", err)
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", *command)
 		showHelp()
 		os.Exit(1)
-	}
-
-	if err != nil {
-		log.Fatalf("Migration command failed: %v", err)
 	}
 
 	fmt.Println("Migration completed successfully")
@@ -131,7 +152,7 @@ func showHelp() {
 	fmt.Println("Flags:")
 	fmt.Println("  -driver string     Database driver (default: sqlite)")
 	fmt.Println("  -dsn string        Database connection string (required)")
-	fmt.Println("  -dir string        Migration directory (default: migrations)")
+	fmt.Printf("  -dir string        Migration directory (default: %s)\n", getDefaultMigrationDir())
 	fmt.Println("  -table string      Migration table name (default: schema_migrations)")
 	fmt.Println("  -command string    Migration command (default: up)")
 	fmt.Println("  -target string     Target version for down/to commands")
