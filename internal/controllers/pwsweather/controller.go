@@ -48,26 +48,41 @@ func (p *PWSWeatherController) StartController() error {
 }
 
 func (p *PWSWeatherController) sendPeriodicReports() {
-	p.wg.Add(1)
-	defer p.wg.Done()
-
 	// Get all devices with PWS enabled
-	devices, err := p.configProvider.GetDevices()
+	devices, err := p.WeatherServiceController.GetDevices()
 	if err != nil {
-		p.logger.Errorf("Error getting devices: %v", err)
+		log.Errorf("Error getting devices: %v", err)
 		return
 	}
+
+	// Count PWS-enabled devices
+	enabledCount := 0
+	for _, device := range devices {
+		if device.PWSEnabled && device.PWSStationID != "" && device.PWSPassword != "" {
+			enabledCount++
+		}
+	}
+
+	if enabledCount == 0 {
+		log.Info("No PWS Weather enabled devices found")
+		return
+	}
+
+	log.Infof("Found %d PWS Weather enabled device(s)", enabledCount)
 
 	// Start monitoring for each PWS-enabled device
 	for _, device := range devices {
 		if device.PWSEnabled && device.PWSStationID != "" && device.PWSPassword != "" {
-			p.logger.Infof("Starting PWS Weather monitoring for device: %s (Station ID: %s)", device.Name, device.PWSStationID)
+			log.Infof("Starting PWS Weather monitoring for device: %s (Station ID: %s)", device.Name, device.PWSStationID)
 			
 			// Use device-specific upload interval or default
 			uploadInterval := "60"
 			if device.PWSUploadInterval > 0 {
 				uploadInterval = strconv.Itoa(device.PWSUploadInterval)
 			}
+
+			// Create a copy of device for closure
+			deviceCopy := device
 
 			config := controllers.WeatherServiceConfig{
 				ServiceName:    "PWS Weather",
@@ -80,13 +95,10 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 
 			// Start monitoring in separate goroutine for each device
 			go p.StartPeriodicReports(config, func(r *database.FetchedBucketReading) error {
-				return p.sendReadingsToPWSWeather(device, r)
+				return p.sendReadingsToPWSWeather(deviceCopy, r)
 			})
 		}
 	}
-
-	// Wait for context cancellation
-	<-p.ctx.Done()
 }
 
 func (p *PWSWeatherController) sendReadingsToPWSWeather(device config.DeviceData, r *database.FetchedBucketReading) error {
