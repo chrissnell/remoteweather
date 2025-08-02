@@ -68,8 +68,9 @@ type AerisWeatherForecastPeriod struct {
 type AerisWeatherForecastRecord struct {
 	gorm.Model
 
-	ForecastSpanHours int16        `gorm:"uniqueIndex:idx_location_span,not null"`
-	Location          string       `gorm:"uniqueIndex:idx_location_span,not null"`
+	StationID         int          `gorm:"uniqueIndex:idx_station_span,not null"`
+	ForecastSpanHours int16        `gorm:"uniqueIndex:idx_station_span,not null"`
+	Location          string       `gorm:"not null"`
 	Data              pgtype.JSONB `gorm:"type:jsonb;default:'[]';not null"`
 }
 
@@ -91,22 +92,29 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 		return &AerisWeatherController{}, err
 	}
 
-	// Validate required fields
-	fields := map[string]string{
-		"API client ID":     a.AerisWeatherConfig.APIClientID,
-		"API client secret": a.AerisWeatherConfig.APIClientSecret,
-	}
-	if err := controllers.ValidateRequiredFields(fields); err != nil {
-		return &AerisWeatherController{}, err
-	}
-
-	// Set defaults
+	// Set defaults for global settings
 	if a.AerisWeatherConfig.APIEndpoint == "" {
 		a.AerisWeatherConfig.APIEndpoint = "https://data.api.xweather.com"
 	}
 
-	if a.AerisWeatherConfig.Latitude == 0 || a.AerisWeatherConfig.Longitude == 0 {
-		return &AerisWeatherController{}, fmt.Errorf("forecast latitude and longitude must be set")
+	// Check if we have at least one device with Aeris enabled
+	devices, err := configProvider.GetDevices()
+	if err != nil {
+		return &AerisWeatherController{}, fmt.Errorf("error loading device configurations: %v", err)
+	}
+
+	// Validate at least one device has Aeris enabled with credentials and location
+	validStation := false
+	for _, device := range devices {
+		if device.AerisEnabled && device.AerisAPIClientID != "" && device.AerisAPIClientSecret != "" &&
+			device.Latitude != 0 && device.Longitude != 0 {
+			validStation = true
+			break
+		}
+	}
+
+	if !validStation {
+		return &AerisWeatherController{}, fmt.Errorf("you must configure at least one weather station with Aeris enabled, credentials, and location")
 	}
 
 	// Setup database connection
@@ -126,39 +134,57 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 
 func (a *AerisWeatherController) StartController() error {
 	log.Info("Starting Aeris Weather controller...")
-	a.wg.Add(1)
-	defer a.wg.Done()
+	
+	// Get all Aeris-enabled devices
+	devices, err := a.configProvider.GetDevices()
+	if err != nil {
+		return fmt.Errorf("error getting devices: %v", err)
+	}
 
-	// Start a refresh of the weekly forecast
-	go a.refreshForecastPeriodically(10, 24)
-	// Start a refresh of the hourly forecast
-	go a.refreshForecastPeriodically(24, 1)
+	// Start forecast fetching for each Aeris-enabled device
+	for _, device := range devices {
+		if device.AerisEnabled && device.AerisAPIClientID != "" && device.AerisAPIClientSecret != "" &&
+			device.Latitude != 0 && device.Longitude != 0 {
+			log.Infof("Starting Aeris Weather forecast fetching for device: %s (Location: %.6f,%.6f)", 
+				device.Name, device.Latitude, device.Longitude)
+			
+			// Create a copy for the closure
+			deviceCopy := device
+			
+			// Start a refresh of the weekly forecast
+			go a.refreshForecastPeriodically(deviceCopy, 10, 24)
+			// Start a refresh of the hourly forecast
+			go a.refreshForecastPeriodically(deviceCopy, 24, 1)
+		}
+	}
+	
 	return nil
 }
 
-func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, periodHours int16) {
+func (a *AerisWeatherController) refreshForecastPeriodically(device config.DeviceData, numPeriods int16, periodHours int16) {
 	a.wg.Add(1)
 	defer a.wg.Done()
 
 	// time.Ticker's only begin to fire *after* the interval has elapsed.  Since we're dealing with
 	// very long intervals, we will fire the fetcher now, before we start the ticker.
-	log.Debugf("Starting initial forecast fetch for %d periods of %d hours", numPeriods, periodHours)
-	forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
+	log.Debugf("Starting initial forecast fetch for device %s: %d periods of %d hours", device.Name, numPeriods, periodHours)
+	forecast, err := a.fetchAndStoreForecast(device, numPeriods, periodHours)
 	if err != nil {
-		log.Error("error fetching forecast from Aeris Weather:", err)
+		log.Errorf("error fetching forecast from Aeris Weather for device %s: %v", device.Name, err)
 	} else {
 		// Only save to database if fetch was successful
-		log.Debugf("Attempting to save forecast to database for span %d hours", numPeriods*periodHours)
+		log.Debugf("Attempting to save forecast to database for device %s, span %d hours", device.Name, numPeriods*periodHours)
 		// Create or update the forecast record
-		locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+		locationStr := fmt.Sprintf("%.6f,%.6f", device.Latitude, device.Longitude)
 		// Upsert the forecast record
 		var existingRecord AerisWeatherForecastRecord
-		err = a.DB.DB.Where("forecast_span_hours = ? AND location = ?", numPeriods*periodHours, locationStr).
+		err = a.DB.DB.Where("station_id = ? AND forecast_span_hours = ?", device.ID, numPeriods*periodHours).
 			First(&existingRecord).Error
 		
 		if err == gorm.ErrRecordNotFound {
 			// Create new record
 			newRecord := AerisWeatherForecastRecord{
+				StationID:         device.ID,
 				ForecastSpanHours: numPeriods * periodHours,
 				Location:          locationStr,
 				Data:              forecast.Data,
@@ -167,12 +193,13 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 		} else if err == nil {
 			// Update existing record
 			existingRecord.Data = forecast.Data
+			existingRecord.Location = locationStr // Update location in case it changed
 			err = a.DB.DB.Save(&existingRecord).Error
 		}
 		if err != nil {
-			log.Errorf("error saving forecast to database: %v", err)
+			log.Errorf("error saving forecast to database for device %s: %v", device.Name, err)
 		} else {
-			log.Debugf("Successfully saved forecast to database for span %d hours", numPeriods*periodHours)
+			log.Debugf("Successfully saved forecast to database for device %s, span %d hours", device.Name, numPeriods*periodHours)
 		}
 	}
 
@@ -186,7 +213,8 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 	// For example: for a daily forecast, we refresh every 6 hours.
 	refreshInterval := spanInterval / 4
 
-	log.Infof("Starting Aeris Weather fetcher for %v hours, every %v minutes", numPeriods*periodHours, refreshInterval.Minutes())
+	log.Infof("Starting Aeris Weather fetcher for device %s: %v hours, every %v minutes", 
+		device.Name, numPeriods*periodHours, refreshInterval.Minutes())
 
 	ticker := time.NewTicker(refreshInterval)
 	defer ticker.Stop()
@@ -194,23 +222,24 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 	for {
 		select {
 		case <-ticker.C:
-			log.Info("Updating forecast from Aeris Weather...")
-			forecast, err := a.fetchAndStoreForecast(numPeriods, periodHours)
+			log.Infof("Updating forecast from Aeris Weather for device %s...", device.Name)
+			forecast, err := a.fetchAndStoreForecast(device, numPeriods, periodHours)
 			if err != nil {
-				log.Error("error fetching forecast from Aeris Weather:", err)
+				log.Errorf("error fetching forecast from Aeris Weather for device %s: %v", device.Name, err)
 			} else {
 				// Only save to database if fetch was successful
-				log.Debugf("Attempting to save updated forecast to database for span %d hours", numPeriods*periodHours)
+				log.Debugf("Attempting to save updated forecast to database for device %s, span %d hours", device.Name, numPeriods*periodHours)
 				// Create or update the forecast record
-				locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+				locationStr := fmt.Sprintf("%.6f,%.6f", device.Latitude, device.Longitude)
 				// Upsert the forecast record
 				var existingRecord AerisWeatherForecastRecord
-				err = a.DB.DB.Where("forecast_span_hours = ? AND location = ?", numPeriods*periodHours, locationStr).
+				err = a.DB.DB.Where("station_id = ? AND forecast_span_hours = ?", device.ID, numPeriods*periodHours).
 					First(&existingRecord).Error
 				
 				if err == gorm.ErrRecordNotFound {
 					// Create new record
 					newRecord := AerisWeatherForecastRecord{
+						StationID:         device.ID,
 						ForecastSpanHours: numPeriods * periodHours,
 						Location:          locationStr,
 						Data:              forecast.Data,
@@ -219,12 +248,13 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 				} else if err == nil {
 					// Update existing record
 					existingRecord.Data = forecast.Data
+					existingRecord.Location = locationStr // Update location in case it changed
 					err = a.DB.DB.Save(&existingRecord).Error
 				}
 				if err != nil {
-					log.Errorf("error saving forecast to database: %v", err)
+					log.Errorf("error saving forecast to database for device %s: %v", device.Name, err)
 				} else {
-					log.Debugf("Successfully saved updated forecast to database for span %d hours", numPeriods*periodHours)
+					log.Debugf("Successfully saved updated forecast to database for device %s, span %d hours", device.Name, numPeriods*periodHours)
 				}
 			}
 
@@ -235,12 +265,12 @@ func (a *AerisWeatherController) refreshForecastPeriodically(numPeriods int16, p
 
 }
 
-func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodHours int16) (*AerisWeatherForecastRecord, error) {
+func (a *AerisWeatherController) fetchAndStoreForecast(device config.DeviceData, numPeriods int16, periodHours int16) (*AerisWeatherForecastRecord, error) {
 	v := url.Values{}
 
-	// Add authentication
-	v.Set("client_id", a.AerisWeatherConfig.APIClientID)
-	v.Set("client_secret", a.AerisWeatherConfig.APIClientSecret)
+	// Add authentication from device
+	v.Set("client_id", device.AerisAPIClientID)
+	v.Set("client_secret", device.AerisAPIClientSecret)
 
 	v.Set("filter", fmt.Sprintf("%vh", strconv.FormatInt(int64(periodHours), 10)))
 	v.Set("limit", strconv.FormatInt(int64(numPeriods), 10))
@@ -250,7 +280,7 @@ func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodH
 	}
 
 	// Format coordinates as "latitude,longitude" for Aeris Weather API
-	location := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+	location := fmt.Sprintf("%.6f,%.6f", device.Latitude, device.Longitude)
 	url := fmt.Sprint(a.AerisWeatherConfig.APIEndpoint + "/forecasts/" + location + "?" + v.Encode())
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -388,11 +418,12 @@ func (a *AerisWeatherController) fetchAndStoreForecast(numPeriods int16, periodH
 		return &AerisWeatherForecastRecord{}, fmt.Errorf("could not marshall forecast periods to JSON: %v", err)
 	}
 
-	// The request was succesful, so we need to add timespan and location information that will be stored
-	// along side the forecast data in the database.  Together, these constitute a composite primary key
-	// for the table.  Only one combination of span hours + location will be permitted.
-	locationStr := fmt.Sprintf("%.6f,%.6f", a.AerisWeatherConfig.Latitude, a.AerisWeatherConfig.Longitude)
+	// The request was succesful, so we need to add station ID, timespan and location information that will be stored
+	// along side the forecast data in the database.  Station ID and span hours constitute a composite unique key
+	// for the table.  Only one combination of station ID + span hours will be permitted.
+	locationStr := fmt.Sprintf("%.6f,%.6f", device.Latitude, device.Longitude)
 	record := AerisWeatherForecastRecord{
+		StationID:         device.ID,
 		ForecastSpanHours: numPeriods * periodHours,
 		Location:          locationStr,
 	}
