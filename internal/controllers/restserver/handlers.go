@@ -6,6 +6,7 @@ import (
 	htmltemplate "html/template"
 	"net/http"
 	"regexp"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -59,6 +60,26 @@ func (h *Handlers) getPrimaryDeviceForWebsite(website *config.WeatherWebsiteData
 
 	// If no enabled devices, fall back to first device (for historical data access)
 	return devices[0].Name
+}
+
+// getPrimaryDeviceIDForWebsite returns the primary device ID associated with a website
+// Prefers enabled devices, but falls back to disabled devices if no enabled devices are available
+func (h *Handlers) getPrimaryDeviceIDForWebsite(website *config.WeatherWebsiteData) int {
+	if website == nil {
+		return 0
+	}
+	devices := h.controller.DevicesByWebsite[website.ID]
+	if len(devices) == 0 {
+		return 0
+	}
+	// First, try to find an enabled device
+	for _, device := range devices {
+		if device.Enabled {
+			return device.ID
+		}
+	}
+	// Fallback to first disabled device if no enabled devices found
+	return devices[0].ID
 }
 
 // getSnowBaseDistance returns the snow base distance from the snow device configuration for a website
@@ -209,10 +230,32 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 	if h.controller.DBEnabled {
 		var dbFetchedReadings []types.BucketReading
 
+		// Support both station_id (preferred) and station (legacy) parameters
+		stationIDStr := req.URL.Query().Get("station_id")
 		stationName := req.URL.Query().Get("station")
 
-		// Validate station name if provided
-		if stationName != "" && !h.validateStationExists(stationName) {
+		// Convert station_id to station name if provided
+		if stationIDStr != "" {
+			stationID, err := strconv.Atoi(stationIDStr)
+			if err != nil {
+				http.Error(w, "invalid station_id", http.StatusBadRequest)
+				return
+			}
+			// Find the station name from ID
+			found := false
+			for _, device := range h.controller.Devices {
+				if device.ID == stationID {
+					stationName = device.Name
+					found = true
+					break
+				}
+			}
+			if !found {
+				http.Error(w, "station not found", http.StatusNotFound)
+				return
+			}
+		} else if stationName != "" && !h.validateStationExists(stationName) {
+			// Validate station name if provided
 			http.Error(w, "station not found", http.StatusNotFound)
 			return
 		}
@@ -345,10 +388,32 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 
 		var dbFetchedReadings []types.BucketReading
 
+		// Support both station_id (preferred) and station (legacy) parameters
+		stationIDStr := req.URL.Query().Get("station_id")
 		stationName := req.URL.Query().Get("station")
 
-		// Validate station name if provided
-		if stationName != "" && !h.validateStationExists(stationName) {
+		// Convert station_id to station name if provided
+		if stationIDStr != "" {
+			stationID, err := strconv.Atoi(stationIDStr)
+			if err != nil {
+				http.Error(w, "invalid station_id", http.StatusBadRequest)
+				return
+			}
+			// Find the station name from ID
+			found := false
+			for _, device := range h.controller.Devices {
+				if device.ID == stationID {
+					stationName = device.Name
+					found = true
+					break
+				}
+			}
+			if !found {
+				http.Error(w, "station not found", http.StatusNotFound)
+				return
+			}
+		} else if stationName != "" && !h.validateStationExists(stationName) {
+			// Validate station name if provided
 			http.Error(w, "station not found", http.StatusNotFound)
 			return
 		}
@@ -514,14 +579,53 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		location := req.URL.Query().Get("location")
+		// Support both station_id (preferred) and station (legacy) parameters
+		stationIDStr := req.URL.Query().Get("station_id")
+		stationName := req.URL.Query().Get("station")
 
 		record := AerisWeatherForecastRecord{}
 
 		var result *gorm.DB
-		if location != "" {
-			result = h.controller.DB.Where("forecast_span_hours = ? AND location = ?", span, location).First(&record)
+		if stationIDStr != "" {
+			// Use station_id if provided (preferred method)
+			stationID, err := strconv.Atoi(stationIDStr)
+			if err != nil {
+				log.Errorf("invalid station_id: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Invalid station_id parameter"})
+				return
+			}
+			result = h.controller.DB.Where("station_id = ? AND forecast_span_hours = ?", stationID, span).First(&record)
+		} else if stationName != "" {
+			// Fall back to station name for backward compatibility
+			// First, find the device ID for this station name
+			devices, err := h.controller.configProvider.GetDevices()
+			if err != nil {
+				log.Errorf("error getting devices: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			
+			var deviceID int
+			found := false
+			for _, device := range devices {
+				if device.Name == stationName {
+					deviceID = device.ID
+					found = true
+					break
+				}
+			}
+			
+			if !found {
+				log.Errorf("station not found: %s", stationName)
+				w.WriteHeader(http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Station not found"})
+				return
+			}
+			
+			result = h.controller.DB.Where("station_id = ? AND forecast_span_hours = ?", deviceID, span).First(&record)
 		} else {
+			// If no station specified, get the first available forecast for this span
 			result = h.controller.DB.Where("forecast_span_hours = ?", span).First(&record)
 		}
 		if result.RowsAffected == 0 {
@@ -608,6 +712,7 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 	// Create a template data structure with AboutStationHTML as safe HTML
 	templateData := struct {
 		StationName      string
+		StationID        int
 		PullFromDevice   string
 		SnowEnabled      bool
 		SnowDevice       string
@@ -617,6 +722,7 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		Version          string
 	}{
 		StationName:      website.Name,
+		StationID:        h.getPrimaryDeviceIDForWebsite(website),
 		PullFromDevice:   primaryDevice,
 		SnowEnabled:      website.SnowEnabled,
 		SnowDevice:       website.SnowDeviceName,
@@ -657,6 +763,7 @@ func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 	// Create JS template data structure
 	jsTemplateData := struct {
 		StationName      string
+		StationID        int
 		PullFromDevice   string
 		SnowEnabled      bool
 		SnowDevice       string
@@ -665,6 +772,7 @@ func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 		AboutStationHTML string
 	}{
 		StationName:      website.Name,
+		StationID:        h.getPrimaryDeviceIDForWebsite(website),
 		PullFromDevice:   primaryDevice,
 		SnowEnabled:      website.SnowEnabled,
 		SnowDevice:       website.SnowDeviceName,
@@ -736,6 +844,7 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 		// Only include devices that have location data
 		if device.Latitude != 0 && device.Longitude != 0 {
 			station := StationData{
+				ID:        device.ID,
 				Name:      device.Name,
 				Type:      device.Type,
 				Latitude:  device.Latitude,
