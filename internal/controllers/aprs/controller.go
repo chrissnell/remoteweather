@@ -9,41 +9,50 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/constants"
+	"github.com/chrissnell/remoteweather/internal/controllers"
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/types"
 	aprspkg "github.com/chrissnell/remoteweather/pkg/aprs"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
 
-// CurrentReading is a Reading + a mutex that maintains the most recent reading from
-// the station for whenever we need to send one to APRS-IS
-type CurrentReading struct {
-	r types.Reading
-	sync.RWMutex
-}
-
 // Controller holds general configuration related to our APRS/CWOP transmissions
 type Controller struct {
-	ctx             context.Context
-	cancel          context.CancelFunc
-	configProvider  config.ConfigProvider
-	APRSReadingChan chan types.Reading
-	currentReading  *CurrentReading
-	wg              *sync.WaitGroup
-	logger          *zap.SugaredLogger
-	running         bool
-	runningMutex    sync.RWMutex
+	ctx              context.Context
+	cancel           context.CancelFunc
+	configProvider   config.ConfigProvider
+	DB               *database.Client
+	wg               *sync.WaitGroup
+	logger           *zap.SugaredLogger
+	running          bool
+	runningMutex     sync.RWMutex
 }
 
 // New creates a new APRS controller
 func New(configProvider config.ConfigProvider) (*Controller, error) {
-	a := &Controller{}
+	// Validate TimescaleDB configuration
+	if err := controllers.ValidateTimescaleDBConfig(configProvider, "APRS"); err != nil {
+		return nil, err
+	}
+
+	// Set up database connection
+	db, err := controllers.SetupDatabaseConnection(configProvider, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	a := &Controller{
+		configProvider: configProvider,
+		DB:             db,
+		wg:             &sync.WaitGroup{},
+	}
 
 	// Load all controllers to find APRS controller configuration
 	cfg, err := configProvider.LoadConfig()
@@ -84,10 +93,6 @@ func New(configProvider config.ConfigProvider) (*Controller, error) {
 		return nil, fmt.Errorf("you must configure at least one weather station with APRS enabled, callsign, and location")
 	}
 
-	a.configProvider = configProvider
-	a.APRSReadingChan = make(chan types.Reading, 10)
-	a.wg = &sync.WaitGroup{}
-
 	return a, nil
 }
 
@@ -102,12 +107,8 @@ func (a *Controller) StartController() error {
 
 	log.Info("Starting APRS controller...")
 	a.ctx, a.cancel = context.WithCancel(context.Background())
-	a.currentReading = &CurrentReading{}
-	a.currentReading.r = types.Reading{}
-
-	// Create a dummy reading channel for now - readings will come from weather stations
-	readingChan := make(chan types.Reading, 10)
-	go a.processMetrics(a.ctx, a.wg, readingChan)
+	
+	// Start sending reports for all APRS-enabled devices
 	go a.sendReports(a.ctx, a.wg)
 
 	// Start health monitoring
@@ -119,8 +120,8 @@ func (a *Controller) StartController() error {
 	return nil
 }
 
-// Start starts the APRS controller with a reading channel
-func (a *Controller) Start(ctx context.Context, readingChan <-chan types.Reading) error {
+// Start starts the APRS controller
+func (a *Controller) Start(ctx context.Context) error {
 	a.runningMutex.Lock()
 	defer a.runningMutex.Unlock()
 
@@ -130,10 +131,8 @@ func (a *Controller) Start(ctx context.Context, readingChan <-chan types.Reading
 
 	log.Info("Starting APRS controller...")
 	a.ctx, a.cancel = context.WithCancel(ctx)
-	a.currentReading = &CurrentReading{}
-	a.currentReading.r = types.Reading{}
-
-	go a.processMetrics(a.ctx, a.wg, readingChan)
+	
+	// Start sending reports for all APRS-enabled devices
 	go a.sendReports(a.ctx, a.wg)
 
 	// Start health monitoring
@@ -213,46 +212,75 @@ func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
-	ticker := time.NewTicker(time.Minute * 5)
-	defer ticker.Stop()
-
-	// Kick off our first report manually
-	goodReading := 0
-	for goodReading == 0 {
-		a.currentReading.RLock()
-		if a.currentReading.r.Timestamp.Unix() > 0 {
-			go a.sendReadingToAPRSIS(ctx, wg)
-			goodReading++
-		}
-		a.currentReading.RUnlock()
-		time.Sleep(1 * time.Second)
+	// Get all APRS-enabled devices
+	devices, err := a.configProvider.GetDevices()
+	if err != nil {
+		log.Errorf("Error getting devices: %v", err)
+		return
 	}
 
-	for {
-		select {
-		case <-ticker.C:
-			a.currentReading.RLock()
-			if a.currentReading.r.Timestamp.Unix() > 0 {
-				go a.sendReadingToAPRSIS(ctx, wg)
-			}
-			a.currentReading.RUnlock()
-
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling sendReports()")
-			return
+	// Start a goroutine for each APRS-enabled device
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" && 
+			device.Latitude != 0 && device.Longitude != 0 {
+			// Create a copy for the closure
+			deviceCopy := device
+			
+			log.Infof("Starting APRS reporting for device: %s (Callsign: %s)", 
+				device.Name, device.APRSCallsign)
+			
+			// Start monitoring in separate goroutine
+			go a.sendDeviceReports(ctx, wg, deviceCopy)
 		}
 	}
-
 }
 
-func (a *Controller) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup) {
+func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, device config.DeviceData) {
 	wg.Add(1)
 	defer wg.Done()
 
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	// Send initial report after 15 seconds
+	initialTimer := time.NewTimer(15 * time.Second)
+	select {
+	case <-initialTimer.C:
+		log.Debugf("Sending initial APRS report for %s", device.Name)
+		a.sendStationReadingToAPRSIS(ctx, wg, device)
+	case <-ctx.Done():
+		initialTimer.Stop()
+		return
+	}
+
+	// Continue with regular reports
+	for {
+		select {
+		case <-ticker.C:
+			log.Debugf("Sending APRS report for %s", device.Name)
+			a.sendStationReadingToAPRSIS(ctx, wg, device)
+		case <-ctx.Done():
+			log.Infof("Stopping APRS reports for %s", device.Name)
+			return
+		}
+	}
+}
+
+func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup, device config.DeviceData) {
+	wg.Add(1)
+	defer wg.Done()
+
+	// Get latest reading from database
+	reading, err := a.DB.GetReadingsFromTimescaleDB(device.Name)
+	if err != nil {
+		log.Errorf("Error getting reading for %s: %v", device.Name, err)
+		return
+	}
+
 	connectionTimeout := 3 * time.Second
 
-	pkt := a.CreateCompleteWeatherReport('/', '_')
-	log.Debugf("sending reading to APRS-IS: %+v", pkt)
+	pkt := a.CreateCompleteWeatherReport(device, reading, '/', '_')
+	log.Debugf("sending reading to APRS-IS for station %s: %+v", device.Name, pkt)
 
 	// Load APRS controller configuration
 	aprsConfig, err := a.getAPRSConfig()
@@ -261,25 +289,6 @@ func (a *Controller) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup
 		return
 	}
 
-	// Get devices with APRS enabled
-	devices, err := a.configProvider.GetDevices()
-	if err != nil {
-		log.Error("error loading device configurations: %v", err)
-		return
-	}
-
-	var aprsCallsign string
-	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" {
-			aprsCallsign = device.APRSCallsign
-			break
-		}
-	}
-
-	if aprsCallsign == "" {
-		log.Error("no enabled APRS device found")
-		return
-	}
 
 	dialer := net.Dialer{
 		Timeout: connectionTimeout,
@@ -308,11 +317,22 @@ func (a *Controller) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup
 		return
 	}
 
-	// Calculate passcode from callsign
-	passcode := aprspkg.CalculatePasscode(aprsCallsign)
+	// Calculate passcode from callsign or use device-specific passcode
+	var passcode int
+	if device.APRSPasscode != "" {
+		// Try to parse the passcode as integer
+		if p, err := strconv.Atoi(device.APRSPasscode); err == nil {
+			passcode = p
+		} else {
+			// Fall back to calculated passcode
+			passcode = aprspkg.CalculatePasscode(device.APRSCallsign)
+		}
+	} else {
+		passcode = aprspkg.CalculatePasscode(device.APRSCallsign)
+	}
 
 	login := fmt.Sprintf("user %v pass %v vers remoteweather-%v\r\n",
-		aprsCallsign, passcode, constants.Version)
+		device.APRSCallsign, passcode, constants.Version)
 
 	conn.Write([]byte(login))
 
@@ -337,68 +357,25 @@ func (a *Controller) sendReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup
 	conn.Write([]byte(pkt + "\r\n"))
 }
 
-func (a *Controller) processMetrics(ctx context.Context, wg *sync.WaitGroup, rchan <-chan types.Reading) {
-	wg.Add(1)
-	defer wg.Done()
-
-	for {
-		select {
-		case r := <-rchan:
-			err := a.StoreCurrentReading(r)
-			if err != nil {
-				log.Error(err)
-			}
-		case <-ctx.Done():
-			log.Info("cancellation request recieved.  Cancelling processMetrics().")
-			return
-		}
-	}
-}
-
-// StoreCurrentReading stores the latest reading in our object
-func (a *Controller) StoreCurrentReading(r types.Reading) error {
-	a.currentReading.Lock()
-	a.currentReading.r = r
-	a.currentReading.Unlock()
-	return nil
-}
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
 // report included.
-func (a *Controller) CreateCompleteWeatherReport(symTable, symCode rune) string {
+func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, reading database.FetchedBucketReading, symTable, symCode rune) string {
 	var buffer bytes.Buffer
 
-	// Get devices with APRS enabled
-	devices, err := a.configProvider.GetDevices()
-	if err != nil {
-		log.Error("error loading device configurations for weather report: %v", err)
-		return ""
-	}
-
-	var aprsCallsign string
-	var lat, lon float64
-	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" {
-			aprsCallsign = device.APRSCallsign
-			lat = device.Latitude
-			lon = device.Longitude
-			break
-		}
-	}
-
-	if aprsCallsign == "" {
-		log.Error("no enabled APRS device found for weather report")
-		return ""
-	}
-
-	a.currentReading.RLock()
-	defer a.currentReading.RUnlock()
-
 	// Build callsign and position
-	callsign := strings.ToUpper(aprsCallsign)
+	callsign := strings.ToUpper(device.APRSCallsign)
 
-	latAPRS := convertLatitudeToAPRSFormat(lat)
-	lonAPRS := convertLongitudeToAPRSFormat(lon)
+	// Use device-specific symbol table/code if available
+	if device.APRSSymbolTable != "" && len(device.APRSSymbolTable) > 0 {
+		symTable = rune(device.APRSSymbolTable[0])
+	}
+	if device.APRSSymbolCode != "" && len(device.APRSSymbolCode) > 0 {
+		symCode = rune(device.APRSSymbolCode[0])
+	}
+
+	latAPRS := convertLatitudeToAPRSFormat(device.Latitude)
+	lonAPRS := convertLongitudeToAPRSFormat(device.Longitude)
 
 	// Our callsign comes first.
 	buffer.WriteString(callsign)
@@ -423,24 +400,29 @@ func (a *Controller) CreateCompleteWeatherReport(symTable, symCode rune) string 
 	buffer.WriteRune(symCode)
 
 	// Then our wind direction and speed
-	buffer.WriteString(fmt.Sprintf("%03d/%03d", int(a.currentReading.r.WindDir), int(a.currentReading.r.WindSpeed)))
+	buffer.WriteString(fmt.Sprintf("%03d/%03d", int(reading.WindDir), int(reading.WindSpeed)))
 
 	// We don't keep track of gusts
 	buffer.WriteString("g...")
 
 	// Then we add our temperature reading
-	buffer.WriteString(fmt.Sprintf("t%03d", int64(a.currentReading.r.OutTemp)))
+	buffer.WriteString(fmt.Sprintf("t%03d", int64(reading.OutTemp)))
 
 	// Then we add our rainfall since midnight
-	buffer.WriteString(fmt.Sprintf("P%03d", int64(a.currentReading.r.DayRain*100)))
+	buffer.WriteString(fmt.Sprintf("P%03d", int64(reading.DayRain*100)))
 
 	// Then we add our humidity
-	buffer.WriteString(fmt.Sprintf("h%02d", int64(a.currentReading.r.OutHumidity)))
+	buffer.WriteString(fmt.Sprintf("h%02d", int64(reading.OutHumidity)))
 
 	// Finally, we write our barometer reading, converted to tenths of millibars
-	buffer.WriteString((fmt.Sprintf("b%05d", int64(a.currentReading.r.Barometer*33.8638866666667*10))))
+	buffer.WriteString((fmt.Sprintf("b%05d", int64(reading.Barometer*33.8638866666667*10))))
 
 	buffer.WriteString("." + "remoteweather-" + constants.Version)
+	
+	// Add device-specific comment if configured
+	if device.APRSComment != "" {
+		buffer.WriteString(" " + device.APRSComment)
+	}
 
 	return buffer.String()
 }
@@ -615,15 +597,40 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 		Message:   "APRS-IS connection available",
 	}
 
-	// Test APRS-IS server connectivity and authentication
-	err := a.testAPRSISLogin(configProvider)
+	// Test APRS-IS server connectivity and authentication for all enabled devices
+	devices, err := configProvider.GetDevices()
 	if err != nil {
 		health.Status = "unhealthy"
-		health.Message = "APRS-IS login test failed"
+		health.Message = "Failed to load device configurations"
 		health.Error = err.Error()
 	} else {
-		health.Status = "healthy"
-		health.Message = "APRS-IS login test successful"
+		// Count enabled devices and test first one
+		enabledCount := 0
+		var firstDevice *config.DeviceData
+		for _, device := range devices {
+			if device.APRSEnabled && device.APRSCallsign != "" {
+				enabledCount++
+				if firstDevice == nil {
+					firstDevice = &device
+				}
+			}
+		}
+		
+		if enabledCount == 0 {
+			health.Status = "unhealthy"
+			health.Message = "No APRS-enabled devices found"
+		} else {
+			// Test login with first device
+			err := a.testAPRSISLogin(configProvider)
+			if err != nil {
+				health.Status = "unhealthy"
+				health.Message = fmt.Sprintf("APRS-IS login test failed for %d enabled device(s)", enabledCount)
+				health.Error = err.Error()
+			} else {
+				health.Status = "healthy"
+				health.Message = fmt.Sprintf("APRS-IS login test successful (%d enabled device(s))", enabledCount)
+			}
+		}
 	}
 
 	// Update health status in configuration database
