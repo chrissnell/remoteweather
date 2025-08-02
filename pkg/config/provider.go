@@ -187,6 +187,29 @@ type DeviceData struct {
 	TLSCertPath       string    `json:"tls_cert_path,omitempty"`
 	TLSKeyPath        string    `json:"tls_key_path,omitempty"`
 	Path              string    `json:"path,omitempty"`
+	
+	// PWS Weather fields
+	PWSEnabled        bool      `json:"pws_enabled,omitempty"`
+	PWSStationID      string    `json:"pws_station_id,omitempty"`
+	PWSPassword       string    `json:"pws_password,omitempty"`
+	PWSUploadInterval int       `json:"pws_upload_interval,omitempty"`
+	
+	// Weather Underground fields
+	WUEnabled         bool      `json:"wu_enabled,omitempty"`
+	WUStationID       string    `json:"wu_station_id,omitempty"`
+	WUPassword        string    `json:"wu_password,omitempty"`
+	WUUploadInterval  int       `json:"wu_upload_interval,omitempty"`
+	
+	// APRS additional fields
+	APRSPasscode      string    `json:"aprs_passcode,omitempty"`
+	APRSSymbolTable   string    `json:"aprs_symbol_table,omitempty"`
+	APRSSymbolCode    string    `json:"aprs_symbol_code,omitempty"`
+	APRSComment       string    `json:"aprs_comment,omitempty"`
+	
+	// Aeris Weather fields
+	AerisEnabled      bool      `json:"aeris_enabled,omitempty"`
+	AerisAPIClientID  string    `json:"aeris_api_client_id,omitempty"`
+	AerisAPIClientSecret string `json:"aeris_api_client_secret,omitempty"`
 }
 
 
