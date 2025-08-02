@@ -89,6 +89,25 @@ CREATE TABLE devices (
     tls_cert_file TEXT,
     tls_key_file TEXT,
     path TEXT DEFAULT '',
+    -- PWS Weather fields
+    pws_enabled BOOLEAN DEFAULT FALSE,
+    pws_station_id TEXT,
+    pws_password TEXT,
+    pws_upload_interval INTEGER DEFAULT 60,
+    -- Weather Underground fields
+    wu_enabled BOOLEAN DEFAULT FALSE,
+    wu_station_id TEXT,
+    wu_password TEXT,
+    wu_upload_interval INTEGER DEFAULT 300,
+    -- APRS additional fields
+    aprs_passcode TEXT,
+    aprs_symbol_table CHAR(1) DEFAULT '/',
+    aprs_symbol_code CHAR(1) DEFAULT '_',
+    aprs_comment TEXT,
+    -- Aeris Weather fields
+    aeris_enabled BOOLEAN DEFAULT FALSE,
+    aeris_api_client_id TEXT,
+    aeris_api_client_secret TEXT,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, name)
 );
@@ -207,6 +226,9 @@ CREATE TABLE weather_websites (
 -- Create indexes for better query performance
 CREATE INDEX idx_devices_config_id ON devices(config_id);
 CREATE INDEX idx_devices_name ON devices(config_id, name);
+CREATE INDEX idx_devices_pws_enabled ON devices(pws_enabled) WHERE pws_enabled = TRUE;
+CREATE INDEX idx_devices_wu_enabled ON devices(wu_enabled) WHERE wu_enabled = TRUE;
+CREATE INDEX idx_devices_aeris_enabled ON devices(aeris_enabled) WHERE aeris_enabled = TRUE;
 CREATE INDEX idx_storage_configs_config_id ON storage_configs(config_id);
 CREATE INDEX idx_storage_configs_type ON storage_configs(config_id, backend_type);
 CREATE INDEX idx_storage_configs_health_status ON storage_configs(health_status);
@@ -270,7 +292,11 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		SELECT id, name, type, enabled, hostname, port, serial_device, baud, 
 		       wind_dir_correction, base_snow_distance, website_id,
 		       latitude, longitude, altitude, aprs_enabled, aprs_callsign,
-		       tls_cert_file, tls_key_file, path
+		       tls_cert_file, tls_key_file, path,
+		       pws_enabled, pws_station_id, pws_password, pws_upload_interval,
+		       wu_enabled, wu_station_id, wu_password, wu_upload_interval,
+		       aprs_passcode, aprs_symbol_table, aprs_symbol_code, aprs_comment,
+		       aeris_enabled, aeris_api_client_id, aeris_api_client_secret
 		FROM devices 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY name
@@ -290,12 +316,33 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var latitude, longitude, altitude sql.NullFloat64
 		var aprsEnabled sql.NullBool
+		
+		// PWS Weather fields
+		var pwsEnabled sql.NullBool
+		var pwsStationID, pwsPassword sql.NullString
+		var pwsUploadInterval sql.NullInt64
+		
+		// Weather Underground fields
+		var wuEnabled sql.NullBool
+		var wuStationID, wuPassword sql.NullString
+		var wuUploadInterval sql.NullInt64
+		
+		// APRS additional fields
+		var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment sql.NullString
+		
+		// Aeris Weather fields
+		var aerisEnabled sql.NullBool
+		var aerisAPIClientID, aerisAPIClientSecret sql.NullString
 
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 			&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
+			&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
+			&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
+			&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment,
+			&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
@@ -353,6 +400,53 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if path.Valid {
 			device.Path = path.String
+		}
+		
+		// Set PWS Weather fields
+		device.PWSEnabled = pwsEnabled.Bool
+		if pwsStationID.Valid {
+			device.PWSStationID = pwsStationID.String
+		}
+		if pwsPassword.Valid {
+			device.PWSPassword = pwsPassword.String
+		}
+		if pwsUploadInterval.Valid {
+			device.PWSUploadInterval = int(pwsUploadInterval.Int64)
+		}
+		
+		// Set Weather Underground fields
+		device.WUEnabled = wuEnabled.Bool
+		if wuStationID.Valid {
+			device.WUStationID = wuStationID.String
+		}
+		if wuPassword.Valid {
+			device.WUPassword = wuPassword.String
+		}
+		if wuUploadInterval.Valid {
+			device.WUUploadInterval = int(wuUploadInterval.Int64)
+		}
+		
+		// Set APRS additional fields
+		if aprsPasscode.Valid {
+			device.APRSPasscode = aprsPasscode.String
+		}
+		if aprsSymbolTable.Valid {
+			device.APRSSymbolTable = aprsSymbolTable.String
+		}
+		if aprsSymbolCode.Valid {
+			device.APRSSymbolCode = aprsSymbolCode.String
+		}
+		if aprsComment.Valid {
+			device.APRSComment = aprsComment.String
+		}
+		
+		// Set Aeris Weather fields
+		device.AerisEnabled = aerisEnabled.Bool
+		if aerisAPIClientID.Valid {
+			device.AerisAPIClientID = aerisAPIClientID.String
+		}
+		if aerisAPIClientSecret.Valid {
+			device.AerisAPIClientSecret = aerisAPIClientSecret.String
 		}
 
 		devices = append(devices, device)
@@ -833,7 +927,11 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		SELECT d.id, d.name, d.type, d.enabled, d.hostname, d.port, d.serial_device, d.baud,
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
 		       d.latitude, d.longitude, d.altitude, d.aprs_enabled, d.aprs_callsign,
-		       d.tls_cert_file, d.tls_key_file, d.path
+		       d.tls_cert_file, d.tls_key_file, d.path,
+		       d.pws_enabled, d.pws_station_id, d.pws_password, d.pws_upload_interval,
+		       d.wu_enabled, d.wu_station_id, d.wu_password, d.wu_upload_interval,
+		       d.aprs_passcode, d.aprs_symbol_table, d.aprs_symbol_code, d.aprs_comment,
+		       d.aeris_enabled, d.aeris_api_client_id, d.aeris_api_client_secret
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
 		WHERE d.name = ?
@@ -845,12 +943,33 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 	var latitude, longitude, altitude sql.NullFloat64
 	var aprsEnabled sql.NullBool
+	
+	// PWS Weather fields
+	var pwsEnabled sql.NullBool
+	var pwsStationID, pwsPassword sql.NullString
+	var pwsUploadInterval sql.NullInt64
+	
+	// Weather Underground fields
+	var wuEnabled sql.NullBool
+	var wuStationID, wuPassword sql.NullString
+	var wuUploadInterval sql.NullInt64
+	
+	// APRS additional fields
+	var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment sql.NullString
+	
+	// Aeris Weather fields
+	var aerisEnabled sql.NullBool
+	var aerisAPIClientID, aerisAPIClientSecret sql.NullString
 
 	err := s.db.QueryRow(query, name).Scan(
 		&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
 		&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 		&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
+		&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
+		&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
+		&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment,
+		&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret,
 	)
 
 	if err != nil {
@@ -912,6 +1031,53 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	}
 	if path.Valid {
 		device.Path = path.String
+	}
+	
+	// Set PWS Weather fields
+	device.PWSEnabled = pwsEnabled.Bool
+	if pwsStationID.Valid {
+		device.PWSStationID = pwsStationID.String
+	}
+	if pwsPassword.Valid {
+		device.PWSPassword = pwsPassword.String
+	}
+	if pwsUploadInterval.Valid {
+		device.PWSUploadInterval = int(pwsUploadInterval.Int64)
+	}
+	
+	// Set Weather Underground fields
+	device.WUEnabled = wuEnabled.Bool
+	if wuStationID.Valid {
+		device.WUStationID = wuStationID.String
+	}
+	if wuPassword.Valid {
+		device.WUPassword = wuPassword.String
+	}
+	if wuUploadInterval.Valid {
+		device.WUUploadInterval = int(wuUploadInterval.Int64)
+	}
+	
+	// Set APRS additional fields
+	if aprsPasscode.Valid {
+		device.APRSPasscode = aprsPasscode.String
+	}
+	if aprsSymbolTable.Valid {
+		device.APRSSymbolTable = aprsSymbolTable.String
+	}
+	if aprsSymbolCode.Valid {
+		device.APRSSymbolCode = aprsSymbolCode.String
+	}
+	if aprsComment.Valid {
+		device.APRSComment = aprsComment.String
+	}
+	
+	// Set Aeris Weather fields
+	device.AerisEnabled = aerisEnabled.Bool
+	if aerisAPIClientID.Valid {
+		device.AerisAPIClientID = aerisAPIClientID.String
+	}
+	if aerisAPIClientSecret.Valid {
+		device.AerisAPIClientSecret = aerisAPIClientSecret.String
 	}
 
 	return &device, nil
