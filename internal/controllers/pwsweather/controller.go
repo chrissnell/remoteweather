@@ -30,29 +30,9 @@ func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, configProv
 		return nil, err
 	}
 
-	// Validate PWS Weather specific configuration
-	serviceConfig := controllers.WeatherServiceConfig{
-		ServiceName:    "PWS Weather",
-		StationID:      pwc.StationID,
-		APIKey:         pwc.APIKey,
-		PullFromDevice: pwc.PullFromDevice,
-	}
-
-	if err := controllers.ValidateWeatherServiceConfig(serviceConfig); err != nil {
-		return nil, err
-	}
-
-	// Set defaults
+	// Set defaults for global settings
 	if pwc.APIEndpoint == "" {
 		pwc.APIEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
-	}
-	if pwc.UploadInterval == "" {
-		pwc.UploadInterval = "60"
-	}
-
-	// Validate pull-from-device exists
-	if !base.DB.ValidatePullFromStation(pwc.PullFromDevice) {
-		return nil, fmt.Errorf("pull-from-device %v is not a valid station name", pwc.PullFromDevice)
 	}
 
 	return &PWSWeatherController{
@@ -68,28 +48,57 @@ func (p *PWSWeatherController) StartController() error {
 }
 
 func (p *PWSWeatherController) sendPeriodicReports() {
-	config := controllers.WeatherServiceConfig{
-		ServiceName:    "PWS Weather",
-		StationID:      p.PWSWeatherConfig.StationID,
-		APIKey:         p.PWSWeatherConfig.APIKey,
-		APIEndpoint:    p.PWSWeatherConfig.APIEndpoint,
-		UploadInterval: p.PWSWeatherConfig.UploadInterval,
-		PullFromDevice: p.PWSWeatherConfig.PullFromDevice,
+	p.wg.Add(1)
+	defer p.wg.Done()
+
+	// Get all devices with PWS enabled
+	devices, err := p.configProvider.GetDevices()
+	if err != nil {
+		p.logger.Errorf("Error getting devices: %v", err)
+		return
 	}
 
-	p.StartPeriodicReports(config, p.sendReadingsToPWSWeather)
+	// Start monitoring for each PWS-enabled device
+	for _, device := range devices {
+		if device.PWSEnabled && device.PWSStationID != "" && device.PWSPassword != "" {
+			p.logger.Infof("Starting PWS Weather monitoring for device: %s (Station ID: %s)", device.Name, device.PWSStationID)
+			
+			// Use device-specific upload interval or default
+			uploadInterval := "60"
+			if device.PWSUploadInterval > 0 {
+				uploadInterval = strconv.Itoa(device.PWSUploadInterval)
+			}
+
+			config := controllers.WeatherServiceConfig{
+				ServiceName:    "PWS Weather",
+				StationID:      device.PWSStationID,
+				APIKey:         device.PWSPassword,
+				APIEndpoint:    p.PWSWeatherConfig.APIEndpoint,
+				UploadInterval: uploadInterval,
+				PullFromDevice: device.Name,
+			}
+
+			// Start monitoring in separate goroutine for each device
+			go p.StartPeriodicReports(config, func(r *database.FetchedBucketReading) error {
+				return p.sendReadingsToPWSWeather(device, r)
+			})
+		}
+	}
+
+	// Wait for context cancellation
+	<-p.ctx.Done()
 }
 
-func (p *PWSWeatherController) sendReadingsToPWSWeather(r *database.FetchedBucketReading) error {
+func (p *PWSWeatherController) sendReadingsToPWSWeather(device config.DeviceData, r *database.FetchedBucketReading) error {
 	if err := controllers.ValidateReading(r); err != nil {
 		return err
 	}
 
 	v := url.Values{}
 
-	// Add authentication parameters
-	v.Set("ID", p.PWSWeatherConfig.StationID)
-	v.Set("PASSWORD", p.PWSWeatherConfig.APIKey)
+	// Add authentication parameters from device
+	v.Set("ID", device.PWSStationID)
+	v.Set("PASSWORD", device.PWSPassword)
 
 	now := time.Now().In(time.UTC)
 	v.Set("dateutc", now.Format("2006-01-02 15:04:05"))
