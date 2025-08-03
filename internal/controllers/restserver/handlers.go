@@ -151,39 +151,15 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		spanStart := time.Now().Add(-span)
 		// Snow base distance already retrieved from website
 		baseDistance := h.getSnowBaseDistance(website)
 
-		switch {
-		case span < 1*Day:
-			h.controller.DB.Table("weather_1m").
-				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-				Where("bucket > ?", spanStart).
-				Where("stationname = ?", stationName).
-				Order("bucket").
-				Find(&dbFetchedReadings)
-		case span >= 1*Day && span < 7*Day:
-			h.controller.DB.Table("weather_5m").
-				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-				Where("bucket > ?", spanStart).
-				Where("stationname = ?", stationName).
-				Order("bucket").
-				Find(&dbFetchedReadings)
-		case span >= 7*Day && span < 2*Month:
-			h.controller.DB.Table("weather_1h").
-				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-				Where("bucket > ?", spanStart).
-				Where("stationname = ?", stationName).
-				Order("bucket").
-				Find(&dbFetchedReadings)
-		default:
-			h.controller.DB.Table("weather_1h").
-				Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-				Where("bucket > ?", spanStart).
-				Where("stationname = ?", stationName).
-				Order("bucket").
-				Find(&dbFetchedReadings)
+		// Use the shared database fetching logic
+		dbFetchedReadings, err = h.controller.fetchWeatherSpan(stationName, span, baseDistance)
+		if err != nil {
+			log.Errorf("Error fetching weather span: %v", err)
+			http.Error(w, "error fetching weather data", http.StatusInternalServerError)
+			return
 		}
 
 		spanReadings := h.transformSpanReadings(&dbFetchedReadings)
@@ -263,12 +239,23 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		// Find primary device for the website
 		primaryDevice := h.getPrimaryDeviceForWebsite(website)
 
-		if stationName != "" {
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
-		} else {
-			// Client did not supply a station name, so pull from the configured primary device
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", primaryDevice).Order("time DESC").Find(&dbFetchedReadings)
+		// Determine which station to query
+		queryStation := stationName
+		if queryStation == "" {
+			queryStation = primaryDevice
 		}
+
+		// Get base distance for snow depth calculation
+		baseDistance := h.getSnowBaseDistance(website)
+
+		// Use the shared database fetching logic
+		fetchedReading, err := h.controller.fetchLatestReading(queryStation, baseDistance)
+		if err != nil {
+			log.Errorf("Error fetching latest reading: %v", err)
+			http.Error(w, "error fetching weather data", http.StatusInternalServerError)
+			return
+		}
+		dbFetchedReadings = []types.BucketReading{*fetchedReading}
 
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
 
