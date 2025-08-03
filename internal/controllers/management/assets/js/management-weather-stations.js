@@ -272,6 +272,7 @@ const ManagementWeatherStations = (function() {
   }
 
   async function openEditModal(dev) {
+    console.log('Opening edit modal for device:', dev);
     resetForm();
     modalElements.modalTitle.textContent = 'Edit Station';
     formElements.formMode.value = 'edit';
@@ -282,6 +283,7 @@ const ManagementWeatherStations = (function() {
 
     // Determine connection type
     if (dev.serial_device) {
+      console.log('Device has serial_device:', dev.serial_device);
       formElements.connectionType.value = 'serial';
     } else {
       formElements.connectionType.value = 'network';
@@ -294,14 +296,10 @@ const ManagementWeatherStations = (function() {
       formElements.connectionType.disabled = false;
     }
     
-    updateConnectionVisibility();
+    updateConnectionVisibility(dev.serial_device);
 
     // Populate fields after connection visibility is updated
     if (dev.serial_device) {
-      // Load serial ports first with the device to select
-      await loadSerialPorts(dev.serial_device);
-      // Then set the value after ports are loaded
-      formElements.serialDevice.value = dev.serial_device;
       formElements.serialBaud.value = dev.baud || '';
     }
     if (dev.hostname) {
@@ -524,7 +522,7 @@ const ManagementWeatherStations = (function() {
      Connection Type Management
   --------------------------------------------------- */
   
-  function updateConnectionVisibility() {
+  function updateConnectionVisibility(serialDeviceToSelect) {
     const selected = formElements.connectionType.value;
     const stationType = formElements.stationType.value;
     
@@ -532,7 +530,7 @@ const ManagementWeatherStations = (function() {
       ManagementUtils.showElement(formElements.serialFieldset);
       ManagementUtils.hideElement(formElements.networkFieldset);
       // Load available serial ports when serial is selected
-      loadSerialPorts();
+      loadSerialPorts(serialDeviceToSelect);
     } else if (selected === 'network') {
       ManagementUtils.hideElement(formElements.serialFieldset);
       ManagementUtils.showElement(formElements.networkFieldset);
@@ -614,11 +612,17 @@ const ManagementWeatherStations = (function() {
   --------------------------------------------------- */
   
   async function loadSerialPorts(valueToSelect) {
+    console.log('loadSerialPorts called with valueToSelect:', valueToSelect, 'currentValue:', formElements.serialDevice.value);
+    
     if (isLoadingSerialPorts) {
+      console.log('Already loading serial ports, returning');
       return; // Prevent concurrent calls
     }
     
-    if (!ManagementAuth.getIsAuthenticated()) return;
+    if (!ManagementAuth.getIsAuthenticated()) {
+      console.log('Not authenticated, returning');
+      return;
+    }
     
     isLoadingSerialPorts = true;
     const currentValue = valueToSelect || formElements.serialDevice.value;
