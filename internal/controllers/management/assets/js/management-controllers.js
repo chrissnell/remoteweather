@@ -60,8 +60,6 @@ const ManagementControllers = (function() {
       restHttpPort: document.getElementById('rest-http-port'),
       restHttpsPort: document.getElementById('rest-https-port'),
       restListenAddr: document.getElementById('rest-listen-addr'),
-      restTlsCert: document.getElementById('rest-tls-cert'),
-      restTlsKey: document.getElementById('rest-tls-key'),
       
       // Management API fields
       mgmtPort: document.getElementById('mgmt-port'),
@@ -351,8 +349,6 @@ const ManagementControllers = (function() {
         if (config.http_port) formElements.restHttpPort.value = config.http_port;
         if (config.https_port) formElements.restHttpsPort.value = config.https_port;
         if (config.default_listen_addr) formElements.restListenAddr.value = config.default_listen_addr;
-        if (config.tls_cert_path) formElements.restTlsCert.value = config.tls_cert_path;
-        if (config.tls_key_path) formElements.restTlsKey.value = config.tls_key_path;
         break;
       case 'management':
         if (config.port) formElements.mgmtPort.value = config.port;
@@ -441,8 +437,6 @@ const ManagementControllers = (function() {
         const httpsPort = parseInt(formElements.restHttpsPort.value);
         if (httpsPort) config.https_port = httpsPort;
         config.default_listen_addr = formElements.restListenAddr.value || '';
-        config.tls_cert_path = formElements.restTlsCert.value || '';
-        config.tls_key_path = formElements.restTlsKey.value || '';
         break;
       case 'management':
         config.port = parseInt(formElements.mgmtPort.value) || 0;

@@ -1859,8 +1859,6 @@
         if (config.http_port) document.getElementById('rest-http-port').value = config.http_port;
         if (config.https_port) document.getElementById('rest-https-port').value = config.https_port;
         if (config.default_listen_addr) document.getElementById('rest-listen-addr').value = config.default_listen_addr;
-        if (config.tls_cert && config.tls_cert !== '[CONFIGURED]') document.getElementById('rest-tls-cert').value = config.tls_cert;
-        if (config.tls_key && config.tls_key !== '[CONFIGURED]') document.getElementById('rest-tls-key').value = config.tls_key;
         break;
       case 'management':
         if (config.port) document.getElementById('mgmt-port').value = config.port;
@@ -1950,8 +1948,6 @@
         const httpsPort = parseInt(document.getElementById('rest-https-port').value);
         if (httpsPort) config.https_port = httpsPort;
         config.default_listen_addr = document.getElementById('rest-listen-addr').value || '';
-        config.tls_cert_path = document.getElementById('rest-tls-cert').value || '';
-        config.tls_key_path = document.getElementById('rest-tls-key').value || '';
         break;
       case 'management':
         config.port = parseInt(document.getElementById('mgmt-port').value) || 0;
