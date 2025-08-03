@@ -253,7 +253,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 func (c *Controller) StartController() error {
 	log.Info("Starting unified REST/gRPC server...")
 	
-	// Start HTTP/gRPC multiplexed server
+	// Determine if we should use HTTPS based on TLS configurations
+	useHTTPS := len(c.tlsConfigs) > 0
+	
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
@@ -267,84 +269,91 @@ func (c *Controller) StartController() error {
 		}
 		defer l.Close()
 
-		log.Infof("Unified server listening on %s (HTTP and gRPC)", listenAddr)
-
-		// Create cmux multiplexer
-		m := cmux.New(l)
-
-		// Match connections:
-		// - gRPC (HTTP/2 with "application/grpc" content-type)
-		// - HTTP/1.1 and HTTP/2 without gRPC content-type
-		grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-		httpL := m.Match(cmux.Any())
-
-		// Start HTTP server
-		go func() {
-			if err := c.Server.Serve(httpL); err != http.ErrServerClosed {
-				log.Errorf("HTTP server error: %v", err)
-			}
-		}()
-
-		// Start gRPC server
-		go func() {
-			if err := c.GRPCServer.Serve(grpcL); err != nil {
-				log.Errorf("gRPC server error: %v", err)
-			}
-		}()
-
-		// Start serving connections
-		if err := m.Serve(); err != nil && !strings.Contains(err.Error(), "closed") {
-			log.Errorf("cmux serve error: %v", err)
-		}
-	}()
-
-	// Start HTTPS server if any TLS configurations exist
-	if len(c.tlsConfigs) > 0 {
-		c.wg.Add(1)
-		go func() {
-			defer c.wg.Done()
-			
-			// Determine HTTPS port
-			httpsPort := 443
-			if c.restConfig.HTTPSPort != nil {
-				httpsPort = *c.restConfig.HTTPSPort
-			}
-			
-			// Create HTTPS listener
-			httpsAddr := fmt.Sprintf("%s:%d", c.restConfig.DefaultListenAddr, httpsPort)
-			
-			// Configure HTTPS server
-			c.HTTPSServer.Addr = httpsAddr
-			c.HTTPSServer.Handler = c.setupRouter() // Use same router as HTTP
+		if useHTTPS {
+			// HTTPS + gRPC mode
+			log.Infof("Starting unified server on %s (HTTPS and gRPC) with %d configured certificates", listenAddr, len(c.tlsConfigs))
 			
 			// Create TLS config with SNI support
 			tlsConfig := &tls.Config{
 				GetCertificate: c.getCertificate,
+				NextProtos: []string{"h2", "http/1.1"}, // Enable HTTP/2
 			}
-			c.HTTPSServer.TLSConfig = tlsConfig
 			
-			log.Infof("Starting HTTPS server on %s with %d configured certificates", httpsAddr, len(c.tlsConfigs))
+			// Wrap listener with TLS
+			tlsListener := tls.NewListener(l, tlsConfig)
 			
-			// Start HTTPS server
-			if err := c.HTTPSServer.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
-				log.Errorf("HTTPS server error: %v", err)
+			// Create cmux multiplexer on TLS listener
+			m := cmux.New(tlsListener)
+			
+			// Match connections:
+			// - gRPC (HTTP/2 with "application/grpc" content-type)
+			// - HTTPS (HTTP/1.1 and HTTP/2 without gRPC content-type)
+			grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+			httpsL := m.Match(cmux.Any())
+			
+			// Configure and start HTTPS server
+			c.HTTPSServer.Handler = c.setupRouter()
+			go func() {
+				if err := c.HTTPSServer.Serve(httpsL); err != http.ErrServerClosed {
+					log.Errorf("HTTPS server error: %v", err)
+				}
+			}()
+			
+			// Start gRPC server
+			go func() {
+				if err := c.GRPCServer.Serve(grpcL); err != nil {
+					log.Errorf("gRPC server error: %v", err)
+				}
+			}()
+			
+			// Start serving connections
+			if err := m.Serve(); err != nil && !strings.Contains(err.Error(), "closed") {
+				log.Errorf("cmux serve error: %v", err)
 			}
-		}()
-	} else {
-		log.Info("No TLS certificates configured, HTTPS server not started")
-	}
+		} else {
+			// HTTP + gRPC mode (original behavior when no TLS)
+			log.Infof("Starting unified server on %s (HTTP and gRPC)", listenAddr)
+			
+			// Create cmux multiplexer
+			m := cmux.New(l)
+			
+			// Match connections:
+			// - gRPC (HTTP/2 with "application/grpc" content-type)
+			// - HTTP/1.1 and HTTP/2 without gRPC content-type
+			grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+			httpL := m.Match(cmux.Any())
+			
+			// Start HTTP server
+			go func() {
+				if err := c.Server.Serve(httpL); err != http.ErrServerClosed {
+					log.Errorf("HTTP server error: %v", err)
+				}
+			}()
+			
+			// Start gRPC server
+			go func() {
+				if err := c.GRPCServer.Serve(grpcL); err != nil {
+					log.Errorf("gRPC server error: %v", err)
+				}
+			}()
+			
+			// Start serving connections
+			if err := m.Serve(); err != nil && !strings.Contains(err.Error(), "closed") {
+				log.Errorf("cmux serve error: %v", err)
+			}
+		}
+	}()
 
 	// Handle graceful shutdown
 	go func() {
 		<-c.ctx.Done()
 		log.Info("Shutting down servers...")
 		
-		// Shutdown HTTP server
-		c.Server.Shutdown(context.Background())
-		
-		// Shutdown HTTPS server if running
-		if len(c.tlsConfigs) > 0 {
+		// Shutdown appropriate server based on mode
+		if useHTTPS {
 			c.HTTPSServer.Shutdown(context.Background())
+		} else {
+			c.Server.Shutdown(context.Background())
 		}
 		
 		// Stop gRPC server
