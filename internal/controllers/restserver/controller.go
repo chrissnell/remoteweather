@@ -24,7 +24,6 @@ import (
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
@@ -95,17 +94,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	// Create device manager for gRPC
 	ctrl.DeviceManager = grpcutil.NewDeviceManager(cfgData.Devices)
 
-	// Always initialize gRPC server
-	// Check if we should use TLS based on REST server config
-	if rc.TLSCertPath != "" && rc.TLSKeyPath != "" {
-		creds, err := credentials.NewServerTLSFromFile(rc.TLSCertPath, rc.TLSKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("could not create TLS server from keypair: %v", err)
-		}
-		ctrl.GRPCServer = grpc.NewServer(grpc.Creds(creds))
-	} else {
-		ctrl.GRPCServer = grpc.NewServer()
-	}
+	// Always initialize gRPC server without TLS
+	// When using HTTPS mode, TLS is handled by the outer TLS listener
+	ctrl.GRPCServer = grpc.NewServer()
 
 	// Register the weather service and reflection
 	weather.RegisterWeatherV1Server(ctrl.GRPCServer, ctrl)
@@ -287,7 +278,9 @@ func (c *Controller) StartController() error {
 			// Create TLS config with SNI support
 			tlsConfig := &tls.Config{
 				GetCertificate: c.getCertificate,
-				NextProtos: []string{"h2", "http/1.1"}, // Enable HTTP/2
+				// Don't advertise h2 in ALPN when using cmux
+				// cmux handles the protocol detection internally
+				NextProtos: []string{"http/1.1"},
 			}
 			
 			// Wrap listener with TLS
@@ -668,6 +661,15 @@ func (c *Controller) getCertificate(hello *tls.ClientHelloInfo) (*tls.Certificat
 		if strings.HasPrefix(configuredHost, "*.") {
 			domain := configuredHost[2:] // Remove "*."
 			if strings.HasSuffix(hostname, domain) {
+				return &tlsConfig.Certificates[0], nil
+			}
+		}
+	}
+	
+	// If no SNI provided or no match found, try to return first available certificate
+	if hostname == "" || len(c.tlsConfigs) > 0 {
+		for _, tlsConfig := range c.tlsConfigs {
+			if len(tlsConfig.Certificates) > 0 {
 				return &tlsConfig.Certificates[0], nil
 			}
 		}
