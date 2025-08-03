@@ -208,7 +208,7 @@
                 <div class="service-group" id="aprs-group">
                   <div class="service-header">
                     <label class="checkbox-label">
-                      <input type="checkbox" id="aprs-enabled" /> APRS
+                      <input type="checkbox" id="aprs-enabled" /> APRS & CWOP
                     </label>
                   </div>
                   <div class="service-fields hidden" id="aprs-config-fields">
@@ -218,7 +218,14 @@
                     </label>
                     <label>
                       Server
-                      <input type="text" id="aprs-server" placeholder="rotate.aprs2.net:14580" value="rotate.aprs2.net:14580" />
+                      <select id="aprs-server">
+                        <option value="noam.aprs2.net:14580">noam.aprs2.net (North America)</option>
+                        <option value="soam.aprs2.net:14580">soam.aprs2.net (South America)</option>
+                        <option value="euro.aprs2.net:14580">euro.aprs2.net (Europe & Africa)</option>
+                        <option value="asia.aprs2.net:14580">asia.aprs2.net (Asia)</option>
+                        <option value="aunz.aprs2.net:14580">aunz.aprs2.net (Oceania)</option>
+                        <option value="cwop.aprs.net:14580">cwop.aprs.net (CWOP)</option>
+                      </select>
                     </label>
                     <p class="help-text">APRS will use the latitude and longitude from Station Location. The passcode will be calculated automatically from your callsign.</p>
                   </div>

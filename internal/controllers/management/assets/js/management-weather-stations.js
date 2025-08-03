@@ -458,7 +458,7 @@ const ManagementWeatherStations = (function() {
     // APRS configuration
     const aprsEnabled = formElements.aprsEnabled.checked;
     const aprsCallsign = formElements.aprsCallsign.value.trim();
-    const aprsServer = formElements.aprsServer.value.trim();
+    const aprsServer = formElements.aprsServer.value;
     
     if (aprsEnabled) {
       if (!aprsCallsign) {
@@ -467,7 +467,7 @@ const ManagementWeatherStations = (function() {
       }
       device.aprs_enabled = true;
       device.aprs_callsign = aprsCallsign;
-      device.aprs_server = aprsServer || 'rotate.aprs2.net:14580';
+      device.aprs_server = aprsServer || 'noam.aprs2.net:14580';
     }
     
     // TLS configuration for grpcreceiver
@@ -709,7 +709,14 @@ const ManagementWeatherStations = (function() {
   function populateAPRSFields(device) {
     formElements.aprsEnabled.checked = device.aprs_enabled || false;
     formElements.aprsCallsign.value = device.aprs_callsign || '';
-    formElements.aprsServer.value = device.aprs_server || 'rotate.aprs2.net:14580';
+    
+    // Set server dropdown value
+    if (device.aprs_server) {
+      formElements.aprsServer.value = device.aprs_server;
+    } else {
+      // Default to North America
+      formElements.aprsServer.value = 'noam.aprs2.net:14580';
+    }
     
     // Show/hide APRS fields based on enabled status
     ManagementUtils.setElementVisibility(

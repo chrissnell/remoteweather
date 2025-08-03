@@ -300,7 +300,10 @@ func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.Wa
 
 	// Calculate passcode from callsign or use device-specific passcode
 	var passcode int
-	if device.APRSPasscode != "" {
+	if strings.HasPrefix(strings.ToUpper(device.APRSCallsign), "DW") {
+		// CWOP stations always use passcode -1
+		passcode = -1
+	} else if device.APRSPasscode != "" {
 		// Try to parse the passcode as integer
 		if p, err := strconv.Atoi(device.APRSPasscode); err == nil {
 			passcode = p
@@ -678,7 +681,13 @@ func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error
 	}
 
 	// Calculate passcode from callsign
-	passcode := aprspkg.CalculatePasscode(aprsCallsign)
+	var passcode int
+	if strings.HasPrefix(strings.ToUpper(aprsCallsign), "DW") {
+		// CWOP stations use passcode -1
+		passcode = -1
+	} else {
+		passcode = aprspkg.CalculatePasscode(aprsCallsign)
+	}
 
 	// Send login command
 	loginCmd := fmt.Sprintf("user %s pass %d vers remoteweather-healthcheck 1.0\r\n",
