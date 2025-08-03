@@ -4,7 +4,6 @@ const ManagementWeatherStations = (function() {
   'use strict';
 
   // Module state
-  let isLoadingSerialPorts = false;
   let modalElements = {};
   let formElements = {};
 
@@ -248,10 +247,8 @@ const ManagementWeatherStations = (function() {
     formElements.formMode.value = 'add';
     formElements.stationType.disabled = false;
     
-    // Load serial ports if serial is selected by default
-    if (formElements.connectionType.value === 'serial') {
-      loadSerialPorts();
-    }
+    // Update connection visibility (for new stations, no value to select)
+    updateConnectionVisibility();
     
     modalElements.modal.classList.remove('hidden');
     
@@ -272,7 +269,6 @@ const ManagementWeatherStations = (function() {
   }
 
   async function openEditModal(dev) {
-    console.log('Opening edit modal for device:', dev);
     resetForm();
     modalElements.modalTitle.textContent = 'Edit Station';
     formElements.formMode.value = 'edit';
@@ -283,7 +279,6 @@ const ManagementWeatherStations = (function() {
 
     // Determine connection type
     if (dev.serial_device) {
-      console.log('Device has serial_device:', dev.serial_device);
       formElements.connectionType.value = 'serial';
     } else {
       formElements.connectionType.value = 'network';
@@ -346,7 +341,7 @@ const ManagementWeatherStations = (function() {
     formElements.tlsFieldset.classList.add('hidden');
     formElements.connectionType.value = 'serial';
     formElements.connectionType.disabled = false;
-    updateConnectionVisibility();
+    // Don't call updateConnectionVisibility here - let the caller handle it
   }
 
   /* ---------------------------------------------------
@@ -612,17 +607,8 @@ const ManagementWeatherStations = (function() {
   --------------------------------------------------- */
   
   async function loadSerialPorts(valueToSelect) {
-    console.log('loadSerialPorts called with valueToSelect:', valueToSelect, 'currentValue:', formElements.serialDevice.value);
+    if (!ManagementAuth.getIsAuthenticated()) return;
     
-    // Remove the concurrent call check for now since we need to allow
-    // the second call with the proper value to override the first
-    
-    if (!ManagementAuth.getIsAuthenticated()) {
-      console.log('Not authenticated, returning');
-      return;
-    }
-    
-    isLoadingSerialPorts = true;
     const currentValue = valueToSelect || formElements.serialDevice.value;
     
     // Clear existing options except the first one
@@ -662,8 +648,6 @@ const ManagementWeatherStations = (function() {
       option.textContent = 'Failed to load serial ports';
       option.disabled = true;
       formElements.serialDevice.appendChild(option);
-    } finally {
-      isLoadingSerialPorts = false;
     }
   }
 
