@@ -198,7 +198,7 @@ const ManagementWeatherStations = (function() {
     }
     
     // Station location
-    if (dev.solar) {
+    if (dev.latitude || dev.longitude || dev.altitude) {
       html += `<div><strong>Latitude:</strong> ${dev.latitude || 'Not set'}</div>`;
       html += `<div><strong>Longitude:</strong> ${dev.longitude || 'Not set'}</div>`;
       html += `<div><strong>Altitude:</strong> ${dev.altitude || 'Not set'}</div>`;
@@ -313,11 +313,9 @@ const ManagementWeatherStations = (function() {
     }
 
     // Populate solar fields
-    if (dev.solar) {
-      formElements.solarLatitude.value = dev.latitude || '';
-      formElements.solarLongitude.value = dev.longitude || '';
-      formElements.solarAltitude.value = dev.altitude || '';
-    }
+    formElements.solarLatitude.value = dev.latitude || '';
+    formElements.solarLongitude.value = dev.longitude || '';
+    formElements.solarAltitude.value = dev.altitude || '';
 
     // Populate service fields
     populateServiceFields(dev);
@@ -438,7 +436,7 @@ const ManagementWeatherStations = (function() {
       }
       device.wu_enabled = true;
       device.wu_station_id = wuStationId;
-      device.wu_api_key = wuApiKey;
+      device.wu_password = wuApiKey;
     }
     
     // PWS Weather
@@ -452,7 +450,7 @@ const ManagementWeatherStations = (function() {
       }
       device.pws_enabled = true;
       device.pws_station_id = pwsStationId;
-      device.pws_api_key = pwsApiKey;
+      device.pws_password = pwsApiKey;
     }
     
     // APRS configuration
@@ -684,7 +682,7 @@ const ManagementWeatherStations = (function() {
     // Weather Underground
     formElements.wuEnabled.checked = device.wu_enabled || false;
     formElements.wuStationId.value = device.wu_station_id || '';
-    formElements.wuApiKey.value = device.wu_api_key || '';
+    formElements.wuApiKey.value = device.wu_password || '';
     ManagementUtils.setElementVisibility(
       formElements.wuFields,
       device.wu_enabled
@@ -694,7 +692,7 @@ const ManagementWeatherStations = (function() {
     // PWS Weather
     formElements.pwsEnabled.checked = device.pws_enabled || false;
     formElements.pwsStationId.value = device.pws_station_id || '';
-    formElements.pwsApiKey.value = device.pws_api_key || '';
+    formElements.pwsApiKey.value = device.pws_password || '';
     ManagementUtils.setElementVisibility(
       formElements.pwsFields,
       device.pws_enabled
