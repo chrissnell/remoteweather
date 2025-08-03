@@ -189,8 +189,13 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		return nil, fmt.Errorf("no default website could be determined")
 	}
 
-	// AerisWeatherEnabled is now determined per-device, not globally
-	// This field will be deprecated in favor of device-specific checks
+	// Check if any device has Aeris Weather enabled
+	for _, device := range ctrl.Devices {
+		if device.AerisEnabled {
+			ctrl.AerisWeatherEnabled = true
+			break
+		}
+	}
 
 	// If a DefaultListenAddr was not provided, listen on all interfaces
 	if rc.DefaultListenAddr == "" {
@@ -638,6 +643,23 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 	// DefaultWebsite can be nil if no websites are configured
 	if c.DefaultWebsite == nil && len(websites) > 0 {
 		return fmt.Errorf("no default website could be determined")
+	}
+
+	// Reload devices configuration as well
+	cfgData, err := c.configProvider.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("error reloading configuration: %v", err)
+	}
+	c.Devices = cfgData.Devices
+	c.RefreshDeviceNames()
+	
+	// Re-check if any device has Aeris Weather enabled
+	c.AerisWeatherEnabled = false
+	for _, device := range c.Devices {
+		if device.AerisEnabled {
+			c.AerisWeatherEnabled = true
+			break
+		}
 	}
 
 	c.logger.Info("Website configuration reloaded successfully")

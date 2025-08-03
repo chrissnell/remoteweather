@@ -298,9 +298,8 @@ const ManagementWeatherStations = (function() {
 
     // Populate fields after connection visibility is updated
     if (dev.serial_device) {
-      // Wait for serial ports to be loaded, then set the value
-      await loadSerialPorts();
-      formElements.serialDevice.value = dev.serial_device;
+      // Load serial ports and pre-select the device's serial port
+      await loadSerialPorts(dev.serial_device);
       formElements.serialBaud.value = dev.baud || '';
     }
     if (dev.hostname) {
@@ -612,7 +611,7 @@ const ManagementWeatherStations = (function() {
      Serial Port Management
   --------------------------------------------------- */
   
-  async function loadSerialPorts() {
+  async function loadSerialPorts(valueToSelect) {
     if (isLoadingSerialPorts) {
       return; // Prevent concurrent calls
     }
@@ -620,7 +619,7 @@ const ManagementWeatherStations = (function() {
     if (!ManagementAuth.getIsAuthenticated()) return;
     
     isLoadingSerialPorts = true;
-    const currentValue = formElements.serialDevice.value;
+    const currentValue = valueToSelect || formElements.serialDevice.value;
     
     // Clear existing options except the first one
     formElements.serialDevice.innerHTML = '<option value="">Select a serial port...</option>';
