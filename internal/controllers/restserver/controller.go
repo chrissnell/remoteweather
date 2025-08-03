@@ -4,6 +4,7 @@ package restserver
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -140,8 +141,18 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 					logger.Errorf("Failed to load TLS certificate for website %s: %v", website.Name, err)
 					// Continue without TLS for this website
 				} else {
+					// Build certificate chains if intermediates are present
+					if cert.Leaf == nil && len(cert.Certificate) > 0 {
+						// Parse the leaf certificate
+						x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+						if err == nil {
+							cert.Leaf = x509Cert
+						}
+					}
+					
 					ctrl.tlsConfigs[website.Hostname] = &tls.Config{
 						Certificates: []tls.Certificate{cert},
+						MinVersion:   tls.VersionTLS12,
 					}
 					logger.Infof("Loaded TLS certificate for website %s (hostname: %s)", website.Name, website.Hostname)
 				}
@@ -292,9 +303,9 @@ func (c *Controller) StartController() error {
 			httpsL := m.Match(cmux.Any())
 			
 			// Configure and start HTTPS server
-			c.HTTPSServer.Handler = c.setupRouter()
+			c.Server.Handler = c.setupRouter()
 			go func() {
-				if err := c.HTTPSServer.Serve(httpsL); err != http.ErrServerClosed {
+				if err := c.Server.Serve(httpsL); err != http.ErrServerClosed {
 					log.Errorf("HTTPS server error: %v", err)
 				}
 			}()
@@ -349,12 +360,8 @@ func (c *Controller) StartController() error {
 		<-c.ctx.Done()
 		log.Info("Shutting down servers...")
 		
-		// Shutdown appropriate server based on mode
-		if useHTTPS {
-			c.HTTPSServer.Shutdown(context.Background())
-		} else {
-			c.Server.Shutdown(context.Background())
-		}
+		// Shutdown HTTP/HTTPS server
+		c.Server.Shutdown(context.Background())
 		
 		// Stop gRPC server
 		c.GRPCServer.GracefulStop()
@@ -583,8 +590,18 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 					c.logger.Errorf("Failed to load TLS certificate for website %s: %v", website.Name, err)
 					// Continue without TLS for this website
 				} else {
+					// Build certificate chains if intermediates are present
+					if cert.Leaf == nil && len(cert.Certificate) > 0 {
+						// Parse the leaf certificate
+						x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+						if err == nil {
+							cert.Leaf = x509Cert
+						}
+					}
+					
 					c.tlsConfigs[website.Hostname] = &tls.Config{
 						Certificates: []tls.Certificate{cert},
+						MinVersion:   tls.VersionTLS12,
 					}
 					c.logger.Infof("Reloaded TLS certificate for website %s (hostname: %s)", website.Name, website.Hostname)
 				}
