@@ -162,7 +162,8 @@ const ManagementWebsites = (function() {
     }
     
     if (!website.is_portal && website.device_id) {
-      html += `<div><strong>Weather Station:</strong> Device ID ${website.device_id}</div>`;
+      const deviceDisplay = website.device_name || `Device ID ${website.device_id}`;
+      html += `<div><strong>Weather Station:</strong> ${deviceDisplay}</div>`;
     }
     
     if (website.snow_enabled && website.snow_device_name) {
