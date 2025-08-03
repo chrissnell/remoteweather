@@ -52,8 +52,18 @@
             <form id="station-form" class="station-form">
               <input type="hidden" id="form-mode" value="add" />
               <input type="hidden" id="original-name" value="" />
-
-              <label>
+              
+              <!-- Tab Navigation -->
+              <div class="modal-tabs">
+                <button type="button" class="modal-tab active" data-tab="basic">Basic</button>
+                <button type="button" class="modal-tab" data-tab="location">Location</button>
+                <button type="button" class="modal-tab" data-tab="services">Services</button>
+                <button type="button" class="modal-tab" data-tab="advanced">Advanced</button>
+              </div>
+              
+              <!-- Basic Tab -->
+              <div class="tab-panel active" id="basic-tab">
+                <label>
                 Name
                 <input type="text" id="station-name" required />
               </label>
@@ -105,58 +115,132 @@
                 </label>
               </fieldset>
 
-              <div id="snow-options" class="snow-options hidden">
-                <label>
-                  Base Snow Distance (mm)
-                  <input type="number" id="snow-distance" />
-                </label>
-              </div>
-
-              <fieldset id="tls-fieldset" class="conn-fieldset hidden">
-                <legend>TLS Configuration (Optional)</legend>
-                <label>
-                  TLS Certificate Path
-                  <input type="text" id="tls-cert-path" placeholder="/path/to/cert.pem" />
-                  <span class="help-text">Path to TLS certificate file</span>
-                </label>
-                <label>
-                  TLS Key Path
-                  <input type="text" id="tls-key-path" placeholder="/path/to/key.pem" />
-                  <span class="help-text">Path to TLS private key file</span>
-                </label>
-              </fieldset>
-
-              <fieldset class="conn-fieldset">
-                <legend>Station Location</legend>
-                <label>
-                  Latitude
-                  <input type="text" id="solar-latitude" placeholder="40.712800" />
-                  <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
-                </label>
-                <label>
-                  Longitude
-                  <input type="text" id="solar-longitude" placeholder="-74.006000" />
-                  <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
-                </label>
-                <label>
-                  Altitude (meters)
-                  <input type="number" id="solar-altitude" placeholder="10" />
-                </label>
-              </fieldset>
-
-              <fieldset class="conn-fieldset">
-                <legend>APRS Configuration</legend>
-                <label class="checkbox-label">
-                  <input type="checkbox" id="aprs-enabled" /> Enable APRS
-                </label>
-                <div id="aprs-config-fields" class="hidden">
+                <div id="snow-options" class="snow-options hidden">
                   <label>
-                    APRS Callsign
-                    <input type="text" id="aprs-callsign" placeholder="N0CALL" />
+                    Base Snow Distance (mm)
+                    <input type="number" id="snow-distance" />
                   </label>
-                  <p class="help-text">APRS will use the latitude and longitude from Station Location above. The passcode will be calculated automatically from your callsign.</p>
                 </div>
-              </fieldset>
+              </div>
+              
+              <!-- Location Tab -->
+              <div class="tab-panel" id="location-tab">
+
+                <fieldset class="conn-fieldset">
+                  <legend>Station Location</legend>
+                  <label>
+                    Latitude
+                    <input type="text" id="solar-latitude" placeholder="40.712800" />
+                    <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
+                  </label>
+                  <label>
+                    Longitude
+                    <input type="text" id="solar-longitude" placeholder="-74.006000" />
+                    <span class="help-text">Paste coordinates from anywhere - will be rounded to 0.1m resolution</span>
+                  </label>
+                  <label>
+                    Altitude (meters)
+                    <input type="number" id="solar-altitude" placeholder="10" />
+                  </label>
+                </fieldset>
+              </div>
+              
+              <!-- Services Tab -->
+              <div class="tab-panel" id="services-tab">
+                <!-- Aeris Weather -->
+                <div class="service-group" id="aeris-group">
+                  <div class="service-header">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="aeris-enabled" /> Aeris Weather
+                    </label>
+                  </div>
+                  <div class="service-fields hidden" id="aeris-fields">
+                    <label>
+                      Station ID
+                      <input type="text" id="aeris-station-id" placeholder="STATION123" />
+                    </label>
+                    <label>
+                      API Key
+                      <input type="password" id="aeris-api-key" placeholder="your-api-key" />
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- Weather Underground -->
+                <div class="service-group" id="wu-group">
+                  <div class="service-header">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="wu-enabled" /> Weather Underground
+                    </label>
+                  </div>
+                  <div class="service-fields hidden" id="wu-fields">
+                    <label>
+                      Station ID
+                      <input type="text" id="wu-station-id" placeholder="STATION123" />
+                    </label>
+                    <label>
+                      API Key
+                      <input type="password" id="wu-api-key" placeholder="your-api-key" />
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- PWS Weather -->
+                <div class="service-group" id="pws-group">
+                  <div class="service-header">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="pws-enabled" /> PWS Weather
+                    </label>
+                  </div>
+                  <div class="service-fields hidden" id="pws-fields">
+                    <label>
+                      Station ID
+                      <input type="text" id="pws-station-id" placeholder="STATION123" />
+                    </label>
+                    <label>
+                      API Key
+                      <input type="password" id="pws-api-key" placeholder="your-api-key" />
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- APRS -->
+                <div class="service-group" id="aprs-group">
+                  <div class="service-header">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="aprs-enabled" /> APRS
+                    </label>
+                  </div>
+                  <div class="service-fields hidden" id="aprs-config-fields">
+                    <label>
+                      Callsign
+                      <input type="text" id="aprs-callsign" placeholder="N0CALL" />
+                    </label>
+                    <label>
+                      Server
+                      <input type="text" id="aprs-server" placeholder="rotate.aprs2.net:14580" value="rotate.aprs2.net:14580" />
+                    </label>
+                    <p class="help-text">APRS will use the latitude and longitude from Station Location. The passcode will be calculated automatically from your callsign.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Advanced Tab -->
+              <div class="tab-panel" id="advanced-tab">
+                <fieldset id="tls-fieldset" class="conn-fieldset hidden">
+                  <legend>TLS Configuration (Optional)</legend>
+                  <label>
+                    TLS Certificate Path
+                    <input type="text" id="tls-cert-path" placeholder="/path/to/cert.pem" />
+                    <span class="help-text">Path to TLS certificate file</span>
+                  </label>
+                  <label>
+                    TLS Key Path
+                    <input type="text" id="tls-key-path" placeholder="/path/to/key.pem" />
+                    <span class="help-text">Path to TLS private key file</span>
+                  </label>
+                </fieldset>
+              </div>
 
               <footer class="modal-footer">
                 <button type="submit" class="primary-btn" id="save-station-btn">Save</button>
