@@ -319,30 +319,30 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		
 		// PWS Weather fields
 		var pwsEnabled sql.NullBool
-		var pwsStationID, pwsPassword sql.NullString
+		var pwsStationID, pwsPassword, pwsAPIEndpoint sql.NullString
 		var pwsUploadInterval sql.NullInt64
 		
 		// Weather Underground fields
 		var wuEnabled sql.NullBool
-		var wuStationID, wuPassword sql.NullString
+		var wuStationID, wuPassword, wuAPIEndpoint sql.NullString
 		var wuUploadInterval sql.NullInt64
 		
 		// APRS additional fields
-		var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment sql.NullString
+		var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment, aprsServer sql.NullString
 		
 		// Aeris Weather fields
 		var aerisEnabled sql.NullBool
-		var aerisAPIClientID, aerisAPIClientSecret sql.NullString
+		var aerisAPIClientID, aerisAPIClientSecret, aerisAPIEndpoint sql.NullString
 
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 			&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
-			&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
-			&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
-			&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment,
-			&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret,
+			&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval, &pwsAPIEndpoint,
+			&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval, &wuAPIEndpoint,
+			&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment, &aprsServer,
+			&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret, &aerisAPIEndpoint,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
@@ -413,6 +413,9 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		if pwsUploadInterval.Valid {
 			device.PWSUploadInterval = int(pwsUploadInterval.Int64)
 		}
+		if pwsAPIEndpoint.Valid {
+			device.PWSAPIEndpoint = pwsAPIEndpoint.String
+		}
 		
 		// Set Weather Underground fields
 		device.WUEnabled = wuEnabled.Bool
@@ -424,6 +427,9 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if wuUploadInterval.Valid {
 			device.WUUploadInterval = int(wuUploadInterval.Int64)
+		}
+		if wuAPIEndpoint.Valid {
+			device.WUAPIEndpoint = wuAPIEndpoint.String
 		}
 		
 		// Set APRS additional fields
@@ -439,6 +445,9 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		if aprsComment.Valid {
 			device.APRSComment = aprsComment.String
 		}
+		if aprsServer.Valid {
+			device.APRSServer = aprsServer.String
+		}
 		
 		// Set Aeris Weather fields
 		device.AerisEnabled = aerisEnabled.Bool
@@ -447,6 +456,9 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if aerisAPIClientSecret.Valid {
 			device.AerisAPIClientSecret = aerisAPIClientSecret.String
+		}
+		if aerisAPIEndpoint.Valid {
+			device.AerisAPIEndpoint = aerisAPIEndpoint.String
 		}
 
 		devices = append(devices, device)
