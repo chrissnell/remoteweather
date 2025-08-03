@@ -219,6 +219,22 @@ func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 		return
 	}
 
+	// Count APRS-enabled devices
+	enabledCount := 0
+	for _, device := range devices {
+		if device.APRSEnabled && device.APRSCallsign != "" && 
+			device.Latitude != 0 && device.Longitude != 0 {
+			enabledCount++
+		}
+	}
+
+	if enabledCount == 0 {
+		log.Info("No APRS enabled devices found")
+		return
+	}
+
+	log.Infof("Found %d APRS enabled device(s)", enabledCount)
+
 	// Start a goroutine for each APRS-enabled device
 	for _, device := range devices {
 		if device.APRSEnabled && device.APRSCallsign != "" && 

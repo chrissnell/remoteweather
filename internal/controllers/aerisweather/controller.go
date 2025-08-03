@@ -103,18 +103,19 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 		return &AerisWeatherController{}, fmt.Errorf("error loading device configurations: %v", err)
 	}
 
-	// Validate at least one device has Aeris enabled with credentials and location
-	validStation := false
+	// Check if any device has Aeris enabled
+	hasAerisDevice := false
 	for _, device := range devices {
 		if device.AerisEnabled && device.AerisAPIClientID != "" && device.AerisAPIClientSecret != "" &&
 			device.Latitude != 0 && device.Longitude != 0 {
-			validStation = true
+			hasAerisDevice = true
 			break
 		}
 	}
 
-	if !validStation {
-		return &AerisWeatherController{}, fmt.Errorf("you must configure at least one weather station with Aeris enabled, credentials, and location")
+	if !hasAerisDevice {
+		log.Info("No Aeris Weather enabled devices found - controller will start but remain idle")
+		// Continue initialization but controller will do nothing until devices are configured
 	}
 
 	// Setup database connection
@@ -140,6 +141,22 @@ func (a *AerisWeatherController) StartController() error {
 	if err != nil {
 		return fmt.Errorf("error getting devices: %v", err)
 	}
+
+	// Count Aeris-enabled devices
+	enabledCount := 0
+	for _, device := range devices {
+		if device.AerisEnabled && device.AerisAPIClientID != "" && device.AerisAPIClientSecret != "" &&
+			device.Latitude != 0 && device.Longitude != 0 {
+			enabledCount++
+		}
+	}
+
+	if enabledCount == 0 {
+		log.Info("No Aeris Weather enabled devices found")
+		return nil
+	}
+
+	log.Infof("Found %d Aeris Weather enabled device(s)", enabledCount)
 
 	// Start forecast fetching for each Aeris-enabled device
 	for _, device := range devices {
