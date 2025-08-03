@@ -50,11 +50,12 @@ type Controller struct {
 	DB                  *gorm.DB
 	DBEnabled           bool
 	FS                  *fs.FS
-	WeatherWebsites     map[string]*config.WeatherWebsiteData // hostname -> website config
-	DefaultWebsite      *config.WeatherWebsiteData            // fallback for unmatched hosts
-	Devices             []config.DeviceData
-	DeviceNames         map[string]bool             // device name -> exists (for fast O(1) lookups)
-	DevicesByWebsite    map[int][]config.DeviceData // website_id -> devices
+	WeatherWebsites       map[string]*config.WeatherWebsiteData // hostname -> website config
+	DefaultWebsite        *config.WeatherWebsiteData            // fallback for unmatched hosts
+	Devices               []config.DeviceData
+	DeviceNames           map[string]bool                       // device name -> exists (for fast O(1) lookups)
+	DevicesByWebsite      map[int][]config.DeviceData           // website_id -> devices
+	SnowBaseDistanceCache map[int]float32                       // website_id -> snow base distance
 	AerisWeatherEnabled bool
 	logger              *zap.SugaredLogger
 	handlers            *Handlers
@@ -119,6 +120,7 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	// Build hostname -> website mapping and device -> website associations
 	ctrl.WeatherWebsites = make(map[string]*config.WeatherWebsiteData)
 	ctrl.DevicesByWebsite = make(map[int][]config.DeviceData)
+	ctrl.SnowBaseDistanceCache = make(map[int]float32)
 
 	for i := range websites {
 		website := &websites[i]
@@ -133,9 +135,17 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 			ctrl.DefaultWebsite = website
 		}
 
-		// Validate snow device if snow is enabled
+		// Validate snow device if snow is enabled and cache base distance
 		if website.SnowEnabled {
-			if !ctrl.snowDeviceExists(website.SnowDeviceName) {
+			found := false
+			for _, device := range ctrl.Devices {
+				if device.Name == website.SnowDeviceName {
+					ctrl.SnowBaseDistanceCache[website.ID] = float32(device.BaseSnowDistance)
+					found = true
+					break
+				}
+			}
+			if !found {
 				return nil, fmt.Errorf("snow device does not exist: %s", website.SnowDeviceName)
 			}
 		}
@@ -159,13 +169,8 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		return nil, fmt.Errorf("no default website could be determined")
 	}
 
-	// Look to see if the Aeris Weather controller has been configured.
-	// If we've configured it, we will enable the /forecast endpoint later on.
-	for _, con := range cfgData.Controllers {
-		if con.Type == "aerisweather" {
-			ctrl.AerisWeatherEnabled = true
-		}
-	}
+	// AerisWeatherEnabled is now determined per-device, not globally
+	// This field will be deprecated in favor of device-specific checks
 
 	// If a DefaultListenAddr was not provided, listen on all interfaces
 	if rc.DefaultListenAddr == "" {
@@ -491,6 +496,7 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 	// Rebuild hostname -> website mapping and device -> website associations
 	c.WeatherWebsites = make(map[string]*config.WeatherWebsiteData)
 	c.DevicesByWebsite = make(map[int][]config.DeviceData)
+	c.SnowBaseDistanceCache = make(map[int]float32)
 	c.DefaultWebsite = nil
 
 	for i := range websites {
@@ -506,9 +512,17 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 			c.DefaultWebsite = website
 		}
 
-		// Validate snow device if snow is enabled
+		// Validate snow device if snow is enabled and cache base distance
 		if website.SnowEnabled {
-			if !c.snowDeviceExists(website.SnowDeviceName) {
+			found := false
+			for _, device := range c.Devices {
+				if device.Name == website.SnowDeviceName {
+					c.SnowBaseDistanceCache[website.ID] = float32(device.BaseSnowDistance)
+					found = true
+					break
+				}
+			}
+			if !found {
 				c.logger.Warnf("Snow device '%s' for website '%s' does not exist", website.SnowDeviceName, website.Name)
 			}
 		}
@@ -536,15 +550,6 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 	return nil
 }
 
-// snowDeviceExists checks if a snow device exists in the configuration
-func (c *Controller) snowDeviceExists(name string) bool {
-	for _, device := range c.Devices {
-		if device.Name == name && device.Type == "snowgauge" {
-			return true
-		}
-	}
-	return false
-}
 
 // getDeviceNames returns a slice of all device names
 func getDeviceNames(devices []config.DeviceData) []string {

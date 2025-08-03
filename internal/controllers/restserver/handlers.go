@@ -40,59 +40,37 @@ func (h *Handlers) getWebsiteFromContext(req *http.Request) *config.WeatherWebsi
 	return h.controller.DefaultWebsite
 }
 
-// getPrimaryDeviceForWebsite returns the primary device associated with a website
-// Prefers enabled devices, but falls back to disabled devices if no enabled devices are available
+// getPrimaryDeviceForWebsite returns the primary device name associated with a website
 func (h *Handlers) getPrimaryDeviceForWebsite(website *config.WeatherWebsiteData) string {
-	if website == nil {
-		return ""
+	device := h.getPrimaryDeviceConfigForWebsite(website)
+	if device != nil {
+		return device.Name
 	}
-	devices := h.controller.DevicesByWebsite[website.ID]
-	if len(devices) == 0 {
-		return ""
-	}
-
-	// First, try to find an enabled device
-	for _, device := range devices {
-		if device.Enabled {
-			return device.Name
-		}
-	}
-
-	// If no enabled devices, fall back to first device (for historical data access)
-	return devices[0].Name
+	return ""
 }
 
-// getPrimaryDeviceIDForWebsite returns the primary device ID associated with a website
-// Prefers enabled devices, but falls back to disabled devices if no enabled devices are available
-func (h *Handlers) getPrimaryDeviceIDForWebsite(website *config.WeatherWebsiteData) int {
+// getPrimaryDeviceConfigForWebsite returns the primary device configuration for a website
+// This returns the first (and typically only) device for the website since websites
+// are associated with a single device via device_id
+func (h *Handlers) getPrimaryDeviceConfigForWebsite(website *config.WeatherWebsiteData) *config.DeviceData {
 	if website == nil {
-		return 0
+		return nil
 	}
 	devices := h.controller.DevicesByWebsite[website.ID]
-	if len(devices) == 0 {
-		return 0
+	if len(devices) > 0 {
+		return &devices[0]
 	}
-	// First, try to find an enabled device
-	for _, device := range devices {
-		if device.Enabled {
-			return device.ID
-		}
-	}
-	// Fallback to first disabled device if no enabled devices found
-	return devices[0].ID
+	return nil
 }
 
-// getSnowBaseDistance returns the snow base distance from the snow device configuration for a website
+
+// getSnowBaseDistance returns the cached snow base distance for a website
 func (h *Handlers) getSnowBaseDistance(website *config.WeatherWebsiteData) float32 {
-	if website == nil || website.SnowDeviceName == "" {
+	if website == nil {
 		return 0.0
 	}
-	for _, device := range h.controller.Devices {
-		if device.Name == website.SnowDeviceName {
-			return float32(device.BaseSnowDistance)
-		}
-	}
-	return 0.0
+	// Return the pre-computed value from the cache
+	return h.controller.SnowBaseDistanceCache[website.ID]
 }
 
 // validateStationExists checks if a station name exists in the configuration
@@ -692,31 +670,38 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		return
 	}
 
-	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+	// Get the primary device for this website
+	primaryDevice := h.getPrimaryDeviceConfigForWebsite(website)
+	if primaryDevice == nil {
+		http.Error(w, "No device configured for this website", http.StatusInternalServerError)
+		return
+	}
 
 	view := htmltemplate.Must(htmltemplate.New("weather-station.html.tmpl").ParseFS(*h.controller.FS, "weather-station.html.tmpl"))
 
 	// Create a template data structure with AboutStationHTML as safe HTML
 	templateData := struct {
-		StationName      string
-		StationID        int
-		PullFromDevice   string
-		SnowEnabled      bool
-		SnowDevice       string
-		SnowBaseDistance float32
-		PageTitle        string
-		AboutStationHTML htmltemplate.HTML
-		Version          string
+		StationName         string
+		StationID           int
+		PullFromDevice      string
+		SnowEnabled         bool
+		SnowDevice          string
+		SnowBaseDistance    float32
+		PageTitle           string
+		AboutStationHTML    htmltemplate.HTML
+		Version             string
+		AerisWeatherEnabled bool
 	}{
-		StationName:      website.Name,
-		StationID:        h.getPrimaryDeviceIDForWebsite(website),
-		PullFromDevice:   primaryDevice,
-		SnowEnabled:      website.SnowEnabled,
-		SnowDevice:       website.SnowDeviceName,
-		SnowBaseDistance: h.getSnowBaseDistance(website),
-		PageTitle:        website.PageTitle,
-		AboutStationHTML: htmltemplate.HTML(website.AboutStationHTML),
-		Version:          constants.Version,
+		StationName:         website.Name,
+		StationID:           primaryDevice.ID,
+		PullFromDevice:      primaryDevice.Name,
+		SnowEnabled:         website.SnowEnabled,
+		SnowDevice:          website.SnowDeviceName,
+		SnowBaseDistance:    h.getSnowBaseDistance(website),
+		PageTitle:           website.PageTitle,
+		AboutStationHTML:    htmltemplate.HTML(website.AboutStationHTML),
+		Version:             constants.Version,
+		AerisWeatherEnabled: primaryDevice.AerisEnabled,
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -743,29 +728,36 @@ func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	
-	primaryDevice := h.getPrimaryDeviceForWebsite(website)
+	// Get the primary device for this website
+	primaryDevice := h.getPrimaryDeviceConfigForWebsite(website)
+	if primaryDevice == nil {
+		http.Error(w, "No device configured for this website", http.StatusInternalServerError)
+		return
+	}
 
 	view := template.Must(template.New("weather-app.js.tmpl").ParseFS(*h.controller.FS, "js/weather-app.js.tmpl"))
 
 	// Create JS template data structure
 	jsTemplateData := struct {
-		StationName      string
-		StationID        int
-		PullFromDevice   string
-		SnowEnabled      bool
-		SnowDevice       string
-		SnowBaseDistance float32
-		PageTitle        string
-		AboutStationHTML string
+		StationName         string
+		StationID           int
+		PullFromDevice      string
+		SnowEnabled         bool
+		SnowDevice          string
+		SnowBaseDistance    float32
+		PageTitle           string
+		AboutStationHTML    string
+		AerisWeatherEnabled bool
 	}{
-		StationName:      website.Name,
-		StationID:        h.getPrimaryDeviceIDForWebsite(website),
-		PullFromDevice:   primaryDevice,
-		SnowEnabled:      website.SnowEnabled,
-		SnowDevice:       website.SnowDeviceName,
-		SnowBaseDistance: h.getSnowBaseDistance(website),
-		PageTitle:        website.PageTitle,
-		AboutStationHTML: website.AboutStationHTML,
+		StationName:         website.Name,
+		StationID:           primaryDevice.ID,
+		PullFromDevice:      primaryDevice.Name,
+		SnowEnabled:         website.SnowEnabled,
+		SnowDevice:          website.SnowDeviceName,
+		SnowBaseDistance:    h.getSnowBaseDistance(website),
+		PageTitle:           website.PageTitle,
+		AboutStationHTML:    website.AboutStationHTML,
+		AerisWeatherEnabled: primaryDevice.AerisEnabled,
 	}
 
 	w.Header().Set("Content-Type", "text/javascript")
