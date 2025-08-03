@@ -614,10 +614,8 @@ const ManagementWeatherStations = (function() {
   async function loadSerialPorts(valueToSelect) {
     console.log('loadSerialPorts called with valueToSelect:', valueToSelect, 'currentValue:', formElements.serialDevice.value);
     
-    if (isLoadingSerialPorts) {
-      console.log('Already loading serial ports, returning');
-      return; // Prevent concurrent calls
-    }
+    // Remove the concurrent call check for now since we need to allow
+    // the second call with the proper value to override the first
     
     if (!ManagementAuth.getIsAuthenticated()) {
       console.log('Not authenticated, returning');
@@ -816,7 +814,7 @@ const ManagementWeatherStations = (function() {
 
     // Connection type change
     if (formElements.connectionType) {
-      formElements.connectionType.addEventListener('change', updateConnectionVisibility);
+      formElements.connectionType.addEventListener('change', () => updateConnectionVisibility());
     }
 
     // APRS configuration toggle
