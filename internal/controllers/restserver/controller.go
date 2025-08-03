@@ -3,6 +3,7 @@ package restserver
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -45,6 +46,7 @@ type Controller struct {
 	configProvider      config.ConfigProvider
 	restConfig          config.RESTServerData
 	Server              http.Server
+	HTTPSServer         http.Server              // HTTPS server instance
 	GRPCServer          *grpc.Server             // gRPC server instance
 	DeviceManager       *grpcutil.DeviceManager  // Device manager for gRPC
 	DB                  *gorm.DB
@@ -59,6 +61,7 @@ type Controller struct {
 	AerisWeatherEnabled bool
 	logger              *zap.SugaredLogger
 	handlers            *Handlers
+	tlsConfigs          map[string]*tls.Config   // hostname -> TLS config for SNI
 
 	weather.UnimplementedWeatherV1Server
 }
@@ -71,6 +74,7 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		configProvider: configProvider,
 		restConfig:     rc,
 		logger:         logger,
+		tlsConfigs:     make(map[string]*tls.Config),
 	}
 
 	// Load configuration
@@ -128,6 +132,20 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		// Map hostname to website (if hostname is specified)
 		if website.Hostname != "" {
 			ctrl.WeatherWebsites[website.Hostname] = website
+			
+			// Load TLS configuration if certificates are provided
+			if website.TLSCertPath != "" && website.TLSKeyPath != "" {
+				cert, err := tls.LoadX509KeyPair(website.TLSCertPath, website.TLSKeyPath)
+				if err != nil {
+					logger.Errorf("Failed to load TLS certificate for website %s: %v", website.Name, err)
+					// Continue without TLS for this website
+				} else {
+					ctrl.tlsConfigs[website.Hostname] = &tls.Config{
+						Certificates: []tls.Certificate{cert},
+					}
+					logger.Infof("Loaded TLS certificate for website %s (hostname: %s)", website.Name, website.Hostname)
+				}
+			}
 		}
 
 		// Set default website (first one or one without hostname)
@@ -234,8 +252,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 // StartController starts the unified REST/gRPC server using cmux
 func (c *Controller) StartController() error {
 	log.Info("Starting unified REST/gRPC server...")
+	
+	// Start HTTP/gRPC multiplexed server
 	c.wg.Add(1)
-
 	go func() {
 		defer c.wg.Done()
 
@@ -279,13 +298,54 @@ func (c *Controller) StartController() error {
 		}
 	}()
 
+	// Start HTTPS server if any TLS configurations exist
+	if len(c.tlsConfigs) > 0 {
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			
+			// Determine HTTPS port
+			httpsPort := 443
+			if c.restConfig.HTTPSPort != nil {
+				httpsPort = *c.restConfig.HTTPSPort
+			}
+			
+			// Create HTTPS listener
+			httpsAddr := fmt.Sprintf("%s:%d", c.restConfig.DefaultListenAddr, httpsPort)
+			
+			// Configure HTTPS server
+			c.HTTPSServer.Addr = httpsAddr
+			c.HTTPSServer.Handler = c.setupRouter() // Use same router as HTTP
+			
+			// Create TLS config with SNI support
+			tlsConfig := &tls.Config{
+				GetCertificate: c.getCertificate,
+			}
+			c.HTTPSServer.TLSConfig = tlsConfig
+			
+			log.Infof("Starting HTTPS server on %s with %d configured certificates", httpsAddr, len(c.tlsConfigs))
+			
+			// Start HTTPS server
+			if err := c.HTTPSServer.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
+				log.Errorf("HTTPS server error: %v", err)
+			}
+		}()
+	} else {
+		log.Info("No TLS certificates configured, HTTPS server not started")
+	}
+
 	// Handle graceful shutdown
 	go func() {
 		<-c.ctx.Done()
-		log.Info("Shutting down unified server...")
+		log.Info("Shutting down servers...")
 		
 		// Shutdown HTTP server
 		c.Server.Shutdown(context.Background())
+		
+		// Shutdown HTTPS server if running
+		if len(c.tlsConfigs) > 0 {
+			c.HTTPSServer.Shutdown(context.Background())
+		}
 		
 		// Stop gRPC server
 		c.GRPCServer.GracefulStop()
@@ -497,6 +557,7 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 	c.WeatherWebsites = make(map[string]*config.WeatherWebsiteData)
 	c.DevicesByWebsite = make(map[int][]config.DeviceData)
 	c.SnowBaseDistanceCache = make(map[int]float32)
+	c.tlsConfigs = make(map[string]*tls.Config)
 	c.DefaultWebsite = nil
 
 	for i := range websites {
@@ -505,6 +566,20 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 		// Map hostname to website (if hostname is specified)
 		if website.Hostname != "" {
 			c.WeatherWebsites[website.Hostname] = website
+			
+			// Reload TLS configuration if certificates are provided
+			if website.TLSCertPath != "" && website.TLSKeyPath != "" {
+				cert, err := tls.LoadX509KeyPair(website.TLSCertPath, website.TLSKeyPath)
+				if err != nil {
+					c.logger.Errorf("Failed to load TLS certificate for website %s: %v", website.Name, err)
+					// Continue without TLS for this website
+				} else {
+					c.tlsConfigs[website.Hostname] = &tls.Config{
+						Certificates: []tls.Certificate{cert},
+					}
+					c.logger.Infof("Reloaded TLS certificate for website %s (hostname: %s)", website.Name, website.Hostname)
+				}
+			}
 		}
 
 		// Set default website (first one or one without hostname)
@@ -550,6 +625,31 @@ func (c *Controller) ReloadWebsiteConfiguration() error {
 	return nil
 }
 
+
+// getCertificate returns the appropriate certificate based on SNI
+func (c *Controller) getCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	// Extract hostname from SNI
+	hostname := hello.ServerName
+	
+	// Try to find exact match first
+	if tlsConfig, exists := c.tlsConfigs[hostname]; exists && len(tlsConfig.Certificates) > 0 {
+		return &tlsConfig.Certificates[0], nil
+	}
+	
+	// If no exact match, try to find a wildcard certificate
+	// This is a simple implementation - you might want to enhance it
+	for configuredHost, tlsConfig := range c.tlsConfigs {
+		if strings.HasPrefix(configuredHost, "*.") {
+			domain := configuredHost[2:] // Remove "*."
+			if strings.HasSuffix(hostname, domain) {
+				return &tlsConfig.Certificates[0], nil
+			}
+		}
+	}
+	
+	// If still no match, return error
+	return nil, fmt.Errorf("no certificate found for hostname: %s", hostname)
+}
 
 // getDeviceNames returns a slice of all device names
 func getDeviceNames(devices []config.DeviceData) []string {
