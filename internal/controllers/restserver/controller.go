@@ -375,6 +375,9 @@ func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
+		// Debug log to verify middleware is being hit
+		c.logger.Debugf("HTTP request: %s %s", r.Method, r.URL.Path)
+
 		// Wrap the ResponseWriter to capture status code and size
 		wrapped := &responseWriter{
 			ResponseWriter: w,
@@ -401,10 +404,21 @@ func (c *Controller) httpLoggingMiddleware(next http.Handler) http.Handler {
 				clientIP = strings.TrimSpace(xff)
 			}
 		}
+		
+		// Strip port from IP address
+		if host, _, err := net.SplitHostPort(clientIP); err == nil {
+			clientIP = host
+		}
+
+		// Include query string in the path if present
+		path := r.URL.Path
+		if r.URL.RawQuery != "" {
+			path = path + "?" + r.URL.RawQuery
+		}
 
 		log.LogHTTPRequest(
 			r.Method,
-			r.URL.Path,
+			path,
 			wrapped.statusCode,
 			duration,
 			wrapped.bytesWritten,
