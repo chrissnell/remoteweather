@@ -293,10 +293,10 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		       wind_dir_correction, base_snow_distance, website_id,
 		       latitude, longitude, altitude, aprs_enabled, aprs_callsign,
 		       tls_cert_file, tls_key_file, path,
-		       pws_enabled, pws_station_id, pws_password, pws_upload_interval,
-		       wu_enabled, wu_station_id, wu_password, wu_upload_interval,
-		       aprs_passcode, aprs_symbol_table, aprs_symbol_code, aprs_comment,
-		       aeris_enabled, aeris_api_client_id, aeris_api_client_secret
+		       pws_enabled, pws_station_id, pws_password, pws_upload_interval, pws_api_endpoint,
+		       wu_enabled, wu_station_id, wu_password, wu_upload_interval, wu_api_endpoint,
+		       aprs_passcode, aprs_symbol_table, aprs_symbol_code, aprs_comment, aprs_server,
+		       aeris_enabled, aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint
 		FROM devices 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY name
@@ -551,15 +551,10 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 	query := `
 		SELECT cc.controller_type, cc.enabled,
-		       -- PWS Weather fields
-		       cc.pws_station_id, cc.pws_api_key, cc.pws_upload_interval, 
-		       cc.pws_pull_from_device, cc.pws_api_endpoint,
-		       -- Weather Underground fields
-		       cc.wu_station_id, cc.wu_api_key, cc.wu_upload_interval,
-		       cc.wu_pull_from_device, cc.wu_api_endpoint,
-		       -- Aeris Weather fields
-		       cc.aeris_api_client_id, cc.aeris_api_client_secret,
-		       		cc.aeris_api_endpoint, cc.aeris_latitude, cc.aeris_longitude,
+		       -- Global API endpoints only (device-specific fields removed)
+		       cc.pws_api_endpoint,
+		       cc.wu_api_endpoint,
+		       cc.aeris_api_endpoint,
 		       -- REST Server fields
 		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
 		       -- Management API fields
@@ -583,10 +578,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 	for rows.Next() {
 		var controllerType string
 		var enabled bool
-		var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
-		var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
-		var aerisClientID, aerisClientSecret, aerisAPIEndpoint sql.NullString
-		var aerisLatitude, aerisLongitude sql.NullFloat64
+		var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
 		var restCert, restKey, restListenAddr sql.NullString
 		var restPort sql.NullInt64
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
@@ -596,9 +588,9 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 
 		err := rows.Scan(
 			&controllerType, &enabled,
-			&pwsStationID, &pwsAPIKey, &pwsUploadInterval, &pwsPullFromDevice, &pwsAPIEndpoint,
-			&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
-			&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLatitude, &aerisLongitude,
+			&pwsAPIEndpoint,
+			&wuAPIEndpoint,
+			&aerisAPIEndpoint,
 			&restCert, &restKey, &restPort, &restListenAddr,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 			&aprsServer,
@@ -613,34 +605,22 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 
 		switch controllerType {
 		case "pwsweather":
-			if pwsStationID.Valid {
-				controller.PWSWeather = &PWSWeatherData{
-					StationID:      pwsStationID.String,
-					APIKey:         pwsAPIKey.String,
-					UploadInterval: pwsUploadInterval.String,
-					PullFromDevice: pwsPullFromDevice.String,
-					APIEndpoint:    pwsAPIEndpoint.String,
-				}
+			// Create controller with just API endpoint
+			// Device-specific settings are now in devices table
+			controller.PWSWeather = &PWSWeatherData{
+				APIEndpoint: pwsAPIEndpoint.String,
 			}
 		case "weatherunderground":
-			if wuStationID.Valid {
-				controller.WeatherUnderground = &WeatherUndergroundData{
-					StationID:      wuStationID.String,
-					APIKey:         wuAPIKey.String,
-					UploadInterval: wuUploadInterval.String,
-					PullFromDevice: wuPullFromDevice.String,
-					APIEndpoint:    wuAPIEndpoint.String,
-				}
+			// Create controller with just API endpoint
+			// Device-specific settings are now in devices table
+			controller.WeatherUnderground = &WeatherUndergroundData{
+				APIEndpoint: wuAPIEndpoint.String,
 			}
 		case "aerisweather":
-			if aerisClientID.Valid {
-				controller.AerisWeather = &AerisWeatherData{
-					APIClientID:     aerisClientID.String,
-					APIClientSecret: aerisClientSecret.String,
-					APIEndpoint:     aerisAPIEndpoint.String,
-					Latitude:        aerisLatitude.Float64,
-					Longitude:       aerisLongitude.Float64,
-				}
+			// Create controller with just API endpoint
+			// Device-specific settings are now in devices table
+			controller.AerisWeather = &AerisWeatherData{
+				APIEndpoint: aerisAPIEndpoint.String,
 			}
 		case "rest":
 			if restPort.Valid || restListenAddr.Valid || restCert.Valid || restKey.Valid {

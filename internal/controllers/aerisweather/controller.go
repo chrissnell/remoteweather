@@ -26,12 +26,11 @@ import (
 
 // AerisWeatherController holds our AerisWeather configuration
 type AerisWeatherController struct {
-	ctx                context.Context
-	wg                 *sync.WaitGroup
-	configProvider     config.ConfigProvider
-	AerisWeatherConfig config.AerisWeatherData
-	logger             *zap.SugaredLogger
-	DB                 *database.Client
+	ctx            context.Context
+	wg             *sync.WaitGroup
+	configProvider config.ConfigProvider
+	logger         *zap.SugaredLogger
+	DB             *database.Client
 }
 
 type AerisWeatherForecastResponse struct {
@@ -78,13 +77,12 @@ func (AerisWeatherForecastRecord) TableName() string {
 	return "aeris_weather_forecasts"
 }
 
-func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, ac config.AerisWeatherData, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
+func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
 	a := AerisWeatherController{
-		ctx:                ctx,
-		wg:                 wg,
-		configProvider:     configProvider,
-		AerisWeatherConfig: ac,
-		logger:             logger,
+		ctx:            ctx,
+		wg:             wg,
+		configProvider: configProvider,
+		logger:         logger,
 	}
 
 	// Validate TimescaleDB configuration
@@ -92,10 +90,7 @@ func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configPr
 		return &AerisWeatherController{}, err
 	}
 
-	// Set defaults for global settings
-	if a.AerisWeatherConfig.APIEndpoint == "" {
-		a.AerisWeatherConfig.APIEndpoint = "https://data.api.xweather.com"
-	}
+	// Default API endpoint will be used from device config or fallback to default
 
 	// Check if we have at least one device with Aeris enabled
 	devices, err := configProvider.GetDevices()
@@ -298,7 +293,13 @@ func (a *AerisWeatherController) fetchAndStoreForecast(device config.DeviceData,
 
 	// Format coordinates as "latitude,longitude" for Aeris Weather API
 	location := fmt.Sprintf("%.6f,%.6f", device.Latitude, device.Longitude)
-	url := fmt.Sprint(a.AerisWeatherConfig.APIEndpoint + "/forecasts/" + location + "?" + v.Encode())
+	
+	// Use device's API endpoint or default
+	apiEndpoint := device.AerisAPIEndpoint
+	if apiEndpoint == "" {
+		apiEndpoint = "https://data.api.xweather.com"
+	}
+	url := fmt.Sprint(apiEndpoint + "/forecasts/" + location + "?" + v.Encode())
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return &AerisWeatherForecastRecord{}, fmt.Errorf("error creating Aeris Weather API HTTP request: %v", err)

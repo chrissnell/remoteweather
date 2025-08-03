@@ -46,10 +46,21 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvide
 		return nil, fmt.Errorf("error loading configuration: %v", err)
 	}
 
-	// Create controllers based on configuration
+	// Create controllers based on configuration (REST server, management API, etc.)
 	for _, con := range cfgData.Controllers {
 		// Skip management controllers - they are handled separately in the app
 		if con.Type == "management" {
+			continue
+		}
+		
+		// Skip weather service controllers - they will be auto-started below
+		weatherServices := map[string]bool{
+			"aerisweather": true,
+			"pwsweather": true,
+			"weatherunderground": true,
+			"aprs": true,
+		}
+		if weatherServices[con.Type] {
 			continue
 		}
 
@@ -58,6 +69,20 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvide
 			return nil, fmt.Errorf("error creating controller: %v", err)
 		}
 		cm.controllers[con.Type] = controller
+	}
+
+	// Always start weather service controllers
+	weatherServices := []string{"aerisweather", "pwsweather", "weatherunderground", "aprs"}
+	
+	for _, serviceType := range weatherServices {
+		cm.logger.Infof("Starting %s controller", serviceType)
+		
+		controller, err := cm.createWeatherController(serviceType)
+		if err != nil {
+			cm.logger.Warnf("Failed to start %s controller: %v", serviceType, err)
+			continue
+		}
+		cm.controllers[serviceType] = controller
 	}
 
 	return cm, nil
@@ -192,31 +217,30 @@ func (cm *controllerManager) ReloadWebsiteConfiguration() error {
 	return fmt.Errorf("REST controller is not of the expected type")
 }
 
+// createWeatherController creates a weather service controller without configuration
+func (cm *controllerManager) createWeatherController(controllerType string) (Controller, error) {
+	switch controllerType {
+	case "aerisweather":
+		return aerisweather.NewAerisWeatherController(cm.ctx, cm.wg, cm.configProvider, cm.logger)
+	case "pwsweather":
+		return pwsweather.NewPWSWeatherController(cm.ctx, cm.wg, cm.configProvider, cm.logger)
+	case "weatherunderground":
+		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.configProvider, cm.logger)
+	case "aprs":
+		return aprs.New(cm.configProvider)
+	default:
+		return nil, fmt.Errorf("unknown weather controller type: %s", controllerType)
+	}
+}
+
 // createController creates a controller based on the controller configuration
 func (cm *controllerManager) createController(cc config.ControllerData) (Controller, error) {
 	switch cc.Type {
-	case "aerisweather":
-		if cc.AerisWeather == nil {
-			return nil, fmt.Errorf("aerisweather controller config is nil")
-		}
-		return aerisweather.NewAerisWeatherController(cm.ctx, cm.wg, cm.configProvider, *cc.AerisWeather, cm.logger)
-	case "pwsweather":
-		if cc.PWSWeather == nil {
-			return nil, fmt.Errorf("pwsweather controller config is nil")
-		}
-		return pwsweather.NewPWSWeatherController(cm.ctx, cm.wg, cm.configProvider, *cc.PWSWeather, cm.logger)
-	case "wunderground", "weatherunderground":
-		if cc.WeatherUnderground == nil {
-			return nil, fmt.Errorf("weatherunderground controller config is nil")
-		}
-		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.configProvider, *cc.WeatherUnderground, cm.logger)
 	case "restserver", "rest":
 		if cc.RESTServer == nil {
 			return nil, fmt.Errorf("restserver controller config is nil")
 		}
 		return restserver.NewController(cm.ctx, cm.wg, cm.configProvider, *cc.RESTServer, cm.logger)
-	case "aprs":
-		return aprs.New(cm.configProvider)
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", cc.Type)
 	}

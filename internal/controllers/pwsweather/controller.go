@@ -20,24 +20,17 @@ import (
 // PWSWeatherController holds our connection along with some mutexes for operation
 type PWSWeatherController struct {
 	*controllers.WeatherServiceController
-	PWSWeatherConfig config.PWSWeatherData
 }
 
-func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, pwc config.PWSWeatherData, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
+func NewPWSWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger) (*PWSWeatherController, error) {
 	// Create base weather service controller
 	base, err := controllers.NewWeatherServiceController(ctx, wg, configProvider, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set defaults for global settings
-	if pwc.APIEndpoint == "" {
-		pwc.APIEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
-	}
-
 	return &PWSWeatherController{
 		WeatherServiceController: base,
-		PWSWeatherConfig:         pwc,
 	}, nil
 }
 
@@ -84,11 +77,17 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 			// Create a copy of device for closure
 			deviceCopy := device
 
+			// Use device's API endpoint or default
+			apiEndpoint := device.PWSAPIEndpoint
+			if apiEndpoint == "" {
+				apiEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
+			}
+
 			config := controllers.WeatherServiceConfig{
 				ServiceName:    "PWS Weather",
 				StationID:      device.PWSStationID,
 				APIKey:         device.PWSPassword,
-				APIEndpoint:    p.PWSWeatherConfig.APIEndpoint,
+				APIEndpoint:    apiEndpoint,
 				UploadInterval: uploadInterval,
 				PullFromDevice: device.Name,
 			}
@@ -126,5 +125,11 @@ func (p *PWSWeatherController) sendReadingsToPWSWeather(device config.DeviceData
 	v.Set("solarradiation", fmt.Sprintf("%0.2f", r.SolarWatts))
 	v.Set("softwaretype", fmt.Sprintf("RemoteWeather-%v", constants.Version))
 
-	return p.SendHTTPRequest(p.PWSWeatherConfig.APIEndpoint, v)
+	// Use device's API endpoint or default
+	apiEndpoint := device.PWSAPIEndpoint
+	if apiEndpoint == "" {
+		apiEndpoint = "https://pwsupdate.pwsweather.com/api/v1/submitwx"
+	}
+
+	return p.SendHTTPRequest(apiEndpoint, v)
 }
