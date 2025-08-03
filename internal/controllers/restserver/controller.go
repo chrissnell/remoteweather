@@ -617,7 +617,7 @@ func (c *Controller) fetchLatestReading(stationName string, baseDistance float64
 // getSnowBaseDistanceForStation returns the snow base distance for a specific station
 func (c *Controller) getSnowBaseDistanceForStation(stationName string) float64 {
 	if c.DeviceManager != nil {
-		return c.DeviceManager.GetSnowBaseDistance(stationName)
+		return float64(c.DeviceManager.GetSnowBaseDistance(stationName))
 	}
 	// Fallback to default if no device manager
 	return 0
