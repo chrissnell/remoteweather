@@ -20,44 +20,17 @@ import (
 // WeatherUndergroundController holds our connection along with some mutexes for operation
 type WeatherUndergroundController struct {
 	*controllers.WeatherServiceController
-	WeatherUndergroundConfig config.WeatherUndergroundData
 }
 
-func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, wuconfig config.WeatherUndergroundData, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
+func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
 	// Create base weather service controller
 	base, err := controllers.NewWeatherServiceController(ctx, wg, configProvider, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate Weather Underground specific configuration
-	serviceConfig := controllers.WeatherServiceConfig{
-		ServiceName:    "Weather Underground",
-		StationID:      wuconfig.StationID,
-		APIKey:         wuconfig.APIKey,
-		PullFromDevice: wuconfig.PullFromDevice,
-	}
-
-	if err := controllers.ValidateWeatherServiceConfig(serviceConfig); err != nil {
-		return nil, err
-	}
-
-	// Set defaults
-	if wuconfig.APIEndpoint == "" {
-		wuconfig.APIEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
-	}
-	if wuconfig.UploadInterval == "" {
-		wuconfig.UploadInterval = "60"
-	}
-
-	// Validate pull-from-device exists
-	if !base.DB.ValidatePullFromStation(wuconfig.PullFromDevice) {
-		return nil, fmt.Errorf("pull-from-device %v is not a valid station name", wuconfig.PullFromDevice)
-	}
-
 	return &WeatherUndergroundController{
 		WeatherServiceController: base,
-		WeatherUndergroundConfig: wuconfig,
 	}, nil
 }
 
@@ -68,28 +41,75 @@ func (p *WeatherUndergroundController) StartController() error {
 }
 
 func (p *WeatherUndergroundController) sendPeriodicReports() {
-	config := controllers.WeatherServiceConfig{
-		ServiceName:    "Weather Underground",
-		StationID:      p.WeatherUndergroundConfig.StationID,
-		APIKey:         p.WeatherUndergroundConfig.APIKey,
-		APIEndpoint:    p.WeatherUndergroundConfig.APIEndpoint,
-		UploadInterval: p.WeatherUndergroundConfig.UploadInterval,
-		PullFromDevice: p.WeatherUndergroundConfig.PullFromDevice,
+	// Get all devices with Weather Underground enabled
+	devices, err := p.WeatherServiceController.GetDevices()
+	if err != nil {
+		log.Errorf("Error getting devices: %v", err)
+		return
 	}
 
-	p.StartPeriodicReports(config, p.sendReadingsToWeatherUnderground)
+	// Count WU-enabled devices
+	enabledCount := 0
+	for _, device := range devices {
+		if device.WUEnabled && device.WUStationID != "" && device.WUPassword != "" {
+			enabledCount++
+		}
+	}
+
+	if enabledCount == 0 {
+		log.Info("No Weather Underground enabled devices found")
+		return
+	}
+
+	log.Infof("Found %d Weather Underground enabled device(s)", enabledCount)
+
+	// Start monitoring for each WU-enabled device
+	for _, device := range devices {
+		if device.WUEnabled && device.WUStationID != "" && device.WUPassword != "" {
+			log.Infof("Starting Weather Underground monitoring for device: %s (Station ID: %s)", device.Name, device.WUStationID)
+			
+			// Use device-specific upload interval or default
+			uploadInterval := "60"
+			if device.WUUploadInterval > 0 {
+				uploadInterval = strconv.Itoa(device.WUUploadInterval)
+			}
+
+			// Create a copy of device for closure
+			deviceCopy := device
+
+			// Use device's API endpoint or default
+			apiEndpoint := device.WUAPIEndpoint
+			if apiEndpoint == "" {
+				apiEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
+			}
+
+			config := controllers.WeatherServiceConfig{
+				ServiceName:    "Weather Underground",
+				StationID:      device.WUStationID,
+				APIKey:         device.WUPassword,
+				APIEndpoint:    apiEndpoint,
+				UploadInterval: uploadInterval,
+				PullFromDevice: device.Name,
+			}
+
+			// Start monitoring in separate goroutine for each device
+			go p.StartPeriodicReports(config, func(r *database.FetchedBucketReading) error {
+				return p.sendReadingsToWeatherUnderground(deviceCopy, r)
+			})
+		}
+	}
 }
 
-func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *database.FetchedBucketReading) error {
+func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(device config.DeviceData, r *database.FetchedBucketReading) error {
 	if err := controllers.ValidateReading(r); err != nil {
 		return err
 	}
 
 	v := url.Values{}
 
-	// Add authentication parameters
-	v.Set("ID", p.WeatherUndergroundConfig.StationID)
-	v.Set("PASSWORD", p.WeatherUndergroundConfig.APIKey)
+	// Add authentication parameters from device
+	v.Set("ID", device.WUStationID)
+	v.Set("PASSWORD", device.WUPassword)
 
 	now := time.Now().In(time.UTC)
 	v.Set("dateutc", now.Format("2006-01-02 15:04:05"))
@@ -108,5 +128,11 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(r *datab
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", constants.Version))
 
-	return p.SendHTTPRequest(p.WeatherUndergroundConfig.APIEndpoint, v)
+	// Use device's API endpoint or default
+	apiEndpoint := device.WUAPIEndpoint
+	if apiEndpoint == "" {
+		apiEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
+	}
+
+	return p.SendHTTPRequest(apiEndpoint, v)
 }

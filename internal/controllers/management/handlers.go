@@ -1,8 +1,12 @@
 package management
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/log"
@@ -92,6 +96,49 @@ func (h *Handlers) GetLogs(w http.ResponseWriter, r *http.Request) {
 	h.sendJSON(w, response)
 }
 
+// reverseLookupWithTimeout performs a reverse DNS lookup with a timeout
+func reverseLookupWithTimeout(ip string, timeout time.Duration) string {
+	// Extract IP without port if present
+	if strings.Contains(ip, ":") {
+		host, _, err := net.SplitHostPort(ip)
+		if err == nil {
+			ip = host
+		} else {
+			// Might be IPv6 without port, or just an IP
+			ip = strings.TrimSuffix(ip, "]")
+			ip = strings.TrimPrefix(ip, "[")
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Create a channel for the result
+	type lookupResult struct {
+		hostname string
+		err      error
+	}
+	resultChan := make(chan lookupResult, 1)
+
+	go func() {
+		names, err := net.LookupAddr(ip)
+		if err != nil || len(names) == 0 {
+			resultChan <- lookupResult{hostname: "", err: err}
+			return
+		}
+		// Return the first hostname, trimming trailing dot
+		hostname := strings.TrimSuffix(names[0], ".")
+		resultChan <- lookupResult{hostname: hostname, err: nil}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return "" // Timeout
+	case result := <-resultChan:
+		return result.hostname
+	}
+}
+
 // GetHTTPLogs handles REST API requests for HTTP log entries from the REST server
 func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
 	httpLogBuffer := log.GetHTTPLogBuffer()
@@ -99,29 +146,51 @@ func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
 	// Get all logs and clear the buffer to avoid duplicates on next call
 	logs := httpLogBuffer.GetLogs(true) // true = clear buffer
 
-	// Convert to API format
+	// Convert to API format with reverse DNS lookup
 	var logEntries []map[string]interface{}
+	var wg sync.WaitGroup
+	mutex := &sync.Mutex{}
+
+	// Process logs concurrently for DNS lookups
 	for _, entry := range logs {
-		logEntry := map[string]interface{}{
-			"timestamp": entry.Timestamp.Format(time.RFC3339),
-			"level":     entry.Level,
-			"message":   entry.Message,
-		}
+		wg.Add(1)
+		go func(entry log.LogEntry) {
+			defer wg.Done()
 
-		// Add caller if available
-		if entry.Caller != "" {
-			logEntry["caller"] = entry.Caller
-		}
-
-		// Add any additional fields
-		if len(entry.Fields) > 0 {
-			for key, value := range entry.Fields {
-				logEntry[key] = value
+			logEntry := map[string]interface{}{
+				"timestamp": entry.Timestamp.Format(time.RFC3339),
+				"level":     entry.Level,
+				"message":   entry.Message,
 			}
-		}
 
-		logEntries = append(logEntries, logEntry)
+			// Add caller if available
+			if entry.Caller != "" {
+				logEntry["caller"] = entry.Caller
+			}
+
+			// Add any additional fields
+			if len(entry.Fields) > 0 {
+				for key, value := range entry.Fields {
+					logEntry[key] = value
+				}
+
+				// Perform reverse DNS lookup for remote_addr
+				if remoteAddr, ok := entry.Fields["remote_addr"].(string); ok && remoteAddr != "" {
+					// Use a short timeout to avoid blocking
+					if hostname := reverseLookupWithTimeout(remoteAddr, 100*time.Millisecond); hostname != "" {
+						logEntry["remote_hostname"] = hostname
+					}
+				}
+			}
+
+			mutex.Lock()
+			logEntries = append(logEntries, logEntry)
+			mutex.Unlock()
+		}(entry)
 	}
+
+	// Wait for all lookups to complete
+	wg.Wait()
 
 	response := map[string]interface{}{
 		"logs":      logEntries,

@@ -95,10 +95,12 @@ const ManagementStorage = (function() {
     const statusEl = document.createElement('span');
     statusEl.className = 'status-badge';
     
-    if (status !== undefined) {
-      const ok = status;
-      statusEl.textContent = ok ? 'Healthy' : 'Unhealthy';
-      statusEl.classList.add(ok ? 'status-online' : 'status-offline');
+    // Check if we have status information
+    if (status !== undefined && status !== null) {
+      // status should be a boolean or an object with a 'status' property
+      const isHealthy = typeof status === 'boolean' ? status : (status.status === 'healthy' || status.healthy === true);
+      statusEl.textContent = isHealthy ? 'Healthy' : 'Unhealthy';
+      statusEl.classList.add(isHealthy ? 'status-online' : 'status-offline');
     } else {
       statusEl.textContent = 'Unknown';
     }

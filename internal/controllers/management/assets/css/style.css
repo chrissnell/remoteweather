@@ -306,7 +306,7 @@ input:checked + .slider:before {
   background: #fff;
   padding: 1.5rem;
   border-radius: 6px;
-  width: 420px;
+  width: 600px; /* Increased width for better tab content */
   max-width: 95%;
   max-height: 90vh;
   overflow-y: auto;
@@ -316,7 +316,14 @@ input:checked + .slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin: -1.5rem -1.5rem 0 -1.5rem;
+  padding: 1rem 1.5rem 0 1.5rem;
+  background: var(--primary-bg);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
 }
 
 .modal-footer {
@@ -543,6 +550,131 @@ input:checked + .slider:before {
 .health-stale {
   color: #ffc107;
   font-weight: bold;
+}
+
+/* Tab Navigation Styles */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+  margin: 0 -1.5rem 0 -1.5rem;
+  padding: 0.5rem 1.5rem 0 1.5rem;
+  background: var(--primary-bg);
+}
+
+.modal-tab {
+  background: #e0e0e0;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  padding: 0.6rem 1.2rem;
+  margin: 0 0.25rem;
+  margin-top: 0.5rem;
+  font-family: var(--font-family);
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--text);
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s;
+  position: relative;
+  top: 1px;
+}
+
+.modal-tab:first-child {
+  margin-left: 0;
+}
+
+.modal-tab:hover {
+  background: #d0d0d0;
+}
+
+.modal-tab.active {
+  background: #fff;
+  color: var(--accent);
+  font-weight: bold;
+  border-color: #ccc;
+  border-bottom: 1px solid #fff;
+  z-index: 10;
+}
+
+.tab-panel {
+  display: none;
+  padding: 1.5rem 0;
+  min-height: 400px; /* Prevent dialog size changes */
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* Modal footer improvements */
+.modal-footer {
+  border-top: 1px solid #ddd;
+  padding-top: 1.5rem;
+  margin-top: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-footer::before {
+  content: "Changes will be saved across all tabs";
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-style: italic;
+  margin-right: auto;
+  padding-right: 1rem;
+}
+
+/* Unsaved changes indicator */
+.modal-tab.has-changes::after {
+  content: "•";
+  color: var(--accent);
+  font-size: 1.5rem;
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+}
+
+/* Weather service styles */
+.service-group {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: #f8f9fa;
+  transition: all 0.2s;
+}
+
+.service-group.enabled {
+  background: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 1px 3px rgba(26, 140, 167, 0.1);
+}
+
+.service-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.service-header label {
+  margin: 0;
+  flex-direction: row !important;
+  font-weight: bold;
+  padding: 0.25rem 0;
+}
+
+.service-fields {
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.service-fields.hidden {
+  display: none;
+}
+
+/* Compact service fields */
+.service-fields label {
+  margin-bottom: 0.75rem;
 }
 
 /* Login Modal Styles */

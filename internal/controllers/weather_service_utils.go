@@ -131,6 +131,11 @@ func (wsc *WeatherServiceController) StartPeriodicReports(config WeatherServiceC
 	}
 }
 
+// GetDevices returns all configured devices
+func (wsc *WeatherServiceController) GetDevices() ([]config.DeviceData, error) {
+	return wsc.configProvider.GetDevices()
+}
+
 // SendHTTPRequest sends an HTTP GET request with URL-encoded parameters
 func (wsc *WeatherServiceController) SendHTTPRequest(endpoint string, params url.Values) error {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s?%s", endpoint, params.Encode()), nil)

@@ -125,13 +125,7 @@ const ManagementControllers = (function() {
     editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', () => openEditControllerModal(type, controller));
     
-    const delBtn = document.createElement('button');
-    delBtn.className = 'delete-btn';
-    delBtn.textContent = 'Delete';
-    delBtn.addEventListener('click', () => deleteController(type));
-    
     actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
     card.appendChild(actions);
 
     return card;
@@ -502,10 +496,6 @@ const ManagementControllers = (function() {
     
     if (modalElements.cancelBtn) {
       modalElements.cancelBtn.addEventListener('click', closeControllerModal);
-    }
-    
-    if (modalElements.addBtn) {
-      modalElements.addBtn.addEventListener('click', openControllerModal);
     }
 
     // Controller type change

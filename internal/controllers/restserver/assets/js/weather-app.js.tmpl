@@ -7,9 +7,11 @@ const WeatherApp = (function() {
     // Configuration from template
     const config = {
         pullFromDevice: '{{ .PullFromDevice }}',
+        stationID: {{ .StationID }},
         snowEnabled: {{ .SnowEnabled }},
         snowDevice: '{{ .SnowDevice }}',
         stationName: '{{ .StationName }}',
+        aerisWeatherEnabled: {{ .AerisWeatherEnabled }},
         debug: new URLSearchParams(window.location.search).get('debug') === '1'
     };
     
@@ -62,10 +64,12 @@ const WeatherApp = (function() {
             tab.addEventListener('click', handleChartTabClick);
         });
         
-        // Forecast tab listeners
-        document.querySelectorAll('.forecast-tab').forEach(tab => {
-            tab.addEventListener('click', handleForecastTabClick);
-        });
+        // Forecast tab listeners (only if Aeris Weather is enabled)
+        if (config.aerisWeatherEnabled) {
+            document.querySelectorAll('.forecast-tab').forEach(tab => {
+                tab.addEventListener('click', handleForecastTabClick);
+            });
+        }
     };
     
     // Handle chart tab clicks
@@ -122,15 +126,17 @@ const WeatherApp = (function() {
         // Load initial charts
         await loadChartsForRange(state.currentRange);
         
-        // Load forecasts
-        refreshWeekForecast();
-        refreshDayForecast();
+        // Load forecasts only if Aeris Weather is enabled
+        if (config.aerisWeatherEnabled) {
+            refreshWeekForecast();
+            refreshDayForecast();
+        }
     };
     
     // Refresh live data
     const refreshLiveData = async () => {
         try {
-            const { weather, snow } = await WeatherDataService.fetchLiveData(config.snowEnabled);
+            const { weather, snow } = await WeatherDataService.fetchLiveData(config.snowEnabled, config.stationID);
             
             if (weather) {
                 const processedWeather = WeatherDataService.processLiveWeatherData(weather);
@@ -200,7 +206,7 @@ const WeatherApp = (function() {
     // Refresh week forecast
     const refreshWeekForecast = async () => {
         try {
-            const data = await WeatherDataService.fetchForecast(240);
+            const data = await WeatherDataService.fetchForecast(240, config.stationID);
             if (!data) {
                 setTimeout(refreshWeekForecast, 60000);
                 return;
@@ -222,7 +228,7 @@ const WeatherApp = (function() {
     // Refresh day forecast
     const refreshDayForecast = async () => {
         try {
-            const data = await WeatherDataService.fetchForecast(24);
+            const data = await WeatherDataService.fetchForecast(24, config.stationID);
             if (!data) {
                 setTimeout(refreshDayForecast, 60000);
                 return;

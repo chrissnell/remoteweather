@@ -3,24 +3,19 @@ package restserver
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
 
-// Time constants
-const (
-	Day   = 24 * time.Hour
-	Month = Day * 30
-)
 
 // AerisWeatherForecastRecord represents forecast data from Aeris Weather
 type AerisWeatherForecastRecord struct {
 	gorm.Model
 
-	ForecastSpanHours int16        `gorm:"uniqueIndex:idx_location_span,not null"`
-	Location          string       `gorm:"uniqueIndex:idx_location_span,not null"`
+	StationID         int          `gorm:"uniqueIndex:idx_station_span,not null"`
+	ForecastSpanHours int16        `gorm:"uniqueIndex:idx_station_span,not null"`
+	Location          string       `gorm:"not null"`
 	Data              pgtype.JSONB `gorm:"type:jsonb;default:'[]';not null"`
 }
 
@@ -177,6 +172,7 @@ func headingToCardinalDirection(f float32) string {
 
 // StationData represents weather station information for the portal
 type StationData struct {
+	ID        int                 `json:"id"`
 	Name      string              `json:"name"`
 	Type      string              `json:"type"`
 	Latitude  float64             `json:"latitude"`
