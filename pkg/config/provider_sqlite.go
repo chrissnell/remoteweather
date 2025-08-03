@@ -1347,31 +1347,37 @@ func (s *SQLiteProvider) DeleteStorageConfig(storageType string) error {
 // GetController retrieves a specific controller by type
 func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, error) {
 	query := `
-		SELECT controller_type,
-		       pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
-		       wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
-		       aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_latitude, aeris_longitude,
-		       rest_cert, rest_key, rest_port, rest_listen_addr, aprs_server
+		SELECT cc.controller_type, cc.enabled,
+		       cc.pws_api_endpoint,
+		       cc.wu_api_endpoint,
+		       cc.aeris_api_endpoint,
+		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
+		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
+		       cc.management_auth_token, cc.management_enable_cors,
+		       cc.aprs_server
 		FROM controller_configs cc
 		JOIN configs c ON cc.config_id = c.id
 		WHERE cc.controller_type = ?
 	`
 
 	var controller ControllerData
-	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
-	var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
-	var aerisClientID, aerisClientSecret, aerisAPIEndpoint sql.NullString
-	var aerisLatitude, aerisLongitude sql.NullFloat64
+	var enabled bool
+	var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
 	var restCert, restKey, restListenAddr sql.NullString
 	var restPort sql.NullInt64
+	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
+	var mgmtPort sql.NullInt64
+	var mgmtEnableCORS sql.NullBool
 	var aprsServer sql.NullString
 
 	err := s.db.QueryRow(query, controllerType).Scan(
-		&controller.Type,
-		&pwsStationID, &pwsAPIKey, &pwsUploadInterval, &pwsPullFromDevice, &pwsAPIEndpoint,
-		&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
-		&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLatitude, &aerisLongitude,
-		&restCert, &restKey, &restPort, &restListenAddr, &aprsServer,
+		&controller.Type, &enabled,
+		&pwsAPIEndpoint,
+		&wuAPIEndpoint,
+		&aerisAPIEndpoint,
+		&restCert, &restKey, &restPort, &restListenAddr,
+		&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
+		&aprsServer,
 	)
 
 	if err != nil {
@@ -1382,33 +1388,24 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 	}
 
 	// Populate controller-specific data
-	if pwsStationID.Valid {
+	// Note: enabled field is stored but not exposed in ControllerData struct
+	
+	// API endpoints
+	if pwsAPIEndpoint.Valid {
 		controller.PWSWeather = &PWSWeatherData{
-			StationID:      pwsStationID.String,
-			APIKey:         pwsAPIKey.String,
-			UploadInterval: pwsUploadInterval.String,
-			PullFromDevice: pwsPullFromDevice.String,
-			APIEndpoint:    pwsAPIEndpoint.String,
+			APIEndpoint: pwsAPIEndpoint.String,
 		}
 	}
 
-	if wuStationID.Valid {
+	if wuAPIEndpoint.Valid {
 		controller.WeatherUnderground = &WeatherUndergroundData{
-			StationID:      wuStationID.String,
-			APIKey:         wuAPIKey.String,
-			UploadInterval: wuUploadInterval.String,
-			PullFromDevice: wuPullFromDevice.String,
-			APIEndpoint:    wuAPIEndpoint.String,
+			APIEndpoint: wuAPIEndpoint.String,
 		}
 	}
 
-	if aerisClientID.Valid {
+	if aerisAPIEndpoint.Valid {
 		controller.AerisWeather = &AerisWeatherData{
-			APIClientID:     aerisClientID.String,
-			APIClientSecret: aerisClientSecret.String,
-			APIEndpoint:     aerisAPIEndpoint.String,
-			Latitude:        aerisLatitude.Float64,
-			Longitude:       aerisLongitude.Float64,
+			APIEndpoint: aerisAPIEndpoint.String,
 		}
 	}
 
@@ -1425,6 +1422,17 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		if restCert.Valid && restKey.Valid {
 			httpsPort := int(restPort.Int64) + 1
 			controller.RESTServer.HTTPSPort = &httpsPort
+		}
+	}
+
+	// Management API configuration
+	if mgmtListenAddr.Valid || mgmtPort.Valid || mgmtCert.Valid {
+		controller.ManagementAPI = &ManagementAPIData{
+			Port:       int(mgmtPort.Int64),
+			ListenAddr: mgmtListenAddr.String,
+			Cert:       mgmtCert.String,
+			Key:        mgmtKey.String,
+			AuthToken:  mgmtAuthToken.String,
 		}
 	}
 
