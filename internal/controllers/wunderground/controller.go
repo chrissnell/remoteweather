@@ -20,24 +20,17 @@ import (
 // WeatherUndergroundController holds our connection along with some mutexes for operation
 type WeatherUndergroundController struct {
 	*controllers.WeatherServiceController
-	WeatherUndergroundConfig config.WeatherUndergroundData
 }
 
-func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, wuconfig config.WeatherUndergroundData, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
+func NewWeatherUndergroundController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger) (*WeatherUndergroundController, error) {
 	// Create base weather service controller
 	base, err := controllers.NewWeatherServiceController(ctx, wg, configProvider, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set defaults for global settings
-	if wuconfig.APIEndpoint == "" {
-		wuconfig.APIEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
-	}
-
 	return &WeatherUndergroundController{
 		WeatherServiceController: base,
-		WeatherUndergroundConfig: wuconfig,
 	}, nil
 }
 
@@ -84,11 +77,17 @@ func (p *WeatherUndergroundController) sendPeriodicReports() {
 			// Create a copy of device for closure
 			deviceCopy := device
 
+			// Use device's API endpoint or default
+			apiEndpoint := device.WUAPIEndpoint
+			if apiEndpoint == "" {
+				apiEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
+			}
+
 			config := controllers.WeatherServiceConfig{
 				ServiceName:    "Weather Underground",
 				StationID:      device.WUStationID,
 				APIKey:         device.WUPassword,
-				APIEndpoint:    p.WeatherUndergroundConfig.APIEndpoint,
+				APIEndpoint:    apiEndpoint,
 				UploadInterval: uploadInterval,
 				PullFromDevice: device.Name,
 			}
@@ -129,5 +128,11 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(device c
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", constants.Version))
 
-	return p.SendHTTPRequest(p.WeatherUndergroundConfig.APIEndpoint, v)
+	// Use device's API endpoint or default
+	apiEndpoint := device.WUAPIEndpoint
+	if apiEndpoint == "" {
+		apiEndpoint = "https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php"
+	}
+
+	return p.SendHTTPRequest(apiEndpoint, v)
 }

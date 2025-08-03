@@ -193,23 +193,27 @@ type DeviceData struct {
 	PWSStationID      string    `json:"pws_station_id,omitempty"`
 	PWSPassword       string    `json:"pws_password,omitempty"`
 	PWSUploadInterval int       `json:"pws_upload_interval,omitempty"`
+	PWSAPIEndpoint    string    `json:"pws_api_endpoint,omitempty"`
 	
 	// Weather Underground fields
 	WUEnabled         bool      `json:"wu_enabled,omitempty"`
 	WUStationID       string    `json:"wu_station_id,omitempty"`
 	WUPassword        string    `json:"wu_password,omitempty"`
 	WUUploadInterval  int       `json:"wu_upload_interval,omitempty"`
+	WUAPIEndpoint     string    `json:"wu_api_endpoint,omitempty"`
 	
 	// APRS additional fields
 	APRSPasscode      string    `json:"aprs_passcode,omitempty"`
 	APRSSymbolTable   string    `json:"aprs_symbol_table,omitempty"`
 	APRSSymbolCode    string    `json:"aprs_symbol_code,omitempty"`
 	APRSComment       string    `json:"aprs_comment,omitempty"`
+	APRSServer        string    `json:"aprs_server,omitempty"`
 	
 	// Aeris Weather fields
 	AerisEnabled      bool      `json:"aeris_enabled,omitempty"`
 	AerisAPIClientID  string    `json:"aeris_api_client_id,omitempty"`
 	AerisAPIClientSecret string `json:"aeris_api_client_secret,omitempty"`
+	AerisAPIEndpoint  string    `json:"aeris_api_endpoint,omitempty"`
 }
 
 
@@ -485,69 +489,25 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 				}
 			}
 		case "pwsweather":
+			// PWS Weather controller validation
+			// Device-specific credentials are now validated at the device level
 			if controller.PWSWeather != nil {
-				if controller.PWSWeather.StationID == "" {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].pwsweather.station_id", i),
-						Value:   "",
-						Message: "PWS Weather station_id is required",
-					})
-				}
-				if controller.PWSWeather.APIKey == "" {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].pwsweather.api_key", i),
-						Value:   "",
-						Message: "PWS Weather api_key is required",
-					})
-				}
-				if controller.PWSWeather.PullFromDevice != "" && !deviceNames[controller.PWSWeather.PullFromDevice] {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].pwsweather.pull_from_device", i),
-						Value:   controller.PWSWeather.PullFromDevice,
-						Message: "pull_from_device references non-existent device",
-					})
-				}
+				// Only validate API endpoint if provided
+				// Other validations moved to device level
 			}
 		case "weatherunderground":
+			// Weather Underground controller validation
+			// Device-specific credentials are now validated at the device level
 			if controller.WeatherUnderground != nil {
-				if controller.WeatherUnderground.StationID == "" {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].weatherunderground.station_id", i),
-						Value:   "",
-						Message: "Weather Underground station_id is required",
-					})
-				}
-				if controller.WeatherUnderground.APIKey == "" {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].weatherunderground.api_key", i),
-						Value:   "",
-						Message: "Weather Underground api_key is required",
-					})
-				}
-				if controller.WeatherUnderground.PullFromDevice != "" && !deviceNames[controller.WeatherUnderground.PullFromDevice] {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].weatherunderground.pull_from_device", i),
-						Value:   controller.WeatherUnderground.PullFromDevice,
-						Message: "pull_from_device references non-existent device",
-					})
-				}
+				// Only validate API endpoint if provided
+				// Other validations moved to device level
 			}
 		case "aerisweather":
+			// Aeris Weather controller validation
+			// Device-specific credentials are now validated at the device level
 			if controller.AerisWeather != nil {
-				if controller.AerisWeather.APIClientID == "" {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].aerisweather.api_client_id", i),
-						Value:   "",
-						Message: "Aeris Weather api_client_id is required",
-					})
-				}
-				if controller.AerisWeather.APIClientSecret == "" {
-					errors = append(errors, ValidationError{
-						Field:   fmt.Sprintf("controllers[%d].aerisweather.api_client_secret", i),
-						Value:   "",
-						Message: "Aeris Weather api_client_secret is required",
-					})
-				}
+				// Only validate API endpoint if provided
+				// Other validations moved to device level
 			}
 		}
 	}

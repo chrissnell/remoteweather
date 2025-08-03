@@ -23,8 +23,20 @@ func (h *Handlers) GetControllers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to a map for easier API consumption, sanitizing sensitive data
+	// Filter out weather service controllers since they're now auto-started and device-specific
+	weatherServices := map[string]bool{
+		"aerisweather": true,
+		"pwsweather": true,
+		"weatherunderground": true,
+		"aprs": true,
+	}
+	
 	controllerMap := make(map[string]interface{})
 	for _, controller := range controllers {
+		// Skip weather service controllers from display
+		if weatherServices[controller.Type] {
+			continue
+		}
 		sanitized := h.sanitizeControllerConfig(&controller)
 		controllerMap[controller.Type] = sanitized
 	}
@@ -84,8 +96,21 @@ func (h *Handlers) CreateController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Weather service controllers are auto-started and device-specific, cannot be created via API
+	weatherServices := map[string]bool{
+		"aerisweather": true,
+		"pwsweather": true,
+		"weatherunderground": true,
+		"aprs": true,
+	}
+	
+	if weatherServices[requestData.Type] {
+		h.sendError(w, http.StatusBadRequest, "Weather service controllers are automatically managed and cannot be created manually", nil)
+		return
+	}
+
 	// Validate controller type
-	validTypes := []string{"pwsweather", "weatherunderground", "aerisweather", "rest", "management", "aprs"}
+	validTypes := []string{"rest", "management"}
 	if !contains(validTypes, requestData.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid controller type. Must be one of: %v", validTypes), nil)
 		return
@@ -145,8 +170,21 @@ func (h *Handlers) UpdateController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Weather service controllers are auto-started and device-specific, cannot be updated via API
+	weatherServices := map[string]bool{
+		"aerisweather": true,
+		"pwsweather": true,
+		"weatherunderground": true,
+		"aprs": true,
+	}
+	
+	if weatherServices[controllerType] {
+		h.sendError(w, http.StatusBadRequest, "Weather service controllers are automatically managed and cannot be updated manually", nil)
+		return
+	}
+
 	// Validate controller type
-	validTypes := []string{"pwsweather", "weatherunderground", "aerisweather", "rest", "management", "aprs"}
+	validTypes := []string{"rest", "management"}
 	if !contains(validTypes, controllerType) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid controller type. Must be one of: %v", validTypes), nil)
 		return
@@ -201,8 +239,21 @@ func (h *Handlers) DeleteController(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Weather service controllers are auto-started and device-specific, cannot be deleted via API
+	weatherServices := map[string]bool{
+		"aerisweather": true,
+		"pwsweather": true,
+		"weatherunderground": true,
+		"aprs": true,
+	}
+	
+	if weatherServices[controllerType] {
+		h.sendError(w, http.StatusBadRequest, "Weather service controllers are automatically managed and cannot be deleted manually", nil)
+		return
+	}
+
 	// Validate controller type
-	validTypes := []string{"pwsweather", "weatherunderground", "aerisweather", "rest", "management", "aprs"}
+	validTypes := []string{"rest", "management"}
 	if !contains(validTypes, controllerType) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid controller type. Must be one of: %v", validTypes), nil)
 		return
