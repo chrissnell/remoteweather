@@ -13,32 +13,38 @@ const WeatherDataService = (function() {
     };
     
     // Fetch latest weather data
-    const fetchLatestWeather = async () => {
-        return WeatherUtils.fetchWithTimeout(endpoints.latest);
+    const fetchLatestWeather = async (stationId) => {
+        const url = stationId ? `${endpoints.latest}?station_id=${stationId}` : endpoints.latest;
+        return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Fetch snow data
-    const fetchSnowData = async () => {
-        return WeatherUtils.fetchWithTimeout(endpoints.snow);
+    const fetchSnowData = async (stationId) => {
+        const url = stationId ? `${endpoints.snow}?station_id=${stationId}` : endpoints.snow;
+        return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Fetch historical data for charts
-    const fetchHistoricalData = async (hours, station) => {
-        const url = `${endpoints.span(hours)}?station=${station}`;
+    const fetchHistoricalData = async (hours, station, stationId) => {
+        let url = `${endpoints.span(hours)}?station=${station}`;
+        if (stationId) {
+            url += `&station_id=${stationId}`;
+        }
         return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Fetch forecast data
-    const fetchForecast = async (hours) => {
-        return WeatherUtils.fetchWithTimeout(endpoints.forecast(hours));
+    const fetchForecast = async (hours, stationId) => {
+        const url = stationId ? `${endpoints.forecast(hours)}?station_id=${stationId}` : endpoints.forecast(hours);
+        return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Combined fetch for live data (weather + snow if enabled)
-    const fetchLiveData = async (snowEnabled = false) => {
-        const promises = [fetchLatestWeather()];
+    const fetchLiveData = async (snowEnabled = false, stationId = null) => {
+        const promises = [fetchLatestWeather(stationId)];
         
         if (snowEnabled) {
-            promises.push(fetchSnowData());
+            promises.push(fetchSnowData(stationId));
         }
         
         try {
@@ -55,11 +61,11 @@ const WeatherDataService = (function() {
     
     // Combined fetch for chart data
     const fetchChartData = async (hours, config) => {
-        const { pullFromDevice, snowEnabled, snowDevice } = config;
-        const promises = [fetchHistoricalData(hours, pullFromDevice)];
+        const { pullFromDevice, snowEnabled, snowDevice, stationID } = config;
+        const promises = [fetchHistoricalData(hours, pullFromDevice, stationID)];
         
         if (snowEnabled && snowDevice) {
-            promises.push(fetchHistoricalData(hours, snowDevice));
+            promises.push(fetchHistoricalData(hours, snowDevice, stationID));
         }
         
         try {

@@ -212,6 +212,7 @@
       {{ end }}
       
       <!-- Forecast Section -->
+      {{ if .AerisWeatherEnabled }}
       <div class="forecast-section">
         <div class="section-title">Weather Forecast</div>
         
@@ -660,6 +661,7 @@
           <div class="forecast-updated" id="forecast-day-last-updated">---</div>
         </div>
       </div>
+      {{ end }}
       
       <!-- Charts Section -->
       <div class="charts-section">

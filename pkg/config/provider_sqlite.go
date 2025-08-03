@@ -89,6 +89,25 @@ CREATE TABLE devices (
     tls_cert_file TEXT,
     tls_key_file TEXT,
     path TEXT DEFAULT '',
+    -- PWS Weather fields
+    pws_enabled BOOLEAN DEFAULT FALSE,
+    pws_station_id TEXT,
+    pws_password TEXT,
+    pws_upload_interval INTEGER DEFAULT 60,
+    -- Weather Underground fields
+    wu_enabled BOOLEAN DEFAULT FALSE,
+    wu_station_id TEXT,
+    wu_password TEXT,
+    wu_upload_interval INTEGER DEFAULT 300,
+    -- APRS additional fields
+    aprs_passcode TEXT,
+    aprs_symbol_table CHAR(1) DEFAULT '/',
+    aprs_symbol_code CHAR(1) DEFAULT '_',
+    aprs_comment TEXT,
+    -- Aeris Weather fields
+    aeris_enabled BOOLEAN DEFAULT FALSE,
+    aeris_api_client_id TEXT,
+    aeris_api_client_secret TEXT,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, name)
 );
@@ -207,6 +226,9 @@ CREATE TABLE weather_websites (
 -- Create indexes for better query performance
 CREATE INDEX idx_devices_config_id ON devices(config_id);
 CREATE INDEX idx_devices_name ON devices(config_id, name);
+CREATE INDEX idx_devices_pws_enabled ON devices(pws_enabled) WHERE pws_enabled = TRUE;
+CREATE INDEX idx_devices_wu_enabled ON devices(wu_enabled) WHERE wu_enabled = TRUE;
+CREATE INDEX idx_devices_aeris_enabled ON devices(aeris_enabled) WHERE aeris_enabled = TRUE;
 CREATE INDEX idx_storage_configs_config_id ON storage_configs(config_id);
 CREATE INDEX idx_storage_configs_type ON storage_configs(config_id, backend_type);
 CREATE INDEX idx_storage_configs_health_status ON storage_configs(health_status);
@@ -270,7 +292,11 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		SELECT id, name, type, enabled, hostname, port, serial_device, baud, 
 		       wind_dir_correction, base_snow_distance, website_id,
 		       latitude, longitude, altitude, aprs_enabled, aprs_callsign,
-		       tls_cert_file, tls_key_file, path
+		       tls_cert_file, tls_key_file, path,
+		       pws_enabled, pws_station_id, pws_password, pws_upload_interval, pws_api_endpoint,
+		       wu_enabled, wu_station_id, wu_password, wu_upload_interval, wu_api_endpoint,
+		       aprs_passcode, aprs_symbol_table, aprs_symbol_code, aprs_comment, aprs_server,
+		       aeris_enabled, aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint
 		FROM devices 
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY name
@@ -290,12 +316,33 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var latitude, longitude, altitude sql.NullFloat64
 		var aprsEnabled sql.NullBool
+		
+		// PWS Weather fields
+		var pwsEnabled sql.NullBool
+		var pwsStationID, pwsPassword, pwsAPIEndpoint sql.NullString
+		var pwsUploadInterval sql.NullInt64
+		
+		// Weather Underground fields
+		var wuEnabled sql.NullBool
+		var wuStationID, wuPassword, wuAPIEndpoint sql.NullString
+		var wuUploadInterval sql.NullInt64
+		
+		// APRS additional fields
+		var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment, aprsServer sql.NullString
+		
+		// Aeris Weather fields
+		var aerisEnabled sql.NullBool
+		var aerisAPIClientID, aerisAPIClientSecret, aerisAPIEndpoint sql.NullString
 
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 			&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
+			&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval, &pwsAPIEndpoint,
+			&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval, &wuAPIEndpoint,
+			&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment, &aprsServer,
+			&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret, &aerisAPIEndpoint,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device row: %w", err)
@@ -353,6 +400,65 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if path.Valid {
 			device.Path = path.String
+		}
+		
+		// Set PWS Weather fields
+		device.PWSEnabled = pwsEnabled.Bool
+		if pwsStationID.Valid {
+			device.PWSStationID = pwsStationID.String
+		}
+		if pwsPassword.Valid {
+			device.PWSPassword = pwsPassword.String
+		}
+		if pwsUploadInterval.Valid {
+			device.PWSUploadInterval = int(pwsUploadInterval.Int64)
+		}
+		if pwsAPIEndpoint.Valid {
+			device.PWSAPIEndpoint = pwsAPIEndpoint.String
+		}
+		
+		// Set Weather Underground fields
+		device.WUEnabled = wuEnabled.Bool
+		if wuStationID.Valid {
+			device.WUStationID = wuStationID.String
+		}
+		if wuPassword.Valid {
+			device.WUPassword = wuPassword.String
+		}
+		if wuUploadInterval.Valid {
+			device.WUUploadInterval = int(wuUploadInterval.Int64)
+		}
+		if wuAPIEndpoint.Valid {
+			device.WUAPIEndpoint = wuAPIEndpoint.String
+		}
+		
+		// Set APRS additional fields
+		if aprsPasscode.Valid {
+			device.APRSPasscode = aprsPasscode.String
+		}
+		if aprsSymbolTable.Valid {
+			device.APRSSymbolTable = aprsSymbolTable.String
+		}
+		if aprsSymbolCode.Valid {
+			device.APRSSymbolCode = aprsSymbolCode.String
+		}
+		if aprsComment.Valid {
+			device.APRSComment = aprsComment.String
+		}
+		if aprsServer.Valid {
+			device.APRSServer = aprsServer.String
+		}
+		
+		// Set Aeris Weather fields
+		device.AerisEnabled = aerisEnabled.Bool
+		if aerisAPIClientID.Valid {
+			device.AerisAPIClientID = aerisAPIClientID.String
+		}
+		if aerisAPIClientSecret.Valid {
+			device.AerisAPIClientSecret = aerisAPIClientSecret.String
+		}
+		if aerisAPIEndpoint.Valid {
+			device.AerisAPIEndpoint = aerisAPIEndpoint.String
 		}
 
 		devices = append(devices, device)
@@ -457,15 +563,10 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 	query := `
 		SELECT cc.controller_type, cc.enabled,
-		       -- PWS Weather fields
-		       cc.pws_station_id, cc.pws_api_key, cc.pws_upload_interval, 
-		       cc.pws_pull_from_device, cc.pws_api_endpoint,
-		       -- Weather Underground fields
-		       cc.wu_station_id, cc.wu_api_key, cc.wu_upload_interval,
-		       cc.wu_pull_from_device, cc.wu_api_endpoint,
-		       -- Aeris Weather fields
-		       cc.aeris_api_client_id, cc.aeris_api_client_secret,
-		       		cc.aeris_api_endpoint, cc.aeris_latitude, cc.aeris_longitude,
+		       -- Global API endpoints only (device-specific fields removed)
+		       cc.pws_api_endpoint,
+		       cc.wu_api_endpoint,
+		       cc.aeris_api_endpoint,
 		       -- REST Server fields
 		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
 		       -- Management API fields
@@ -489,10 +590,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 	for rows.Next() {
 		var controllerType string
 		var enabled bool
-		var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
-		var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
-		var aerisClientID, aerisClientSecret, aerisAPIEndpoint sql.NullString
-		var aerisLatitude, aerisLongitude sql.NullFloat64
+		var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
 		var restCert, restKey, restListenAddr sql.NullString
 		var restPort sql.NullInt64
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
@@ -502,9 +600,9 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 
 		err := rows.Scan(
 			&controllerType, &enabled,
-			&pwsStationID, &pwsAPIKey, &pwsUploadInterval, &pwsPullFromDevice, &pwsAPIEndpoint,
-			&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
-			&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLatitude, &aerisLongitude,
+			&pwsAPIEndpoint,
+			&wuAPIEndpoint,
+			&aerisAPIEndpoint,
 			&restCert, &restKey, &restPort, &restListenAddr,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 			&aprsServer,
@@ -519,34 +617,22 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 
 		switch controllerType {
 		case "pwsweather":
-			if pwsStationID.Valid {
-				controller.PWSWeather = &PWSWeatherData{
-					StationID:      pwsStationID.String,
-					APIKey:         pwsAPIKey.String,
-					UploadInterval: pwsUploadInterval.String,
-					PullFromDevice: pwsPullFromDevice.String,
-					APIEndpoint:    pwsAPIEndpoint.String,
-				}
+			// Create controller with just API endpoint
+			// Device-specific settings are now in devices table
+			controller.PWSWeather = &PWSWeatherData{
+				APIEndpoint: pwsAPIEndpoint.String,
 			}
 		case "weatherunderground":
-			if wuStationID.Valid {
-				controller.WeatherUnderground = &WeatherUndergroundData{
-					StationID:      wuStationID.String,
-					APIKey:         wuAPIKey.String,
-					UploadInterval: wuUploadInterval.String,
-					PullFromDevice: wuPullFromDevice.String,
-					APIEndpoint:    wuAPIEndpoint.String,
-				}
+			// Create controller with just API endpoint
+			// Device-specific settings are now in devices table
+			controller.WeatherUnderground = &WeatherUndergroundData{
+				APIEndpoint: wuAPIEndpoint.String,
 			}
 		case "aerisweather":
-			if aerisClientID.Valid {
-				controller.AerisWeather = &AerisWeatherData{
-					APIClientID:     aerisClientID.String,
-					APIClientSecret: aerisClientSecret.String,
-					APIEndpoint:     aerisAPIEndpoint.String,
-					Latitude:        aerisLatitude.Float64,
-					Longitude:       aerisLongitude.Float64,
-				}
+			// Create controller with just API endpoint
+			// Device-specific settings are now in devices table
+			controller.AerisWeather = &AerisWeatherData{
+				APIEndpoint: aerisAPIEndpoint.String,
 			}
 		case "rest":
 			if restPort.Valid || restListenAddr.Valid || restCert.Valid || restKey.Valid {
@@ -833,7 +919,11 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		SELECT d.id, d.name, d.type, d.enabled, d.hostname, d.port, d.serial_device, d.baud,
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
 		       d.latitude, d.longitude, d.altitude, d.aprs_enabled, d.aprs_callsign,
-		       d.tls_cert_file, d.tls_key_file, d.path
+		       d.tls_cert_file, d.tls_key_file, d.path,
+		       d.pws_enabled, d.pws_station_id, d.pws_password, d.pws_upload_interval,
+		       d.wu_enabled, d.wu_station_id, d.wu_password, d.wu_upload_interval,
+		       d.aprs_passcode, d.aprs_symbol_table, d.aprs_symbol_code, d.aprs_comment,
+		       d.aeris_enabled, d.aeris_api_client_id, d.aeris_api_client_secret
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
 		WHERE d.name = ?
@@ -845,12 +935,33 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 	var latitude, longitude, altitude sql.NullFloat64
 	var aprsEnabled sql.NullBool
+	
+	// PWS Weather fields
+	var pwsEnabled sql.NullBool
+	var pwsStationID, pwsPassword sql.NullString
+	var pwsUploadInterval sql.NullInt64
+	
+	// Weather Underground fields
+	var wuEnabled sql.NullBool
+	var wuStationID, wuPassword sql.NullString
+	var wuUploadInterval sql.NullInt64
+	
+	// APRS additional fields
+	var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment sql.NullString
+	
+	// Aeris Weather fields
+	var aerisEnabled sql.NullBool
+	var aerisAPIClientID, aerisAPIClientSecret sql.NullString
 
 	err := s.db.QueryRow(query, name).Scan(
 		&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
 		&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 		&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
+		&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
+		&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
+		&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment,
+		&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret,
 	)
 
 	if err != nil {
@@ -912,6 +1023,53 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	}
 	if path.Valid {
 		device.Path = path.String
+	}
+	
+	// Set PWS Weather fields
+	device.PWSEnabled = pwsEnabled.Bool
+	if pwsStationID.Valid {
+		device.PWSStationID = pwsStationID.String
+	}
+	if pwsPassword.Valid {
+		device.PWSPassword = pwsPassword.String
+	}
+	if pwsUploadInterval.Valid {
+		device.PWSUploadInterval = int(pwsUploadInterval.Int64)
+	}
+	
+	// Set Weather Underground fields
+	device.WUEnabled = wuEnabled.Bool
+	if wuStationID.Valid {
+		device.WUStationID = wuStationID.String
+	}
+	if wuPassword.Valid {
+		device.WUPassword = wuPassword.String
+	}
+	if wuUploadInterval.Valid {
+		device.WUUploadInterval = int(wuUploadInterval.Int64)
+	}
+	
+	// Set APRS additional fields
+	if aprsPasscode.Valid {
+		device.APRSPasscode = aprsPasscode.String
+	}
+	if aprsSymbolTable.Valid {
+		device.APRSSymbolTable = aprsSymbolTable.String
+	}
+	if aprsSymbolCode.Valid {
+		device.APRSSymbolCode = aprsSymbolCode.String
+	}
+	if aprsComment.Valid {
+		device.APRSComment = aprsComment.String
+	}
+	
+	// Set Aeris Weather fields
+	device.AerisEnabled = aerisEnabled.Bool
+	if aerisAPIClientID.Valid {
+		device.AerisAPIClientID = aerisAPIClientID.String
+	}
+	if aerisAPIClientSecret.Valid {
+		device.AerisAPIClientSecret = aerisAPIClientSecret.String
 	}
 
 	return &device, nil
@@ -1189,31 +1347,37 @@ func (s *SQLiteProvider) DeleteStorageConfig(storageType string) error {
 // GetController retrieves a specific controller by type
 func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, error) {
 	query := `
-		SELECT controller_type,
-		       pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
-		       wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
-		       aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_latitude, aeris_longitude,
-		       rest_cert, rest_key, rest_port, rest_listen_addr, aprs_server
+		SELECT cc.controller_type, cc.enabled,
+		       cc.pws_api_endpoint,
+		       cc.wu_api_endpoint,
+		       cc.aeris_api_endpoint,
+		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
+		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
+		       cc.management_auth_token, cc.management_enable_cors,
+		       cc.aprs_server
 		FROM controller_configs cc
 		JOIN configs c ON cc.config_id = c.id
 		WHERE cc.controller_type = ?
 	`
 
 	var controller ControllerData
-	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
-	var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
-	var aerisClientID, aerisClientSecret, aerisAPIEndpoint sql.NullString
-	var aerisLatitude, aerisLongitude sql.NullFloat64
+	var enabled bool
+	var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
 	var restCert, restKey, restListenAddr sql.NullString
 	var restPort sql.NullInt64
+	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
+	var mgmtPort sql.NullInt64
+	var mgmtEnableCORS sql.NullBool
 	var aprsServer sql.NullString
 
 	err := s.db.QueryRow(query, controllerType).Scan(
-		&controller.Type,
-		&pwsStationID, &pwsAPIKey, &pwsUploadInterval, &pwsPullFromDevice, &pwsAPIEndpoint,
-		&wuStationID, &wuAPIKey, &wuUploadInterval, &wuPullFromDevice, &wuAPIEndpoint,
-		&aerisClientID, &aerisClientSecret, &aerisAPIEndpoint, &aerisLatitude, &aerisLongitude,
-		&restCert, &restKey, &restPort, &restListenAddr, &aprsServer,
+		&controller.Type, &enabled,
+		&pwsAPIEndpoint,
+		&wuAPIEndpoint,
+		&aerisAPIEndpoint,
+		&restCert, &restKey, &restPort, &restListenAddr,
+		&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
+		&aprsServer,
 	)
 
 	if err != nil {
@@ -1224,33 +1388,24 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 	}
 
 	// Populate controller-specific data
-	if pwsStationID.Valid {
+	// Note: enabled field is stored but not exposed in ControllerData struct
+	
+	// API endpoints
+	if pwsAPIEndpoint.Valid {
 		controller.PWSWeather = &PWSWeatherData{
-			StationID:      pwsStationID.String,
-			APIKey:         pwsAPIKey.String,
-			UploadInterval: pwsUploadInterval.String,
-			PullFromDevice: pwsPullFromDevice.String,
-			APIEndpoint:    pwsAPIEndpoint.String,
+			APIEndpoint: pwsAPIEndpoint.String,
 		}
 	}
 
-	if wuStationID.Valid {
+	if wuAPIEndpoint.Valid {
 		controller.WeatherUnderground = &WeatherUndergroundData{
-			StationID:      wuStationID.String,
-			APIKey:         wuAPIKey.String,
-			UploadInterval: wuUploadInterval.String,
-			PullFromDevice: wuPullFromDevice.String,
-			APIEndpoint:    wuAPIEndpoint.String,
+			APIEndpoint: wuAPIEndpoint.String,
 		}
 	}
 
-	if aerisClientID.Valid {
+	if aerisAPIEndpoint.Valid {
 		controller.AerisWeather = &AerisWeatherData{
-			APIClientID:     aerisClientID.String,
-			APIClientSecret: aerisClientSecret.String,
-			APIEndpoint:     aerisAPIEndpoint.String,
-			Latitude:        aerisLatitude.Float64,
-			Longitude:       aerisLongitude.Float64,
+			APIEndpoint: aerisAPIEndpoint.String,
 		}
 	}
 
@@ -1267,6 +1422,17 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		if restCert.Valid && restKey.Valid {
 			httpsPort := int(restPort.Int64) + 1
 			controller.RESTServer.HTTPSPort = &httpsPort
+		}
+	}
+
+	// Management API configuration
+	if mgmtListenAddr.Valid || mgmtPort.Valid || mgmtCert.Valid {
+		controller.ManagementAPI = &ManagementAPIData{
+			Port:       int(mgmtPort.Int64),
+			ListenAddr: mgmtListenAddr.String,
+			Cert:       mgmtCert.String,
+			Key:        mgmtKey.String,
+			AuthToken:  mgmtAuthToken.String,
 		}
 	}
 

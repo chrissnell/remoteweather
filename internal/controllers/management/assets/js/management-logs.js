@@ -305,12 +305,27 @@ const ManagementLogs = (function() {
   function appendHTTPLogEntry(log) {
     const container = document.getElementById('http-logs-content');
     
+    // Clear any status messages when we get the first log entry
+    if (container.innerHTML.includes('Loading HTTP logs...') || 
+        container.innerHTML.includes('Failed to load HTTP logs')) {
+      container.innerHTML = '';
+    }
+    
+    // Check if user was at bottom before adding new content
+    const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 50;
+    
     // Create log entry element
     const logDiv = document.createElement('div');
     logDiv.className = 'log-entry log-' + (log.level || 'info');
     
-    // The message is already formatted in nginx style, so just use it directly
-    logDiv.textContent = log.message;
+    // If we have a hostname, replace the IP with the hostname in the message
+    let message = log.message;
+    if (log.remote_hostname && log.remote_addr) {
+      // Replace the IP with just the hostname in the nginx-style log
+      message = message.replace(log.remote_addr, log.remote_hostname);
+    }
+    
+    logDiv.textContent = message;
     
     // Add status-based coloring
     if (log.status >= 500) {
@@ -320,9 +335,11 @@ const ManagementLogs = (function() {
     }
     container.appendChild(logDiv);
     
-    // Auto-scroll to bottom if tailing
-    if (isHTTPLogsTailing) {
-      container.scrollTop = container.scrollHeight;
+    // Auto-scroll to bottom if tailing and user was already at bottom
+    if (isHTTPLogsTailing && wasAtBottom) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
     }
   }
 
@@ -374,10 +391,11 @@ const ManagementLogs = (function() {
     try {
       const logs = await ManagementAPIService.getHTTPLogs();
       
-      // For simplicity, we'll clear and re-add all logs
-      // In a production app, you'd want to track which logs are new
-      document.getElementById('http-logs-content').innerHTML = '';
-      logs.forEach(log => appendHTTPLogEntry(log));
+      // Since the server clears the buffer on each call, all returned logs are new
+      if (logs.length > 0) {
+        console.log('Poll response: received', logs.length, 'new HTTP logs');
+        logs.forEach(log => appendHTTPLogEntry(log));
+      }
     } catch (error) {
       console.error('Failed to poll HTTP logs:', error);
     }
