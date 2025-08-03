@@ -54,43 +54,25 @@ func New(configProvider config.ConfigProvider) (*Controller, error) {
 		wg:             &sync.WaitGroup{},
 	}
 
-	// Load all controllers to find APRS controller configuration
-	cfg, err := configProvider.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error loading configuration: %v", err)
-	}
-
-	// Find APRS controller configuration
-	var aprsConfig *config.APRSData
-	for _, controller := range cfg.Controllers {
-		if controller.Type == "aprs" && controller.APRS != nil {
-			aprsConfig = controller.APRS
-			break
-		}
-	}
-
-	if aprsConfig == nil || aprsConfig.Server == "" {
-		return nil, fmt.Errorf("APRS controller configuration is missing or incomplete")
-	}
-
 	// Check if we have at least one device with APRS enabled
 	devices, err := configProvider.GetDevices()
 	if err != nil {
 		return nil, fmt.Errorf("error loading device configurations: %v", err)
 	}
 
-	// Validate at least one device has APRS enabled with callsign and location
-	validStation := false
+	// Check if any device has APRS enabled
+	hasAPRSDevice := false
 	for _, device := range devices {
 		if device.APRSEnabled && device.APRSCallsign != "" &&
 			device.Latitude != 0 && device.Longitude != 0 {
-			validStation = true
+			hasAPRSDevice = true
 			break
 		}
 	}
 
-	if !validStation {
-		return nil, fmt.Errorf("you must configure at least one weather station with APRS enabled, callsign, and location")
+	if !hasAPRSDevice {
+		log.Info("No APRS enabled devices found - controller will start but remain idle")
+		// Continue initialization but controller will do nothing until devices are configured
 	}
 
 	return a, nil
@@ -192,21 +174,6 @@ func (a *Controller) GetHealth() map[string]interface{} {
 	return health
 }
 
-// getAPRSConfig retrieves the APRS controller configuration
-func (a *Controller) getAPRSConfig() (*config.APRSData, error) {
-	cfg, err := a.configProvider.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error loading configuration: %v", err)
-	}
-
-	for _, controller := range cfg.Controllers {
-		if controller.Type == "aprs" && controller.APRS != nil {
-			return controller.APRS, nil
-		}
-	}
-
-	return nil, fmt.Errorf("APRS controller configuration not found")
-}
 
 func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
@@ -298,22 +265,20 @@ func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.Wa
 	pkt := a.CreateCompleteWeatherReport(device, reading, '/', '_')
 	log.Debugf("sending reading to APRS-IS for station %s: %+v", device.Name, pkt)
 
-	// Load APRS controller configuration
-	aprsConfig, err := a.getAPRSConfig()
-	if err != nil {
-		log.Error("error loading APRS controller configuration: %v", err)
-		return
+	// Use device's APRS server or default
+	aprsServer := device.APRSServer
+	if aprsServer == "" {
+		aprsServer = "noam.aprs2.net:14580" // Default APRS-IS server
 	}
-
 
 	dialer := net.Dialer{
 		Timeout: connectionTimeout,
 	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", aprsConfig.Server)
+	conn, err := dialer.DialContext(ctx, "tcp", aprsServer)
 	if err != nil {
 		log.Error("error dialing APRS-IS server %v: %v",
-			aprsConfig.Server, err)
+			aprsServer, err)
 		return
 	}
 	defer conn.Close()
@@ -662,12 +627,6 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error {
 	connectionTimeout := 10 * time.Second
 
-	// Load APRS controller configuration
-	aprsConfig, err := a.getAPRSConfig()
-	if err != nil {
-		return fmt.Errorf("error loading APRS controller configuration: %v", err)
-	}
-
 	// Get devices with APRS enabled
 	devices, err := configProvider.GetDevices()
 	if err != nil {
@@ -675,9 +634,14 @@ func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error
 	}
 
 	var aprsCallsign string
+	var aprsServer string
 	for _, device := range devices {
 		if device.APRSEnabled && device.APRSCallsign != "" {
 			aprsCallsign = device.APRSCallsign
+			aprsServer = device.APRSServer
+			if aprsServer == "" {
+				aprsServer = "noam.aprs2.net:14580" // Default APRS-IS server
+			}
 			break
 		}
 	}
@@ -691,9 +655,9 @@ func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error
 		Timeout: connectionTimeout,
 	}
 
-	conn, err := dialer.Dial("tcp", aprsConfig.Server)
+	conn, err := dialer.Dial("tcp", aprsServer)
 	if err != nil {
-		return fmt.Errorf("failed to connect to APRS-IS server %s: %v", aprsConfig.Server, err)
+		return fmt.Errorf("failed to connect to APRS-IS server %s: %v", aprsServer, err)
 	}
 	defer conn.Close()
 
