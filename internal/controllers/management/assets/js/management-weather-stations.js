@@ -64,8 +64,8 @@ const ManagementWeatherStations = (function() {
       // Service fields
       // Aeris
       aerisEnabled: document.getElementById('aeris-enabled'),
-      aerisStationId: document.getElementById('aeris-station-id'),
-      aerisApiKey: document.getElementById('aeris-api-key'),
+      aerisApiClientId: document.getElementById('aeris-api-client-id'),
+      aerisApiClientSecret: document.getElementById('aeris-api-client-secret'),
       aerisFields: document.getElementById('aeris-fields'),
       
       // Weather Underground
@@ -416,15 +416,15 @@ const ManagementWeatherStations = (function() {
     // Aeris Weather
     const aerisEnabled = formElements.aerisEnabled.checked;
     if (aerisEnabled) {
-      const aerisStationId = formElements.aerisStationId.value.trim();
-      const aerisApiKey = formElements.aerisApiKey.value.trim();
-      if (!aerisStationId || !aerisApiKey) {
-        alert('Aeris Weather Station ID and API Key are required when enabled');
+      const aerisApiClientId = formElements.aerisApiClientId.value.trim();
+      const aerisApiClientSecret = formElements.aerisApiClientSecret.value.trim();
+      if (!aerisApiClientId || !aerisApiClientSecret) {
+        alert('Aeris Weather API Client ID and API Client Secret are required when enabled');
         return null;
       }
       device.aeris_enabled = true;
-      device.aeris_station_id = aerisStationId;
-      device.aeris_api_key = aerisApiKey;
+      device.aeris_api_client_id = aerisApiClientId;
+      device.aeris_api_client_secret = aerisApiClientSecret;
     }
     
     // Weather Underground
@@ -673,8 +673,8 @@ const ManagementWeatherStations = (function() {
   function populateServiceFields(device) {
     // Aeris Weather
     formElements.aerisEnabled.checked = device.aeris_enabled || false;
-    formElements.aerisStationId.value = device.aeris_station_id || '';
-    formElements.aerisApiKey.value = device.aeris_api_key || '';
+    formElements.aerisApiClientId.value = device.aeris_api_client_id || '';
+    formElements.aerisApiClientSecret.value = device.aeris_api_client_secret || '';
     ManagementUtils.setElementVisibility(
       formElements.aerisFields,
       device.aeris_enabled
