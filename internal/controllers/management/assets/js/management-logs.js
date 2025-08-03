@@ -305,6 +305,15 @@ const ManagementLogs = (function() {
   function appendHTTPLogEntry(log) {
     const container = document.getElementById('http-logs-content');
     
+    // Clear any status messages when we get the first log entry
+    if (container.innerHTML.includes('Loading HTTP logs...') || 
+        container.innerHTML.includes('Failed to load HTTP logs')) {
+      container.innerHTML = '';
+    }
+    
+    // Check if user was at bottom before adding new content
+    const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 50;
+    
     // Create log entry element
     const logDiv = document.createElement('div');
     logDiv.className = 'log-entry log-' + (log.level || 'info');
@@ -320,9 +329,11 @@ const ManagementLogs = (function() {
     }
     container.appendChild(logDiv);
     
-    // Auto-scroll to bottom if tailing
-    if (isHTTPLogsTailing) {
-      container.scrollTop = container.scrollHeight;
+    // Auto-scroll to bottom if tailing and user was already at bottom
+    if (isHTTPLogsTailing && wasAtBottom) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight;
+      });
     }
   }
 
@@ -373,11 +384,17 @@ const ManagementLogs = (function() {
     
     try {
       const logs = await ManagementAPIService.getHTTPLogs();
+      const container = document.getElementById('http-logs-content');
       
-      // For simplicity, we'll clear and re-add all logs
-      // In a production app, you'd want to track which logs are new
-      document.getElementById('http-logs-content').innerHTML = '';
-      logs.forEach(log => appendHTTPLogEntry(log));
+      // Get current log count
+      const currentLogCount = container.querySelectorAll('.log-entry').length;
+      
+      // Only append new logs (logs beyond what we already have)
+      if (logs.length > currentLogCount) {
+        const newLogs = logs.slice(currentLogCount);
+        newLogs.forEach(log => appendHTTPLogEntry(log));
+        console.log('Added', newLogs.length, 'new HTTP log entries');
+      }
     } catch (error) {
       console.error('Failed to poll HTTP logs:', error);
     }

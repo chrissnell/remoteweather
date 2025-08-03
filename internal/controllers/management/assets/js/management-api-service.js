@@ -201,7 +201,14 @@ const ManagementAPIService = (function() {
   async function getStorageStatus() {
     try {
       const statusRes = await apiGet('/test/storage');
-      return statusRes.storage || {};
+      // Convert array response to object mapping
+      const statusMap = {};
+      if (statusRes.storage && Array.isArray(statusRes.storage)) {
+        statusRes.storage.forEach(s => {
+          statusMap[s.name] = s.connected;
+        });
+      }
+      return statusMap;
     } catch (error) {
       console.error('Storage status check failed:', error);
       return {};
