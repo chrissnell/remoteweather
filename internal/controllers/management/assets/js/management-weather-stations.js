@@ -272,6 +272,7 @@ const ManagementWeatherStations = (function() {
   }
 
   async function openEditModal(dev) {
+    console.log('Opening edit modal for device:', dev);
     resetForm();
     modalElements.modalTitle.textContent = 'Edit Station';
     formElements.formMode.value = 'edit';
@@ -312,9 +313,15 @@ const ManagementWeatherStations = (function() {
     }
 
     // Populate solar fields
+    console.log('Device location data:', { lat: dev.latitude, lon: dev.longitude, alt: dev.altitude });
     formElements.solarLatitude.value = dev.latitude || '';
     formElements.solarLongitude.value = dev.longitude || '';
     formElements.solarAltitude.value = dev.altitude || '';
+    console.log('Form values after setting:', {
+      lat: formElements.solarLatitude.value,
+      lon: formElements.solarLongitude.value,
+      alt: formElements.solarAltitude.value
+    });
 
     // Populate service fields
     populateServiceFields(dev);
@@ -620,6 +627,7 @@ const ManagementWeatherStations = (function() {
     
     isLoadingSerialPorts = true;
     const currentValue = valueToSelect || formElements.serialDevice.value;
+    console.log('loadSerialPorts called with valueToSelect:', valueToSelect, 'currentValue:', currentValue);
     
     // Clear existing options except the first one
     formElements.serialDevice.innerHTML = '<option value="">Select a serial port...</option>';
@@ -647,8 +655,15 @@ const ManagementWeatherStations = (function() {
         });
         
         // Restore the previously selected value if it still exists
-        if (currentValue && [...formElements.serialDevice.options].some(opt => opt.value === currentValue)) {
-          formElements.serialDevice.value = currentValue;
+        if (currentValue) {
+          const optionExists = [...formElements.serialDevice.options].some(opt => opt.value === currentValue);
+          console.log('Trying to set value:', currentValue, 'Option exists:', optionExists);
+          if (optionExists) {
+            formElements.serialDevice.value = currentValue;
+            console.log('Serial device value set to:', formElements.serialDevice.value);
+          } else {
+            console.warn('Serial port not found in options:', currentValue);
+          }
         }
       }
     } catch (error) {
