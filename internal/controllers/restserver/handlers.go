@@ -155,7 +155,7 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 		baseDistance := h.getSnowBaseDistance(website)
 
 		// Use the shared database fetching logic
-		dbFetchedReadings, err = h.controller.fetchWeatherSpan(stationName, span, baseDistance)
+		dbFetchedReadings, err = h.controller.fetchWeatherSpan(stationName, span, float64(baseDistance))
 		if err != nil {
 			log.Errorf("Error fetching weather span: %v", err)
 			http.Error(w, "error fetching weather data", http.StatusInternalServerError)
@@ -249,7 +249,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		baseDistance := h.getSnowBaseDistance(website)
 
 		// Use the shared database fetching logic
-		fetchedReading, err := h.controller.fetchLatestReading(queryStation, baseDistance)
+		fetchedReading, err := h.controller.fetchLatestReading(queryStation, float64(baseDistance))
 		if err != nil {
 			log.Errorf("Error fetching latest reading: %v", err)
 			http.Error(w, "error fetching weather data", http.StatusInternalServerError)
@@ -337,7 +337,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		err := json.NewEncoder(w).Encode(latestReading)
+		err = json.NewEncoder(w).Encode(latestReading)
 		if err != nil {
 			log.Error("error encoding latest weather readings to JSON:", err)
 			return

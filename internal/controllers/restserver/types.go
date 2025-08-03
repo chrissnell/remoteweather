@@ -3,17 +3,11 @@ package restserver
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
 
-// Time constants
-const (
-	Day   = 24 * time.Hour
-	Month = Day * 30
-)
 
 // AerisWeatherForecastRecord represents forecast data from Aeris Weather
 type AerisWeatherForecastRecord struct {
