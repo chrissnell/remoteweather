@@ -61,9 +61,29 @@ const ManagementWeatherStations = (function() {
       solarLongitude: document.getElementById('solar-longitude'),
       solarAltitude: document.getElementById('solar-altitude'),
       
+      // Service fields
+      // Aeris
+      aerisEnabled: document.getElementById('aeris-enabled'),
+      aerisStationId: document.getElementById('aeris-station-id'),
+      aerisApiKey: document.getElementById('aeris-api-key'),
+      aerisFields: document.getElementById('aeris-fields'),
+      
+      // Weather Underground
+      wuEnabled: document.getElementById('wu-enabled'),
+      wuStationId: document.getElementById('wu-station-id'),
+      wuApiKey: document.getElementById('wu-api-key'),
+      wuFields: document.getElementById('wu-fields'),
+      
+      // PWS Weather
+      pwsEnabled: document.getElementById('pws-enabled'),
+      pwsStationId: document.getElementById('pws-station-id'),
+      pwsApiKey: document.getElementById('pws-api-key'),
+      pwsFields: document.getElementById('pws-fields'),
+      
       // APRS fields
       aprsEnabled: document.getElementById('aprs-enabled'),
       aprsCallsign: document.getElementById('aprs-callsign'),
+      aprsServer: document.getElementById('aprs-server'),
       aprsConfigFields: document.getElementById('aprs-config-fields'),
       
       // TLS fields
@@ -299,6 +319,9 @@ const ManagementWeatherStations = (function() {
       formElements.solarAltitude.value = dev.altitude || '';
     }
 
+    // Populate service fields
+    populateServiceFields(dev);
+    
     // Populate APRS fields
     populateAPRSFields(dev);
     
@@ -389,9 +412,53 @@ const ManagementWeatherStations = (function() {
       if (altitude) device.altitude = parseFloat(altitude);
     }
 
+    // Service configurations
+    // Aeris Weather
+    const aerisEnabled = formElements.aerisEnabled.checked;
+    if (aerisEnabled) {
+      const aerisStationId = formElements.aerisStationId.value.trim();
+      const aerisApiKey = formElements.aerisApiKey.value.trim();
+      if (!aerisStationId || !aerisApiKey) {
+        alert('Aeris Weather Station ID and API Key are required when enabled');
+        return null;
+      }
+      device.aeris_enabled = true;
+      device.aeris_station_id = aerisStationId;
+      device.aeris_api_key = aerisApiKey;
+    }
+    
+    // Weather Underground
+    const wuEnabled = formElements.wuEnabled.checked;
+    if (wuEnabled) {
+      const wuStationId = formElements.wuStationId.value.trim();
+      const wuApiKey = formElements.wuApiKey.value.trim();
+      if (!wuStationId || !wuApiKey) {
+        alert('Weather Underground Station ID and API Key are required when enabled');
+        return null;
+      }
+      device.wu_enabled = true;
+      device.wu_station_id = wuStationId;
+      device.wu_api_key = wuApiKey;
+    }
+    
+    // PWS Weather
+    const pwsEnabled = formElements.pwsEnabled.checked;
+    if (pwsEnabled) {
+      const pwsStationId = formElements.pwsStationId.value.trim();
+      const pwsApiKey = formElements.pwsApiKey.value.trim();
+      if (!pwsStationId || !pwsApiKey) {
+        alert('PWS Weather Station ID and API Key are required when enabled');
+        return null;
+      }
+      device.pws_enabled = true;
+      device.pws_station_id = pwsStationId;
+      device.pws_api_key = pwsApiKey;
+    }
+    
     // APRS configuration
     const aprsEnabled = formElements.aprsEnabled.checked;
     const aprsCallsign = formElements.aprsCallsign.value.trim();
+    const aprsServer = formElements.aprsServer.value.trim();
     
     if (aprsEnabled) {
       if (!aprsCallsign) {
@@ -400,6 +467,7 @@ const ManagementWeatherStations = (function() {
       }
       device.aprs_enabled = true;
       device.aprs_callsign = aprsCallsign;
+      device.aprs_server = aprsServer || 'rotate.aprs2.net:14580';
     }
     
     // TLS configuration for grpcreceiver
@@ -599,18 +667,58 @@ const ManagementWeatherStations = (function() {
   }
 
   /* ---------------------------------------------------
+     Service Configuration
+  --------------------------------------------------- */
+  
+  function populateServiceFields(device) {
+    // Aeris Weather
+    formElements.aerisEnabled.checked = device.aeris_enabled || false;
+    formElements.aerisStationId.value = device.aeris_station_id || '';
+    formElements.aerisApiKey.value = device.aeris_api_key || '';
+    ManagementUtils.setElementVisibility(
+      formElements.aerisFields,
+      device.aeris_enabled
+    );
+    toggleServiceGroup('aeris-group', device.aeris_enabled);
+    
+    // Weather Underground
+    formElements.wuEnabled.checked = device.wu_enabled || false;
+    formElements.wuStationId.value = device.wu_station_id || '';
+    formElements.wuApiKey.value = device.wu_api_key || '';
+    ManagementUtils.setElementVisibility(
+      formElements.wuFields,
+      device.wu_enabled
+    );
+    toggleServiceGroup('wu-group', device.wu_enabled);
+    
+    // PWS Weather
+    formElements.pwsEnabled.checked = device.pws_enabled || false;
+    formElements.pwsStationId.value = device.pws_station_id || '';
+    formElements.pwsApiKey.value = device.pws_api_key || '';
+    ManagementUtils.setElementVisibility(
+      formElements.pwsFields,
+      device.pws_enabled
+    );
+    toggleServiceGroup('pws-group', device.pws_enabled);
+  }
+  
+  /* ---------------------------------------------------
      APRS Configuration
   --------------------------------------------------- */
   
   function populateAPRSFields(device) {
     formElements.aprsEnabled.checked = device.aprs_enabled || false;
     formElements.aprsCallsign.value = device.aprs_callsign || '';
+    formElements.aprsServer.value = device.aprs_server || 'rotate.aprs2.net:14580';
     
     // Show/hide APRS fields based on enabled status
     ManagementUtils.setElementVisibility(
       formElements.aprsConfigFields,
       device.aprs_enabled
     );
+    
+    // Toggle service group styling
+    toggleServiceGroup('aprs-group', device.aprs_enabled);
   }
 
   /* ---------------------------------------------------
@@ -708,7 +816,81 @@ const ManagementWeatherStations = (function() {
           formElements.aprsConfigFields,
           e.target.checked
         );
+        toggleServiceGroup('aprs-group', e.target.checked);
       });
+    }
+    
+    // Service toggles
+    if (formElements.aerisEnabled) {
+      formElements.aerisEnabled.addEventListener('change', (e) => {
+        ManagementUtils.setElementVisibility(
+          formElements.aerisFields,
+          e.target.checked
+        );
+        toggleServiceGroup('aeris-group', e.target.checked);
+      });
+    }
+    
+    if (formElements.wuEnabled) {
+      formElements.wuEnabled.addEventListener('change', (e) => {
+        ManagementUtils.setElementVisibility(
+          formElements.wuFields,
+          e.target.checked
+        );
+        toggleServiceGroup('wu-group', e.target.checked);
+      });
+    }
+    
+    if (formElements.pwsEnabled) {
+      formElements.pwsEnabled.addEventListener('change', (e) => {
+        ManagementUtils.setElementVisibility(
+          formElements.pwsFields,
+          e.target.checked
+        );
+        toggleServiceGroup('pws-group', e.target.checked);
+      });
+    }
+    
+    // Tab navigation
+    setupTabNavigation();
+  }
+  
+  /* ---------------------------------------------------
+     Tab Navigation
+  --------------------------------------------------- */
+  
+  function setupTabNavigation() {
+    const tabButtons = document.querySelectorAll('.modal-tab');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    
+    tabButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetTab = button.getAttribute('data-tab');
+        
+        // Update button states
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        // Update panel visibility
+        tabPanels.forEach(panel => {
+          panel.classList.remove('active');
+          if (panel.id === `${targetTab}-tab`) {
+            panel.classList.add('active');
+          }
+        });
+      });
+    });
+  }
+  
+  function toggleServiceGroup(groupId, enabled) {
+    const group = document.getElementById(groupId);
+    if (group) {
+      if (enabled) {
+        group.classList.add('enabled');
+      } else {
+        group.classList.remove('enabled');
+      }
     }
   }
 
