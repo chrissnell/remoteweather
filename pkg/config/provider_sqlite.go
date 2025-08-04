@@ -15,10 +15,22 @@ type SQLiteProvider struct {
 
 // NewSQLiteProvider creates a new SQLite configuration provider
 func NewSQLiteProvider(dbPath string) (*SQLiteProvider, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	// Open with connection string that includes parameters
+	// _busy_timeout: Wait up to 10 seconds when database is locked
+	// _journal_mode=WAL: Write-Ahead Logging for better concurrency
+	// _synchronous=NORMAL: Good balance of safety and performance
+	connStr := fmt.Sprintf("%s?_busy_timeout=10000&_journal_mode=WAL&_synchronous=NORMAL", dbPath)
+	db, err := sql.Open("sqlite", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
 	}
+
+	// Set connection pool settings for better concurrency
+	// Allow multiple readers but serialize writes
+	db.SetMaxOpenConns(10)   // Allow multiple readers
+	db.SetMaxIdleConns(5)    // Keep some connections ready
+	db.SetConnMaxLifetime(0) // Don't close connections due to age
+	db.SetConnMaxIdleTime(0) // Don't close idle connections
 
 	// Test the connection
 	if err := db.Ping(); err != nil {
@@ -34,6 +46,22 @@ func NewSQLiteProvider(dbPath string) (*SQLiteProvider, error) {
 	if err := provider.initializeSchemaIfNeeded(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize database schema: %w", err)
+	}
+
+	// Execute additional PRAGMA statements for better performance and reliability
+	pragmas := []string{
+		"PRAGMA temp_store = MEMORY",     // Use memory for temporary tables
+		"PRAGMA mmap_size = 268435456",   // Use memory-mapped I/O (256MB)
+		"PRAGMA cache_size = -64000",     // Use 64MB for cache
+		"PRAGMA foreign_keys = ON",       // Enable foreign key constraints
+		"PRAGMA optimize",                // Optimize database on open
+	}
+
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			// Log warning but don't fail - some pragmas might not be critical
+			// You may want to add proper logging here
+		}
 	}
 
 	return provider, nil
