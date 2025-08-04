@@ -75,8 +75,9 @@ func createConfigProvider(cfgFile string) (config.ConfigProvider, error) {
 		return nil, fmt.Errorf("error reading config database: %w", err)
 	}
 
-	// Wrap with caching layer for performance (30 second cache)
-	cachedProvider := config.NewCachedProvider(provider, 30*time.Second)
+	// Wrap with caching layer for performance (5 minute cache)
+	// Configuration rarely changes, so we can cache for longer to avoid database contention
+	cachedProvider := config.NewCachedProvider(provider, 5*time.Minute)
 
 	return cachedProvider, nil
 }
