@@ -29,11 +29,6 @@ type ConfigProvider interface {
 	UpdateStorageConfig(storageType string, config interface{}) error
 	DeleteStorageConfig(storageType string) error
 
-	// Storage health management
-	UpdateStorageHealth(storageType string, health *StorageHealthData) error
-	GetStorageHealth(storageType string) (*StorageHealthData, error)
-	GetAllStorageHealth() (map[string]*StorageHealthData, error)
-
 	// Individual controller management
 	AddController(controller *ControllerData) error
 	UpdateController(controllerType string, controller *ControllerData) error
@@ -672,19 +667,3 @@ func (c *CachedConfigProvider) DeleteWeatherWebsite(id int) error {
 	return err
 }
 
-// Storage health management methods
-
-// UpdateStorageHealth updates the health status of a storage backend (no cache invalidation needed for health)
-func (c *CachedConfigProvider) UpdateStorageHealth(storageType string, health *StorageHealthData) error {
-	return c.provider.UpdateStorageHealth(storageType, health)
-}
-
-// GetStorageHealth retrieves the health status of a specific storage backend
-func (c *CachedConfigProvider) GetStorageHealth(storageType string) (*StorageHealthData, error) {
-	return c.provider.GetStorageHealth(storageType)
-}
-
-// GetAllStorageHealth retrieves health status for all storage backends
-func (c *CachedConfigProvider) GetAllStorageHealth() (map[string]*StorageHealthData, error) {
-	return c.provider.GetAllStorageHealth()
-}

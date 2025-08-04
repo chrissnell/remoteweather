@@ -18,6 +18,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/storage"
 	aprspkg "github.com/chrissnell/remoteweather/pkg/aprs"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
@@ -159,15 +160,13 @@ func (a *Controller) GetHealth() map[string]interface{} {
 		"running": a.IsRunning(),
 	}
 
-	// Get health from config provider if available
-	if a.configProvider != nil {
-		if healthData, err := a.configProvider.GetStorageHealth("aprs"); err == nil {
-			health["status"] = healthData.Status
-			health["message"] = healthData.Message
-			health["last_check"] = healthData.LastCheck
-			if healthData.Error != "" {
-				health["error"] = healthData.Error
-			}
+	// Get health from in-memory health manager
+	if healthData, exists := storage.GlobalHealthManager.GetHealth("aprs"); exists {
+		health["status"] = healthData.Status
+		health["message"] = healthData.Message
+		health["last_check"] = healthData.LastCheck
+		if healthData.Error != "" {
+			health["error"] = healthData.Error
 		}
 	}
 
@@ -617,13 +616,9 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 		}
 	}
 
-	// Update health status in configuration database
-	err = configProvider.UpdateStorageHealth("aprs", health)
-	if err != nil {
-		log.Errorf("Failed to update APRS health status: %v", err)
-	} else {
-		log.Debugf("Updated APRS health status: %s", health.Status)
-	}
+	// Update health status in memory
+	storage.GlobalHealthManager.UpdateHealth("aprs", health)
+	log.Debugf("Updated APRS health status: %s", health.Status)
 }
 
 // testAPRSISLogin performs a test login to the APRS-IS server to verify connectivity and authentication
