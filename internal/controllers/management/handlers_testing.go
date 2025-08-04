@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/database"
+	"github.com/chrissnell/remoteweather/internal/storage"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	serial "github.com/tarm/goserial"
 )
@@ -647,17 +648,8 @@ func (h *Handlers) getCurrentWeatherFromDatabase(deviceName string, maxStaleMinu
 
 // GetStorageHealthStatus returns the health status of all storage backends
 func (h *Handlers) GetStorageHealthStatus(w http.ResponseWriter, r *http.Request) {
-	if h.controller.ConfigProvider == nil {
-		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
-		return
-	}
-
-	// Get all storage health statuses
-	healthMap, err := h.controller.ConfigProvider.GetAllStorageHealth()
-	if err != nil {
-		h.sendError(w, http.StatusInternalServerError, "Failed to get storage health status", err)
-		return
-	}
+	// Get all storage health statuses from in-memory manager
+	healthMap := storage.GlobalHealthManager.GetAllHealth()
 
 	// Convert to response format with calculated staleness
 	var healthStatuses []map[string]interface{}
@@ -705,11 +697,6 @@ func (h *Handlers) GetStorageHealthStatus(w http.ResponseWriter, r *http.Request
 
 // GetSingleStorageHealth returns the health status of a specific storage backend
 func (h *Handlers) GetSingleStorageHealth(w http.ResponseWriter, r *http.Request) {
-	if h.controller.ConfigProvider == nil {
-		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
-		return
-	}
-
 	// Get storage type from URL path
 	storageType := strings.TrimPrefix(r.URL.Path, "/api/health/storage/")
 	if storageType == "" {
@@ -717,10 +704,10 @@ func (h *Handlers) GetSingleStorageHealth(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get health status for specific storage type
-	health, err := h.controller.ConfigProvider.GetStorageHealth(storageType)
-	if err != nil {
-		h.sendError(w, http.StatusNotFound, fmt.Sprintf("Failed to get health for storage type '%s'", storageType), err)
+	// Get health status for specific storage type from in-memory manager
+	health, exists := storage.GlobalHealthManager.GetHealth(storageType)
+	if !exists {
+		h.sendError(w, http.StatusNotFound, fmt.Sprintf("No health data available for storage type '%s'", storageType), nil)
 		return
 	}
 
@@ -764,17 +751,8 @@ func (h *Handlers) GetSingleStorageHealth(w http.ResponseWriter, r *http.Request
 
 // TestStorageConnectivity tests connectivity to storage backends (compatibility endpoint for frontend)
 func (h *Handlers) TestStorageConnectivity(w http.ResponseWriter, r *http.Request) {
-	if h.controller.ConfigProvider == nil {
-		h.sendError(w, http.StatusServiceUnavailable, "No config provider available", nil)
-		return
-	}
-
-	// Get all storage health statuses
-	healthMap, err := h.controller.ConfigProvider.GetAllStorageHealth()
-	if err != nil {
-		h.sendError(w, http.StatusInternalServerError, "Failed to get storage health status", err)
-		return
-	}
+	// Get all storage health statuses from in-memory manager
+	healthMap := storage.GlobalHealthManager.GetAllHealth()
 
 	// Convert to frontend-compatible format
 	var storageResults []map[string]interface{}

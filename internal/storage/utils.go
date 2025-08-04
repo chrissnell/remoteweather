@@ -20,11 +20,9 @@ func StartHealthMonitor(ctx context.Context, configProvider config.ConfigProvide
 	go func() {
 		updateHealth := func() {
 			health := checker.CheckHealth(configProvider)
-			if err := configProvider.UpdateStorageHealth(storageType, health); err != nil {
-				log.Errorf("Failed to update %s health status: %v", storageType, err)
-			} else {
-				log.Debugf("Updated %s health status: %s", storageType, health.Status)
-			}
+			// Update in-memory health status instead of database
+			GlobalHealthManager.UpdateHealth(storageType, health)
+			log.Debugf("Updated %s health status: %s", storageType, health.Status)
 		}
 
 		updateHealth()
