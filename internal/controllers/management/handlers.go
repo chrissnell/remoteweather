@@ -153,6 +153,7 @@ func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
 
 	// Process logs concurrently for DNS lookups
 	for _, entry := range logs {
+		entry := entry // Capture loop variable
 		wg.Add(1)
 		go func(entry log.LogEntry) {
 			defer wg.Done()
