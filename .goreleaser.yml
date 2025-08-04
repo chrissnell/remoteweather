@@ -228,3 +228,7 @@ changelog:
       - '^chore:'
 
 release:
+  replace_existing_artifacts: true
+  mode: replace
+  draft: false
+  prerelease: auto
