@@ -85,7 +85,7 @@ const ManagementWebsites = (function() {
       const websites = await ManagementAPIService.getWebsites();
       
       if (websites.length === 0) {
-        container.innerHTML = '<div class="empty-state">No weather websites configured.<br><br>Add one and then enable the REST controller in the Controllers tab.</div>';
+        container.innerHTML = '<div class="empty-state">No weather websites configured.<br><br>Click [+ Add Website] button to add one.</div>';
         return;
       }
 
