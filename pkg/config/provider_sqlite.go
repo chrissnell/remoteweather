@@ -94,20 +94,24 @@ CREATE TABLE devices (
     pws_station_id TEXT,
     pws_password TEXT,
     pws_upload_interval INTEGER DEFAULT 60,
+    pws_api_endpoint TEXT,
     -- Weather Underground fields
     wu_enabled BOOLEAN DEFAULT FALSE,
     wu_station_id TEXT,
     wu_password TEXT,
     wu_upload_interval INTEGER DEFAULT 300,
+    wu_api_endpoint TEXT,
     -- APRS additional fields
     aprs_passcode TEXT,
     aprs_symbol_table CHAR(1) DEFAULT '/',
     aprs_symbol_code CHAR(1) DEFAULT '_',
     aprs_comment TEXT,
+    aprs_server TEXT,
     -- Aeris Weather fields
     aeris_enabled BOOLEAN DEFAULT FALSE,
     aeris_api_client_id TEXT,
     aeris_api_client_secret TEXT,
+    aeris_api_endpoint TEXT,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, name)
 );
