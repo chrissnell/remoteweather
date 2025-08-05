@@ -202,8 +202,6 @@ const ManagementControllers = (function() {
     if (config.http_port) html += `<div><strong>HTTP Port:</strong> ${config.http_port}</div>`;
     if (config.https_port) html += `<div><strong>HTTPS Port:</strong> ${config.https_port}</div>`;
     if (config.default_listen_addr) html += `<div><strong>Listen Address:</strong> ${config.default_listen_addr}</div>`;
-    if (config.tls_cert_path) html += `<div><strong>TLS Certificate:</strong> ${config.tls_cert_path}</div>`;
-    if (config.tls_key_path) html += `<div><strong>TLS Key:</strong> ${config.tls_key_path}</div>`;
     
     html += '</div></div>';
     return html;
