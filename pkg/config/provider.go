@@ -329,8 +329,6 @@ type RESTServerData struct {
 	HTTPPort          int    `json:"http_port,omitempty"`           // Single HTTP port for all websites
 	HTTPSPort         *int   `json:"https_port,omitempty"`          // Optional HTTPS port for all websites
 	DefaultListenAddr string `json:"default_listen_addr,omitempty"` // Listen address (default: 0.0.0.0)
-	TLSCertPath       string `json:"tls_cert_path,omitempty"`       // Default TLS cert path
-	TLSKeyPath        string `json:"tls_key_path,omitempty"`        // Default TLS key path
 }
 
 // WeatherWebsiteData represents a weather website configuration
