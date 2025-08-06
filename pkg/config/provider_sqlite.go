@@ -212,8 +212,6 @@ CREATE TABLE controller_configs (
 		aeris_longitude REAL,
     
     -- REST Server fields
-    rest_cert TEXT,
-    rest_key TEXT,
     rest_port INTEGER,
     rest_listen_addr TEXT,
     
@@ -595,7 +593,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       cc.wu_api_endpoint,
 		       cc.aeris_api_endpoint,
 		       -- REST Server fields
-		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
+		       cc.rest_port, cc.rest_listen_addr,
 		       -- Management API fields
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
@@ -618,7 +616,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var controllerType string
 		var enabled bool
 		var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
-		var restCert, restKey, restListenAddr sql.NullString
+		var restListenAddr sql.NullString
 		var restPort sql.NullInt64
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 		var mgmtPort sql.NullInt64
@@ -630,7 +628,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&pwsAPIEndpoint,
 			&wuAPIEndpoint,
 			&aerisAPIEndpoint,
-			&restCert, &restKey, &restPort, &restListenAddr,
+			&restPort, &restListenAddr,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 			&aprsServer,
 		)
@@ -662,15 +660,10 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 				APIEndpoint: aerisAPIEndpoint.String,
 			}
 		case "rest":
-			if restPort.Valid || restListenAddr.Valid || restCert.Valid || restKey.Valid {
+			if restPort.Valid || restListenAddr.Valid {
 				controller.RESTServer = &RESTServerData{
 					HTTPPort:          int(restPort.Int64),
 					DefaultListenAddr: restListenAddr.String,
-				}
-				// Set HTTPS port if TLS is configured
-				if restCert.Valid && restKey.Valid {
-					httpsPort := int(restPort.Int64) + 1
-					controller.RESTServer.HTTPSPort = &httpsPort
 				}
 			}
 		case "management":
@@ -860,7 +853,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 			pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
 			wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
 			aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_latitude, aeris_longitude,
-			rest_cert, rest_key, rest_port, rest_listen_addr,
+			rest_port, rest_listen_addr,
 			management_cert, management_key, management_port, management_listen_addr,
 			management_auth_token, management_enable_cors, aprs_server
 		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -870,7 +863,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
 	var aerisClientID, aerisClientSecret, aerisAPIEndpoint sql.NullString
 	var aerisLatitude, aerisLongitude sql.NullFloat64
-	var restCert, restKey, restListenAddr sql.NullString
+	var restListenAddr sql.NullString
 	var restPort sql.NullInt64
 	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 	var mgmtPort sql.NullInt64
@@ -923,7 +916,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 		pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint,
 		wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint,
 		aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLatitude, aerisLongitude,
-		restCert, restKey, restPort, restListenAddr,
+		restPort, restListenAddr,
 		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS, aprsServer,
 	)
 	if err != nil {
@@ -1374,7 +1367,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		       cc.pws_api_endpoint,
 		       cc.wu_api_endpoint,
 		       cc.aeris_api_endpoint,
-		       cc.rest_cert, cc.rest_key, cc.rest_port, cc.rest_listen_addr,
+		       cc.rest_port, cc.rest_listen_addr,
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
 		       cc.aprs_server
@@ -1386,7 +1379,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 	var controller ControllerData
 	var enabled bool
 	var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
-	var restCert, restKey, restListenAddr sql.NullString
+	var restListenAddr sql.NullString
 	var restPort sql.NullInt64
 	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 	var mgmtPort sql.NullInt64
@@ -1398,7 +1391,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		&pwsAPIEndpoint,
 		&wuAPIEndpoint,
 		&aerisAPIEndpoint,
-		&restCert, &restKey, &restPort, &restListenAddr,
+		&restPort, &restListenAddr,
 		&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 		&aprsServer,
 	)
@@ -1432,17 +1425,10 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		}
 	}
 
-	if restListenAddr.Valid || restPort.Valid || restCert.Valid {
+	if restListenAddr.Valid || restPort.Valid {
 		controller.RESTServer = &RESTServerData{
 			HTTPPort:          int(restPort.Int64),
 			DefaultListenAddr: restListenAddr.String,
-		}
-
-		// Set HTTPS port if configured (would come from a separate field in future)
-		// For now, we assume HTTPS is on HTTPPort + 1 if TLS is configured
-		if restCert.Valid && restKey.Valid {
-			httpsPort := int(restPort.Int64) + 1
-			controller.RESTServer.HTTPSPort = &httpsPort
 		}
 	}
 
