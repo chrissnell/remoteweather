@@ -15,6 +15,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/gorilla/mux"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -237,79 +238,80 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
 
-		// Add total rainfall for the day
-		type Rainfall struct {
-			TotalRain float32
-		}
-
-		var totalRainfall Rainfall
-		// Fetch the rainfall since midnight
-		h.controller.DB.Table("today_rainfall").First(&totalRainfall)
-
-		// Override DayRain from our weather table with the latest data from our view
-		if len(dbFetchedReadings) > 0 {
-			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
-		}
-
-		// Calculate rainfall totals for different time periods
+		// Execute parallel queries for better performance
 		if len(dbFetchedReadings) > 0 {
 			stationName := dbFetchedReadings[0].StationName
-
-			// 24-hour rainfall total
-			var rainfall24h Rainfall
-			h.controller.DB.Raw(`
-				SELECT COALESCE(SUM(period_rain), 0) as total_rain
-				FROM weather_5m 
-				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '24 hours'
-			`, stationName).Scan(&rainfall24h)
-			latestReading.Rainfall24h = float32ToJSONNumber(rainfall24h.TotalRain)
-
-			// 48-hour rainfall total
-			var rainfall48h Rainfall
-			h.controller.DB.Raw(`
-				SELECT COALESCE(SUM(period_rain), 0) as total_rain
-				FROM weather_5m 
-				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '48 hours'
-			`, stationName).Scan(&rainfall48h)
-			latestReading.Rainfall48h = float32ToJSONNumber(rainfall48h.TotalRain)
-
-			// 72-hour rainfall total
-			var rainfall72h Rainfall
-			h.controller.DB.Raw(`
-				SELECT COALESCE(SUM(period_rain), 0) as total_rain
-				FROM weather_5m 
-				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '72 hours'
-			`, stationName).Scan(&rainfall72h)
-			latestReading.Rainfall72h = float32ToJSONNumber(rainfall72h.TotalRain)
-
-			// Storm rainfall total using existing function
+			
+			// Use errgroup for safe parallel execution with proper error handling
+			g, ctx := errgroup.WithContext(req.Context())
+			
+			// Today's rainfall
+			type Rainfall struct {
+				TotalRain float32
+			}
+			var totalRainfall Rainfall
+			g.Go(func() error {
+				return h.controller.DB.WithContext(ctx).Table("today_rainfall").First(&totalRainfall).Error
+			})
+			
+			// Combined rainfall query for 24h, 48h, 72h periods
+			type RainfallPeriods struct {
+				Rain24h float32 `gorm:"column:rain_24h"`
+				Rain48h float32 `gorm:"column:rain_48h"`
+				Rain72h float32 `gorm:"column:rain_72h"`
+			}
+			var rainfallPeriods RainfallPeriods
+			g.Go(func() error {
+				return h.controller.DB.WithContext(ctx).Raw(`
+					SELECT 
+						COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '24 hours' THEN period_rain END), 0) as rain_24h,
+						COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '48 hours' THEN period_rain END), 0) as rain_48h,
+						COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '72 hours' THEN period_rain END), 0) as rain_72h
+					FROM weather_5m 
+					WHERE stationname = ? AND bucket >= NOW() - INTERVAL '72 hours'
+				`, stationName).Scan(&rainfallPeriods).Error
+			})
+			
+			// Storm rainfall total
 			type StormRainResult struct {
 				StormStart    *time.Time `gorm:"column:storm_start"`
 				StormEnd      *time.Time `gorm:"column:storm_end"`
 				TotalRainfall float32    `gorm:"column:total_rainfall"`
 			}
 			var stormResult StormRainResult
-			err := h.controller.DB.Raw("SELECT * FROM calculate_storm_rainfall(?) LIMIT 1", stationName).Scan(&stormResult).Error
-			if err != nil {
-				log.Errorf("error getting storm rainfall from DB: %v", err)
-			} else {
-				latestReading.RainfallStorm = float32ToJSONNumber(stormResult.TotalRainfall)
-			}
-		}
-
-		// Calculate wind gust from last 10 minutes
-		if len(dbFetchedReadings) > 0 {
+			g.Go(func() error {
+				return h.controller.DB.WithContext(ctx).Raw(
+					"SELECT * FROM calculate_storm_rainfall(?) LIMIT 1", 
+					stationName,
+				).Scan(&stormResult).Error
+			})
+			
+			// Wind gust calculation
 			type WindGustResult struct {
 				WindGust float32
 			}
 			var windGustResult WindGustResult
-			query := "SELECT calculate_wind_gust(?) AS wind_gust"
-			err := h.controller.DB.Raw(query, dbFetchedReadings[0].StationName).Scan(&windGustResult).Error
-			if err != nil {
-				log.Errorf("error getting wind gust from DB: %v", err)
-			} else {
-				latestReading.WindGust = float32ToJSONNumber(windGustResult.WindGust)
+			g.Go(func() error {
+				return h.controller.DB.WithContext(ctx).Raw(
+					"SELECT calculate_wind_gust(?) AS wind_gust",
+					stationName,
+				).Scan(&windGustResult).Error
+			})
+			
+			// Wait for all queries to complete
+			if err := g.Wait(); err != nil {
+				// Log the error but don't fail the entire request
+				// This ensures partial data is still returned
+				log.Errorf("error in parallel queries: %v", err)
 			}
+			
+			// Assign results to the response
+			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
+			latestReading.Rainfall24h = float32ToJSONNumber(rainfallPeriods.Rain24h)
+			latestReading.Rainfall48h = float32ToJSONNumber(rainfallPeriods.Rain48h)
+			latestReading.Rainfall72h = float32ToJSONNumber(rainfallPeriods.Rain72h)
+			latestReading.RainfallStorm = float32ToJSONNumber(stormResult.TotalRainfall)
+			latestReading.WindGust = float32ToJSONNumber(windGustResult.WindGust)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
