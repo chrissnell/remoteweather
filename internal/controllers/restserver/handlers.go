@@ -834,8 +834,7 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 			// Check if this device has an associated weather website
 			if websiteData, exists := deviceToWebsite[device.ID]; exists && websiteData.Hostname != "" {
 				// Determine if website has TLS configured
-				hasTLS := (websiteData.TLSCertPath != "" && websiteData.TLSKeyPath != "") ||
-					(h.controller.restConfig.TLSCertPath != "" && h.controller.restConfig.TLSKeyPath != "")
+				hasTLS := (websiteData.TLSCertPath != "" && websiteData.TLSKeyPath != "")
 
 				// Determine protocol and port
 				var protocol string

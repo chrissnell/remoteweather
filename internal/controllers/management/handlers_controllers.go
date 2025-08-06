@@ -333,12 +333,6 @@ func (h *Handlers) sanitizeControllerConfig(controller *config.ControllerData) m
 			if controller.RESTServer.HTTPSPort != nil {
 				config["https_port"] = *controller.RESTServer.HTTPSPort
 			}
-			if controller.RESTServer.TLSCertPath != "" {
-				config["tls_cert"] = "[CONFIGURED]"
-			}
-			if controller.RESTServer.TLSKeyPath != "" {
-				config["tls_key"] = "[CONFIGURED]"
-			}
 			sanitized["config"] = config
 		}
 	case "management":
