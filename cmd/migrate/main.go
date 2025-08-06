@@ -99,8 +99,8 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// Create migration provider
-	provider := migrate.NewFileProvider(*migrationDir, *migrationTable)
+	// Create migration provider with the correct driver
+	provider := migrate.NewFileProviderWithDriver(*migrationDir, *migrationTable, driver)
 	migrator := migrate.NewMigrator(db, provider)
 
 	// Execute command

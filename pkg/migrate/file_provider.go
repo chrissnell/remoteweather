@@ -16,6 +16,7 @@ import (
 type FileProvider struct {
 	dir            string
 	migrationTable string
+	dbDriver       string // "sqlite" or "postgres"
 }
 
 // NewFileProvider creates a new file-based migration provider
@@ -26,6 +27,19 @@ func NewFileProvider(dir string, migrationTable string) *FileProvider {
 	return &FileProvider{
 		dir:            dir,
 		migrationTable: migrationTable,
+		dbDriver:       "sqlite", // Default to sqlite for backward compatibility
+	}
+}
+
+// NewFileProviderWithDriver creates a new file-based migration provider with specific driver
+func NewFileProviderWithDriver(dir string, migrationTable string, dbDriver string) *FileProvider {
+	if migrationTable == "" {
+		migrationTable = "schema_migrations"
+	}
+	return &FileProvider{
+		dir:            dir,
+		migrationTable: migrationTable,
+		dbDriver:       dbDriver,
 	}
 }
 
@@ -120,12 +134,24 @@ func (fp *FileProvider) GetMigrations() ([]Migration, error) {
 
 // CreateMigrationTable creates the migration tracking table
 func (fp *FileProvider) CreateMigrationTable(db *sql.DB) error {
-	query := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			version INTEGER PRIMARY KEY,
-			applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)
-	`, fp.migrationTable)
+	var query string
+	
+	if fp.dbDriver == "postgres" {
+		query = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				version INTEGER PRIMARY KEY,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`, fp.migrationTable)
+	} else {
+		// SQLite
+		query = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				version INTEGER PRIMARY KEY,
+				applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		`, fp.migrationTable)
+	}
 
 	_, err := db.Exec(query)
 	if err != nil {
@@ -158,11 +184,20 @@ func (fp *FileProvider) SetVersion(db DB, version int) error {
 		query = fmt.Sprintf("DELETE FROM %s", fp.migrationTable)
 		_, err = db.Exec(query)
 	} else {
-		// Insert or update the version record
-		query = fmt.Sprintf(`
-			INSERT OR REPLACE INTO %s (version, applied_at) 
-			VALUES (?, CURRENT_TIMESTAMP)
-		`, fp.migrationTable)
+		if fp.dbDriver == "postgres" {
+			// PostgreSQL uses ON CONFLICT for upsert
+			query = fmt.Sprintf(`
+				INSERT INTO %s (version, applied_at) 
+				VALUES ($1, CURRENT_TIMESTAMP)
+				ON CONFLICT (version) DO UPDATE SET applied_at = CURRENT_TIMESTAMP
+			`, fp.migrationTable)
+		} else {
+			// SQLite uses INSERT OR REPLACE
+			query = fmt.Sprintf(`
+				INSERT OR REPLACE INTO %s (version, applied_at) 
+				VALUES (?, CURRENT_TIMESTAMP)
+			`, fp.migrationTable)
+		}
 		_, err = db.Exec(query, version)
 	}
 
