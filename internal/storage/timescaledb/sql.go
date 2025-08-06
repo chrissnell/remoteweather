@@ -1988,20 +1988,28 @@ GROUP BY bucket, stationname, stationtype;`
 const dropRainSinceMidnightViewSQL = `DROP VIEW IF EXISTS today_rainfall;`
 
 const createRainSinceMidnightViewSQL = `CREATE VIEW today_rainfall AS
+WITH recent_weather AS (
+    SELECT COALESCE(SUM(rainincremental), 0) as recent_rain
+    FROM weather
+    WHERE time >= GREATEST(
+        date_trunc('day', now()),
+        (SELECT COALESCE(MAX(bucket), date_trunc('day', now())) FROM weather_5m)
+    )
+)
 SELECT
-    COALESCE(SUM(period_rain), 0) +
-    (SELECT COALESCE(SUM(rainincremental), 0)
-     FROM weather
-     WHERE time >= (SELECT max(bucket) FROM weather_5m)) AS total_rain
-FROM weather_5m
-WHERE bucket >= date_trunc('day', now());`
+    COALESCE(
+        (SELECT SUM(period_rain) FROM weather_5m WHERE bucket >= date_trunc('day', now())),
+        0
+    ) + COALESCE((SELECT recent_rain FROM recent_weather), 0) AS total_rain;`
 
 const createIndexesSQL = `
 CREATE INDEX IF NOT EXISTS weather_1m_bucket_stationname_idx ON weather_1m (stationname, bucket);
 CREATE INDEX IF NOT EXISTS weather_5m_bucket_stationname_idx ON weather_5m (stationname, bucket);
 CREATE INDEX IF NOT EXISTS weather_1h_bucket_stationname_idx ON weather_1h (stationname, bucket);
 CREATE INDEX IF NOT EXISTS weather_1d_bucket_stationname_idx ON weather_1d (stationname, bucket);
-CREATE INDEX IF NOT EXISTS weather_stationname_time_idx ON weather (stationname, time DESC);`
+CREATE INDEX IF NOT EXISTS weather_stationname_time_idx ON weather (stationname, time DESC);
+CREATE INDEX IF NOT EXISTS weather_time_stationname_idx ON weather (time DESC, stationname);
+CREATE INDEX IF NOT EXISTS rainfall_summary_stationname_idx ON rainfall_summary (stationname);`
 
 const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', INTERVAL '1 month', INTERVAL '1 minute', INTERVAL '1 minute', if_not_exists => true);`
 const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', INTERVAL '6 months', INTERVAL '5 minutes', INTERVAL '5 minutes', if_not_exists => true);`
@@ -2525,28 +2533,46 @@ $$ LANGUAGE plpgsql;`
 
 const createGetRainfallWithRecentSQL = `CREATE OR REPLACE FUNCTION get_rainfall_with_recent(p_stationname TEXT)
 RETURNS TABLE(rain_24h REAL, rain_48h REAL, rain_72h REAL) AS $$
+DECLARE
+    v_rain_24h REAL;
+    v_rain_48h REAL;
+    v_rain_72h REAL;
+    v_last_updated TIMESTAMPTZ;
+    v_recent_rain REAL;
 BEGIN
-    RETURN QUERY
-    WITH summary AS (
+    -- Get the summary data
+    SELECT rs.rain_24h, rs.rain_48h, rs.rain_72h, rs.last_updated
+    INTO v_rain_24h, v_rain_48h, v_rain_72h, v_last_updated
+    FROM rainfall_summary rs
+    WHERE rs.stationname = p_stationname
+    LIMIT 1;
+    
+    -- If no summary exists, calculate from scratch
+    IF NOT FOUND THEN
+        RETURN QUERY
         SELECT 
-            rs.rain_24h, 
-            rs.rain_48h, 
-            rs.rain_72h, 
-            rs.last_updated
-        FROM rainfall_summary rs
-        WHERE rs.stationname = p_stationname
-    ),
-    recent AS (
-        SELECT COALESCE(SUM(rainincremental), 0) as recent_rain
-        FROM weather, summary
-        WHERE stationname = p_stationname
-        AND time > summary.last_updated
-    )
+            COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '24 hours' THEN period_rain END), 0)::REAL,
+            COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '48 hours' THEN period_rain END), 0)::REAL,
+            COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '72 hours' THEN period_rain END), 0)::REAL
+        FROM weather_5m
+        WHERE stationname = p_stationname 
+        AND bucket >= NOW() - INTERVAL '72 hours';
+        RETURN;
+    END IF;
+    
+    -- Get recent rain since last update
+    SELECT COALESCE(SUM(rainincremental), 0)
+    INTO v_recent_rain
+    FROM weather
+    WHERE stationname = p_stationname
+    AND time > v_last_updated;
+    
+    -- Return combined values
+    RETURN QUERY 
     SELECT 
-        (summary.rain_24h + recent.recent_rain)::REAL,
-        (summary.rain_48h + recent.recent_rain)::REAL,
-        (summary.rain_72h + recent.recent_rain)::REAL
-    FROM summary, recent;
+        (v_rain_24h + v_recent_rain)::REAL,
+        (v_rain_48h + v_recent_rain)::REAL,
+        (v_rain_72h + v_recent_rain)::REAL;
 END;
 $$ LANGUAGE plpgsql;`
 
