@@ -52,6 +52,11 @@ package() {
     install -Dm644 README.md "$pkgdir/usr/share/doc/remoteweather/README.md"
     install -dm755 "$pkgdir/usr/share/doc/remoteweather/docs"
     install -Dm644 docs/*.md "$pkgdir/usr/share/doc/remoteweather/docs/"
+    # Install migrations for both config (SQLite) and weather (TimescaleDB) databases
     install -dm755 "$pkgdir/usr/share/remoteweather/migrations/config"
     install -Dm644 migrations/config/*.sql "$pkgdir/usr/share/remoteweather/migrations/config/"
+    install -dm755 "$pkgdir/usr/share/remoteweather/migrations/weather"
+    if ls migrations/weather/*.sql 1> /dev/null 2>&1; then
+        install -Dm644 migrations/weather/*.sql "$pkgdir/usr/share/remoteweather/migrations/weather/"
+    fi
 } 
