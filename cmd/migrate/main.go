@@ -9,8 +9,10 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/chrissnell/remoteweather/pkg/migrate"
+	_ "github.com/lib/pq"  // PostgreSQL driver
 	_ "modernc.org/sqlite" // SQLite driver
 	"runtime"
 )
@@ -29,9 +31,34 @@ func getDefaultMigrationDir() string {
 	}
 }
 
+// detectDriver determines the database driver from the DSN
+func detectDriver(dsn string) string {
+	// Check for PostgreSQL connection strings
+	if strings.HasPrefix(dsn, "postgres://") || 
+		strings.HasPrefix(dsn, "postgresql://") ||
+		strings.Contains(dsn, "host=") ||
+		strings.Contains(dsn, "sslmode=") {
+		return "postgres"
+	}
+	
+	// Check for file:// URI or simple file paths (SQLite)
+	if strings.HasPrefix(dsn, "file://") ||
+		strings.HasSuffix(dsn, ".db") ||
+		strings.HasSuffix(dsn, ".sqlite") ||
+		strings.HasSuffix(dsn, ".sqlite3") ||
+		// If it looks like a file path
+		(strings.Contains(dsn, "/") && !strings.Contains(dsn, "://")) ||
+		strings.Contains(dsn, "\\") {
+		return "sqlite"
+	}
+	
+	// Default to sqlite for backward compatibility
+	return "sqlite"
+}
+
 func main() {
 	var (
-		dbDriver       = flag.String("driver", "sqlite", "Database driver (sqlite, postgres)")
+		dbDriver       = flag.String("driver", "", "Database driver (auto-detected if not specified)")
 		dbDSN          = flag.String("dsn", "", "Database connection string")
 		migrationDir   = flag.String("dir", getDefaultMigrationDir(), "Migration directory")
 		migrationTable = flag.String("table", "schema_migrations", "Migration table name")
@@ -53,8 +80,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Auto-detect driver if not explicitly provided
+	driver := *dbDriver
+	if driver == "" {
+		driver = detectDriver(*dbDSN)
+		log.Printf("Auto-detected database driver: %s", driver)
+	}
+
 	// Open database connection
-	db, err := sql.Open(*dbDriver, *dbDSN)
+	db, err := sql.Open(driver, *dbDSN)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -150,7 +184,7 @@ func showHelp() {
 	fmt.Println("  migrate [flags]")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  -driver string     Database driver (default: sqlite)")
+	fmt.Println("  -driver string     Database driver (auto-detected if not specified)")
 	fmt.Println("  -dsn string        Database connection string (required)")
 	fmt.Printf("  -dir string        Migration directory (default: %s)\n", getDefaultMigrationDir())
 	fmt.Println("  -table string      Migration table name (default: schema_migrations)")
@@ -166,8 +200,13 @@ func showHelp() {
 	fmt.Println("  status             Show migration status")
 	fmt.Println()
 	fmt.Println("Examples:")
+	fmt.Println("  # SQLite (auto-detected)")
 	fmt.Println("  migrate -dsn config.db -command up")
-	fmt.Println("  migrate -dsn config.db -command down -target 5")
-	fmt.Println("  migrate -dsn config.db -command status")
-	fmt.Println("  migrate -dsn config.db -dir migrations/config -table config_migrations")
+	fmt.Println("  ")
+	fmt.Println("  # PostgreSQL (auto-detected)")
+	fmt.Println("  migrate -dsn \"postgresql://user:pass@localhost/weather\" -command up")
+	fmt.Println("  migrate -dsn \"host=localhost user=postgres dbname=weather\" -command status")
+	fmt.Println("  ")
+	fmt.Println("  # Explicit driver specification")
+	fmt.Println("  migrate -driver postgres -dsn \"...\" -command up")
 }
