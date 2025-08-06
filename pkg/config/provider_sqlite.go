@@ -666,8 +666,6 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 				controller.RESTServer = &RESTServerData{
 					HTTPPort:          int(restPort.Int64),
 					DefaultListenAddr: restListenAddr.String,
-					TLSCertPath:       restCert.String,
-					TLSKeyPath:        restKey.String,
 				}
 				// Set HTTPS port if TLS is configured
 				if restCert.Valid && restKey.Valid {
@@ -904,8 +902,6 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	}
 
 	if controller.RESTServer != nil {
-		restCert = sql.NullString{String: controller.RESTServer.TLSCertPath, Valid: controller.RESTServer.TLSCertPath != ""}
-		restKey = sql.NullString{String: controller.RESTServer.TLSKeyPath, Valid: controller.RESTServer.TLSKeyPath != ""}
 		restPort = sql.NullInt64{Int64: int64(controller.RESTServer.HTTPPort), Valid: controller.RESTServer.HTTPPort != 0}
 		restListenAddr = sql.NullString{String: controller.RESTServer.DefaultListenAddr, Valid: controller.RESTServer.DefaultListenAddr != ""}
 	}
@@ -1440,8 +1436,6 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		controller.RESTServer = &RESTServerData{
 			HTTPPort:          int(restPort.Int64),
 			DefaultListenAddr: restListenAddr.String,
-			TLSCertPath:       restCert.String,
-			TLSKeyPath:        restKey.String,
 		}
 
 		// Set HTTPS port if configured (would come from a separate field in future)
