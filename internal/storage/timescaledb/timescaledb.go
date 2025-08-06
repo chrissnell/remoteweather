@@ -364,6 +364,39 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	// Create rainfall summary table and functions for fast queries
+	log.Info("Creating rainfall summary table...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainfallSummaryTableSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create rainfall summary table")
+	}
+
+	log.Info("Creating update rainfall summary function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createUpdateRainfallSummarySQL).Error
+	if err != nil {
+		log.Warn("warning: could not create update rainfall summary function")
+	}
+
+	log.Info("Creating get rainfall with recent function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createGetRainfallWithRecentSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create get rainfall with recent function")
+	}
+
+	// Add TimescaleDB job for updating rainfall summary
+	log.Info("Adding rainfall summary update job...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addRainfallSummaryJobSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add rainfall summary job")
+	}
+
+	// Initialize the rainfall summary with current data
+	log.Info("Initializing rainfall summary...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec("SELECT update_rainfall_summary()").Error
+	if err != nil {
+		log.Warn("warning: could not initialize rainfall summary")
+	}
+
 	// Start health monitoring
 	storage.StartHealthMonitor(ctx, configProvider, "timescaledb", &t, 60*time.Second)
 

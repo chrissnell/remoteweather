@@ -251,25 +251,35 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
 		}
 
-		// Calculate rainfall totals for different time periods
+		// Calculate rainfall totals using summary table with recent data
 		if len(dbFetchedReadings) > 0 {
 			stationName := dbFetchedReadings[0].StationName
 
-			// Combined rainfall query for 24h, 48h, 72h periods - single query is more efficient
+			// Use the optimized function that combines summary + recent rain
 			type RainfallPeriods struct {
 				Rain24h float32 `gorm:"column:rain_24h"`
 				Rain48h float32 `gorm:"column:rain_48h"`
 				Rain72h float32 `gorm:"column:rain_72h"`
 			}
 			var rainfallPeriods RainfallPeriods
-			h.controller.DB.Raw(`
-				SELECT 
-					COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '24 hours' THEN period_rain END), 0) as rain_24h,
-					COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '48 hours' THEN period_rain END), 0) as rain_48h,
-					COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '72 hours' THEN period_rain END), 0) as rain_72h
-				FROM weather_5m 
-				WHERE stationname = ? AND bucket >= NOW() - INTERVAL '72 hours'
-			`, stationName).Scan(&rainfallPeriods)
+			
+			// This query uses the pre-calculated summary and adds recent rain since last update
+			err := h.controller.DB.Raw(`
+				SELECT * FROM get_rainfall_with_recent(?)
+			`, stationName).Scan(&rainfallPeriods).Error
+			
+			if err != nil {
+				// Fallback to direct calculation if summary is not available
+				log.Warnf("Failed to get rainfall from summary, falling back to direct calculation: %v", err)
+				h.controller.DB.Raw(`
+					SELECT 
+						COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '24 hours' THEN period_rain END), 0) as rain_24h,
+						COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '48 hours' THEN period_rain END), 0) as rain_48h,
+						COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '72 hours' THEN period_rain END), 0) as rain_72h
+					FROM weather_5m 
+					WHERE stationname = ? AND bucket >= NOW() - INTERVAL '72 hours'
+				`, stationName).Scan(&rainfallPeriods)
+			}
 			
 			latestReading.Rainfall24h = float32ToJSONNumber(rainfallPeriods.Rain24h)
 			latestReading.Rainfall48h = float32ToJSONNumber(rainfallPeriods.Rain48h)
@@ -282,7 +292,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 				TotalRainfall float32    `gorm:"column:total_rainfall"`
 			}
 			var stormResult StormRainResult
-			err := h.controller.DB.Raw("SELECT * FROM calculate_storm_rainfall(?) LIMIT 1", stationName).Scan(&stormResult).Error
+			err = h.controller.DB.Raw("SELECT * FROM calculate_storm_rainfall(?) LIMIT 1", stationName).Scan(&stormResult).Error
 			if err != nil {
 				log.Errorf("error getting storm rainfall from DB: %v", err)
 			} else {
@@ -297,7 +307,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			}
 			var windGustResult WindGustResult
 			query := "SELECT calculate_wind_gust(?) AS wind_gust"
-			err := h.controller.DB.Raw(query, dbFetchedReadings[0].StationName).Scan(&windGustResult).Error
+			err = h.controller.DB.Raw(query, dbFetchedReadings[0].StationName).Scan(&windGustResult).Error
 			if err != nil {
 				log.Errorf("error getting wind gust from DB: %v", err)
 			} else {
