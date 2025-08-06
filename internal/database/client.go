@@ -71,6 +71,23 @@ func (c *Client) Connect() error {
 	}
 	log.Info("TimescaleDB connection successful")
 
+	// Configure connection pool for better performance with parallel queries
+	sqlDB, err := c.DB.DB()
+	if err != nil {
+		return err
+	}
+	
+	// Set maximum number of open connections
+	// This should be high enough to handle parallel queries
+	sqlDB.SetMaxOpenConns(25)
+	
+	// Set maximum number of idle connections
+	sqlDB.SetMaxIdleConns(10)
+	
+	// Set maximum lifetime of a connection
+	// This helps with load balancing and prevents stale connections
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
 	return nil
 }
 
@@ -127,6 +144,23 @@ func CreateConnection(connectionString string) (*gorm.DB, error) {
 		log.Warn("warning: unable to create a TimescaleDB connection:", err)
 		return nil, err
 	}
+
+	// Configure connection pool for better performance with parallel queries
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	
+	// Set maximum number of open connections
+	// This should be high enough to handle parallel queries
+	sqlDB.SetMaxOpenConns(25)
+	
+	// Set maximum number of idle connections
+	sqlDB.SetMaxIdleConns(10)
+	
+	// Set maximum lifetime of a connection
+	// This helps with load balancing and prevents stale connections
+	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	return db, nil
 }
