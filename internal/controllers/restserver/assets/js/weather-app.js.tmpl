@@ -120,17 +120,20 @@ const WeatherApp = (function() {
     
     // Load initial data
     const loadInitialData = async () => {
-        // Load live data
-        await refreshLiveData();
+        // Load all data in parallel for faster initial load
+        const promises = [
+            refreshLiveData(),
+            loadChartsForRange(state.currentRange)
+        ];
         
-        // Load initial charts
-        await loadChartsForRange(state.currentRange);
-        
-        // Load forecasts only if Aeris Weather is enabled
+        // Add forecast promises if Aeris Weather is enabled
         if (config.aerisWeatherEnabled) {
-            refreshWeekForecast();
-            refreshDayForecast();
+            promises.push(refreshWeekForecast());
+            promises.push(refreshDayForecast());
         }
+        
+        // Wait for all data to load in parallel
+        await Promise.all(promises);
     };
     
     // Refresh live data
