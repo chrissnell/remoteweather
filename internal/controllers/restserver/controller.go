@@ -766,6 +766,7 @@ func (c *Controller) fetchLatestReading(stationName string, baseDistance float64
 	err := c.DB.Table("weather").
 		Select("time AS bucket, *, (? - snowdistance) AS snowdepth", baseDistance).
 		Where("stationname = ?", stationName).
+		Where("time >= NOW() - INTERVAL '10 minutes'").
 		Order("time desc").
 		Limit(1).
 		Find(&dbFetchedReadings).Error
