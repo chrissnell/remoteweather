@@ -756,8 +756,6 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 	return dbFetchedReadings, nil
 }
 
-// fetchLatestReading queries the database for the most recent weather reading
-// This is the shared logic used by both HTTP and gRPC handlers
 func (c *Controller) fetchLatestReading(stationName string, baseDistance float64) (*types.BucketReading, error) {
 	if !c.DBEnabled {
 		return nil, fmt.Errorf("database not enabled")
@@ -765,10 +763,10 @@ func (c *Controller) fetchLatestReading(stationName string, baseDistance float64
 
 	var dbFetchedReadings []types.BucketReading
 
-	err := c.DB.Table("weather_1m").
-		Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+	err := c.DB.Table("weather").
+		Select("time AS bucket, *, (? - snowdistance) AS snowdepth", baseDistance).
 		Where("stationname = ?", stationName).
-		Order("bucket desc").
+		Order("time desc").
 		Limit(1).
 		Find(&dbFetchedReadings).Error
 
