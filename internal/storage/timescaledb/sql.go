@@ -1988,27 +1988,42 @@ GROUP BY bucket, stationname, stationtype;`
 const dropRainSinceMidnightViewSQL = `DROP VIEW IF EXISTS today_rainfall;`
 
 const createRainSinceMidnightViewSQL = `CREATE VIEW today_rainfall AS
-WITH recent_weather AS (
-    SELECT COALESCE(SUM(rainincremental), 0) as recent_rain
-    FROM weather
-    WHERE time >= GREATEST(
-        date_trunc('day', now()),
-        (SELECT COALESCE(MAX(bucket), date_trunc('day', now())) FROM weather_5m)
-    )
-)
-SELECT
+SELECT 
     COALESCE(
-        (SELECT SUM(period_rain) FROM weather_5m WHERE bucket >= date_trunc('day', now())),
+        (SELECT SUM(period_rain) 
+         FROM weather_5m 
+         WHERE bucket >= date_trunc('day', now())
+         LIMIT 1), 
         0
-    ) + COALESCE((SELECT recent_rain FROM recent_weather), 0) AS total_rain;`
+    ) + 
+    COALESCE(
+        (SELECT SUM(rainincremental) 
+         FROM weather 
+         WHERE time >= GREATEST(
+             date_trunc('day', now()),
+             (SELECT COALESCE(MAX(bucket), date_trunc('day', now())) 
+              FROM weather_5m 
+              LIMIT 1)
+         )
+         LIMIT 1), 
+        0
+    ) AS total_rain;`
 
 const createIndexesSQL = `
+-- Primary indexes for continuous aggregates (critical for performance)
+CREATE INDEX IF NOT EXISTS weather_1m_stationname_bucket_idx ON weather_1m (stationname, bucket DESC);
+CREATE INDEX IF NOT EXISTS weather_5m_stationname_bucket_idx ON weather_5m (stationname, bucket DESC);
+CREATE INDEX IF NOT EXISTS weather_1h_stationname_bucket_idx ON weather_1h (stationname, bucket DESC);
+CREATE INDEX IF NOT EXISTS weather_1d_stationname_bucket_idx ON weather_1d (stationname, bucket DESC);
+-- Legacy indexes (kept for compatibility)
 CREATE INDEX IF NOT EXISTS weather_1m_bucket_stationname_idx ON weather_1m (stationname, bucket);
 CREATE INDEX IF NOT EXISTS weather_5m_bucket_stationname_idx ON weather_5m (stationname, bucket);
 CREATE INDEX IF NOT EXISTS weather_1h_bucket_stationname_idx ON weather_1h (stationname, bucket);
 CREATE INDEX IF NOT EXISTS weather_1d_bucket_stationname_idx ON weather_1d (stationname, bucket);
+-- Weather table indexes
 CREATE INDEX IF NOT EXISTS weather_stationname_time_idx ON weather (stationname, time DESC);
 CREATE INDEX IF NOT EXISTS weather_time_stationname_idx ON weather (time DESC, stationname);
+-- Rainfall summary index
 CREATE INDEX IF NOT EXISTS rainfall_summary_stationname_idx ON rainfall_summary (stationname);`
 
 const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', INTERVAL '1 month', INTERVAL '1 minute', INTERVAL '1 minute', if_not_exists => true);`
