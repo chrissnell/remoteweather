@@ -108,7 +108,7 @@ const WeatherDataService = (function() {
             windDegrees: data.windd || '--',
             
             // Precipitation
-            rainToday: WeatherUtils.formatValue(data.dayrain, 2),
+            rainToday: WeatherUtils.formatValue(data.rainday, 2),
             rainRate: WeatherUtils.formatValue(data.rainrate, 2),
             rain24hr: WeatherUtils.formatValue(data.rainfall24h, 2),
             rain48hr: WeatherUtils.formatValue(data.rainfall48h, 2),
