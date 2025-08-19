@@ -123,7 +123,19 @@ const WeatherCharts = (function() {
             },
             legend: { 
                 enabled: additionalSeries.length > 0,
-                itemStyle: { color: WeatherUtils.getCSSVariable('--chart-text') }
+                align: 'center',
+                verticalAlign: 'bottom',
+                layout: 'horizontal',
+                itemStyle: { 
+                    color: WeatherUtils.getCSSVariable('--chart-text'),
+                    fontSize: '12px'
+                },
+                itemHoverStyle: {
+                    color: WeatherUtils.getCSSVariable('--chart-series-color')
+                },
+                backgroundColor: 'transparent',
+                borderWidth: 0,
+                y: 10
             },
             tooltip: {
                 ...baseOptions.tooltip,
@@ -149,7 +161,17 @@ const WeatherCharts = (function() {
                 },
                 ...additionalSeries.map(series => ({
                     ...series,
-                    color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt')
+                    color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
+                    dashStyle: series.dashStyle || 'Solid',
+                    marker: {
+                        enabled: false,
+                        states: {
+                            hover: {
+                                enabled: true,
+                                radius: 3
+                            }
+                        }
+                    }
                 }))
             ]
         };
@@ -210,6 +232,36 @@ const WeatherCharts = (function() {
     
     // Get additional series data (for charts like solar that have multiple series)
     const getAdditionalSeriesData = (rawData, chartType) => {
+        if (chartType === 'temperature' && rawData) {
+            const series = [];
+            
+            // Add feels like temperature (heat index or wind chill)
+            const feelsLikeData = rawData.map(item => {
+                const feelsLike = item.heatidx || item.windch || item.otemp;
+                return [item.ts, feelsLike];
+            });
+            series.push({
+                name: "Feels Like",
+                data: feelsLikeData,
+                color: 'rgb(255, 127, 80)',  // Coral color
+                dashStyle: 'ShortDash'
+            });
+            
+            // Add dewpoint
+            const dewpointData = rawData.map(item => {
+                const dewpoint = WeatherUtils.calculateDewPoint(item.otemp, item.outhumidity);
+                return [item.ts, dewpoint];
+            });
+            series.push({
+                name: "Dewpoint",
+                data: dewpointData,
+                color: 'rgb(135, 206, 250)',  // Light sky blue
+                dashStyle: 'ShortDot'
+            });
+            
+            return series;
+        }
+        
         if (chartType === 'solarwatts' && rawData) {
             return [{
                 name: "Maximum Potential Solar Radiation",
