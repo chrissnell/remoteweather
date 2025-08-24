@@ -745,8 +745,13 @@ html[data-theme="light"] .theme-toggle::before {
 
 .forecast-hour .forecast-precip {
   font-size: 0.55rem;
-  margin-top: 2px;
+  margin-top: auto;
+  padding-top: 2px;
   flex-shrink: 0;
+  flex-direction: column;
+  gap: 0;
+  align-items: center;
+  justify-content: center;
 }
 
 .forecast-hour .precip-icon {
@@ -1293,6 +1298,9 @@ html[data-theme="light"] .theme-toggle::before {
     max-height: 160px !important;
     padding: 2px 1px !important;
     font-size: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
   }
   .forecast-hour-title {
     font-size: 0.7rem !important;
@@ -1313,15 +1321,32 @@ html[data-theme="light"] .theme-toggle::before {
     font-size: 1rem !important;
     margin: 0 !important;
   }
-  .forecast-precip {
+  .forecast-hour .forecast-precip {
     font-size: 0.7rem !important;
-    min-height: 12px !important;
+    min-height: 20px !important;
     flex-shrink: 0 !important;
     margin-top: auto !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding-top: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .forecast-hour .precip-icon {
+    font-size: 0.65rem !important;
+  }
+  .forecast-hour .precip-amount {
+    font-size: 0.65rem !important;
   }
   .day-forecast-adjustable-div {
-    height: 50px !important;
+    height: auto !important;
+    flex-grow: 1 !important;
     flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
 
@@ -1341,6 +1366,9 @@ html[data-theme="light"] .theme-toggle::before {
     max-height: 140px !important;
     padding: 1px 0 !important;
     font-size: 11px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
   }
   .forecast-hour-title {
     font-size: 0.6rem !important;
@@ -1361,15 +1389,32 @@ html[data-theme="light"] .theme-toggle::before {
     font-size: 0.85rem !important;
     margin: 0 !important;
   }
-  .forecast-precip {
+  .forecast-hour .forecast-precip {
     font-size: 0.6rem !important;
-    min-height: 10px !important;
+    min-height: 18px !important;
     flex-shrink: 0 !important;
     margin-top: auto !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    padding-top: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .forecast-hour .precip-icon {
+    font-size: 0.55rem !important;
+  }
+  .forecast-hour .precip-amount {
+    font-size: 0.55rem !important;
   }
   .day-forecast-adjustable-div {
-    height: 40px !important;
+    height: auto !important;
+    flex-grow: 1 !important;
     flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
 
