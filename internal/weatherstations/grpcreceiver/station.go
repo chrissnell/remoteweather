@@ -24,15 +24,17 @@ type Station struct {
 	cancel             context.CancelFunc
 	wg                 *sync.WaitGroup
 	server             *grpc.Server
-	config             config.DeviceData
+	deviceName         string
+	configProvider     config.ConfigProvider
 	ReadingDistributor chan types.Reading
 	logger             *zap.SugaredLogger
+	registry           *RemoteStationRegistry // For remote station management
 }
 
 // NewStation creates a new gRPC receiver weather station
 func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, deviceName string, distributor chan types.Reading, logger *zap.SugaredLogger) weatherstations.WeatherStation {
+	// Validate device has required config
 	deviceConfig := weatherstations.LoadDeviceConfig(configProvider, deviceName, logger)
-
 	if deviceConfig.Port == "" {
 		logger.Fatalf("gRPC Receiver station [%s] must define a port", deviceConfig.Name)
 	}
@@ -44,7 +46,8 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 		ctx:                stationCtx,
 		cancel:             cancel,
 		wg:                 wg,
-		config:             *deviceConfig,
+		deviceName:         deviceName,
+		configProvider:     configProvider,
 		ReadingDistributor: distributor,
 		logger:             logger,
 	}
@@ -52,7 +55,22 @@ func NewStation(ctx context.Context, wg *sync.WaitGroup, configProvider config.C
 
 // StationName returns the name of this weather station
 func (s *Station) StationName() string {
-	return s.config.Name
+	return s.deviceName
+}
+
+// SetRegistry sets the remote station registry for this receiver
+func (s *Station) SetRegistry(registry *RemoteStationRegistry) {
+	s.registry = registry
+}
+
+// InitializeRegistry creates and sets up the remote station registry
+func (s *Station) InitializeRegistry() error {
+	registry, err := NewRemoteStationRegistry(s.configProvider, s.logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize remote station registry: %w", err)
+	}
+	s.registry = registry
+	return nil
 }
 
 // StartWeatherStation starts the gRPC server to receive weather readings
@@ -60,12 +78,25 @@ func (s *Station) StartWeatherStation() error {
 	s.wg.Add(1)
 	defer s.wg.Done()
 
+	// Get device configuration
+	deviceConfig, err := s.configProvider.GetDevice(s.deviceName)
+	if err != nil {
+		s.logger.Errorf("Failed to get device config: %v", err)
+		return err
+	}
+
+	// Initialize registry with config provider
+	if err := s.InitializeRegistry(); err != nil {
+		s.logger.Errorf("Failed to initialize remote station registry: %v", err)
+		return err
+	}
+
 	// Determine listen address
-	listenAddr := s.config.Hostname
+	listenAddr := deviceConfig.Hostname
 	if listenAddr == "" {
 		listenAddr = "0.0.0.0"
 	}
-	listenAddr = fmt.Sprintf("%s:%s", listenAddr, s.config.Port)
+	listenAddr = fmt.Sprintf("%s:%s", listenAddr, deviceConfig.Port)
 
 	// Create listener
 	listener, err := net.Listen("tcp", listenAddr)
@@ -77,8 +108,8 @@ func (s *Station) StartWeatherStation() error {
 	var opts []grpc.ServerOption
 
 	// Check if TLS cert is configured
-	if s.config.TLSCertPath != "" && s.config.TLSKeyPath != "" {
-		cert, err := tls.LoadX509KeyPair(s.config.TLSCertPath, s.config.TLSKeyPath)
+	if deviceConfig.TLSCertPath != "" && deviceConfig.TLSKeyPath != "" {
+		cert, err := tls.LoadX509KeyPair(deviceConfig.TLSCertPath, deviceConfig.TLSKeyPath)
 		if err != nil {
 			return fmt.Errorf("failed to load TLS cert/key: %w", err)
 		}
@@ -92,7 +123,7 @@ func (s *Station) StartWeatherStation() error {
 	s.server = grpc.NewServer(opts...)
 	pb.RegisterWeatherV1Server(s.server, s)
 
-	s.logger.Infof("gRPC Receiver station [%s] listening on %s", s.config.Name, listenAddr)
+	s.logger.Infof("gRPC Receiver station [%s] listening on %s", s.deviceName, listenAddr)
 
 	// Start serving
 	go func() {
@@ -103,7 +134,7 @@ func (s *Station) StartWeatherStation() error {
 
 	// Wait for context cancellation
 	<-s.ctx.Done()
-	s.logger.Infof("Shutting down gRPC Receiver station [%s]", s.config.Name)
+	s.logger.Infof("Shutting down gRPC Receiver station [%s]", s.deviceName)
 	s.server.GracefulStop()
 
 	return nil
@@ -132,12 +163,23 @@ func (s *Station) SendWeatherReadings(stream pb.WeatherV1_SendWeatherReadingsSer
 		// Convert protobuf WeatherReading to internal types.Reading
 		internalReading := s.convertToInternalReading(reading)
 
-		// Send to reading distributor
+		// Send to reading distributor for local storage
 		select {
 		case s.ReadingDistributor <- internalReading:
 			s.logger.Debugf("Received and distributed reading from station %s", reading.StationName)
 		case <-s.ctx.Done():
 			return s.ctx.Err()
+		}
+
+		// Check if this is from a registered remote station
+		if reading.StationId != "" && s.registry != nil {
+			remoteStation := s.registry.GetByID(reading.StationId)
+			if remoteStation != nil {
+				// Update last seen timestamp
+				s.registry.UpdateLastSeen(reading.StationId)
+			} else {
+				s.logger.Debugf("Received reading from unregistered station ID: %s", reading.StationId)
+			}
 		}
 	}
 }
@@ -389,4 +431,31 @@ func (s *Station) convertToInternalReading(pbReading *pb.WeatherReading) types.R
 	}
 
 	return reading
+}
+
+// RegisterRemoteStation handles remote station registration
+func (s *Station) RegisterRemoteStation(ctx context.Context, config *pb.RemoteStationConfig) (*pb.RegistrationAck, error) {
+	if s.registry == nil {
+		return &pb.RegistrationAck{
+			Success: false,
+			Message: "Remote station registry not initialized",
+		}, nil
+	}
+
+	// Register the station
+	stationID, err := s.registry.Register(config)
+	if err != nil {
+		s.logger.Errorf("Failed to register remote station %s: %v", config.StationName, err)
+		return &pb.RegistrationAck{
+			Success: false,
+			Message: fmt.Sprintf("Registration failed: %v", err),
+		}, nil
+	}
+
+	s.logger.Infof("Successfully registered remote station %s with ID %s", config.StationName, stationID)
+	return &pb.RegistrationAck{
+		Success:   true,
+		StationId: stationID,
+		Message:   "Station registered successfully",
+	}, nil
 }

@@ -146,6 +146,11 @@ func (c *CachedConfigProvider) Close() error {
 	return c.provider.Close()
 }
 
+// GetUnderlying returns the underlying config provider
+func (c *CachedConfigProvider) GetUnderlying() ConfigProvider {
+	return c.provider
+}
+
 // InvalidateCache forces a reload on the next access
 func (c *CachedConfigProvider) InvalidateCache() {
 	c.cacheMutex.Lock()

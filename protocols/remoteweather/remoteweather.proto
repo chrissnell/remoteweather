@@ -11,6 +11,9 @@ service WeatherV1 {
     // Streaming RPC for receiving weather readings from stations
     rpc SendWeatherReadings (stream WeatherReading) returns (Empty) {}
     
+    // Remote station registration
+    rpc RegisterRemoteStation (RemoteStationConfig) returns (RegistrationAck) {}
+    
     rpc GetLiveWeather (LiveWeatherRequest) returns (stream WeatherReading) {}
     rpc GetWeatherSpan (WeatherSpanRequest) returns (WeatherSpan) {
         option (google.api.http) = {
@@ -333,6 +336,43 @@ message WeatherReading {
     // Time zone and timestamp
     string tz = 219;                        // IANA time zone
     int64 dateUTC = 220;                    // UTC timestamp in milliseconds
+    
+    // Remote station identification
+    string station_id = 221;                // UUID for remote stations
+}
+
+// Remote station registration configuration
+message RemoteStationConfig {
+    string station_id = 1;        // Empty for new registration, UUID for re-registration
+    string station_name = 2;
+    string station_type = 3;
+    
+    // APRS configuration
+    bool aprs_enabled = 4;
+    string aprs_callsign = 5;
+    string aprs_password = 6;
+    
+    // Weather Underground configuration
+    bool wu_enabled = 7;
+    string wu_station_id = 8;
+    string wu_api_key = 9;
+    
+    // Aeris configuration
+    bool aeris_enabled = 10;
+    string aeris_client_id = 11;
+    string aeris_client_secret = 12;
+    
+    // PWS Weather configuration
+    bool pws_enabled = 13;
+    string pws_station_id = 14;
+    string pws_password = 15;
+}
+
+// Registration acknowledgment
+message RegistrationAck {
+    bool success = 1;
+    string station_id = 2;        // UUID assigned by server
+    string message = 3;           // Error or success message
 }
 
 message Empty {}
