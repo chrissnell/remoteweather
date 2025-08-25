@@ -911,3 +911,94 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 }
+
+// GetRemoteStations returns all registered remote stations
+func (h *Handlers) GetRemoteStations(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
+
+	// Only allow remote stations API access for portal websites
+	if !website.IsPortal {
+		http.Error(w, "remote stations API not available for this website", http.StatusForbidden)
+		return
+	}
+
+	// Get remote stations from config provider
+	cachedProvider, ok := h.controller.configProvider.(*config.CachedConfigProvider)
+	if !ok {
+		http.Error(w, "config provider does not support remote stations", http.StatusInternalServerError)
+		return
+	}
+
+	remoteStations, err := cachedProvider.GetRemoteStations()
+	if err != nil {
+		log.Error("error loading remote stations:", err)
+		http.Error(w, "error loading remote station data", http.StatusInternalServerError)
+		return
+	}
+
+	// Transform to API response format
+	type RemoteStationResponse struct {
+		StationID   string    `json:"station_id"`
+		StationName string    `json:"station_name"`
+		StationType string    `json:"station_type"`
+		LastSeen    time.Time `json:"last_seen"`
+		Services    struct {
+			APRS  bool `json:"aprs_enabled"`
+			WU    bool `json:"wu_enabled"`
+			Aeris bool `json:"aeris_enabled"`
+			PWS   bool `json:"pws_enabled"`
+		} `json:"services"`
+		Status string `json:"status"` // "online", "offline", "stale"
+	}
+
+	response := make([]RemoteStationResponse, 0, len(remoteStations))
+	now := time.Now()
+
+	for _, station := range remoteStations {
+		resp := RemoteStationResponse{
+			StationID:   station.StationID,
+			StationName: station.StationName,
+			StationType: station.StationType,
+			LastSeen:    station.LastSeen,
+		}
+
+		// Set service flags
+		resp.Services.APRS = station.APRSEnabled
+		resp.Services.WU = station.WUEnabled
+		resp.Services.Aeris = station.AerisEnabled
+		resp.Services.PWS = station.PWSEnabled
+
+		// Determine status based on last seen time
+		timeSinceLastSeen := now.Sub(station.LastSeen)
+		if timeSinceLastSeen < 5*time.Minute {
+			resp.Status = "online"
+		} else if timeSinceLastSeen < 30*time.Minute {
+			resp.Status = "stale"
+		} else {
+			resp.Status = "offline"
+		}
+
+		response = append(response, resp)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Error("error encoding remote stations to JSON:", err)
+		http.Error(w, "error encoding remote stations", http.StatusInternalServerError)
+		return
+	}
+}

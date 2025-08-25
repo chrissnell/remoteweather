@@ -166,6 +166,7 @@ CREATE TABLE storage_configs (
     grpc_listen_addr TEXT,
     grpc_port INTEGER,
     grpc_pull_from_device TEXT,
+    station_id TEXT,  -- UUID for remote gRPC stations
     
     -- APRS fields
     aprs_callsign TEXT,
@@ -266,6 +267,38 @@ CREATE INDEX idx_storage_configs_health_last_check ON storage_configs(health_las
 CREATE INDEX idx_controller_configs_config_id ON controller_configs(config_id);
 CREATE INDEX idx_controller_configs_type ON controller_configs(config_id, controller_type);
 CREATE INDEX idx_weather_websites_config_id ON weather_websites(config_id);
+
+-- Remote stations table for gRPC remote station registrations
+CREATE TABLE IF NOT EXISTS remote_stations (
+    station_id TEXT PRIMARY KEY,
+    station_name TEXT NOT NULL UNIQUE,
+    station_type TEXT NOT NULL,
+    
+    -- APRS configuration
+    aprs_enabled BOOLEAN DEFAULT FALSE,
+    aprs_callsign TEXT,
+    aprs_password TEXT,
+    
+    -- Weather Underground configuration  
+    wu_enabled BOOLEAN DEFAULT FALSE,
+    wu_station_id TEXT,
+    wu_api_key TEXT,
+    
+    -- Aeris configuration
+    aeris_enabled BOOLEAN DEFAULT FALSE,
+    aeris_client_id TEXT,
+    aeris_client_secret TEXT,
+    
+    -- PWS Weather configuration
+    pws_enabled BOOLEAN DEFAULT FALSE,
+    pws_station_id TEXT,
+    pws_password TEXT,
+    
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_remote_stations_last_seen ON remote_stations(last_seen);
 
 -- Trigger to update updated_at timestamp
 CREATE TRIGGER update_configs_timestamp 
@@ -701,6 +734,11 @@ func (s *SQLiteProvider) Close() error {
 		return s.db.Close()
 	}
 	return nil
+}
+
+// GetDB returns the underlying database connection
+func (s *SQLiteProvider) GetDB() *sql.DB {
+	return s.db
 }
 
 // Write methods for configuration management

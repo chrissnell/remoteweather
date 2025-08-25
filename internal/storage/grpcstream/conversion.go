@@ -1,0 +1,277 @@
+package grpcstream
+
+import (
+	"github.com/chrissnell/remoteweather/internal/types"
+	pb "github.com/chrissnell/remoteweather/protocols/remoteweather"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+// ConvertToProto converts an internal Reading to a protobuf WeatherReading
+// Most fields map directly, with some requiring type conversion
+func ConvertToProto(r types.Reading) *pb.WeatherReading {
+	reading := &pb.WeatherReading{
+		StationName:           r.StationName,
+		StationType:           r.StationType,
+		Barometer:             r.Barometer,
+		InsideTemperature:     r.InTemp,
+		InsideHumidity:        r.InHumidity,
+		OutsideTemperature:    r.OutTemp,
+		OutsideHumidity:       r.OutHumidity,
+		WindSpeed:             r.WindSpeed,
+		WindSpeed10:           r.WindSpeed10,
+		WindDirection:         r.WindDir,
+		WindChill:             r.WindChill,
+		HeatIndex:             r.HeatIndex,
+		RainRate:              r.RainRate,
+		RainIncremental:       r.RainIncremental,
+		SolarWatts:            r.SolarWatts,
+		PotentialSolarWatts:   r.PotentialSolarWatts,
+		SolarJoules:           r.SolarJoules,
+		Uv:                    r.UV,
+		Radiation:             r.Radiation,
+		StormRain:             r.StormRain,
+		DayRain:               r.DayRain,
+		MonthRain:             r.MonthRain,
+		YearRain:              r.YearRain,
+		DayET:                 r.DayET,
+		MonthET:               r.MonthET,
+		YearET:                r.YearET,
+		ConsBatteryVoltage:    r.ConsBatteryVoltage,
+		StationBatteryVoltage: r.StationBatteryVoltage,
+		SnowDistance:          r.SnowDistance,
+		SnowDepth:             r.SnowDepth,
+		DateUTC:               r.DateUTC,
+		Tz:                    r.TZ,
+		
+		// Temperature sensors
+		ExtraTemp1:  r.ExtraTemp1,
+		ExtraTemp2:  r.ExtraTemp2,
+		ExtraTemp3:  r.ExtraTemp3,
+		ExtraTemp4:  r.ExtraTemp4,
+		ExtraTemp5:  r.ExtraTemp5,
+		ExtraTemp6:  r.ExtraTemp6,
+		ExtraTemp7:  r.ExtraTemp7,
+		Temp1:       r.Temp1,
+		Temp2:       r.Temp2,
+		Temp3:       r.Temp3,
+		Temp4:       r.Temp4,
+		Temp5:       r.Temp5,
+		Temp6:       r.Temp6,
+		Temp7:       r.Temp7,
+		Temp8:       r.Temp8,
+		Temp9:       r.Temp9,
+		Temp10:      r.Temp10,
+		
+		// Soil temperatures
+		SoilTemp1:   r.SoilTemp1,
+		SoilTemp2:   r.SoilTemp2,
+		SoilTemp3:   r.SoilTemp3,
+		SoilTemp4:   r.SoilTemp4,
+		SoilTemp5:   r.SoilTemp5,
+		SoilTemp6:   r.SoilTemp6,
+		SoilTemp7:   r.SoilTemp7,
+		SoilTemp8:   r.SoilTemp8,
+		SoilTemp9:   r.SoilTemp9,
+		SoilTemp10:  r.SoilTemp10,
+		
+		// Leaf temperatures
+		LeafTemp1:   r.LeafTemp1,
+		LeafTemp2:   r.LeafTemp2,
+		LeafTemp3:   r.LeafTemp3,
+		LeafTemp4:   r.LeafTemp4,
+		
+		// Humidity sensors
+		ExtraHumidity1: r.ExtraHumidity1,
+		ExtraHumidity2: r.ExtraHumidity2,
+		ExtraHumidity3: r.ExtraHumidity3,
+		ExtraHumidity4: r.ExtraHumidity4,
+		ExtraHumidity5: r.ExtraHumidity5,
+		ExtraHumidity6: r.ExtraHumidity6,
+		ExtraHumidity7: r.ExtraHumidity7,
+		Humidity1:      r.Humidity1,
+		Humidity2:      r.Humidity2,
+		Humidity3:      r.Humidity3,
+		Humidity4:      r.Humidity4,
+		Humidity5:      r.Humidity5,
+		Humidity6:      r.Humidity6,
+		Humidity7:      r.Humidity7,
+		Humidity8:      r.Humidity8,
+		Humidity9:      r.Humidity9,
+		Humidity10:     r.Humidity10,
+		
+		// Soil moisture
+		SoilMoisture1:  r.SoilMoisture1,
+		SoilMoisture2:  r.SoilMoisture2,
+		SoilMoisture3:  r.SoilMoisture3,
+		SoilMoisture4:  r.SoilMoisture4,
+		SoilHum1:       r.SoilHum1,
+		SoilHum2:       r.SoilHum2,
+		SoilHum3:       r.SoilHum3,
+		SoilHum4:       r.SoilHum4,
+		SoilHum5:       r.SoilHum5,
+		SoilHum6:       r.SoilHum6,
+		SoilHum7:       r.SoilHum7,
+		SoilHum8:       r.SoilHum8,
+		SoilHum9:       r.SoilHum9,
+		SoilHum10:      r.SoilHum10,
+		
+		// Leaf wetness
+		LeafWetness1:   r.LeafWetness1,
+		LeafWetness2:   r.LeafWetness2,
+		LeafWetness3:   r.LeafWetness3,
+		LeafWetness4:   r.LeafWetness4,
+		LeafWetness5:   r.LeafWetness5,
+		LeafWetness6:   r.LeafWetness6,
+		LeafWetness7:   r.LeafWetness7,
+		LeafWetness8:   r.LeafWetness8,
+		
+		// Soil tension
+		SoilTens1:      r.SoilTens1,
+		SoilTens2:      r.SoilTens2,
+		SoilTens3:      r.SoilTens3,
+		SoilTens4:      r.SoilTens4,
+		
+		// Agricultural
+		Gdd:            int32(r.GDD),
+		Etos:           r.ETOS,
+		Etrs:           r.ETRS,
+		
+		// Air quality
+		Pm25:            r.PM25,
+		Pm25_24H:        r.PM25_24H,
+		Pm25In:          r.PM25In,
+		Pm25In24H:       r.PM25In24H,
+		Pm25InAQIN:      r.PM25InAQIN,
+		Pm25In24HAQIN:   r.PM25In24HAQIN,
+		Pm10InAQIN:      r.PM10InAQIN,
+		Pm10In24HAQIN:   r.PM10In24HAQIN,
+		Co2:             r.CO2,
+		Co2InAQIN:       int32(r.CO2InAQIN),
+		Co2In24HAQIN:    int32(r.CO2In24HAQIN),
+		PmInTempAQIN:    r.PMInTempAQIN,
+		PmInHumidityAQIN: int32(r.PMInHumidityAQIN),
+		AqiPM25AQIN:     int32(r.AQIPM25AQIN),
+		AqiPM2524HAQIN:  int32(r.AQIPM2524HAQIN),
+		AqiPM10AQIN:     int32(r.AQIPM10AQIN),
+		AqiPM1024HAQIN:  int32(r.AQIPM1024HAQIN),
+		AqiPM25In:       int32(r.AQIPM25In),
+		AqiPM25In24H:    int32(r.AQIPM25In24H),
+		
+		// Lightning
+		LightningDay:      int32(r.LightningDay),
+		LightningHour:     int32(r.LightningHour),
+		LightningDistance: r.LightningDistance,
+		
+		// Pressure
+		BaromRelIn:        r.BaromRelIn,
+		BaromAbsIn:        r.BaromAbsIn,
+		
+		// Extra floats and text
+		ExtraFloat1:       r.ExtraFloat1,
+		ExtraFloat2:       r.ExtraFloat2,
+		ExtraFloat3:       r.ExtraFloat3,
+		ExtraFloat4:       r.ExtraFloat4,
+		ExtraFloat5:       r.ExtraFloat5,
+		ExtraFloat6:       r.ExtraFloat6,
+		ExtraFloat7:       r.ExtraFloat7,
+		ExtraFloat8:       r.ExtraFloat8,
+		ExtraFloat9:       r.ExtraFloat9,
+		ExtraFloat10:      r.ExtraFloat10,
+		ExtraText1:        r.ExtraText1,
+		ExtraText2:        r.ExtraText2,
+		ExtraText3:        r.ExtraText3,
+		ExtraText4:        r.ExtraText4,
+		ExtraText5:        r.ExtraText5,
+		ExtraText6:        r.ExtraText6,
+		ExtraText7:        r.ExtraText7,
+		ExtraText8:        r.ExtraText8,
+		ExtraText9:        r.ExtraText9,
+		ExtraText10:       r.ExtraText10,
+		
+		// Convert uint8 to uint32 for alarms
+		InsideAlarm:       uint32(r.InsideAlarm),
+		RainAlarm:         uint32(r.RainAlarm),
+		OutsideAlarm1:     uint32(r.OutsideAlarm1),
+		OutsideAlarm2:     uint32(r.OutsideAlarm2),
+		ExtraAlarm1:       uint32(r.ExtraAlarm1),
+		ExtraAlarm2:       uint32(r.ExtraAlarm2),
+		ExtraAlarm3:       uint32(r.ExtraAlarm3),
+		ExtraAlarm4:       uint32(r.ExtraAlarm4),
+		ExtraAlarm5:       uint32(r.ExtraAlarm5),
+		ExtraAlarm6:       uint32(r.ExtraAlarm6),
+		ExtraAlarm7:       uint32(r.ExtraAlarm7),
+		ExtraAlarm8:       uint32(r.ExtraAlarm8),
+		SoilLeafAlarm1:    uint32(r.SoilLeafAlarm1),
+		SoilLeafAlarm2:    uint32(r.SoilLeafAlarm2),
+		SoilLeafAlarm3:    uint32(r.SoilLeafAlarm3),
+		SoilLeafAlarm4:    uint32(r.SoilLeafAlarm4),
+		
+		// Battery status
+		TxBatteryStatus:   uint32(r.TxBatteryStatus),
+		BattOut:           uint32(r.BattOut),
+		BattIn:            uint32(r.BattIn),
+		Batt1:             uint32(r.Batt1),
+		Batt2:             uint32(r.Batt2),
+		Batt3:             uint32(r.Batt3),
+		Batt4:             uint32(r.Batt4),
+		Batt5:             uint32(r.Batt5),
+		Batt6:             uint32(r.Batt6),
+		Batt7:             uint32(r.Batt7),
+		Batt8:             uint32(r.Batt8),
+		Batt9:             uint32(r.Batt9),
+		Batt10:            uint32(r.Batt10),
+		Batt25:            uint32(r.Batt25),
+		BattLightning:     uint32(r.BattLightning),
+		BatLeak1:          uint32(r.BatLeak1),
+		BatLeak2:          uint32(r.BatLeak2),
+		BatLeak3:          uint32(r.BatLeak3),
+		BatLeak4:          uint32(r.BatLeak4),
+		BattSM1:           uint32(r.BattSM1),
+		BattSM2:           uint32(r.BattSM2),
+		BattSM3:           uint32(r.BattSM3),
+		BattSM4:           uint32(r.BattSM4),
+		BattCO2:           uint32(r.BattCO2),
+		BattCellGateway:   uint32(r.BattCellGateway),
+		
+		// Leak detection
+		Leak1:             uint32(r.Leak1),
+		Leak2:             uint32(r.Leak2),
+		Leak3:             uint32(r.Leak3),
+		Leak4:             uint32(r.Leak4),
+		
+		// Relays
+		Relay1:            uint32(r.Relay1),
+		Relay2:            uint32(r.Relay2),
+		Relay3:            uint32(r.Relay3),
+		Relay4:            uint32(r.Relay4),
+		Relay5:            uint32(r.Relay5),
+		Relay6:            uint32(r.Relay6),
+		Relay7:            uint32(r.Relay7),
+		Relay8:            uint32(r.Relay8),
+		Relay9:            uint32(r.Relay9),
+		Relay10:           uint32(r.Relay10),
+		
+		// Forecast
+		ForecastIcon:      uint32(r.ForecastIcon),
+		ForecastRule:      uint32(r.ForecastRule),
+	}
+
+	// Handle timestamps
+	if !r.Timestamp.IsZero() {
+		reading.ReadingTimestamp = timestamppb.New(r.Timestamp)
+	}
+	if !r.StormStart.IsZero() {
+		reading.StormStart = timestamppb.New(r.StormStart)
+	}
+	if !r.Sunrise.IsZero() {
+		reading.Sunrise = timestamppb.New(r.Sunrise)
+	}
+	if !r.Sunset.IsZero() {
+		reading.Sunset = timestamppb.New(r.Sunset)
+	}
+	if !r.LightningTime.IsZero() {
+		reading.LightningTime = timestamppb.New(r.LightningTime)
+	}
+
+	return reading
+}

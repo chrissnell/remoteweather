@@ -19,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	WeatherV1_SendWeatherReadings_FullMethodName = "/WeatherV1/SendWeatherReadings"
-	WeatherV1_GetLiveWeather_FullMethodName      = "/WeatherV1/GetLiveWeather"
-	WeatherV1_GetWeatherSpan_FullMethodName      = "/WeatherV1/GetWeatherSpan"
-	WeatherV1_GetLatestReading_FullMethodName    = "/WeatherV1/GetLatestReading"
+	WeatherV1_SendWeatherReadings_FullMethodName   = "/WeatherV1/SendWeatherReadings"
+	WeatherV1_RegisterRemoteStation_FullMethodName = "/WeatherV1/RegisterRemoteStation"
+	WeatherV1_GetLiveWeather_FullMethodName        = "/WeatherV1/GetLiveWeather"
+	WeatherV1_GetWeatherSpan_FullMethodName        = "/WeatherV1/GetWeatherSpan"
+	WeatherV1_GetLatestReading_FullMethodName      = "/WeatherV1/GetLatestReading"
 )
 
 // WeatherV1Client is the client API for WeatherV1 service.
@@ -33,6 +34,8 @@ const (
 type WeatherV1Client interface {
 	// Streaming RPC for receiving weather readings from stations
 	SendWeatherReadings(ctx context.Context, opts ...grpc.CallOption) (WeatherV1_SendWeatherReadingsClient, error)
+	// Remote station registration
+	RegisterRemoteStation(ctx context.Context, in *RemoteStationConfig, opts ...grpc.CallOption) (*RegistrationAck, error)
 	GetLiveWeather(ctx context.Context, in *LiveWeatherRequest, opts ...grpc.CallOption) (WeatherV1_GetLiveWeatherClient, error)
 	GetWeatherSpan(ctx context.Context, in *WeatherSpanRequest, opts ...grpc.CallOption) (*WeatherSpan, error)
 	GetLatestReading(ctx context.Context, in *LatestReadingRequest, opts ...grpc.CallOption) (*WeatherReading, error)
@@ -79,6 +82,16 @@ func (x *weatherV1SendWeatherReadingsClient) CloseAndRecv() (*Empty, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func (c *weatherV1Client) RegisterRemoteStation(ctx context.Context, in *RemoteStationConfig, opts ...grpc.CallOption) (*RegistrationAck, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RegistrationAck)
+	err := c.cc.Invoke(ctx, WeatherV1_RegisterRemoteStation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *weatherV1Client) GetLiveWeather(ctx context.Context, in *LiveWeatherRequest, opts ...grpc.CallOption) (WeatherV1_GetLiveWeatherClient, error) {
@@ -142,6 +155,8 @@ func (c *weatherV1Client) GetLatestReading(ctx context.Context, in *LatestReadin
 type WeatherV1Server interface {
 	// Streaming RPC for receiving weather readings from stations
 	SendWeatherReadings(WeatherV1_SendWeatherReadingsServer) error
+	// Remote station registration
+	RegisterRemoteStation(context.Context, *RemoteStationConfig) (*RegistrationAck, error)
 	GetLiveWeather(*LiveWeatherRequest, WeatherV1_GetLiveWeatherServer) error
 	GetWeatherSpan(context.Context, *WeatherSpanRequest) (*WeatherSpan, error)
 	GetLatestReading(context.Context, *LatestReadingRequest) (*WeatherReading, error)
@@ -154,6 +169,9 @@ type UnimplementedWeatherV1Server struct {
 
 func (UnimplementedWeatherV1Server) SendWeatherReadings(WeatherV1_SendWeatherReadingsServer) error {
 	return status.Errorf(codes.Unimplemented, "method SendWeatherReadings not implemented")
+}
+func (UnimplementedWeatherV1Server) RegisterRemoteStation(context.Context, *RemoteStationConfig) (*RegistrationAck, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterRemoteStation not implemented")
 }
 func (UnimplementedWeatherV1Server) GetLiveWeather(*LiveWeatherRequest, WeatherV1_GetLiveWeatherServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetLiveWeather not implemented")
@@ -201,6 +219,24 @@ func (x *weatherV1SendWeatherReadingsServer) Recv() (*WeatherReading, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func _WeatherV1_RegisterRemoteStation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteStationConfig)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WeatherV1Server).RegisterRemoteStation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WeatherV1_RegisterRemoteStation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WeatherV1Server).RegisterRemoteStation(ctx, req.(*RemoteStationConfig))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _WeatherV1_GetLiveWeather_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -267,6 +303,10 @@ var WeatherV1_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "WeatherV1",
 	HandlerType: (*WeatherV1Server)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RegisterRemoteStation",
+			Handler:    _WeatherV1_RegisterRemoteStation_Handler,
+		},
 		{
 			MethodName: "GetWeatherSpan",
 			Handler:    _WeatherV1_GetWeatherSpan_Handler,
