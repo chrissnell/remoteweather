@@ -1323,7 +1323,7 @@ html[data-theme="light"] .theme-toggle::before {
   }
   .forecast-hour .forecast-precip {
     font-size: 0.7rem !important;
-    min-height: 20px !important;
+    min-height: 24px !important;
     flex-shrink: 0 !important;
     margin-top: auto !important;
     flex-direction: column !important;
@@ -1334,10 +1334,11 @@ html[data-theme="light"] .theme-toggle::before {
     justify-content: center !important;
   }
   .forecast-hour .precip-icon {
-    font-size: 0.65rem !important;
+    font-size: 0.9rem !important;
   }
   .forecast-hour .precip-amount {
-    font-size: 0.65rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
   }
   .day-forecast-adjustable-div {
     height: auto !important;
@@ -1391,7 +1392,7 @@ html[data-theme="light"] .theme-toggle::before {
   }
   .forecast-hour .forecast-precip {
     font-size: 0.6rem !important;
-    min-height: 18px !important;
+    min-height: 22px !important;
     flex-shrink: 0 !important;
     margin-top: auto !important;
     flex-direction: column !important;
@@ -1402,10 +1403,11 @@ html[data-theme="light"] .theme-toggle::before {
     justify-content: center !important;
   }
   .forecast-hour .precip-icon {
-    font-size: 0.55rem !important;
+    font-size: 0.85rem !important;
   }
   .forecast-hour .precip-amount {
-    font-size: 0.55rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
   }
   .day-forecast-adjustable-div {
     height: auto !important;
