@@ -1665,11 +1665,11 @@ html[data-theme="light"] .theme-toggle::before {
 
 /* Air Quality Status Colors */
 .air-quality-good {
-  color: #00e400;
+  color: #2aa22a;
 }
 
 .air-quality-moderate {
-  color: #ffff00;
+  color: #ffbf00;
 }
 
 .air-quality-unhealthy-sensitive {
