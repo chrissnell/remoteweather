@@ -196,7 +196,7 @@ const WeatherApp = (function() {
                 // Skip air quality charts if not enabled
                 if ((metric === 'pm25' || metric === 'pm10' || metric === 'co2') && !config.airQualityEnabled) continue;
                 
-                const elementId = `${metric}Chart${range}`;
+                const elementId = metric + 'Chart' + range;
                 const element = WeatherDOM.getCachedElement(elementId);
                 
                 if (element) {
