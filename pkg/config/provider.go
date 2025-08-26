@@ -390,7 +390,7 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		}
 
 		// Validate device type
-		validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver"}
+		validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver", "airgradient"}
 		if !contains(validTypes, device.Type) {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("devices[%d].type", i),
@@ -404,13 +404,19 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 		hasNetwork := device.Hostname != "" && device.Port != ""
 		hasAmbientCustomized := device.Type == "ambient-customized" && device.Port != ""
 		hasGRPCReceiver := device.Type == "grpcreceiver" && device.Port != ""
+		hasAirGradient := device.Type == "airgradient" && device.Hostname != ""
 
-		if !hasSerial && !hasNetwork && !hasAmbientCustomized && !hasGRPCReceiver {
+		if !hasSerial && !hasNetwork && !hasAmbientCustomized && !hasGRPCReceiver && !hasAirGradient {
 			errors = append(errors, ValidationError{
 				Field:   fmt.Sprintf("devices[%d]", i),
 				Value:   device.Name,
 				Message: "device must have either serial_device or both hostname and port configured",
 			})
+		}
+		
+		// Set default port for airgradient if not specified
+		if device.Type == "airgradient" && device.Hostname != "" && device.Port == "" {
+			device.Port = "80"
 		}
 
 		// Validate snow gauge specific settings
