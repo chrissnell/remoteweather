@@ -46,6 +46,7 @@ const WeatherApp = (function() {
     // Initialize the application
     const init = () => {
         if (config.debug) console.log('Initializing Weather App with config:', config);
+        console.log('Air Quality Config - Enabled:', config.airQualityEnabled, 'Device:', config.airQualityDevice, 'DeviceID:', config.airQualityDeviceID);
         
         // Set up event listeners
         setupEventListeners();
