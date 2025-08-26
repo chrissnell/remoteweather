@@ -616,41 +616,82 @@ const WeatherDOM = (function() {
                         '</div>';
                     tooltipContainer.innerHTML = tooltipHTML;
                     
+                    // Show tooltip first to measure its dimensions
+                    tooltipContainer.style.display = 'block';
+                    tooltipContainer.style.visibility = 'hidden'; // Hide while positioning
+                    
                     // Position tooltip
                     const rect = icon.getBoundingClientRect();
+                    const tooltipRect = tooltipContainer.getBoundingClientRect();
+                    const tooltipHeight = tooltipRect.height;
+                    const tooltipWidth = tooltipRect.width;
+                    const viewportHeight = window.innerHeight;
+                    const viewportWidth = window.innerWidth;
                     
                     if (isMobile) {
-                        // Mobile: center horizontally, position below icon with scroll support
+                        // Mobile: center horizontally
                         tooltipContainer.style.left = '10px';
                         tooltipContainer.style.right = '10px';
                         tooltipContainer.style.width = 'auto';
                         
-                        // Position below icon but ensure it's visible in viewport
-                        let topPos = rect.bottom + 10;
-                        const viewportHeight = window.innerHeight;
+                        // Calculate available space above and below
+                        const spaceBelow = viewportHeight - rect.bottom - 10;
+                        const spaceAbove = rect.top - 10;
                         
-                        // If tooltip would go below viewport, position it higher
-                        if (topPos + 400 > viewportHeight) {
-                            topPos = Math.max(10, rect.top - 400 - 10);
+                        let topPos;
+                        
+                        // If there's enough space below, position below
+                        if (spaceBelow >= tooltipHeight || spaceBelow > spaceAbove) {
+                            topPos = rect.bottom + 10;
+                            // If tooltip extends beyond viewport, constrain it
+                            if (topPos + tooltipHeight > viewportHeight) {
+                                topPos = viewportHeight - tooltipHeight - 10;
+                            }
+                        } else {
+                            // Position above the icon
+                            topPos = rect.top - tooltipHeight - 10;
                         }
+                        
+                        // Ensure tooltip stays within viewport bounds
+                        topPos = Math.max(10, Math.min(topPos, viewportHeight - tooltipHeight - 10));
                         
                         tooltipContainer.style.top = topPos + 'px';
-                    } else {
-                        // Desktop: existing positioning logic
-                        const tooltipWidth = 400;
-                        let leftPos = rect.left;
                         
-                        if (leftPos + tooltipWidth > window.innerWidth) {
-                            leftPos = window.innerWidth - tooltipWidth - 10;
+                        // Scroll the icon into view if needed
+                        if (topPos < window.scrollY || topPos + tooltipHeight > window.scrollY + viewportHeight) {
+                            icon.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    } else {
+                        // Desktop: position with smart placement
+                        let leftPos = rect.left;
+                        let topPos = rect.bottom + 10;
+                        
+                        // Adjust horizontal position if tooltip would go off screen
+                        if (leftPos + tooltipWidth > viewportWidth) {
+                            leftPos = viewportWidth - tooltipWidth - 10;
                         }
                         
+                        // Check if there's enough space below
+                        const spaceBelow = viewportHeight - rect.bottom - 10;
+                        const spaceAbove = rect.top - 10;
+                        
+                        if (spaceBelow < tooltipHeight && spaceAbove > spaceBelow) {
+                            // Position above if more space there
+                            topPos = rect.top - tooltipHeight - 10;
+                        }
+                        
+                        // Ensure tooltip stays within viewport bounds
+                        topPos = Math.max(10, Math.min(topPos, viewportHeight - tooltipHeight - 10));
+                        leftPos = Math.max(10, leftPos);
+                        
                         tooltipContainer.style.left = leftPos + 'px';
-                        tooltipContainer.style.top = (rect.bottom + 10) + 'px';
+                        tooltipContainer.style.top = topPos + 'px';
                         tooltipContainer.style.width = '';
                         tooltipContainer.style.right = '';
                     }
                     
-                    tooltipContainer.style.display = 'block';
+                    // Make visible after positioning
+                    tooltipContainer.style.visibility = 'visible';
                     
                     // Add close button handler for mobile
                     if (isMobile) {
