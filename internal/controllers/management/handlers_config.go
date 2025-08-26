@@ -80,7 +80,7 @@ func (h *Handlers) CreateWeatherStation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate device type
-	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver"}
+	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver", "airgradient"}
 	if !contains(validTypes, device.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid device type. Must be one of: %v", validTypes), nil)
 		return
@@ -150,7 +150,7 @@ func (h *Handlers) UpdateWeatherStation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate device type
-	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver"}
+	validTypes := []string{"campbellscientific", "davis", "snowgauge", "ambient-customized", "grpcreceiver", "airgradient"}
 	if !contains(validTypes, device.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid device type. Must be one of: %v", validTypes), nil)
 		return
@@ -573,6 +573,15 @@ func (h *Handlers) validateDeviceConnectionSettings(device *config.DeviceData) e
 		}
 		// Hostname is optional (defaults to 0.0.0.0 for listen address)
 		// TLS cert and key are optional
+	case "airgradient":
+		// AirGradient devices use HTTP polling - hostname required
+		if device.Hostname == "" {
+			return fmt.Errorf("hostname is required for airgradient device")
+		}
+		// Port is optional (defaults to 80)
+		if device.Port == "" {
+			device.Port = "80"
+		}
 	default:
 		return fmt.Errorf("unsupported device type: %s", device.Type)
 	}
