@@ -597,45 +597,105 @@ const WeatherDOM = (function() {
         // Add hover handlers to all info icons
         document.querySelectorAll('.info-icon').forEach(icon => {
             // Show tooltip on mouse enter
-            icon.addEventListener('mouseenter', (e) => {
+            // Function to show tooltip
+            const showTooltip = (icon) => {
                 const metric = icon.getAttribute('data-tooltip');
                 const data = tooltipData[metric];
                 
                 if (data) {
-                    // Update tooltip content - no close button
+                    // Update tooltip content - add close button for mobile
+                    const isMobile = window.innerWidth <= 768;
                     var tooltipHTML = '<div class="tooltip-header">' +
                         '<h4>' + data.title + '</h4>' +
+                        (isMobile ? '<span class="tooltip-close">×</span>' : '') +
                         '</div>' +
                         '<div class="tooltip-content">' +
                         data.content.trim() +
                         '</div>';
                     tooltipContainer.innerHTML = tooltipHTML;
                     
-                    // Position tooltip near the hovered icon
+                    // Position tooltip
                     const rect = icon.getBoundingClientRect();
-                    const tooltipWidth = 400; // Approximate tooltip width
-                    let leftPos = rect.left;
                     
-                    // Adjust position if tooltip would go off screen
-                    if (leftPos + tooltipWidth > window.innerWidth) {
-                        leftPos = window.innerWidth - tooltipWidth - 10;
+                    if (isMobile) {
+                        // Mobile: center horizontally, position below icon with scroll support
+                        tooltipContainer.style.left = '10px';
+                        tooltipContainer.style.right = '10px';
+                        tooltipContainer.style.width = 'auto';
+                        
+                        // Position below icon but ensure it's visible in viewport
+                        let topPos = rect.bottom + 10;
+                        const viewportHeight = window.innerHeight;
+                        
+                        // If tooltip would go below viewport, position it higher
+                        if (topPos + 400 > viewportHeight) {
+                            topPos = Math.max(10, rect.top - 400 - 10);
+                        }
+                        
+                        tooltipContainer.style.top = topPos + 'px';
+                    } else {
+                        // Desktop: existing positioning logic
+                        const tooltipWidth = 400;
+                        let leftPos = rect.left;
+                        
+                        if (leftPos + tooltipWidth > window.innerWidth) {
+                            leftPos = window.innerWidth - tooltipWidth - 10;
+                        }
+                        
+                        tooltipContainer.style.left = leftPos + 'px';
+                        tooltipContainer.style.top = (rect.bottom + 10) + 'px';
+                        tooltipContainer.style.width = '';
+                        tooltipContainer.style.right = '';
                     }
                     
-                    tooltipContainer.style.left = leftPos + 'px';
-                    tooltipContainer.style.top = (rect.bottom + 10) + 'px';
                     tooltipContainer.style.display = 'block';
+                    
+                    // Add close button handler for mobile
+                    if (isMobile) {
+                        const closeBtn = tooltipContainer.querySelector('.tooltip-close');
+                        if (closeBtn) {
+                            closeBtn.addEventListener('click', () => {
+                                tooltipContainer.style.display = 'none';
+                            });
+                        }
+                    }
+                }
+            };
+            
+            // Mobile: click/touch events
+            icon.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.innerWidth <= 768) {
+                    // Close any existing tooltips first
+                    if (tooltipContainer.style.display === 'block') {
+                        tooltipContainer.style.display = 'none';
+                        // Small delay to allow for closing animation
+                        setTimeout(() => showTooltip(icon), 100);
+                    } else {
+                        showTooltip(icon);
+                    }
                 }
             });
             
-            // Hide tooltip on mouse leave
+            // Desktop: hover events
+            icon.addEventListener('mouseenter', (e) => {
+                if (window.innerWidth > 768) {
+                    showTooltip(icon);
+                }
+            });
+            
+            // Hide tooltip on mouse leave (desktop only)
             icon.addEventListener('mouseleave', (e) => {
-                // Add a small delay to prevent flickering when moving between icon and tooltip
-                setTimeout(() => {
-                    // Check if mouse is not over the tooltip itself
-                    if (!tooltipContainer.matches(':hover')) {
-                        tooltipContainer.style.display = 'none';
-                    }
-                }, 100);
+                if (window.innerWidth > 768) {
+                    // Add a small delay to prevent flickering when moving between icon and tooltip
+                    setTimeout(() => {
+                        // Check if mouse is not over the tooltip itself
+                        if (!tooltipContainer.matches(':hover')) {
+                            tooltipContainer.style.display = 'none';
+                        }
+                    }, 100);
+                }
             });
         });
         
