@@ -1710,43 +1710,7 @@ html[data-theme="light"] .theme-toggle::before {
   transition: background-color 0.2s ease;
 }
 
-
-.tooltip-content {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 280px;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px var(--shadow);
-  z-index: 1000;
-  font-size: 0.875rem;
-  line-height: 1.4;
-}
-
-.tooltip-content::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: var(--border-primary);
-}
-
-.info-tooltip:hover .tooltip-content {
-  display: block;
-}
-
-.tooltip-title {
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--text-primary);
-}
+/* Removed duplicate tooltip-content rules that were conflicting with the main tooltip system */
 
 .tooltip-description {
   color: var(--text-secondary);
