@@ -125,6 +125,30 @@ const WeatherCharts = (function() {
                 { value: 1000, color: '#ffbf00', width: 1, dashStyle: 'dash', label: { text: 'Fair', style: { color: '#ffbf00' } } },
                 { value: 1500, color: '#ff7e00', width: 1, dashStyle: 'dash', label: { text: 'Poor', style: { color: '#ff7e00' } } }
             ]
+        },
+        tvocindex: {
+            yAxisLabel: "Index",
+            chartType: "spline",
+            tooltipDecimals: 0,
+            unit: "",
+            plotLines: [
+                { value: 100, color: '#2aa22a', width: 1, dashStyle: 'dash', label: { text: 'Excellent', style: { color: '#2aa22a' } } },
+                { value: 200, color: '#ffbf00', width: 1, dashStyle: 'dash', label: { text: 'Good', style: { color: '#ffbf00' } } },
+                { value: 300, color: '#ff7e00', width: 1, dashStyle: 'dash', label: { text: 'Fair', style: { color: '#ff7e00' } } },
+                { value: 400, color: '#ff0000', width: 1, dashStyle: 'dash', label: { text: 'Poor', style: { color: '#ff0000' } } }
+            ]
+        },
+        noxindex: {
+            yAxisLabel: "Index",
+            chartType: "spline",
+            tooltipDecimals: 0,
+            unit: "",
+            plotLines: [
+                { value: 100, color: '#2aa22a', width: 1, dashStyle: 'dash', label: { text: 'Excellent', style: { color: '#2aa22a' } } },
+                { value: 200, color: '#ffbf00', width: 1, dashStyle: 'dash', label: { text: 'Good', style: { color: '#ffbf00' } } },
+                { value: 300, color: '#ff7e00', width: 1, dashStyle: 'dash', label: { text: 'Fair', style: { color: '#ff7e00' } } },
+                { value: 400, color: '#ff0000', width: 1, dashStyle: 'dash', label: { text: 'Poor', style: { color: '#ff0000' } } }
+            ]
         }
     };
     
@@ -265,6 +289,12 @@ const WeatherCharts = (function() {
                 
             case 'co2':
                 return rawData.map(item => [item.ts, item.co2]);
+                
+            case 'tvocindex':
+                return rawData.map(item => [item.ts, item.extrafloat3]); // TVOC Index stored in extrafloat3
+                
+            case 'noxindex':
+                return rawData.map(item => [item.ts, item.extrafloat4]); // NOX Index stored in extrafloat4
                 
             default:
                 return [];

@@ -194,7 +194,7 @@ const WeatherApp = (function() {
                 if (metric === 'snowdepth' && !config.snowEnabled) continue;
                 
                 // Skip air quality charts if not enabled
-                if ((metric === 'pm25' || metric === 'pm10' || metric === 'co2') && !config.airQualityEnabled) continue;
+                if ((metric === 'pm25' || metric === 'pm10' || metric === 'co2' || metric === 'tvocindex' || metric === 'noxindex') && !config.airQualityEnabled) continue;
                 
                 const elementId = metric + 'Chart' + range;
                 const element = WeatherDOM.getCachedElement(elementId);
@@ -204,7 +204,7 @@ const WeatherApp = (function() {
                     let dataSource = mainData;
                     if (metric === 'snowdepth') {
                         dataSource = snowData || mainData;
-                    } else if (metric === 'pm25' || metric === 'pm10' || metric === 'co2') {
+                    } else if (metric === 'pm25' || metric === 'pm10' || metric === 'co2' || metric === 'tvocindex' || metric === 'noxindex') {
                         dataSource = airQualityData;
                         if (!dataSource) continue;
                     }
