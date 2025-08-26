@@ -53,7 +53,11 @@ const ManagementWebsites = (function() {
       device: document.getElementById('website-device'),
       snowEnabled: document.getElementById('website-snow-enabled'),
       snowDevice: document.getElementById('website-snow-device'),
-      snowDeviceLabel: document.getElementById('snow-device-label')
+      snowDeviceLabel: document.getElementById('snow-device-label'),
+      
+      airQualityEnabled: document.getElementById('website-airquality-enabled'),
+      airQualityDevice: document.getElementById('website-airquality-device'),
+      airQualityDeviceLabel: document.getElementById('airquality-device-label')
     };
 
     // Portal form elements
@@ -258,11 +262,23 @@ const ManagementWebsites = (function() {
       websiteFormElements.snowEnabled.checked = snowEnabled;
       websiteFormElements.snowDevice.value = snowDevice;
       
+      // Set air quality enabled toggle and device dropdown
+      const airQualityEnabled = website.air_quality_enabled || false;
+      const airQualityDevice = website.air_quality_device_name || '';
+      websiteFormElements.airQualityEnabled.checked = airQualityEnabled;
+      websiteFormElements.airQualityDevice.value = airQualityDevice;
+      
       // Set visual feedback based on enabled state
       if (snowEnabled) {
         websiteFormElements.snowDevice.style.opacity = '1';
       } else {
         websiteFormElements.snowDevice.style.opacity = '0.6';
+      }
+      
+      if (airQualityEnabled) {
+        websiteFormElements.airQualityDevice.style.opacity = '1';
+      } else {
+        websiteFormElements.airQualityDevice.style.opacity = '0.6';
       }
       
       websiteModalElements.modal.classList.remove('hidden');
@@ -276,9 +292,13 @@ const ManagementWebsites = (function() {
     // Reset device dropdown to default state
     websiteFormElements.device.value = '';
     websiteFormElements.snowDevice.value = '';
+    websiteFormElements.airQualityDevice.value = '';
     // Reset snow toggle and visual feedback
     websiteFormElements.snowEnabled.checked = false;
     websiteFormElements.snowDevice.style.opacity = '0.6';
+    // Reset air quality toggle and visual feedback  
+    websiteFormElements.airQualityEnabled.checked = false;
+    websiteFormElements.airQualityDevice.style.opacity = '0.6';
   }
 
   async function saveWebsite() {
@@ -288,6 +308,8 @@ const ManagementWebsites = (function() {
     try {
       const snowEnabled = websiteFormElements.snowEnabled.checked;
       const snowDevice = websiteFormElements.snowDevice.value;
+      const airQualityEnabled = websiteFormElements.airQualityEnabled.checked;
+      const airQualityDevice = websiteFormElements.airQualityDevice.value;
       const deviceId = websiteFormElements.device.value;
       
       const websiteData = {
@@ -298,6 +320,8 @@ const ManagementWebsites = (function() {
         about_station_html: websiteFormElements.aboutHtml.value,
         snow_enabled: snowEnabled,
         snow_device_name: snowDevice || "",
+        air_quality_enabled: airQualityEnabled,
+        air_quality_device_name: airQualityDevice || "",
         tls_cert_path: websiteFormElements.tlsCert.value,
         tls_key_path: websiteFormElements.tlsKey.value,
         is_portal: false
@@ -408,6 +432,17 @@ const ManagementWebsites = (function() {
         option.textContent = device.name;
         websiteFormElements.snowDevice.appendChild(option);
       });
+      
+      // Populate air quality device dropdown with devices that support air quality
+      // Currently: airgradient, future: could include davis with air quality sensors, etc.
+      const airQualityDeviceTypes = ['airgradient']; // Add more types here as they support air quality
+      websiteFormElements.airQualityDevice.innerHTML = '<option value="">Select air quality device...</option>';
+      devices.filter(device => airQualityDeviceTypes.includes(device.type)).forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.name; // Use device names
+        option.textContent = `${device.name} (${device.type})`;
+        websiteFormElements.airQualityDevice.appendChild(option);
+      });
     } catch (err) {
       console.error('Failed to load devices for website form:', err);
     }
@@ -424,6 +459,15 @@ const ManagementWebsites = (function() {
           websiteFormElements.snowDevice.style.opacity = '1';
         } else {
           websiteFormElements.snowDevice.style.opacity = '0.6';
+        }
+      });
+      
+      // Add visual feedback to show when air quality is disabled
+      websiteFormElements.airQualityEnabled.addEventListener('change', function() {
+        if (this.checked) {
+          websiteFormElements.airQualityDevice.style.opacity = '1';
+        } else {
+          websiteFormElements.airQualityDevice.style.opacity = '0.6';
         }
       });
     }

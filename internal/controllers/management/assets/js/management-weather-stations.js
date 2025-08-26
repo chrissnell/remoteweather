@@ -249,7 +249,7 @@ const ManagementWeatherStations = (function() {
     
     // Check if initial station type should force network connection
     const stationType = formElements.stationType.value;
-    if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge') {
+    if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge' || stationType === 'airgradient') {
       formElements.connectionType.value = 'network';
       formElements.connectionType.disabled = true;
     }
@@ -284,8 +284,8 @@ const ManagementWeatherStations = (function() {
     formElements.stationType.value = dev.type || '';
     formElements.stationType.disabled = true; // Can't change type on edit
 
-    // Determine connection type (snowgauge always uses network)
-    if (dev.type === 'snowgauge') {
+    // Determine connection type (snowgauge and airgradient always use network)
+    if (dev.type === 'snowgauge' || dev.type === 'airgradient') {
       formElements.connectionType.value = 'network';
     } else if (dev.serial_device) {
       formElements.connectionType.value = 'serial';
@@ -293,8 +293,8 @@ const ManagementWeatherStations = (function() {
       formElements.connectionType.value = 'network';
     }
     
-    // For ambient-customized, grpcreceiver, and snowgauge, disable connection type selector
-    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver' || dev.type === 'snowgauge') {
+    // For ambient-customized, grpcreceiver, snowgauge, and airgradient, disable connection type selector
+    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver' || dev.type === 'snowgauge' || dev.type === 'airgradient') {
       formElements.connectionType.disabled = true;
     } else {
       formElements.connectionType.disabled = false;
@@ -389,7 +389,8 @@ const ManagementWeatherStations = (function() {
       device.serial_device = serialDevice;
       if (serialBaud) device.baud = serialBaud;
     } else if (connType === 'network') {
-      // For ambient-customized and grpcreceiver, hostname is optional
+      // For ambient-customized and grpcreceiver, hostname is optional (they are receivers)
+      // AirGradient requires hostname as it polls the device
       if (type !== 'ambient-customized' && type !== 'grpcreceiver' && !hostname) {
         alert('Hostname is required for network connection');
         return null;
@@ -554,6 +555,12 @@ const ManagementWeatherStations = (function() {
         formElements.hostnameHelp.textContent = 'Listen address (optional, defaults to 0.0.0.0)';
         formElements.portHelp.textContent = 'gRPC server port for receiving weather data';
         if (hostnameLabel) hostnameLabel.textContent = 'Listen Address';
+      } else if (stationType === 'airgradient') {
+        formElements.netHostname.placeholder = '192.168.1.100';
+        formElements.netPort.value = '80';
+        formElements.hostnameHelp.textContent = 'IP address or hostname of your AirGradient device';
+        formElements.portHelp.textContent = 'HTTP port (usually 80)';
+        if (hostnameLabel) hostnameLabel.textContent = 'Device IP/Hostname';
       } else {
         formElements.netHostname.placeholder = '192.168.1.50';
         formElements.netPort.placeholder = '3001';
@@ -577,11 +584,11 @@ const ManagementWeatherStations = (function() {
   }
   
   function updateFieldsVisibility(stationType) {
-    // Hide connection type selector and label for grpcreceiver and snowgauge
+    // Hide connection type selector and label for grpcreceiver, snowgauge, and airgradient
     const connectionLabel = formElements.connectionType.parentElement;
     ManagementUtils.setElementVisibility(
       connectionLabel,
-      stationType !== 'grpcreceiver' && stationType !== 'snowgauge'
+      stationType !== 'grpcreceiver' && stationType !== 'snowgauge' && stationType !== 'airgradient'
     );
     
     // Find all fieldsets and check their legends
@@ -789,8 +796,8 @@ const ManagementWeatherStations = (function() {
           stationType === 'snowgauge'
         );
         
-        // For ambient-customized, grpcreceiver, and snowgauge, force network connection and hide the connection type selector
-        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge') {
+        // For ambient-customized, grpcreceiver, snowgauge, and airgradient, force network connection and hide the connection type selector
+        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge' || stationType === 'airgradient') {
           formElements.connectionType.value = 'network';
           formElements.connectionType.disabled = true;
         } else {

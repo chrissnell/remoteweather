@@ -76,6 +76,7 @@
                   <option value="campbellscientific">Campbell Scientific</option>
                   <option value="snowgauge">Snow Gauge</option>
                   <option value="ambient-customized">Ambient Weather (Customized Server)</option>
+                  <option value="airgradient">AirGradient</option>
                   <option value="grpcreceiver">gRPC Receiver</option>
                 </select>
               </label>
@@ -616,6 +617,21 @@
             Snow Device
             <select id="website-snow-device">
               <option value="">Select snow device...</option>
+            </select>
+          </label>
+        </fieldset>
+        
+        <fieldset>
+          <legend>Air Quality Configuration</legend>
+          <label class="checkbox-label">
+            <input type="checkbox" id="website-airquality-enabled" />
+            Enable Air Quality Display
+          </label>
+          
+          <label id="airquality-device-label">
+            Air Quality Device
+            <select id="website-airquality-device">
+              <option value="">Select air quality device...</option>
             </select>
           </label>
         </fieldset>
