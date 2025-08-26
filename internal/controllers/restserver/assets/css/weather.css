@@ -259,23 +259,26 @@ html[data-theme="light"] .theme-toggle::before {
 /* Air Quality Info Icons and Tooltips */
 .info-icon {
   display: inline-block;
-  width: 16px;
-  height: 16px;
-  line-height: 16px;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
   text-align: center;
-  background: var(--text-tertiary);
-  color: var(--bg-primary);
+  background: transparent;
+  color: var(--text-secondary);
   border-radius: 50%;
-  font-size: 11px;
+  font-size: 16px;
   margin-left: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   vertical-align: middle;
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .info-icon:hover {
-  background: #ffaa00;
-  transform: scale(1.1);
+  color: #ffaa00;
+  transform: scale(1.15);
+  opacity: 1;
 }
 
 .tooltip-container {
@@ -1741,19 +1744,6 @@ html[data-theme="light"] .theme-toggle::before {
   cursor: help;
 }
 
-.info-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--border-primary);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: bold;
-  transition: background-color 0.2s ease;
-}
 
 /* Removed duplicate tooltip-content rules that were conflicting with the main tooltip system */
 
