@@ -50,6 +50,11 @@ const WeatherApp = (function() {
         // Set up event listeners
         setupEventListeners();
         
+        // Initialize air quality tooltips if air quality is enabled
+        if (config.airQualityEnabled) {
+            WeatherDOM.initializeTooltips();
+        }
+        
         // Start timers
         startTimers();
         

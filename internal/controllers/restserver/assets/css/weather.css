@@ -256,6 +256,134 @@ html[data-theme="light"] .theme-toggle::before {
   padding-bottom: 4px;
 }
 
+/* Air Quality Info Icons and Tooltips */
+.info-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  background: var(--text-tertiary);
+  color: var(--bg-primary);
+  border-radius: 50%;
+  font-size: 11px;
+  margin-left: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.info-icon:hover {
+  background: var(--blue-primary);
+  transform: scale(1.1);
+}
+
+.tooltip-container {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  max-width: 400px;
+  min-width: 320px;
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  border-radius: 8px 8px 0 0;
+}
+
+.tooltip-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tooltip-close {
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--text-secondary);
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.tooltip-close:hover {
+  color: var(--text-primary);
+}
+
+#tooltip-content {
+  padding: 16px;
+}
+
+.tooltip-description {
+  margin: 0 0 12px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tooltip-thresholds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltip-thresholds > div {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tooltip-thresholds span:first-child {
+  font-weight: 600;
+}
+
+.threshold-good {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.threshold-moderate {
+  background: rgba(255, 193, 7, 0.1);
+  color: #FFC107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.threshold-unhealthy-sensitive {
+  background: rgba(255, 152, 0, 0.1);
+  color: #FF9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.threshold-unhealthy {
+  background: rgba(244, 67, 54, 0.1);
+  color: #F44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.threshold-very-unhealthy {
+  background: rgba(156, 39, 176, 0.1);
+  color: #9C27B0;
+  border: 1px solid rgba(156, 39, 176, 0.3);
+}
+
+.threshold-hazardous {
+  background: rgba(121, 31, 66, 0.1);
+  color: #791F42;
+  border: 1px solid rgba(121, 31, 66, 0.3);
+}
+
 /* Force two-column layout for metrics on all screen sizes */
 .group-metrics {
   display: grid !important;

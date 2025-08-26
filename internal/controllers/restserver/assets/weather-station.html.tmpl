@@ -211,6 +211,59 @@
       </div>
       {{ end }}
       
+      <!-- Air Quality Section -->
+      {{ if .AirQualityEnabled }}
+      <div class="metric-groups">
+        <div class="metric-group span-full">
+          <div class="group-title">AIR QUALITY</div>
+          <div class="group-metrics air-quality-metrics">
+            <div class="metric-item">
+              <div class="metric-label">
+                PM2.5
+                <span class="info-icon" data-tooltip="pm25">ⓘ</span>
+              </div>
+              <div class="metric-value" id="pm25">--</div><span class="metric-unit">µg/m³</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">
+                PM10
+                <span class="info-icon" data-tooltip="pm10">ⓘ</span>
+              </div>
+              <div class="metric-value" id="pm10">--</div><span class="metric-unit">µg/m³</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">
+                PM1.0
+                <span class="info-icon" data-tooltip="pm1">ⓘ</span>
+              </div>
+              <div class="metric-value" id="pm1">--</div><span class="metric-unit">µg/m³</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">
+                CO₂
+                <span class="info-icon" data-tooltip="co2">ⓘ</span>
+              </div>
+              <div class="metric-value" id="co2">--</div><span class="metric-unit">ppm</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">
+                TVOC Index
+                <span class="info-icon" data-tooltip="tvoc">ⓘ</span>
+              </div>
+              <div class="metric-value" id="tvoc">--</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">
+                NOx Index
+                <span class="info-icon" data-tooltip="nox">ⓘ</span>
+              </div>
+              <div class="metric-value" id="nox">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+      
       <!-- Forecast Section -->
       {{ if .AerisWeatherEnabled }}
       <div class="forecast-section">
@@ -663,41 +716,6 @@
       </div>
       {{ end }}
       
-      <!-- Air Quality Section -->
-      {{ if .AirQualityEnabled }}
-      <div class="metric-groups">
-        <div class="metric-group span-full">
-          <div class="group-title">AIR QUALITY</div>
-          <div class="group-metrics air-quality-metrics">
-            <div class="metric-item">
-              <div class="metric-label">PM2.5</div>
-              <div class="metric-value" id="pm25">--</div><span class="metric-unit">µg/m³</span>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">PM10</div>
-              <div class="metric-value" id="pm10">--</div><span class="metric-unit">µg/m³</span>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">PM1.0</div>
-              <div class="metric-value" id="pm1">--</div><span class="metric-unit">µg/m³</span>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">CO₂</div>
-              <div class="metric-value" id="co2">--</div><span class="metric-unit">ppm</span>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">TVOC Index</div>
-              <div class="metric-value" id="tvoc">--</div>
-            </div>
-            <div class="metric-item">
-              <div class="metric-label">NOx Index</div>
-              <div class="metric-value" id="nox">--</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {{ end }}
-      
       <!-- Charts Section -->
       <div class="charts-section">
         <div class="section-title">Historical Data</div>
@@ -1086,6 +1104,140 @@
       Powered by <a href="https://github.com/chrissnell/remoteweather" target="_blank">RemoteWeather {{ .Version }}</a>
     </div>
   </div>
+  
+  <!-- Tooltip Container -->
+  <div id="tooltip-container" class="tooltip-container" style="display: none;">
+    <div class="tooltip-header">
+      <h3 id="tooltip-title"></h3>
+      <span class="tooltip-close">&times;</span>
+    </div>
+    <div id="tooltip-content"></div>
+  </div>
+  
+  <!-- Tooltip JavaScript -->
+  <script>
+    // Tooltip data
+    const tooltipData = {
+      pm25: {
+        title: 'PM2.5 - Fine Particulate Matter',
+        content: `
+          <p class="tooltip-description">Particles ≤2.5 micrometers that penetrate deep into lungs and bloodstream.</p>
+          <div class="tooltip-thresholds">
+            <div class="threshold-good"><span>Good:</span> <12 µg/m³</div>
+            <div class="threshold-moderate"><span>Moderate:</span> 12-35 µg/m³</div>
+            <div class="threshold-unhealthy-sensitive"><span>Unhealthy (Sensitive):</span> 35-55 µg/m³</div>
+            <div class="threshold-unhealthy"><span>Unhealthy:</span> 55-150 µg/m³</div>
+            <div class="threshold-very-unhealthy"><span>Very Unhealthy:</span> 150-250 µg/m³</div>
+            <div class="threshold-hazardous"><span>Hazardous:</span> >250 µg/m³</div>
+          </div>
+        `
+      },
+      pm10: {
+        title: 'PM10 - Coarse Particulate Matter',
+        content: `
+          <p class="tooltip-description">Particles ≤10 micrometers including pollen, mold, and dust.</p>
+          <div class="tooltip-thresholds">
+            <div class="threshold-good"><span>Good:</span> <54 µg/m³</div>
+            <div class="threshold-moderate"><span>Moderate:</span> 54-154 µg/m³</div>
+            <div class="threshold-unhealthy-sensitive"><span>Unhealthy (Sensitive):</span> 154-254 µg/m³</div>
+            <div class="threshold-unhealthy"><span>Unhealthy:</span> 254-354 µg/m³</div>
+            <div class="threshold-very-unhealthy"><span>Very Unhealthy:</span> 354-424 µg/m³</div>
+            <div class="threshold-hazardous"><span>Hazardous:</span> >424 µg/m³</div>
+          </div>
+        `
+      },
+      pm1: {
+        title: 'PM1.0 - Ultrafine Particulate Matter',
+        content: `
+          <p class="tooltip-description">Particles ≤1 micrometer, the most dangerous size that can cross cell membranes.</p>
+          <div class="tooltip-thresholds">
+            <div class="threshold-good"><span>Good:</span> <10 µg/m³</div>
+            <div class="threshold-moderate"><span>Moderate:</span> 10-20 µg/m³</div>
+            <div class="threshold-unhealthy"><span>Unhealthy:</span> >20 µg/m³</div>
+          </div>
+        `
+      },
+      co2: {
+        title: 'CO₂ - Carbon Dioxide',
+        content: `
+          <p class="tooltip-description">Indicator of ventilation quality. High levels cause drowsiness and poor concentration.</p>
+          <div class="tooltip-thresholds">
+            <div class="threshold-good"><span>Excellent:</span> <600 ppm</div>
+            <div class="threshold-good"><span>Good:</span> 600-800 ppm</div>
+            <div class="threshold-moderate"><span>Fair:</span> 800-1000 ppm</div>
+            <div class="threshold-unhealthy-sensitive"><span>Poor:</span> 1000-1500 ppm</div>
+            <div class="threshold-unhealthy"><span>Very Poor:</span> >1500 ppm</div>
+          </div>
+        `
+      },
+      tvoc: {
+        title: 'TVOC - Total Volatile Organic Compounds',
+        content: `
+          <p class="tooltip-description">Index of gases from paints, cleaners, and furniture. Can cause eye/throat irritation.</p>
+          <div class="tooltip-thresholds">
+            <div class="threshold-good"><span>Excellent:</span> 0-50</div>
+            <div class="threshold-good"><span>Good:</span> 51-100</div>
+            <div class="threshold-moderate"><span>Lightly Polluted:</span> 101-150</div>
+            <div class="threshold-unhealthy-sensitive"><span>Moderately Polluted:</span> 151-200</div>
+            <div class="threshold-unhealthy"><span>Heavily Polluted:</span> 201-300</div>
+            <div class="threshold-very-unhealthy"><span>Severely Polluted:</span> >300</div>
+          </div>
+        `
+      },
+      nox: {
+        title: 'NOx - Nitrogen Oxides',
+        content: `
+          <p class="tooltip-description">Index of combustion gases from vehicles and stoves. Can trigger asthma.</p>
+          <div class="tooltip-thresholds">
+            <div class="threshold-good"><span>Excellent:</span> 1-10</div>
+            <div class="threshold-good"><span>Good:</span> 11-25</div>
+            <div class="threshold-moderate"><span>Fair:</span> 26-50</div>
+            <div class="threshold-unhealthy-sensitive"><span>Poor:</span> 51-100</div>
+            <div class="threshold-unhealthy"><span>Bad:</span> >100</div>
+          </div>
+        `
+      }
+    };
+    
+    // Set up tooltip event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+      const tooltipContainer = document.getElementById('tooltip-container');
+      const tooltipTitle = document.getElementById('tooltip-title');
+      const tooltipContent = document.getElementById('tooltip-content');
+      const closeBtn = document.querySelector('.tooltip-close');
+      
+      // Add click handlers to all info icons
+      document.querySelectorAll('.info-icon').forEach(icon => {
+        icon.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const tooltipType = this.dataset.tooltip;
+          const data = tooltipData[tooltipType];
+          
+          if (data) {
+            tooltipTitle.textContent = data.title;
+            tooltipContent.innerHTML = data.content;
+            
+            // Position tooltip near the clicked icon
+            const rect = this.getBoundingClientRect();
+            tooltipContainer.style.left = rect.left + 'px';
+            tooltipContainer.style.top = (rect.bottom + 10) + 'px';
+            tooltipContainer.style.display = 'block';
+          }
+        });
+      });
+      
+      // Close tooltip when clicking close button or outside
+      closeBtn.addEventListener('click', () => {
+        tooltipContainer.style.display = 'none';
+      });
+      
+      document.addEventListener('click', (e) => {
+        if (!tooltipContainer.contains(e.target) && !e.target.classList.contains('info-icon')) {
+          tooltipContainer.style.display = 'none';
+        }
+      });
+    });
+  </script>
   
 </body>
 </html>
