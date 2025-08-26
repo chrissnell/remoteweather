@@ -257,6 +257,15 @@ const WeatherCharts = (function() {
             case 'snowdepth':
                 return snowData ? snowData.map(item => [item.ts, item.snowdepth]) : [];
                 
+            case 'pm25':
+                return rawData.map(item => [item.ts, item.pm25]);
+                
+            case 'pm10':
+                return rawData.map(item => [item.ts, item.extraFloat2]); // PM10 stored in ExtraFloat2
+                
+            case 'co2':
+                return rawData.map(item => [item.ts, item.co2]);
+                
             default:
                 return [];
         }

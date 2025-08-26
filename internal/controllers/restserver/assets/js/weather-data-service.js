@@ -82,7 +82,7 @@ const WeatherDataService = (function() {
     
     // Combined fetch for chart data
     const fetchChartData = async (hours, config) => {
-        const { pullFromDevice, snowEnabled, snowDevice, airQualityEnabled, airQualityDevice, stationID } = config;
+        const { pullFromDevice, snowEnabled, snowDevice, airQualityEnabled, airQualityDevice, airQualityDeviceID, stationID } = config;
         const promises = [fetchHistoricalData(hours, pullFromDevice, stationID)];
         
         if (snowEnabled && snowDevice) {
@@ -90,7 +90,7 @@ const WeatherDataService = (function() {
         }
         
         if (airQualityEnabled && airQualityDevice) {
-            promises.push(fetchHistoricalData(hours, airQualityDevice, stationID));
+            promises.push(fetchHistoricalData(hours, airQualityDevice, airQualityDeviceID));
         }
         
         try {
