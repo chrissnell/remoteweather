@@ -306,6 +306,7 @@ html[data-theme="light"] .theme-toggle::before {
   color: var(--text-primary);
 }
 
+/* Close button removed - tooltips now appear on hover
 .tooltip-close {
   cursor: pointer;
   font-size: 20px;
@@ -317,6 +318,7 @@ html[data-theme="light"] .theme-toggle::before {
 .tooltip-close:hover {
   color: var(--text-primary);
 }
+*/
 
 #tooltip-content {
   padding: 16px;
