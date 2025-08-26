@@ -247,6 +247,13 @@ const ManagementWeatherStations = (function() {
     formElements.formMode.value = 'add';
     formElements.stationType.disabled = false;
     
+    // Check if initial station type should force network connection
+    const stationType = formElements.stationType.value;
+    if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge') {
+      formElements.connectionType.value = 'network';
+      formElements.connectionType.disabled = true;
+    }
+    
     // Update connection visibility (for new stations, no value to select)
     updateConnectionVisibility();
     
@@ -277,15 +284,17 @@ const ManagementWeatherStations = (function() {
     formElements.stationType.value = dev.type || '';
     formElements.stationType.disabled = true; // Can't change type on edit
 
-    // Determine connection type
-    if (dev.serial_device) {
+    // Determine connection type (snowgauge always uses network)
+    if (dev.type === 'snowgauge') {
+      formElements.connectionType.value = 'network';
+    } else if (dev.serial_device) {
       formElements.connectionType.value = 'serial';
     } else {
       formElements.connectionType.value = 'network';
     }
     
-    // For ambient-customized and grpcreceiver, disable connection type selector
-    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver') {
+    // For ambient-customized, grpcreceiver, and snowgauge, disable connection type selector
+    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver' || dev.type === 'snowgauge') {
       formElements.connectionType.disabled = true;
     } else {
       formElements.connectionType.disabled = false;
@@ -568,11 +577,11 @@ const ManagementWeatherStations = (function() {
   }
   
   function updateFieldsVisibility(stationType) {
-    // Hide connection type selector and label for grpcreceiver
+    // Hide connection type selector and label for grpcreceiver and snowgauge
     const connectionLabel = formElements.connectionType.parentElement;
     ManagementUtils.setElementVisibility(
       connectionLabel,
-      stationType !== 'grpcreceiver'
+      stationType !== 'grpcreceiver' && stationType !== 'snowgauge'
     );
     
     // Find all fieldsets and check their legends
@@ -780,8 +789,8 @@ const ManagementWeatherStations = (function() {
           stationType === 'snowgauge'
         );
         
-        // For ambient-customized and grpcreceiver, force network connection and hide the connection type selector
-        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver') {
+        // For ambient-customized, grpcreceiver, and snowgauge, force network connection and hide the connection type selector
+        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge') {
           formElements.connectionType.value = 'network';
           formElements.connectionType.disabled = true;
         } else {
