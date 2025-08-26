@@ -94,6 +94,106 @@ const WeatherDOM = (function() {
         });
     };
     
+    // Air quality thresholds configuration
+    const airQualityThresholds = {
+        pm25: [
+            { limit: 12, status: 'Good', class: 'air-quality-good' },
+            { limit: 35, status: 'Moderate', class: 'air-quality-moderate' },
+            { limit: 55, status: 'Unhealthy (Sensitive)', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 150, status: 'Unhealthy', class: 'air-quality-unhealthy' },
+            { limit: 250, status: 'Very Unhealthy', class: 'air-quality-very-unhealthy' },
+            { limit: Infinity, status: 'Hazardous', class: 'air-quality-hazardous' }
+        ],
+        pm10: [
+            { limit: 54, status: 'Good', class: 'air-quality-good' },
+            { limit: 154, status: 'Moderate', class: 'air-quality-moderate' },
+            { limit: 254, status: 'Unhealthy (Sensitive)', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 354, status: 'Unhealthy', class: 'air-quality-unhealthy' },
+            { limit: 424, status: 'Very Unhealthy', class: 'air-quality-very-unhealthy' },
+            { limit: Infinity, status: 'Hazardous', class: 'air-quality-hazardous' }
+        ],
+        pm1: [
+            { limit: 10, status: 'Good', class: 'air-quality-good' },
+            { limit: 20, status: 'Moderate', class: 'air-quality-moderate' },
+            { limit: Infinity, status: 'Unhealthy', class: 'air-quality-unhealthy' }
+        ],
+        co2: [
+            { limit: 600, status: 'Excellent', class: 'air-quality-good' },
+            { limit: 800, status: 'Good', class: 'air-quality-good' },
+            { limit: 1000, status: 'Fair', class: 'air-quality-moderate' },
+            { limit: 1500, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
+            { limit: Infinity, status: 'Very Poor', class: 'air-quality-unhealthy' }
+        ],
+        tvoc: [
+            { limit: 50, status: 'Excellent', class: 'air-quality-good' },
+            { limit: 100, status: 'Good', class: 'air-quality-good' },
+            { limit: 150, status: 'Lightly Polluted', class: 'air-quality-moderate' },
+            { limit: 200, status: 'Moderately Polluted', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 300, status: 'Heavily Polluted', class: 'air-quality-unhealthy' },
+            { limit: Infinity, status: 'Severely Polluted', class: 'air-quality-very-unhealthy' }
+        ],
+        nox: [
+            { limit: 10, status: 'Excellent', class: 'air-quality-good' },
+            { limit: 25, status: 'Good', class: 'air-quality-good' },
+            { limit: 50, status: 'Lightly Polluted', class: 'air-quality-moderate' },
+            { limit: 100, status: 'Moderately Polluted', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 200, status: 'Heavily Polluted', class: 'air-quality-unhealthy' },
+            { limit: Infinity, status: 'Severely Polluted', class: 'air-quality-very-unhealthy' }
+        ]
+    };
+
+    // Format value helper
+    const formatAirQualityValue = (value, decimals) => {
+        if (value === null || value === undefined) return '--';
+        return decimals === 0 ? Math.round(value).toString() : value.toFixed(decimals);
+    };
+    
+    // Update air quality data display
+    const updateAirQualityData = (airQualityData) => {
+        if (!airQualityData) return;
+        
+        // Update values
+        updateElements({
+            'pm25': formatAirQualityValue(airQualityData.pm25, 1),
+            'pm10': formatAirQualityValue(airQualityData.pm10, 1),
+            'pm1': formatAirQualityValue(airQualityData.pm1, 1),
+            'co2': formatAirQualityValue(airQualityData.co2, 0),
+            'tvoc': formatAirQualityValue(airQualityData.tvoc, 0),
+            'nox': formatAirQualityValue(airQualityData.nox, 0)
+        });
+        
+        // Update status for each metric
+        ['pm25', 'pm10', 'pm1', 'co2', 'tvoc', 'nox'].forEach(metric => {
+            if (airQualityThresholds[metric]) {
+                updateAirQualityStatus(metric, airQualityData[metric], airQualityThresholds[metric]);
+            }
+        });
+        
+        // Update last updated time
+        updateElement('air-quality-last-updated', `Updated: ${new Date().toLocaleTimeString()}`);
+    };
+    
+    // Helper function to update air quality status with color
+    const updateAirQualityStatus = (metric, value, thresholds) => {
+        const statusElement = getCachedElement(`${metric}-status`);
+        const valueElement = getCachedElement(metric);
+        
+        if (!statusElement || value === null || value === undefined) return;
+        
+        for (const threshold of thresholds) {
+            if (value < threshold.limit) {
+                statusElement.textContent = threshold.status;
+                statusElement.className = `metric-status ${threshold.class}`;
+                
+                // Also color the value itself
+                if (valueElement) {
+                    valueElement.className = `metric-value ${threshold.class}`;
+                }
+                break;
+            }
+        }
+    };
+    
     // Update windrose display
     const updateWindrose = (direction, speed, cardinalDir) => {
         const windDirElement = getCachedElement('rdg-winddir');
@@ -257,6 +357,7 @@ const WeatherDOM = (function() {
         updateElements,
         updateLiveWeather,
         updateSnowData,
+        updateAirQualityData,
         updateWindrose,
         updateBatteryInfo,
         updateLiveIndicator,

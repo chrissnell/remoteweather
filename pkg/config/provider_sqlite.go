@@ -1627,8 +1627,9 @@ func (s *SQLiteProvider) getOrCreateConfigID(tx *sql.Tx) (int64, error) {
 func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 	query := `
 		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title, 
-		       w.about_station_html, w.snow_enabled, w.snow_device_name, w.tls_cert_path, 
-		       w.tls_key_path, w.is_portal 
+		       w.about_station_html, w.snow_enabled, w.snow_device_name, 
+		       w.air_quality_enabled, w.air_quality_device_name,
+		       w.tls_cert_path, w.tls_key_path, w.is_portal 
 		FROM weather_websites w
 		LEFT JOIN devices d ON w.device_id = d.id
 		WHERE w.config_id = (SELECT id FROM configs WHERE name = 'default') 
@@ -1645,6 +1646,8 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		var website WeatherWebsiteData
 		var deviceID sql.NullInt64
 		var deviceName, hostname, pageTitle, aboutHTML, snowDeviceName sql.NullString
+		var airQualityEnabled sql.NullBool
+		var airQualityDeviceName sql.NullString
 		var tlsCertPath, tlsKeyPath sql.NullString
 
 		err := rows.Scan(
@@ -1657,6 +1660,8 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 			&aboutHTML,
 			&website.SnowEnabled,
 			&snowDeviceName,
+			&airQualityEnabled,
+			&airQualityDeviceName,
 			&tlsCertPath,
 			&tlsKeyPath,
 			&website.IsPortal,
@@ -1675,6 +1680,10 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		website.PageTitle = pageTitle.String
 		website.AboutStationHTML = aboutHTML.String
 		website.SnowDeviceName = snowDeviceName.String
+		if airQualityEnabled.Valid {
+			website.AirQualityEnabled = airQualityEnabled.Bool
+		}
+		website.AirQualityDeviceName = airQualityDeviceName.String
 		website.TLSCertPath = tlsCertPath.String
 		website.TLSKeyPath = tlsKeyPath.String
 
@@ -1688,8 +1697,9 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) {
 	query := `
 		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title, 
-		       w.about_station_html, w.snow_enabled, w.snow_device_name, w.tls_cert_path, 
-		       w.tls_key_path, w.is_portal 
+		       w.about_station_html, w.snow_enabled, w.snow_device_name, 
+		       w.air_quality_enabled, w.air_quality_device_name,
+		       w.tls_cert_path, w.tls_key_path, w.is_portal 
 		FROM weather_websites w
 		LEFT JOIN devices d ON w.device_id = d.id
 		WHERE w.id = ? AND w.config_id = (SELECT id FROM configs WHERE name = 'default')`
@@ -1697,6 +1707,8 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	var website WeatherWebsiteData
 	var deviceID sql.NullInt64
 	var deviceName, hostname, pageTitle, aboutHTML, snowDeviceName sql.NullString
+	var airQualityEnabled sql.NullBool
+	var airQualityDeviceName sql.NullString
 	var tlsCertPath, tlsKeyPath sql.NullString
 
 	err := s.db.QueryRow(query, id).Scan(
@@ -1709,6 +1721,8 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 		&aboutHTML,
 		&website.SnowEnabled,
 		&snowDeviceName,
+		&airQualityEnabled,
+		&airQualityDeviceName,
 		&tlsCertPath,
 		&tlsKeyPath,
 		&website.IsPortal,
@@ -1731,6 +1745,10 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	website.PageTitle = pageTitle.String
 	website.AboutStationHTML = aboutHTML.String
 	website.SnowDeviceName = snowDeviceName.String
+	if airQualityEnabled.Valid {
+		website.AirQualityEnabled = airQualityEnabled.Bool
+	}
+	website.AirQualityDeviceName = airQualityDeviceName.String
 	website.TLSCertPath = tlsCertPath.String
 	website.TLSKeyPath = tlsKeyPath.String
 
@@ -1770,8 +1788,9 @@ func (s *SQLiteProvider) AddWeatherWebsite(website *WeatherWebsiteData) error {
 	insertQuery := `
 		INSERT INTO weather_websites (
 			config_id, name, device_id, hostname, page_title, about_station_html, 
-			snow_enabled, snow_device_name, tls_cert_path, tls_key_path, is_portal
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			snow_enabled, snow_device_name, air_quality_enabled, air_quality_device_name,
+			tls_cert_path, tls_key_path, is_portal
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var deviceID sql.NullInt64
@@ -1788,6 +1807,8 @@ func (s *SQLiteProvider) AddWeatherWebsite(website *WeatherWebsiteData) error {
 		nullString(website.AboutStationHTML),
 		website.SnowEnabled,
 		nullString(website.SnowDeviceName),
+		website.AirQualityEnabled,
+		nullString(website.AirQualityDeviceName),
 		nullString(website.TLSCertPath),
 		nullString(website.TLSKeyPath),
 		website.IsPortal,
@@ -1823,7 +1844,8 @@ func (s *SQLiteProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteDat
 	query := `
 		UPDATE weather_websites SET
 			name = ?, device_id = ?, hostname = ?, page_title = ?, about_station_html = ?,
-			snow_enabled = ?, snow_device_name = ?, tls_cert_path = ?, tls_key_path = ?, is_portal = ?
+			snow_enabled = ?, snow_device_name = ?, air_quality_enabled = ?, air_quality_device_name = ?,
+			tls_cert_path = ?, tls_key_path = ?, is_portal = ?
 		WHERE id = ?
 	`
 
@@ -1840,6 +1862,8 @@ func (s *SQLiteProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteDat
 		nullString(website.AboutStationHTML),
 		website.SnowEnabled,
 		nullString(website.SnowDeviceName),
+		website.AirQualityEnabled,
+		nullString(website.AirQualityDeviceName),
 		nullString(website.TLSCertPath),
 		nullString(website.TLSKeyPath),
 		website.IsPortal,
