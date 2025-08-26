@@ -589,7 +589,7 @@ const WeatherDOM = (function() {
                         '<h4>' + data.title + '</h4>' +
                         '</div>' +
                         '<div class="tooltip-content">' +
-                        data.content +
+                        data.content.trim() +
                         '</div>';
                     tooltipContainer.innerHTML = tooltipHTML;
                     
