@@ -8,34 +8,34 @@ const WeatherDataService = (function() {
     const endpoints = {
         latest: '/latest',
         snow: '/snow',
-        span: (hours) => `/span/${hours}h`,
-        forecast: (hours) => `/forecast/${hours}`
+        span: function(hours) { return '/span/' + hours + 'h'; },
+        forecast: function(hours) { return '/forecast/' + hours; }
     };
     
     // Fetch latest weather data
     const fetchLatestWeather = async (stationId) => {
-        const url = stationId ? `${endpoints.latest}?station_id=${stationId}` : endpoints.latest;
+        const url = stationId ? endpoints.latest + '?station_id=' + stationId : endpoints.latest;
         return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Fetch snow data
     const fetchSnowData = async (stationId) => {
-        const url = stationId ? `${endpoints.snow}?station_id=${stationId}` : endpoints.snow;
+        const url = stationId ? endpoints.snow + '?station_id=' + stationId : endpoints.snow;
         return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Fetch historical data for charts
     const fetchHistoricalData = async (hours, station, stationId) => {
-        let url = `${endpoints.span(hours)}?station=${station}`;
+        let url = endpoints.span(hours) + '?station=' + station;
         if (stationId) {
-            url += `&station_id=${stationId}`;
+            url += '&station_id=' + stationId;
         }
         return WeatherUtils.fetchWithTimeout(url);
     };
     
     // Fetch forecast data
     const fetchForecast = async (hours, stationId) => {
-        const url = stationId ? `${endpoints.forecast(hours)}?station_id=${stationId}` : endpoints.forecast(hours);
+        const url = stationId ? endpoints.forecast(hours) + '?station_id=' + stationId : endpoints.forecast(hours);
         return WeatherUtils.fetchWithTimeout(url);
     };
     
@@ -207,8 +207,8 @@ const WeatherDataService = (function() {
                     weather: interval.compactWeather,
                     precipType: isSnow ? 'snow' : (isRain ? 'rain' : 'none'),
                     precipIcon: isSnow ? '❄' : (isRain ? '⛆' : ''),
-                    precipAmount: isSnow ? `${interval.snowIN}"` : 
-                                 (isRain ? `${interval.precipIN}"` : '')
+                    precipAmount: isSnow ? interval.snowIN + '"' : 
+                                 (isRain ? interval.precipIN + '"' : '')
                 };
             });
         } else if (type === 'day') {
@@ -219,14 +219,14 @@ const WeatherDataService = (function() {
                 
                 return {
                     time: (date.hour() === 0 || i === 0) 
-                        ? `${date.format("h A")}<br>${date.format("ddd")}` 
+                        ? date.format("h A") + '<br>' + date.format("ddd") 
                         : date.format("h A"),
                     temp: interval.avgTempF,
                     icon: interval.weatherIcon,
                     precipType: isSnow ? 'snow' : (isRain ? 'rain' : 'none'),
                     precipIcon: isSnow ? '❄' : (isRain ? '⛆' : ''),
-                    precipAmount: isSnow ? `${interval.snowIN}"` : 
-                                 (isRain ? `${interval.precipIN}"` : `${interval.pop}%`)
+                    precipAmount: isSnow ? interval.snowIN + '"' : 
+                                 (isRain ? interval.precipIN + '"' : interval.pop + '%')
                 };
             });
         }

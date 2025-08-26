@@ -584,21 +584,20 @@ const WeatherDOM = (function() {
                 const data = tooltipData[metric];
                 
                 if (data) {
-                    // Update tooltip content
-                    tooltipContainer.innerHTML = `
-                        <div class="tooltip-header">
-                            <h4>${data.title}</h4>
-                            <button class="tooltip-close">&times;</button>
-                        </div>
-                        <div class="tooltip-content">
-                            ${data.content}
-                        </div>
-                    `;
+                    // Update tooltip content - avoid template literals for Safari compatibility
+                    var tooltipHTML = '<div class="tooltip-header">' +
+                        '<h4>' + data.title + '</h4>' +
+                        '<button class="tooltip-close">&times;</button>' +
+                        '</div>' +
+                        '<div class="tooltip-content">' +
+                        data.content +
+                        '</div>';
+                    tooltipContainer.innerHTML = tooltipHTML;
                     
                     // Position tooltip near the clicked icon
                     const rect = icon.getBoundingClientRect();
-                    tooltipContainer.style.left = `${rect.left}px`;
-                    tooltipContainer.style.top = `${rect.bottom + 10}px`;
+                    tooltipContainer.style.left = rect.left + 'px';
+                    tooltipContainer.style.top = (rect.bottom + 10) + 'px';
                     tooltipContainer.style.display = 'block';
                     
                     // Add close handler

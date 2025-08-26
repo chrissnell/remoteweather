@@ -1104,24 +1104,6 @@
       Powered by <a href="https://github.com/chrissnell/remoteweather" target="_blank">RemoteWeather {{ .Version }}</a>
     </div>
   </div>
-  
-  <!-- Tooltip Container -->
-  <div id="tooltip-container" class="tooltip-container" style="display: none;">
-    <div class="tooltip-header">
-      <h3 id="tooltip-title"></h3>
-      <span class="tooltip-close">&times;</span>
-    </div>
-    <div id="tooltip-content"></div>
-  </div>
-  
-  <!-- Tooltip JavaScript -->
-  <script>
-    // Tooltip data
-    const tooltipData = {
-      pm25: {
-        title: 'PM2.5 - Fine Particulate Matter',
-        content: `
-          <p class="tooltip-description">Particles ≤2.5 micrometers that penetrate deep into lungs and bloodstream.</p>
           <div class="tooltip-thresholds">
             <div class="threshold-good"><span>Good:</span> <12 µg/m³</div>
             <div class="threshold-moderate"><span>Moderate:</span> 12-35 µg/m³</div>
@@ -1236,8 +1218,5 @@
           tooltipContainer.style.display = 'none';
         }
       });
-    });
-  </script>
-  
 </body>
 </html>
