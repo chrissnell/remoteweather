@@ -10,6 +10,9 @@ const WeatherApp = (function() {
         stationID: {{ .StationID }},
         snowEnabled: {{ .SnowEnabled }},
         snowDevice: '{{ .SnowDevice }}',
+        airQualityEnabled: {{ .AirQualityEnabled }},
+        airQualityDevice: '{{ .AirQualityDevice }}',
+        airQualityDeviceID: {{ .AirQualityDeviceID }},
         stationName: '{{ .StationName }}',
         aerisWeatherEnabled: {{ .AerisWeatherEnabled }},
         debug: new URLSearchParams(window.location.search).get('debug') === '1'
@@ -139,7 +142,12 @@ const WeatherApp = (function() {
     // Refresh live data
     const refreshLiveData = async () => {
         try {
-            const { weather, snow } = await WeatherDataService.fetchLiveData(config.snowEnabled, config.stationID);
+            const { weather, snow, airQuality } = await WeatherDataService.fetchLiveData(
+                config.snowEnabled, 
+                config.airQualityEnabled,
+                config.stationID,
+                config.airQualityDeviceID
+            );
             
             if (weather) {
                 const processedWeather = WeatherDataService.processLiveWeatherData(weather);
@@ -147,6 +155,11 @@ const WeatherApp = (function() {
                     WeatherDataService.processSnowData(snow) : null;
                 
                 WeatherDOM.updateLiveWeather(processedWeather, processedSnow);
+                
+                // Update air quality data if enabled and available
+                if (config.airQualityEnabled && airQuality) {
+                    WeatherDOM.updateAirQualityData(airQuality);
+                }
                 
                 state.secondsSinceLastUpdate = 0;
                 WeatherDOM.updateLiveIndicator(true, 0);
@@ -164,7 +177,7 @@ const WeatherApp = (function() {
         const hours = CHART_RANGES[range];
         
         try {
-            const { mainData, snowData } = await WeatherDataService.fetchChartData(hours, config);
+            const { mainData, snowData, airQualityData } = await WeatherDataService.fetchChartData(hours, config);
             
             if (!mainData) return;
             
@@ -175,19 +188,31 @@ const WeatherApp = (function() {
                 // Skip snow chart if not enabled
                 if (metric === 'snowdepth' && !config.snowEnabled) continue;
                 
+                // Skip air quality charts if not enabled
+                if ((metric === 'pm25' || metric === 'pm10' || metric === 'co2') && !config.airQualityEnabled) continue;
+                
                 const elementId = `${metric}Chart${range}`;
                 const element = WeatherDOM.getCachedElement(elementId);
                 
                 if (element) {
+                    // Determine which data source to use
+                    let dataSource = mainData;
+                    if (metric === 'snowdepth') {
+                        dataSource = snowData || mainData;
+                    } else if (metric === 'pm25' || metric === 'pm10' || metric === 'co2') {
+                        dataSource = airQualityData;
+                        if (!dataSource) continue;
+                    }
+                    
                     // Process data for this chart type
                     const chartData = WeatherCharts.processChartData(
-                        mainData, 
+                        dataSource, 
                         metric, 
-                        { snowData: snowData }
+                        { snowData: snowData, airQualityData: airQualityData }
                     );
                     
                     // Get additional series if any
-                    const additionalSeries = WeatherCharts.getAdditionalSeriesData(mainData, metric);
+                    const additionalSeries = WeatherCharts.getAdditionalSeriesData(dataSource, metric);
                     
                     // Create the chart
                     const chartConfig = WeatherCharts.getChartConfig(metric);

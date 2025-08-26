@@ -93,6 +93,38 @@ const WeatherCharts = (function() {
             chartType: "spline",
             tooltipDecimals: 2,
             unit: " V"
+        },
+        pm25: {
+            yAxisLabel: "µg/m³",
+            chartType: "spline",
+            tooltipDecimals: 1,
+            unit: " µg/m³",
+            plotLines: [
+                { value: 12, color: '#00e400', width: 1, dashStyle: 'dash', label: { text: 'Good', style: { color: '#00e400' } } },
+                { value: 35, color: '#ffff00', width: 1, dashStyle: 'dash', label: { text: 'Moderate', style: { color: '#ffff00' } } },
+                { value: 55, color: '#ff7e00', width: 1, dashStyle: 'dash', label: { text: 'Unhealthy', style: { color: '#ff7e00' } } }
+            ]
+        },
+        pm10: {
+            yAxisLabel: "µg/m³",
+            chartType: "spline",
+            tooltipDecimals: 1,
+            unit: " µg/m³",
+            plotLines: [
+                { value: 54, color: '#00e400', width: 1, dashStyle: 'dash', label: { text: 'Good', style: { color: '#00e400' } } },
+                { value: 154, color: '#ffff00', width: 1, dashStyle: 'dash', label: { text: 'Moderate', style: { color: '#ffff00' } } }
+            ]
+        },
+        co2: {
+            yAxisLabel: "ppm",
+            chartType: "spline",
+            tooltipDecimals: 0,
+            unit: " ppm",
+            plotLines: [
+                { value: 800, color: '#00e400', width: 1, dashStyle: 'dash', label: { text: 'Good', style: { color: '#00e400' } } },
+                { value: 1000, color: '#ffff00', width: 1, dashStyle: 'dash', label: { text: 'Fair', style: { color: '#ffff00' } } },
+                { value: 1500, color: '#ff7e00', width: 1, dashStyle: 'dash', label: { text: 'Poor', style: { color: '#ff7e00' } } }
+            ]
         }
     };
     

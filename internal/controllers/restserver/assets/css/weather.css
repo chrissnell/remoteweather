@@ -1444,4 +1444,144 @@ html[data-theme="light"] .theme-toggle::before {
 
 .footer-content a:hover {
   border-bottom-color: var(--text-secondary);
+}
+
+/* Air Quality Section */
+.air-quality-section {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+.air-quality-section .metric-item {
+  position: relative;
+}
+
+.metric-status {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Air Quality Status Colors */
+.air-quality-good {
+  color: #00e400;
+}
+
+.air-quality-moderate {
+  color: #ffff00;
+}
+
+.air-quality-unhealthy-sensitive {
+  color: #ff7e00;
+}
+
+.air-quality-unhealthy {
+  color: #ff0000;
+}
+
+.air-quality-very-unhealthy {
+  color: #8f3f97;
+}
+
+.air-quality-hazardous {
+  color: #7e0023;
+}
+
+/* Info tooltip */
+.info-tooltip {
+  display: inline-block;
+  position: relative;
+  margin-left: 8px;
+  cursor: help;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--border-primary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.info-icon:hover {
+  background: var(--text-accent);
+  color: var(--text-primary);
+}
+
+.tooltip-content {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 1000;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.tooltip-content::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border-primary);
+}
+
+.info-tooltip:hover .tooltip-content {
+  display: block;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.tooltip-description {
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.tooltip-thresholds {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.threshold-item {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+  font-size: 0.8rem;
+}
+
+.threshold-label {
+  font-weight: 500;
+}
+
+.air-quality-updated {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 } 

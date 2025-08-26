@@ -64,6 +64,27 @@ func (h *Handlers) getPrimaryDeviceConfigForWebsite(website *config.WeatherWebsi
 }
 
 
+// getAirQualityDeviceID returns the device ID for the air quality device
+func (h *Handlers) getAirQualityDeviceID(website *config.WeatherWebsiteData) int {
+	if website == nil || website.AirQualityDeviceName == "" {
+		return 0
+	}
+	
+	// Look up the device by name
+	cfg, err := h.controller.configProvider.LoadConfig()
+	if err != nil {
+		return 0
+	}
+	
+	for _, device := range cfg.Devices {
+		if device.Name == website.AirQualityDeviceName {
+			return device.ID
+		}
+	}
+	
+	return 0
+}
+
 // getSnowBaseDistance returns the cached snow base distance for a website
 func (h *Handlers) getSnowBaseDistance(website *config.WeatherWebsiteData) float32 {
 	if website == nil {
@@ -721,6 +742,9 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		SnowEnabled         bool
 		SnowDevice          string
 		SnowBaseDistance    float32
+		AirQualityEnabled   bool
+		AirQualityDevice    string
+		AirQualityDeviceID  int
 		PageTitle           string
 		AboutStationHTML    htmltemplate.HTML
 		Version             string
@@ -732,6 +756,9 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		SnowEnabled:         website.SnowEnabled,
 		SnowDevice:          website.SnowDeviceName,
 		SnowBaseDistance:    h.getSnowBaseDistance(website),
+		AirQualityEnabled:   website.AirQualityEnabled,
+		AirQualityDevice:    website.AirQualityDeviceName,
+		AirQualityDeviceID:  h.getAirQualityDeviceID(website),
 		PageTitle:           website.PageTitle,
 		AboutStationHTML:    htmltemplate.HTML(website.AboutStationHTML),
 		Version:             constants.Version,
@@ -779,6 +806,9 @@ func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 		SnowEnabled         bool
 		SnowDevice          string
 		SnowBaseDistance    float32
+		AirQualityEnabled   bool
+		AirQualityDevice    string
+		AirQualityDeviceID  int
 		PageTitle           string
 		AboutStationHTML    string
 		AerisWeatherEnabled bool
@@ -789,6 +819,9 @@ func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 		SnowEnabled:         website.SnowEnabled,
 		SnowDevice:          website.SnowDeviceName,
 		SnowBaseDistance:    h.getSnowBaseDistance(website),
+		AirQualityEnabled:   website.AirQualityEnabled,
+		AirQualityDevice:    website.AirQualityDeviceName,
+		AirQualityDeviceID:  h.getAirQualityDeviceID(website),
 		PageTitle:           website.PageTitle,
 		AboutStationHTML:    website.AboutStationHTML,
 		AerisWeatherEnabled: primaryDevice.AerisEnabled,

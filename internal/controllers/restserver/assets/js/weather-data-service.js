@@ -39,44 +39,70 @@ const WeatherDataService = (function() {
         return WeatherUtils.fetchWithTimeout(url);
     };
     
-    // Combined fetch for live data (weather + snow if enabled)
-    const fetchLiveData = async (snowEnabled = false, stationId = null) => {
+    // Combined fetch for live data (weather + snow if enabled + air quality if enabled)
+    const fetchLiveData = async (snowEnabled = false, airQualityEnabled = false, stationId = null, airQualityStationId = null) => {
         const promises = [fetchLatestWeather(stationId)];
         
         if (snowEnabled) {
             promises.push(fetchSnowData(stationId));
         }
         
+        // Fetch air quality data from the air quality device using its station_id
+        if (airQualityEnabled && airQualityStationId) {
+            promises.push(fetchLatestWeather(airQualityStationId));
+        }
+        
         try {
             const results = await Promise.all(promises);
+            let airQualityData = null;
+            
+            // Extract air quality data from the air quality station response
+            if (airQualityEnabled && results[snowEnabled ? 2 : 1]) {
+                const aqResponse = results[snowEnabled ? 2 : 1];
+                airQualityData = {
+                    pm25: aqResponse.pm25 || null,
+                    pm10: aqResponse.extraFloat2 || null,  // PM10 stored in ExtraFloat2
+                    pm1: aqResponse.extraFloat1 || null,   // PM1.0 stored in ExtraFloat1
+                    co2: aqResponse.co2 || null,
+                    tvoc: aqResponse.extraFloat3 || null,  // TVOC stored in ExtraFloat3
+                    nox: aqResponse.extraFloat4 || null    // NOx stored in ExtraFloat4
+                };
+            }
+            
             return {
                 weather: results[0],
-                snow: results[1] || null
+                snow: results[1] || null,
+                airQuality: airQualityData
             };
         } catch (error) {
             console.error('Error fetching live data:', error);
-            return { weather: null, snow: null };
+            return { weather: null, snow: null, airQuality: null };
         }
     };
     
     // Combined fetch for chart data
     const fetchChartData = async (hours, config) => {
-        const { pullFromDevice, snowEnabled, snowDevice, stationID } = config;
+        const { pullFromDevice, snowEnabled, snowDevice, airQualityEnabled, airQualityDevice, stationID } = config;
         const promises = [fetchHistoricalData(hours, pullFromDevice, stationID)];
         
         if (snowEnabled && snowDevice) {
             promises.push(fetchHistoricalData(hours, snowDevice, stationID));
         }
         
+        if (airQualityEnabled && airQualityDevice) {
+            promises.push(fetchHistoricalData(hours, airQualityDevice, stationID));
+        }
+        
         try {
             const results = await Promise.all(promises);
             return {
                 mainData: results[0],
-                snowData: results[1] || null
+                snowData: snowEnabled ? (results[1] || null) : null,
+                airQualityData: airQualityEnabled ? (results[snowEnabled ? 2 : 1] || null) : null
             };
         } catch (error) {
             console.error('Error fetching chart data:', error);
-            return { mainData: null, snowData: null };
+            return { mainData: null, snowData: null, airQualityData: null };
         }
     };
     
