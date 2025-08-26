@@ -346,6 +346,10 @@ const WeatherDOM = (function() {
             pm25: {
                 title: 'PM2.5 - Fine Particulate Matter',
                 content: `
+                    <div class="tooltip-description">
+                        <p><strong>What it measures:</strong> Tiny particles less than 2.5 micrometers in diameter - about 30 times smaller than the width of a human hair.</p>
+                        <p><strong>Why it matters:</strong> These particles are small enough to penetrate deep into your lungs and even enter your bloodstream, potentially causing respiratory problems, heart disease, and other health issues. Common sources include vehicle exhaust, wildfires, and industrial emissions.</p>
+                    </div>
                     <div class="tooltip-levels">
                         <div class="level-item">
                             <span class="level-dot" style="background: #2aa22a"></span>
@@ -383,6 +387,10 @@ const WeatherDOM = (function() {
             pm10: {
                 title: 'PM10 - Coarse Particulate Matter',
                 content: `
+                    <div class="tooltip-description">
+                        <p><strong>What it measures:</strong> Particles between 2.5 and 10 micrometers in diameter, including dust, pollen, and mold spores.</p>
+                        <p><strong>Why it matters:</strong> While larger than PM2.5, these particles can still be inhaled and cause breathing difficulties, especially for people with asthma or allergies. Sources include construction sites, unpaved roads, and agricultural operations.</p>
+                    </div>
                     <div class="tooltip-levels">
                         <div class="level-item">
                             <span class="level-dot" style="background: #2aa22a"></span>
@@ -420,6 +428,10 @@ const WeatherDOM = (function() {
             pm1: {
                 title: 'PM1.0 - Ultra-fine Particulate Matter',
                 content: `
+                    <div class="tooltip-description">
+                        <p><strong>What it measures:</strong> The smallest measurable particles, less than 1 micrometer in diameter - primarily from combustion sources.</p>
+                        <p><strong>Why it matters:</strong> These ultra-fine particles can penetrate the deepest parts of your lungs and cross into other organs. They're especially concerning because they can carry toxic compounds and are linked to cardiovascular and neurological effects.</p>
+                    </div>
                     <div class="tooltip-levels">
                         <div class="level-item">
                             <span class="level-dot" style="background: #2aa22a"></span>
@@ -448,6 +460,10 @@ const WeatherDOM = (function() {
             co2: {
                 title: 'CO₂ - Carbon Dioxide',
                 content: `
+                    <div class="tooltip-description">
+                        <p><strong>What it measures:</strong> The concentration of carbon dioxide in the air, measured in parts per million (ppm).</p>
+                        <p><strong>Why it matters:</strong> Indoor CO₂ levels indicate air freshness and ventilation quality. High levels can cause drowsiness, headaches, and reduced cognitive performance. Outdoor levels average around 420 ppm, while poorly ventilated indoor spaces can exceed 2000 ppm.</p>
+                    </div>
                     <div class="tooltip-levels">
                         <div class="level-item">
                             <span class="level-dot" style="background: #2aa22a"></span>
@@ -485,6 +501,10 @@ const WeatherDOM = (function() {
             tvoc: {
                 title: 'TVOC - Total Volatile Organic Compounds',
                 content: `
+                    <div class="tooltip-description">
+                        <p><strong>What it measures:</strong> The combined level of various organic chemicals that easily evaporate at room temperature.</p>
+                        <p><strong>Why it matters:</strong> VOCs come from paints, cleaning products, furniture, and building materials. They can cause eye/throat irritation, headaches, and long-term health effects. Good ventilation and choosing low-VOC products helps maintain healthy levels.</p>
+                    </div>
                     <div class="tooltip-levels">
                         <div class="level-item">
                             <span class="level-dot" style="background: #2aa22a"></span>
@@ -523,6 +543,10 @@ const WeatherDOM = (function() {
             nox: {
                 title: 'NOx - Nitrogen Oxides',
                 content: `
+                    <div class="tooltip-description">
+                        <p><strong>What it measures:</strong> A group of gases (primarily NO and NO₂) commonly produced by vehicle emissions and combustion processes.</p>
+                        <p><strong>Why it matters:</strong> NOx irritates airways and can worsen respiratory diseases like asthma. It's a key indicator of traffic-related air pollution and contributes to smog formation. Indoor sources include gas stoves and heaters.</p>
+                    </div>
                     <div class="tooltip-levels">
                         <div class="level-item">
                             <span class="level-dot" style="background: #2aa22a"></span>
