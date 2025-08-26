@@ -24,6 +24,7 @@
     <nav class="side-nav" id="side-nav">
       <button class="nav-tab active" id="weather-stations-tab" data-tab="weather-stations">Weather Stations</button>
       <button class="nav-tab" id="controllers-tab" data-tab="controllers">Controllers</button>
+      <button class="nav-tab" id="remote-stations-tab" data-tab="remote-stations">Remote Stations</button>
       <button class="nav-tab" id="storage-tab" data-tab="storage">Storage</button>
       <button class="nav-tab" id="websites-tab" data-tab="websites">Weather Websites</button>
       <button class="nav-tab" id="logs-tab" data-tab="logs">Logs</button>
@@ -264,6 +265,15 @@
           <h2>Controllers</h2>
         </div>
         <div id="controller-list" class="list-container">Loading…</div>
+      </div>
+
+      <!-- Remote Stations Pane -->
+      <div class="pane hidden" id="remote-stations-pane">
+        <div class="pane-header">
+          <h2>Remote Stations</h2>
+          <button id="refresh-remote-stations-btn" class="secondary-btn">↻ Refresh</button>
+        </div>
+        <div id="remote-stations-list" class="list-container">Loading…</div>
       </div>
 
       <!-- Storage Pane -->
@@ -716,6 +726,7 @@
   <script src="js/management-weather-stations.js"></script>
   <script src="js/management-storage.js"></script>
   <script src="js/management-controllers.js"></script>
+  <script src="js/management-remote-stations.js"></script>
   <script src="js/management-websites.js"></script>
   <script src="js/management-logs.js"></script>
   <script src="js/management-app.js"></script>
