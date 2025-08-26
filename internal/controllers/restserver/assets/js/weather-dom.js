@@ -176,7 +176,6 @@ const WeatherDOM = (function() {
     // Helper function to update air quality status with color
     const updateAirQualityStatus = (metric, value, thresholds) => {
         const statusElement = getCachedElement(`${metric}-status`);
-        const valueElement = getCachedElement(metric);
         
         if (!statusElement || value === null || value === undefined) return;
         
@@ -184,11 +183,6 @@ const WeatherDOM = (function() {
             if (value < threshold.limit) {
                 statusElement.textContent = threshold.status;
                 statusElement.className = `metric-status ${threshold.class}`;
-                
-                // Also color the value itself
-                if (valueElement) {
-                    valueElement.className = `metric-value ${threshold.class}`;
-                }
                 break;
             }
         }
@@ -354,12 +348,12 @@ const WeatherDOM = (function() {
                 content: `
                     <div class="tooltip-levels">
                         <div class="level-item">
-                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-dot" style="background: #2aa22a"></span>
                             <span class="level-range">0-12 µg/m³</span>
                             <span class="level-desc">Good - Air quality is satisfactory</span>
                         </div>
                         <div class="level-item">
-                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-dot" style="background: #ffbf00"></span>
                             <span class="level-range">12-35 µg/m³</span>
                             <span class="level-desc">Moderate - Acceptable for most people</span>
                         </div>
@@ -391,12 +385,12 @@ const WeatherDOM = (function() {
                 content: `
                     <div class="tooltip-levels">
                         <div class="level-item">
-                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-dot" style="background: #2aa22a"></span>
                             <span class="level-range">0-54 µg/m³</span>
                             <span class="level-desc">Good - Air quality is satisfactory</span>
                         </div>
                         <div class="level-item">
-                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-dot" style="background: #ffbf00"></span>
                             <span class="level-range">54-154 µg/m³</span>
                             <span class="level-desc">Moderate - Acceptable for most people</span>
                         </div>
@@ -428,12 +422,12 @@ const WeatherDOM = (function() {
                 content: `
                     <div class="tooltip-levels">
                         <div class="level-item">
-                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-dot" style="background: #2aa22a"></span>
                             <span class="level-range">0-10 µg/m³</span>
                             <span class="level-desc">Good - Minimal health risk</span>
                         </div>
                         <div class="level-item">
-                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-dot" style="background: #ffbf00"></span>
                             <span class="level-range">10-25 µg/m³</span>
                             <span class="level-desc">Moderate - Low health risk</span>
                         </div>
@@ -456,7 +450,7 @@ const WeatherDOM = (function() {
                 content: `
                     <div class="tooltip-levels">
                         <div class="level-item">
-                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-dot" style="background: #2aa22a"></span>
                             <span class="level-range">400-800 ppm</span>
                             <span class="level-desc">Excellent - Fresh air, ideal conditions</span>
                         </div>
@@ -466,7 +460,7 @@ const WeatherDOM = (function() {
                             <span class="level-desc">Good - Acceptable indoor air quality</span>
                         </div>
                         <div class="level-item">
-                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-dot" style="background: #ffbf00"></span>
                             <span class="level-range">1000-1500 ppm</span>
                             <span class="level-desc">Fair - Some stuffiness, ventilation recommended</span>
                         </div>
@@ -493,7 +487,7 @@ const WeatherDOM = (function() {
                 content: `
                     <div class="tooltip-levels">
                         <div class="level-item">
-                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-dot" style="background: #2aa22a"></span>
                             <span class="level-range">0-65 Index</span>
                             <span class="level-desc">Excellent - Pure air</span>
                         </div>
@@ -503,7 +497,7 @@ const WeatherDOM = (function() {
                             <span class="level-desc">Good - No irritation or discomfort</span>
                         </div>
                         <div class="level-item">
-                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-dot" style="background: #ffbf00"></span>
                             <span class="level-range">220-660 Index</span>
                             <span class="level-desc">Fair - Possible irritation with prolonged exposure</span>
                         </div>
@@ -531,7 +525,7 @@ const WeatherDOM = (function() {
                 content: `
                     <div class="tooltip-levels">
                         <div class="level-item">
-                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-dot" style="background: #2aa22a"></span>
                             <span class="level-range">1-20 Index</span>
                             <span class="level-desc">Excellent - Pure air</span>
                         </div>
@@ -541,7 +535,7 @@ const WeatherDOM = (function() {
                             <span class="level-desc">Good - No health effects</span>
                         </div>
                         <div class="level-item">
-                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-dot" style="background: #ffbf00"></span>
                             <span class="level-range">50-150 Index</span>
                             <span class="level-desc">Fair - Sensitive individuals may be affected</span>
                         </div>
