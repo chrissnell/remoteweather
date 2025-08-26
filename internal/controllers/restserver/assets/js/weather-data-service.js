@@ -48,8 +48,11 @@ const WeatherDataService = (function() {
         }
         
         // Fetch air quality data from the air quality device using its station_id
-        if (airQualityEnabled && airQualityStationId) {
+        if (airQualityEnabled && airQualityStationId !== null && airQualityStationId !== undefined) {
+            console.log('Fetching air quality data for station ID:', airQualityStationId);
             promises.push(fetchLatestWeather(airQualityStationId));
+        } else if (airQualityEnabled) {
+            console.log('Air quality enabled but no station ID provided:', airQualityStationId);
         }
         
         try {
@@ -89,7 +92,7 @@ const WeatherDataService = (function() {
             promises.push(fetchHistoricalData(hours, snowDevice, stationID));
         }
         
-        if (airQualityEnabled && airQualityDevice) {
+        if (airQualityEnabled && airQualityDevice && airQualityDeviceID !== null && airQualityDeviceID !== undefined) {
             promises.push(fetchHistoricalData(hours, airQualityDevice, airQualityDeviceID));
         }
         
