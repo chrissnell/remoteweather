@@ -665,141 +665,34 @@
       
       <!-- Air Quality Section -->
       {{ if .AirQualityEnabled }}
-      <div class="air-quality-section">
-        <div class="section-title">Air Quality</div>
-        <div class="metric-groups">
-          <div class="metric-group span-full">
-            <div class="group-metrics">
-              <div class="metric-item">
-                <div class="metric-label">
-                  PM2.5
-                  <span class="info-tooltip">
-                    <span class="info-icon">?</span>
-                    <div class="tooltip-content">
-                      <div class="tooltip-title">PM2.5 - Fine Particulate Matter</div>
-                      <div class="tooltip-description">Particles ≤2.5 micrometers that penetrate deep into lungs and bloodstream. Sources include combustion, smoke, and dust.</div>
-                      <div class="tooltip-thresholds">
-                        <div class="threshold-item"><span class="threshold-label">Good:</span><span>&lt;12 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Moderate:</span><span>12-35 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Unhealthy (Sensitive):</span><span>35-55 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Unhealthy:</span><span>55-150 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Very Unhealthy:</span><span>150-250 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Hazardous:</span><span>&gt;250 µg/m³</span></div>
-                      </div>
-                    </div>
-                  </span>
-                </div>
-                <div class="metric-value" id="pm25">--</div><span class="metric-unit">µg/m³</span>
-                <div class="metric-status" id="pm25-status">--</div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-label">
-                  PM10
-                  <span class="info-tooltip">
-                    <span class="info-icon">?</span>
-                    <div class="tooltip-content">
-                      <div class="tooltip-title">PM10 - Coarse Particulate Matter</div>
-                      <div class="tooltip-description">Particles ≤10 micrometers including pollen, mold, and dust. Can irritate airways and aggravate respiratory conditions.</div>
-                      <div class="tooltip-thresholds">
-                        <div class="threshold-item"><span class="threshold-label">Good:</span><span>&lt;54 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Moderate:</span><span>54-154 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Unhealthy (Sensitive):</span><span>154-254 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Unhealthy:</span><span>254-354 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Very Unhealthy:</span><span>354-424 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Hazardous:</span><span>&gt;424 µg/m³</span></div>
-                      </div>
-                    </div>
-                  </span>
-                </div>
-                <div class="metric-value" id="pm10">--</div><span class="metric-unit">µg/m³</span>
-                <div class="metric-status" id="pm10-status">--</div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-label">
-                  PM1.0
-                  <span class="info-tooltip">
-                    <span class="info-icon">?</span>
-                    <div class="tooltip-content">
-                      <div class="tooltip-title">PM1.0 - Ultrafine Particulate Matter</div>
-                      <div class="tooltip-description">Particles ≤1 micrometer, the most dangerous size. Can cross cell membranes and enter the bloodstream directly.</div>
-                      <div class="tooltip-thresholds">
-                        <div class="threshold-item"><span class="threshold-label">Good:</span><span>&lt;10 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Moderate:</span><span>10-20 µg/m³</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Unhealthy:</span><span>&gt;20 µg/m³</span></div>
-                      </div>
-                    </div>
-                  </span>
-                </div>
-                <div class="metric-value" id="pm1">--</div><span class="metric-unit">µg/m³</span>
-                <div class="metric-status" id="pm1-status">--</div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-label">
-                  CO₂
-                  <span class="info-tooltip">
-                    <span class="info-icon">?</span>
-                    <div class="tooltip-content">
-                      <div class="tooltip-title">CO₂ - Carbon Dioxide</div>
-                      <div class="tooltip-description">Indicator of ventilation quality. High levels cause drowsiness, poor concentration, and headaches.</div>
-                      <div class="tooltip-thresholds">
-                        <div class="threshold-item"><span class="threshold-label">Excellent:</span><span>&lt;600 ppm</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Good:</span><span>600-800 ppm</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Fair:</span><span>800-1000 ppm</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Poor:</span><span>1000-1500 ppm</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Very Poor:</span><span>&gt;1500 ppm</span></div>
-                      </div>
-                    </div>
-                  </span>
-                </div>
-                <div class="metric-value" id="co2">--</div><span class="metric-unit">ppm</span>
-                <div class="metric-status" id="co2-status">--</div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-label">
-                  TVOC Index
-                  <span class="info-tooltip">
-                    <span class="info-icon">?</span>
-                    <div class="tooltip-content">
-                      <div class="tooltip-title">TVOC - Total Volatile Organic Compounds</div>
-                      <div class="tooltip-description">Index of gases from paints, cleaners, furniture. Can cause eye/throat irritation and headaches.</div>
-                      <div class="tooltip-thresholds">
-                        <div class="threshold-item"><span class="threshold-label">Excellent:</span><span>0-50</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Good:</span><span>51-100</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Lightly Polluted:</span><span>101-150</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Moderately Polluted:</span><span>151-200</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Heavily Polluted:</span><span>201-300</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Severely Polluted:</span><span>&gt;300</span></div>
-                      </div>
-                    </div>
-                  </span>
-                </div>
-                <div class="metric-value" id="tvoc">--</div><span class="metric-unit"></span>
-                <div class="metric-status" id="tvoc-status">--</div>
-              </div>
-              <div class="metric-item">
-                <div class="metric-label">
-                  NOx Index
-                  <span class="info-tooltip">
-                    <span class="info-icon">?</span>
-                    <div class="tooltip-content">
-                      <div class="tooltip-title">NOx - Nitrogen Oxides</div>
-                      <div class="tooltip-description">Index of combustion gases. Sources include vehicles, gas stoves. Can trigger asthma and respiratory issues.</div>
-                      <div class="tooltip-thresholds">
-                        <div class="threshold-item"><span class="threshold-label">Excellent:</span><span>1-10</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Good:</span><span>11-25</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Lightly Polluted:</span><span>26-50</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Moderately Polluted:</span><span>51-100</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Heavily Polluted:</span><span>101-200</span></div>
-                        <div class="threshold-item"><span class="threshold-label">Severely Polluted:</span><span>&gt;200</span></div>
-                      </div>
-                    </div>
-                  </span>
-                </div>
-                <div class="metric-value" id="nox">--</div><span class="metric-unit"></span>
-                <div class="metric-status" id="nox-status">--</div>
-              </div>
+      <div class="metric-groups">
+        <div class="metric-group span-full">
+          <div class="group-title">AIR QUALITY</div>
+          <div class="group-metrics">
+            <div class="metric-item">
+              <div class="metric-label">PM2.5</div>
+              <div class="metric-value" id="pm25">--</div><span class="metric-unit">µg/m³</span>
             </div>
-            <div class="air-quality-updated" id="air-quality-last-updated">Updated: ---</div>
+            <div class="metric-item">
+              <div class="metric-label">PM10</div>
+              <div class="metric-value" id="pm10">--</div><span class="metric-unit">µg/m³</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">PM1.0</div>
+              <div class="metric-value" id="pm1">--</div><span class="metric-unit">µg/m³</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">CO₂</div>
+              <div class="metric-value" id="co2">--</div><span class="metric-unit">ppm</span>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">TVOC Index</div>
+              <div class="metric-value" id="tvoc">--</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-label">NOx Index</div>
+              <div class="metric-value" id="nox">--</div>
+            </div>
           </div>
         </div>
       </div>
