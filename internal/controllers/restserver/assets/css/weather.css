@@ -1710,10 +1710,6 @@ html[data-theme="light"] .theme-toggle::before {
   transition: background-color 0.2s ease;
 }
 
-.info-icon:hover {
-  background: var(--text-accent);
-  color: var(--text-primary);
-}
 
 .tooltip-content {
   display: none;
