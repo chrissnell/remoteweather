@@ -22,3 +22,5 @@ cmd/migrate/migrate
 cmd/live-data-simulator/live-data-simulator
 .serena
 release-assets/
+.claude
+.playwright-mcp
