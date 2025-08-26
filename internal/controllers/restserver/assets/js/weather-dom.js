@@ -346,6 +346,282 @@ const WeatherDOM = (function() {
         }
     };
     
+    // Initialize tooltips for air quality metrics
+    const initializeTooltips = () => {
+        const tooltipData = {
+            pm25: {
+                title: 'PM2.5 - Fine Particulate Matter',
+                content: `
+                    <div class="tooltip-levels">
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-range">0-12 µg/m³</span>
+                            <span class="level-desc">Good - Air quality is satisfactory</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-range">12-35 µg/m³</span>
+                            <span class="level-desc">Moderate - Acceptable for most people</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff7e00"></span>
+                            <span class="level-range">35-55 µg/m³</span>
+                            <span class="level-desc">Unhealthy for Sensitive Groups</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff0000"></span>
+                            <span class="level-range">55-150 µg/m³</span>
+                            <span class="level-desc">Unhealthy - Everyone may experience effects</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #8f3f97"></span>
+                            <span class="level-range">150-250 µg/m³</span>
+                            <span class="level-desc">Very Unhealthy - Health warnings</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #7e0023"></span>
+                            <span class="level-range">&gt;250 µg/m³</span>
+                            <span class="level-desc">Hazardous - Emergency conditions</span>
+                        </div>
+                    </div>
+                `
+            },
+            pm10: {
+                title: 'PM10 - Coarse Particulate Matter',
+                content: `
+                    <div class="tooltip-levels">
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-range">0-54 µg/m³</span>
+                            <span class="level-desc">Good - Air quality is satisfactory</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-range">54-154 µg/m³</span>
+                            <span class="level-desc">Moderate - Acceptable for most people</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff7e00"></span>
+                            <span class="level-range">154-254 µg/m³</span>
+                            <span class="level-desc">Unhealthy for Sensitive Groups</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff0000"></span>
+                            <span class="level-range">254-354 µg/m³</span>
+                            <span class="level-desc">Unhealthy - Everyone may experience effects</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #8f3f97"></span>
+                            <span class="level-range">354-424 µg/m³</span>
+                            <span class="level-desc">Very Unhealthy - Health warnings</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #7e0023"></span>
+                            <span class="level-range">&gt;424 µg/m³</span>
+                            <span class="level-desc">Hazardous - Emergency conditions</span>
+                        </div>
+                    </div>
+                `
+            },
+            pm1: {
+                title: 'PM1.0 - Ultra-fine Particulate Matter',
+                content: `
+                    <div class="tooltip-levels">
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-range">0-10 µg/m³</span>
+                            <span class="level-desc">Good - Minimal health risk</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-range">10-25 µg/m³</span>
+                            <span class="level-desc">Moderate - Low health risk</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff7e00"></span>
+                            <span class="level-range">25-50 µg/m³</span>
+                            <span class="level-desc">Elevated - Some health risk</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff0000"></span>
+                            <span class="level-range">&gt;50 µg/m³</span>
+                            <span class="level-desc">High - Significant health risk</span>
+                        </div>
+                    </div>
+                    <div class="tooltip-note">Note: PM1.0 standards are still being developed by health organizations</div>
+                `
+            },
+            co2: {
+                title: 'CO₂ - Carbon Dioxide',
+                content: `
+                    <div class="tooltip-levels">
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-range">400-800 ppm</span>
+                            <span class="level-desc">Excellent - Fresh air, ideal conditions</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #90ee90"></span>
+                            <span class="level-range">800-1000 ppm</span>
+                            <span class="level-desc">Good - Acceptable indoor air quality</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-range">1000-1500 ppm</span>
+                            <span class="level-desc">Fair - Some stuffiness, ventilation recommended</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff7e00"></span>
+                            <span class="level-range">1500-2000 ppm</span>
+                            <span class="level-desc">Poor - Drowsiness possible, improve ventilation</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff0000"></span>
+                            <span class="level-range">2000-5000 ppm</span>
+                            <span class="level-desc">Very Poor - Headaches, increased heart rate</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #7e0023"></span>
+                            <span class="level-range">&gt;5000 ppm</span>
+                            <span class="level-desc">Dangerous - Immediate ventilation required</span>
+                        </div>
+                    </div>
+                `
+            },
+            tvoc: {
+                title: 'TVOC - Total Volatile Organic Compounds',
+                content: `
+                    <div class="tooltip-levels">
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-range">0-65 Index</span>
+                            <span class="level-desc">Excellent - Pure air</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #90ee90"></span>
+                            <span class="level-range">65-220 Index</span>
+                            <span class="level-desc">Good - No irritation or discomfort</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-range">220-660 Index</span>
+                            <span class="level-desc">Fair - Possible irritation with prolonged exposure</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff7e00"></span>
+                            <span class="level-range">660-1430 Index</span>
+                            <span class="level-desc">Poor - Irritation and discomfort possible</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff0000"></span>
+                            <span class="level-range">1430-2200 Index</span>
+                            <span class="level-desc">Bad - Strong irritation likely</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #7e0023"></span>
+                            <span class="level-range">&gt;2200 Index</span>
+                            <span class="level-desc">Very Bad - Toxic effects possible</span>
+                        </div>
+                    </div>
+                    <div class="tooltip-note">TVOC Index is a relative measurement, not an absolute concentration</div>
+                `
+            },
+            nox: {
+                title: 'NOx - Nitrogen Oxides',
+                content: `
+                    <div class="tooltip-levels">
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #00e400"></span>
+                            <span class="level-range">1-20 Index</span>
+                            <span class="level-desc">Excellent - Pure air</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #90ee90"></span>
+                            <span class="level-range">20-50 Index</span>
+                            <span class="level-desc">Good - No health effects</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ffff00"></span>
+                            <span class="level-range">50-150 Index</span>
+                            <span class="level-desc">Fair - Sensitive individuals may be affected</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff7e00"></span>
+                            <span class="level-range">150-250 Index</span>
+                            <span class="level-desc">Poor - Respiratory irritation possible</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #ff0000"></span>
+                            <span class="level-range">250-400 Index</span>
+                            <span class="level-desc">Bad - Significant health effects</span>
+                        </div>
+                        <div class="level-item">
+                            <span class="level-dot" style="background: #7e0023"></span>
+                            <span class="level-range">&gt;400 Index</span>
+                            <span class="level-desc">Very Bad - Dangerous levels</span>
+                        </div>
+                    </div>
+                    <div class="tooltip-note">NOx Index is a relative measurement primarily indicating traffic-related air pollution</div>
+                `
+            }
+        };
+        
+        // Create tooltip container if it doesn't exist
+        let tooltipContainer = document.getElementById('air-quality-tooltip');
+        if (!tooltipContainer) {
+            tooltipContainer = document.createElement('div');
+            tooltipContainer.id = 'air-quality-tooltip';
+            tooltipContainer.className = 'tooltip-container';
+            tooltipContainer.style.display = 'none';
+            document.body.appendChild(tooltipContainer);
+        }
+        
+        // Add click handlers to all info icons
+        document.querySelectorAll('.info-icon').forEach(icon => {
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const metric = icon.getAttribute('data-tooltip');
+                const data = tooltipData[metric];
+                
+                if (data) {
+                    // Update tooltip content
+                    tooltipContainer.innerHTML = `
+                        <div class="tooltip-header">
+                            <h4>${data.title}</h4>
+                            <button class="tooltip-close">&times;</button>
+                        </div>
+                        <div class="tooltip-content">
+                            ${data.content}
+                        </div>
+                    `;
+                    
+                    // Position tooltip near the clicked icon
+                    const rect = icon.getBoundingClientRect();
+                    tooltipContainer.style.left = `${rect.left}px`;
+                    tooltipContainer.style.top = `${rect.bottom + 10}px`;
+                    tooltipContainer.style.display = 'block';
+                    
+                    // Add close handler
+                    const closeBtn = tooltipContainer.querySelector('.tooltip-close');
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', () => {
+                            tooltipContainer.style.display = 'none';
+                        });
+                    }
+                }
+            });
+        });
+        
+        // Close tooltip when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.info-icon') && !e.target.closest('.tooltip-container')) {
+                if (tooltipContainer) {
+                    tooltipContainer.style.display = 'none';
+                }
+            }
+        });
+    };
+    
     // Clear element cache (useful for cleanup)
     const clearCache = () => {
         elementCache.clear();
@@ -366,7 +642,8 @@ const WeatherDOM = (function() {
         switchChartRange,
         switchForecastType,
         clearCache,
-        getCachedElement
+        getCachedElement,
+        initializeTooltips
     };
 })();
 
