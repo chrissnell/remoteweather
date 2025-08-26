@@ -261,7 +261,7 @@ const WeatherCharts = (function() {
                 return rawData.map(item => [item.ts, item.pm25]);
                 
             case 'pm10':
-                return rawData.map(item => [item.ts, item.extraFloat2]); // PM10 stored in ExtraFloat2
+                return rawData.map(item => [item.ts, item.extrafloat2]); // PM10 stored in extrafloat2
                 
             case 'co2':
                 return rawData.map(item => [item.ts, item.co2]);
