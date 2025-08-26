@@ -60,12 +60,12 @@ const WeatherDataService = (function() {
             if (airQualityEnabled && results[snowEnabled ? 2 : 1]) {
                 const aqResponse = results[snowEnabled ? 2 : 1];
                 airQualityData = {
-                    pm25: aqResponse.pm25 || null,
-                    pm10: aqResponse.extraFloat2 || null,  // PM10 stored in ExtraFloat2
-                    pm1: aqResponse.extraFloat1 || null,   // PM1.0 stored in ExtraFloat1
-                    co2: aqResponse.co2 || null,
-                    tvoc: aqResponse.extraFloat3 || null,  // TVOC stored in ExtraFloat3
-                    nox: aqResponse.extraFloat4 || null    // NOx stored in ExtraFloat4
+                    pm25: aqResponse.pm25 !== undefined ? aqResponse.pm25 : null,
+                    pm10: aqResponse.extraFloat2 !== undefined ? aqResponse.extraFloat2 : null,  // PM10 stored in ExtraFloat2
+                    pm1: aqResponse.extraFloat1 !== undefined ? aqResponse.extraFloat1 : null,   // PM1.0 stored in ExtraFloat1
+                    co2: aqResponse.co2 !== undefined ? aqResponse.co2 : null,
+                    tvoc: aqResponse.extraFloat3 !== undefined ? aqResponse.extraFloat3 : null,  // TVOC stored in ExtraFloat3
+                    nox: aqResponse.extraFloat4 !== undefined ? aqResponse.extraFloat4 : null    // NOx stored in ExtraFloat4
                 };
             }
             
