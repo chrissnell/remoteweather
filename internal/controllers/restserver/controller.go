@@ -780,6 +780,13 @@ func (c *Controller) fetchLatestReading(stationName string, baseDistance float64
 		return nil, fmt.Errorf("no weather readings found for station %s", stationName)
 	}
 
+	// Debug log the fetched data
+	if len(dbFetchedReadings) > 0 {
+		c.logger.Debugf("Fetched reading for %s - PM25: %v, CO2: %v, ExtraFloat1: %v, ExtraFloat2: %v", 
+			stationName, dbFetchedReadings[0].PM25, dbFetchedReadings[0].CO2, 
+			dbFetchedReadings[0].ExtraFloat1, dbFetchedReadings[0].ExtraFloat2)
+	}
+
 	return &dbFetchedReadings[0], nil
 }
 

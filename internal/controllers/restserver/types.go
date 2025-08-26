@@ -87,8 +87,8 @@ type WeatherReading struct {
 	StationBatteryVoltage json.Number `json:"stationbatteryvoltage,omitempty"`
 	SnowDepth             json.Number `json:"snowdepth,omitempty"`
 	SnowDistance          json.Number `json:"snowdistance,omitempty"`
-	PM25                  json.Number `json:"pm25,omitempty"`
-	CO2                   json.Number `json:"co2,omitempty"`
+	PM25                  json.Number `json:"pm25"`
+	CO2                   json.Number `json:"co2"`
 	ExtraFloat1           json.Number `json:"extrafloat1,omitempty"`
 	ExtraFloat2           json.Number `json:"extrafloat2,omitempty"`
 	ExtraFloat3           json.Number `json:"extrafloat3,omitempty"`
