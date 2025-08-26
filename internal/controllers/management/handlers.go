@@ -3,6 +3,7 @@ package management
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -97,17 +98,13 @@ func (h *Handlers) GetLogs(w http.ResponseWriter, r *http.Request) {
 }
 
 // reverseLookupWithTimeout performs a reverse DNS lookup with a timeout
-func reverseLookupWithTimeout(ip string, timeout time.Duration) string {
-	// Extract IP without port if present
-	if strings.Contains(ip, ":") {
-		host, _, err := net.SplitHostPort(ip)
-		if err == nil {
-			ip = host
-		} else {
-			// Might be IPv6 without port, or just an IP
-			ip = strings.TrimSuffix(ip, "]")
-			ip = strings.TrimPrefix(ip, "[")
-		}
+func reverseLookupWithTimeout(ipAddr string, timeout time.Duration) string {
+	// Simple defensive approach: just try to parse as IP
+	// If it has a port, ParseIP will fail and we return empty
+	parsedIP := net.ParseIP(ipAddr)
+	if parsedIP == nil {
+		// Not a valid IP address, can't do reverse lookup
+		return ""
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -121,7 +118,14 @@ func reverseLookupWithTimeout(ip string, timeout time.Duration) string {
 	resultChan := make(chan lookupResult, 1)
 
 	go func() {
-		names, err := net.LookupAddr(ip)
+		defer func() {
+			if r := recover(); r != nil {
+				// Handle panic gracefully
+				resultChan <- lookupResult{hostname: "", err: fmt.Errorf("panic in DNS lookup: %v", r)}
+			}
+		}()
+		
+		names, err := net.LookupAddr(parsedIP.String())
 		if err != nil || len(names) == 0 {
 			resultChan <- lookupResult{hostname: "", err: err}
 			return
@@ -177,6 +181,8 @@ func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
 
 				// Perform reverse DNS lookup for remote_addr
 				if remoteAddr, ok := entry.Fields["remote_addr"].(string); ok && remoteAddr != "" {
+					// Debug: log what we're trying to lookup
+					log.Debugf("DNS lookup for remote_addr: %s", remoteAddr)
 					// Use a short timeout to avoid blocking
 					if hostname := reverseLookupWithTimeout(remoteAddr, 100*time.Millisecond); hostname != "" {
 						logEntry["remote_hostname"] = hostname
