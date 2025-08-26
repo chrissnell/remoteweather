@@ -576,49 +576,61 @@ const WeatherDOM = (function() {
             document.body.appendChild(tooltipContainer);
         }
         
-        // Add click handlers to all info icons
+        // Add hover handlers to all info icons
         document.querySelectorAll('.info-icon').forEach(icon => {
-            icon.addEventListener('click', (e) => {
-                e.stopPropagation();
+            // Show tooltip on mouse enter
+            icon.addEventListener('mouseenter', (e) => {
                 const metric = icon.getAttribute('data-tooltip');
                 const data = tooltipData[metric];
                 
                 if (data) {
-                    // Update tooltip content - avoid template literals for Safari compatibility
+                    // Update tooltip content - no close button
                     var tooltipHTML = '<div class="tooltip-header">' +
                         '<h4>' + data.title + '</h4>' +
-                        '<button class="tooltip-close">&times;</button>' +
                         '</div>' +
                         '<div class="tooltip-content">' +
                         data.content +
                         '</div>';
                     tooltipContainer.innerHTML = tooltipHTML;
                     
-                    // Position tooltip near the clicked icon
+                    // Position tooltip near the hovered icon
                     const rect = icon.getBoundingClientRect();
-                    tooltipContainer.style.left = rect.left + 'px';
+                    const tooltipWidth = 400; // Approximate tooltip width
+                    let leftPos = rect.left;
+                    
+                    // Adjust position if tooltip would go off screen
+                    if (leftPos + tooltipWidth > window.innerWidth) {
+                        leftPos = window.innerWidth - tooltipWidth - 10;
+                    }
+                    
+                    tooltipContainer.style.left = leftPos + 'px';
                     tooltipContainer.style.top = (rect.bottom + 10) + 'px';
                     tooltipContainer.style.display = 'block';
-                    
-                    // Add close handler
-                    const closeBtn = tooltipContainer.querySelector('.tooltip-close');
-                    if (closeBtn) {
-                        closeBtn.addEventListener('click', () => {
-                            tooltipContainer.style.display = 'none';
-                        });
-                    }
                 }
+            });
+            
+            // Hide tooltip on mouse leave
+            icon.addEventListener('mouseleave', (e) => {
+                // Add a small delay to prevent flickering when moving between icon and tooltip
+                setTimeout(() => {
+                    // Check if mouse is not over the tooltip itself
+                    if (!tooltipContainer.matches(':hover')) {
+                        tooltipContainer.style.display = 'none';
+                    }
+                }, 100);
             });
         });
         
-        // Close tooltip when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.info-icon') && !e.target.closest('.tooltip-container')) {
-                if (tooltipContainer) {
-                    tooltipContainer.style.display = 'none';
-                }
-            }
-        });
+        // Keep tooltip visible when hovering over it
+        if (tooltipContainer) {
+            tooltipContainer.addEventListener('mouseenter', (e) => {
+                tooltipContainer.style.display = 'block';
+            });
+            
+            tooltipContainer.addEventListener('mouseleave', (e) => {
+                tooltipContainer.style.display = 'none';
+            });
+        }
     };
     
     // Clear element cache (useful for cleanup)
