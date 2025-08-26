@@ -114,31 +114,33 @@ const WeatherDOM = (function() {
         ],
         pm1: [
             { limit: 10, status: 'Good', class: 'air-quality-good' },
-            { limit: 20, status: 'Moderate', class: 'air-quality-moderate' },
-            { limit: Infinity, status: 'Unhealthy', class: 'air-quality-unhealthy' }
+            { limit: 25, status: 'Moderate', class: 'air-quality-moderate' },
+            { limit: 50, status: 'Elevated', class: 'air-quality-unhealthy-sensitive' },
+            { limit: Infinity, status: 'High', class: 'air-quality-unhealthy' }
         ],
         co2: [
-            { limit: 600, status: 'Excellent', class: 'air-quality-good' },
-            { limit: 800, status: 'Good', class: 'air-quality-good' },
-            { limit: 1000, status: 'Fair', class: 'air-quality-moderate' },
-            { limit: 1500, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
-            { limit: Infinity, status: 'Very Poor', class: 'air-quality-unhealthy' }
+            { limit: 800, status: 'Excellent', class: 'air-quality-good' },
+            { limit: 1000, status: 'Good', class: 'air-quality-good' },
+            { limit: 1500, status: 'Fair', class: 'air-quality-moderate' },
+            { limit: 2000, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 5000, status: 'Very Poor', class: 'air-quality-unhealthy' },
+            { limit: Infinity, status: 'Dangerous', class: 'air-quality-hazardous' }
         ],
         tvoc: [
-            { limit: 50, status: 'Excellent', class: 'air-quality-good' },
-            { limit: 100, status: 'Good', class: 'air-quality-good' },
-            { limit: 150, status: 'Lightly Polluted', class: 'air-quality-moderate' },
-            { limit: 200, status: 'Moderately Polluted', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 300, status: 'Heavily Polluted', class: 'air-quality-unhealthy' },
-            { limit: Infinity, status: 'Severely Polluted', class: 'air-quality-very-unhealthy' }
+            { limit: 65, status: 'Excellent', class: 'air-quality-good' },
+            { limit: 220, status: 'Good', class: 'air-quality-good' },
+            { limit: 660, status: 'Fair', class: 'air-quality-moderate' },
+            { limit: 1430, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 2200, status: 'Bad', class: 'air-quality-unhealthy' },
+            { limit: Infinity, status: 'Very Bad', class: 'air-quality-very-unhealthy' }
         ],
         nox: [
-            { limit: 10, status: 'Excellent', class: 'air-quality-good' },
-            { limit: 25, status: 'Good', class: 'air-quality-good' },
-            { limit: 50, status: 'Lightly Polluted', class: 'air-quality-moderate' },
-            { limit: 100, status: 'Moderately Polluted', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 200, status: 'Heavily Polluted', class: 'air-quality-unhealthy' },
-            { limit: Infinity, status: 'Severely Polluted', class: 'air-quality-very-unhealthy' }
+            { limit: 20, status: 'Excellent', class: 'air-quality-good' },
+            { limit: 50, status: 'Good', class: 'air-quality-good' },
+            { limit: 150, status: 'Fair', class: 'air-quality-moderate' },
+            { limit: 250, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
+            { limit: 400, status: 'Bad', class: 'air-quality-unhealthy' },
+            { limit: Infinity, status: 'Very Bad', class: 'air-quality-very-unhealthy' }
         ]
     };
 
