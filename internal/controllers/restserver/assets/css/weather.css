@@ -274,7 +274,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .info-icon:hover {
-  background: var(--blue-primary);
+  background: #ffaa00;
   transform: scale(1.1);
 }
 
@@ -299,7 +299,8 @@ html[data-theme="light"] .theme-toggle::before {
   border-radius: 8px 8px 0 0;
 }
 
-.tooltip-header h3 {
+.tooltip-header h3,
+.tooltip-header h4 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
@@ -320,7 +321,8 @@ html[data-theme="light"] .theme-toggle::before {
 }
 */
 
-#tooltip-content {
+#tooltip-content,
+.tooltip-content {
   padding: 16px;
 }
 
@@ -384,6 +386,55 @@ html[data-theme="light"] .theme-toggle::before {
   background: rgba(121, 31, 66, 0.1);
   color: #791F42;
   border: 1px solid rgba(121, 31, 66, 0.3);
+}
+
+/* Tooltip content styles for level indicators */
+.tooltip-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.level-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.level-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.level-range {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.level-desc {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.tooltip-note {
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+  border-left: 3px solid var(--border-primary);
 }
 
 /* Force two-column layout for metrics on all screen sizes */
