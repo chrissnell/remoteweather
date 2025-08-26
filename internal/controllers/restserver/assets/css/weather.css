@@ -263,6 +263,12 @@ html[data-theme="light"] .theme-toggle::before {
   gap: 8px;
 }
 
+.group-metrics.air-quality-metrics {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 8px;
+}
+
 .group-metrics.wind-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1090,6 +1096,10 @@ html[data-theme="light"] .theme-toggle::before {
     grid-template-columns: 1fr;
     gap: 6px;
   }
+  .group-metrics.air-quality-metrics {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px;
+  }
   .group-metrics.wind-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1124,6 +1134,10 @@ html[data-theme="light"] .theme-toggle::before {
 @media (max-width: 480px) {
   .group-metrics {
     grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .group-metrics.air-quality-metrics {
+    grid-template-columns: 1fr 1fr !important;
     gap: 4px;
   }
   .group-metrics.wind-group {
