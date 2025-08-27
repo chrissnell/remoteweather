@@ -55,6 +55,11 @@ const PortalUtils = {
             case 'wind':
                 return station.weather.winds ? parseFloat(station.weather.winds) : null;
             case 'airquality':
+                // Only show AQI data for air quality stations
+                if (!this.isAirQualityStation(station)) {
+                    return null;
+                }
+                
                 // Return the higher of PM2.5 or PM10 AQI values
                 const pm25 = (station.weather.aqi_pm25_aqin !== undefined && station.weather.aqi_pm25_aqin !== null) 
                     ? parseFloat(station.weather.aqi_pm25_aqin) : null;
