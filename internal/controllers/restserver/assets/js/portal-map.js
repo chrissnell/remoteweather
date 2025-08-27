@@ -5,6 +5,7 @@ const PortalMap = {
     map: null,
     markers: [],
     hasInitializedBounds: false,
+    appInstance: null, // Store reference to app instance for callbacks
 
     // Initialize the Leaflet map
     initializeMap() {
@@ -30,6 +31,11 @@ const PortalMap = {
                 }
             );
         }
+    },
+    
+    // Set the app instance for callbacks
+    setAppInstance(app) {
+        this.appInstance = app;
     },
 
     // Update all map markers with station data
@@ -123,12 +129,15 @@ const PortalMap = {
                 // Prevent default popup
                 e.target.closePopup();
                 // Trigger air quality modal through the app
-                if (window.portalApp) {
+                if (this.appInstance && this.appInstance.showAirQualityModal) {
+                    this.appInstance.showAirQualityModal(marker.stationData);
+                } else if (window.portalApp && window.portalApp.showAirQualityModal) {
+                    // Fallback to global if available
                     window.portalApp.showAirQualityModal(marker.stationData);
                 }
                 return false; // Prevent further event propagation
             }
-        });
+        }.bind(this)); // Bind this context
         
         // Always bind popup but it won't show in air quality mode due to click handler
         const popupContent = this.createPopupContent(station);
