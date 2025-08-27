@@ -340,6 +340,9 @@ const PortalMap = {
     }
 };
 
+// Make PortalMap globally accessible
+window.PortalMap = PortalMap;
+
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = PortalMap;
