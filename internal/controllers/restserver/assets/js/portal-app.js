@@ -25,7 +25,9 @@ class WeatherPortalApp {
         PortalDOM.init();
         
         // Initialize map
-        PortalMap.initializeMap();
+        if (window.PortalMap) {
+            window.PortalMap.initializeMap();
+        }
         
         // Load initial data
         this.loadStationData();
@@ -52,7 +54,9 @@ class WeatherPortalApp {
             this.stations = await PortalDataService.fetchAllStationData();
             
             // Update UI components
-            PortalMap.updateMapMarkers(this.stations, this.currentDisplayType);
+            if (window.PortalMap) {
+                window.PortalMap.updateMapMarkers(this.stations, this.currentDisplayType);
+            }
             PortalDOM.updateStationList(this.stations, (station) => this.focusOnStation(station));
             
             // Reset the refresh timer on successful update
@@ -73,7 +77,9 @@ class WeatherPortalApp {
     
     // Focus on a specific station
     focusOnStation(station) {
-        PortalMap.focusOnStation(station);
+        if (window.PortalMap) {
+            window.PortalMap.focusOnStation(station);
+        }
         
         // If air quality display is active, show the air quality modal
         if (this.currentDisplayType === 'airquality') {
@@ -279,7 +285,9 @@ class WeatherPortalApp {
         PortalDOM.setupDataDisplayButtons((dataType) => {
             this.currentDisplayType = dataType;
             // Update all markers with new display type
-            PortalMap.updateMapMarkers(this.stations, this.currentDisplayType);
+            if (window.PortalMap) {
+                window.PortalMap.updateMapMarkers(this.stations, this.currentDisplayType);
+            }
             
             // If air quality is selected, prompt user to click on a station
             if (dataType === 'airquality') {
@@ -354,6 +362,8 @@ let portalApp = null;
 function initializePortal() {
     portalApp = new WeatherPortalApp();
     portalApp.init();
+    // Make portalApp globally accessible for marker click handlers
+    window.portalApp = portalApp;
 }
 
 if (document.readyState === 'loading') {
