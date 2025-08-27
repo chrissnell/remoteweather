@@ -27,6 +27,8 @@ class WeatherPortalApp {
         // Initialize map
         if (window.PortalMap) {
             window.PortalMap.initializeMap();
+            // Pass app instance to map for callbacks
+            window.PortalMap.setAppInstance(this);
         }
         
         // Load initial data
