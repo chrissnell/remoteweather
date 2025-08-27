@@ -195,15 +195,12 @@ const PortalUtils = {
         return '#6c71c4'; // Solarized violet - Hazardous
     },
 
-    // Check if station is an air quality station (has AQI data)
+    // Check if station is an air quality station based on device type
     isAirQualityStation(station) {
-        if (!station || !station.weather) return false;
+        if (!station) return false;
         
-        // Check if station has any AQI or PM data
-        return (station.weather.aqi_pm25_aqin !== undefined && station.weather.aqi_pm25_aqin !== null) ||
-               (station.weather.aqi_pm10_aqin !== undefined && station.weather.aqi_pm10_aqin !== null) ||
-               (station.weather.pm25 !== undefined && station.weather.pm25 !== null && station.weather.pm25 > 0) ||
-               (station.weather.co2 !== undefined && station.weather.co2 !== null && station.weather.co2 > 0);
+        // Check the station type - currently only 'airgradient' is an air quality station
+        return station.type === 'airgradient';
     },
 
     // Station status functions
