@@ -122,32 +122,11 @@ const PortalMap = {
         marker.stationData = station;
         marker.displayType = currentDisplayType;
         
-        // Only bind popup if NOT in air quality mode
-        if (currentDisplayType !== 'airquality') {
-            const popupContent = this.createPopupContent(station);
-            marker.bindPopup(popupContent, {
-                maxWidth: 320,
-                className: 'weather-popup'
-            });
-        }
-        
-        // Handle clicks for air quality mode
-        marker.on('click', (e) => {
-            // Check if we're in air quality mode
-            if (marker.displayType === 'airquality') {
-                // Prevent any default behavior
-                L.DomEvent.stopPropagation(e);
-                e.originalEvent.preventDefault();
-                
-                // Trigger air quality modal through the app
-                if (PortalMap.appInstance && PortalMap.appInstance.showAirQualityModal) {
-                    PortalMap.appInstance.showAirQualityModal(marker.stationData);
-                } else if (window.portalApp && window.portalApp.showAirQualityModal) {
-                    // Fallback to global if available
-                    window.portalApp.showAirQualityModal(marker.stationData);
-                }
-                return false; // Prevent further event propagation
-            }
+        // Always bind popup but with different content based on display type
+        const popupContent = this.createPopupContent(station, currentDisplayType);
+        marker.bindPopup(popupContent, {
+            maxWidth: 320,
+            className: currentDisplayType === 'airquality' ? 'airquality-popup' : 'weather-popup'
         });
         
         return marker;
@@ -188,28 +167,26 @@ const PortalMap = {
         
         marker.setIcon(customIcon);
         
-        // Handle popup based on display mode
-        if (currentDisplayType === 'airquality') {
-            // Remove popup in air quality mode
-            if (marker.getPopup()) {
-                marker.unbindPopup();
+        // Update popup content based on display mode
+        const popupContent = this.createPopupContent(station, currentDisplayType);
+        if (marker.getPopup()) {
+            marker.setPopupContent(popupContent);
+            // Update popup class
+            const popup = marker.getPopup();
+            if (popup._container) {
+                popup._container.className = popup._container.className.replace(/weather-popup|airquality-popup/g, '');
+                popup._container.className += currentDisplayType === 'airquality' ? ' airquality-popup' : ' weather-popup';
             }
         } else {
-            // Update or add popup for other modes
-            const popupContent = this.createPopupContent(station);
-            if (marker.getPopup()) {
-                marker.setPopupContent(popupContent);
-            } else {
-                marker.bindPopup(popupContent, {
-                    maxWidth: 320,
-                    className: 'weather-popup'
-                });
-            }
+            marker.bindPopup(popupContent, {
+                maxWidth: 320,
+                className: currentDisplayType === 'airquality' ? 'airquality-popup' : 'weather-popup'
+            });
         }
     },
 
     // Create popup content for a station
-    createPopupContent(station) {
+    createPopupContent(station, displayType) {
         const container = document.createElement('div');
         container.className = 'weather-popup';
         
@@ -231,46 +208,130 @@ const PortalMap = {
         container.appendChild(header);
         
         if (station.weather) {
-            // Wind rose at the top
-            const windroseContainer = this.createWindrose(station.weather);
-            container.appendChild(windroseContainer);
-            
-            // Weather data grid
-            const grid = document.createElement('div');
-            grid.className = 'popup-weather-grid';
-            
-            const weatherItems = [
-                { label: 'Temperature', value: PortalUtils.formatTemperature(station.weather.otemp) },
-                { label: 'Humidity', value: PortalUtils.formatHumidity(station.weather.ohum) },
-                { label: 'Pressure', value: PortalUtils.formatPressure(station.weather.bar) },
-                { label: 'Wind Speed', value: PortalUtils.formatWindSpeed(station.weather.winds) }
-            ];
-            
-            weatherItems.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'popup-weather-item';
+            if (displayType === 'airquality') {
+                // Air Quality display
+                const grid = document.createElement('div');
+                grid.className = 'popup-weather-grid';
                 
-                const label = document.createElement('div');
-                label.className = 'popup-weather-label';
-                label.textContent = item.label;
+                const aqiItems = [];
                 
-                const value = document.createElement('div');
-                value.className = 'popup-weather-value';
-                value.textContent = item.value;
+                // Add AQI PM2.5 if available
+                if (station.weather.aqi_pm25_aqin !== undefined && station.weather.aqi_pm25_aqin !== null) {
+                    const aqiValue = parseInt(station.weather.aqi_pm25_aqin);
+                    aqiItems.push({
+                        label: 'AQI PM2.5',
+                        value: aqiValue,
+                        status: this.getAQIStatus(aqiValue),
+                        color: this.getAQIColor(aqiValue)
+                    });
+                }
                 
-                itemDiv.appendChild(label);
-                itemDiv.appendChild(value);
-                grid.appendChild(itemDiv);
-            });
-            
-            container.appendChild(grid);
+                // Add PM2.5 concentration if available
+                if (station.weather.pm25 !== undefined && station.weather.pm25 !== null) {
+                    aqiItems.push({
+                        label: 'PM2.5',
+                        value: `${parseFloat(station.weather.pm25).toFixed(1)} μg/m³`,
+                        status: null,
+                        color: null
+                    });
+                }
+                
+                // Add CO2 if available
+                if (station.weather.co2 !== undefined && station.weather.co2 !== null && station.weather.co2 > 0) {
+                    aqiItems.push({
+                        label: 'CO₂',
+                        value: `${Math.round(station.weather.co2)} ppm`,
+                        status: this.getCO2Status(station.weather.co2),
+                        color: this.getCO2Color(station.weather.co2)
+                    });
+                }
+                
+                if (aqiItems.length > 0) {
+                    aqiItems.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'popup-weather-item';
+                        
+                        const label = document.createElement('div');
+                        label.className = 'popup-weather-label';
+                        label.textContent = item.label;
+                        
+                        const value = document.createElement('div');
+                        value.className = 'popup-weather-value';
+                        if (item.color) {
+                            value.style.color = item.color;
+                            value.style.fontWeight = 'bold';
+                        }
+                        value.textContent = item.value;
+                        
+                        itemDiv.appendChild(label);
+                        itemDiv.appendChild(value);
+                        
+                        if (item.status) {
+                            const status = document.createElement('div');
+                            status.className = 'popup-aqi-status';
+                            status.style.fontSize = '11px';
+                            status.style.color = item.color || '#666';
+                            status.textContent = item.status;
+                            itemDiv.appendChild(status);
+                        }
+                        
+                        grid.appendChild(itemDiv);
+                    });
+                    
+                    container.appendChild(grid);
+                } else {
+                    // No air quality data
+                    const noData = document.createElement('div');
+                    noData.style.textAlign = 'center';
+                    noData.style.color = '#7f8c8d';
+                    noData.style.fontStyle = 'italic';
+                    noData.style.padding = '20px';
+                    noData.textContent = 'No air quality data available';
+                    container.appendChild(noData);
+                }
+            } else {
+                // Regular weather display
+                // Wind rose at the top
+                const windroseContainer = this.createWindrose(station.weather);
+                container.appendChild(windroseContainer);
+                
+                // Weather data grid
+                const grid = document.createElement('div');
+                grid.className = 'popup-weather-grid';
+                
+                const weatherItems = [
+                    { label: 'Temperature', value: PortalUtils.formatTemperature(station.weather.otemp) },
+                    { label: 'Humidity', value: PortalUtils.formatHumidity(station.weather.ohum) },
+                    { label: 'Pressure', value: PortalUtils.formatPressure(station.weather.bar) },
+                    { label: 'Wind Speed', value: PortalUtils.formatWindSpeed(station.weather.winds) }
+                ];
+                
+                weatherItems.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'popup-weather-item';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'popup-weather-label';
+                    label.textContent = item.label;
+                    
+                    const value = document.createElement('div');
+                    value.className = 'popup-weather-value';
+                    value.textContent = item.value;
+                    
+                    itemDiv.appendChild(label);
+                    itemDiv.appendChild(value);
+                    grid.appendChild(itemDiv);
+                });
+                
+                container.appendChild(grid);
+            }
         } else {
             // No data available
             const noData = document.createElement('div');
             noData.style.textAlign = 'center';
             noData.style.color = '#7f8c8d';
             noData.style.fontStyle = 'italic';
-            noData.textContent = 'Weather data unavailable';
+            noData.textContent = displayType === 'airquality' ? 'No air quality data available' : 'Weather data unavailable';
             container.appendChild(noData);
         }
         
@@ -365,6 +426,54 @@ const PortalMap = {
                 marker.openPopup();
             }
         }
+    },
+
+    // Get AQI status text
+    getAQIStatus(value) {
+        if (value === null || value === undefined) return '--';
+        
+        if (value <= 50) return 'Good';
+        if (value <= 100) return 'Moderate';
+        if (value <= 150) return 'Unhealthy (Sensitive)';
+        if (value <= 200) return 'Unhealthy';
+        if (value <= 300) return 'Very Unhealthy';
+        return 'Hazardous';
+    },
+
+    // Get AQI color
+    getAQIColor(value) {
+        if (value === null || value === undefined) return '#7f8c8d';
+        
+        if (value <= 50) return '#00e400'; // Green
+        if (value <= 100) return '#ffff00'; // Yellow
+        if (value <= 150) return '#ff7e00'; // Orange
+        if (value <= 200) return '#ff0000'; // Red
+        if (value <= 300) return '#99004c'; // Purple
+        return '#7e0023'; // Maroon
+    },
+
+    // Get CO2 status text
+    getCO2Status(value) {
+        if (value === null || value === undefined) return '--';
+        
+        if (value <= 800) return 'Excellent';
+        if (value <= 1000) return 'Good';
+        if (value <= 1500) return 'Fair';
+        if (value <= 2000) return 'Poor';
+        if (value <= 5000) return 'Very Poor';
+        return 'Dangerous';
+    },
+
+    // Get CO2 color
+    getCO2Color(value) {
+        if (value === null || value === undefined) return '#7f8c8d';
+        
+        if (value <= 800) return '#00e400'; // Green
+        if (value <= 1000) return '#3498db'; // Blue
+        if (value <= 1500) return '#ffff00'; // Yellow
+        if (value <= 2000) return '#ff7e00'; // Orange
+        if (value <= 5000) return '#ff0000'; // Red
+        return '#7e0023'; // Maroon
     }
 };
 
