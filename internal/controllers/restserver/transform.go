@@ -2,6 +2,7 @@ package restserver
 
 import (
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/aqi"
 )
 
 // transformSpanReadings converts database readings to WeatherReading slice for JSON output
@@ -66,8 +67,8 @@ func (h *Handlers) transformSpanReadings(dbReadings *[]types.BucketReading) []*W
 			SnowDistance:          float32ToJSONNumber(r.SnowDistance),
 			PM25:                  float32ToJSONNumber(r.PM25),
 			CO2:                   float32ToJSONNumber(r.CO2),
-			AQIPM25AQIN:           int32ToJSONNumber(r.AQIPM25AQIN),
-			AQIPM10AQIN:           int32ToJSONNumber(r.AQIPM10AQIN),
+			AQIPM25AQIN:           int32ToJSONNumber(getOrCalculateAQIPM25(r.Reading)),
+			AQIPM10AQIN:           int32ToJSONNumber(getOrCalculateAQIPM10(r.Reading)),
 			ExtraFloat1:           float32ToJSONNumber(r.ExtraFloat1),
 			ExtraFloat2:           float32ToJSONNumber(r.ExtraFloat2),
 			ExtraFloat3:           float32ToJSONNumber(r.ExtraFloat3),
@@ -160,8 +161,8 @@ func (h *Handlers) transformLatestReadings(dbReadings *[]types.BucketReading) *W
 		SnowDistance:          float32ToJSONNumber(latest.SnowDistance),
 		PM25:                  float32ToJSONNumber(latest.PM25),
 		CO2:                   float32ToJSONNumber(latest.CO2),
-		AQIPM25AQIN:           int32ToJSONNumber(latest.AQIPM25AQIN),
-		AQIPM10AQIN:           int32ToJSONNumber(latest.AQIPM10AQIN),
+		AQIPM25AQIN:           int32ToJSONNumber(getOrCalculateAQIPM25(latest.Reading)),
+		AQIPM10AQIN:           int32ToJSONNumber(getOrCalculateAQIPM10(latest.Reading)),
 		ExtraFloat1:           float32ToJSONNumber(latest.ExtraFloat1),
 		ExtraFloat2:           float32ToJSONNumber(latest.ExtraFloat2),
 		ExtraFloat3:           float32ToJSONNumber(latest.ExtraFloat3),
@@ -184,4 +185,28 @@ func (h *Handlers) transformLatestReadings(dbReadings *[]types.BucketReading) *W
 		ExtraText10:           latest.ExtraText10,
 	}
 	return &reading
+}
+
+// getOrCalculateAQIPM25 returns the AQI PM2.5 value if available, otherwise calculates it from PM2.5
+func getOrCalculateAQIPM25(r types.Reading) int32 {
+	// If we already have an AQI value, use it
+	if r.AQIPM25AQIN > 0 {
+		return r.AQIPM25AQIN
+	}
+	// Otherwise calculate from PM2.5 if available
+	if r.PM25 > 0 {
+		return aqi.CalculatePM25(r.PM25)
+	}
+	return 0
+}
+
+// getOrCalculateAQIPM10 returns the AQI PM10 value if available, otherwise calculates it from PM10
+func getOrCalculateAQIPM10(r types.Reading) int32 {
+	// If we already have an AQI value, use it
+	if r.AQIPM10AQIN > 0 {
+		return r.AQIPM10AQIN
+	}
+	// PM10 isn't currently in the Reading struct, so return 0
+	// TODO: Add PM10 field to Reading struct if PM10 sensors are added
+	return 0
 }
