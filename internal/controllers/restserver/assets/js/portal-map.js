@@ -123,7 +123,7 @@ const PortalMap = {
         marker.displayType = currentDisplayType;
         
         // Always bind popup but with different content based on display type
-        const popupContent = this.createPopupContent(station, currentDisplayType);
+        const popupContent = this.createPopupContent(station);
         marker.bindPopup(popupContent, {
             maxWidth: 320,
             className: currentDisplayType === 'airquality' ? 'airquality-popup' : 'weather-popup'
@@ -168,7 +168,7 @@ const PortalMap = {
         marker.setIcon(customIcon);
         
         // Update popup content based on display mode
-        const popupContent = this.createPopupContent(station, currentDisplayType);
+        const popupContent = this.createPopupContent(station);
         if (marker.getPopup()) {
             marker.setPopupContent(popupContent);
             // Update popup class
@@ -186,7 +186,7 @@ const PortalMap = {
     },
 
     // Create popup content for a station
-    createPopupContent(station, displayType) {
+    createPopupContent(station) {
         const container = document.createElement('div');
         container.className = 'weather-popup';
         
@@ -207,8 +207,11 @@ const PortalMap = {
         header.appendChild(timestamp);
         container.appendChild(header);
         
+        // Determine if this is an air quality station
+        const isAirQualityStation = PortalUtils.isAirQualityStation(station);
+        
         if (station.weather) {
-            if (displayType === 'airquality') {
+            if (isAirQualityStation) {
                 // Air Quality display
                 const grid = document.createElement('div');
                 grid.className = 'popup-weather-grid';
@@ -220,6 +223,17 @@ const PortalMap = {
                     const aqiValue = parseInt(station.weather.aqi_pm25_aqin);
                     aqiItems.push({
                         label: 'AQI PM2.5',
+                        value: aqiValue,
+                        status: this.getAQIStatus(aqiValue),
+                        color: this.getAQIColor(aqiValue)
+                    });
+                }
+                
+                // Add AQI PM10 if available
+                if (station.weather.aqi_pm10_aqin !== undefined && station.weather.aqi_pm10_aqin !== null) {
+                    const aqiValue = parseInt(station.weather.aqi_pm10_aqin);
+                    aqiItems.push({
+                        label: 'AQI PM10',
                         value: aqiValue,
                         status: this.getAQIStatus(aqiValue),
                         color: this.getAQIColor(aqiValue)
@@ -331,7 +345,7 @@ const PortalMap = {
             noData.style.textAlign = 'center';
             noData.style.color = '#7f8c8d';
             noData.style.fontStyle = 'italic';
-            noData.textContent = displayType === 'airquality' ? 'No air quality data available' : 'Weather data unavailable';
+            noData.textContent = PortalUtils.isAirQualityStation(station) ? 'No air quality data available' : 'Weather data unavailable';
             container.appendChild(noData);
         }
         
@@ -440,16 +454,17 @@ const PortalMap = {
         return 'Hazardous';
     },
 
-    // Get AQI color
+    // Get AQI color using solarized scheme
     getAQIColor(value) {
         if (value === null || value === undefined) return '#7f8c8d';
         
-        if (value <= 50) return '#00e400'; // Green
-        if (value <= 100) return '#ffff00'; // Yellow
-        if (value <= 150) return '#ff7e00'; // Orange
-        if (value <= 200) return '#ff0000'; // Red
-        if (value <= 300) return '#99004c'; // Purple
-        return '#7e0023'; // Maroon
+        // Use solarized colors to match portal-utils.js
+        if (value <= 50) return '#859900'; // Solarized green - Good
+        if (value <= 100) return '#b58900'; // Solarized yellow - Moderate
+        if (value <= 150) return '#cb4b16'; // Solarized orange - Unhealthy for Sensitive Groups
+        if (value <= 200) return '#dc322f'; // Solarized red - Unhealthy
+        if (value <= 300) return '#d33682'; // Solarized magenta - Very Unhealthy
+        return '#6c71c4'; // Solarized violet - Hazardous
     },
 
     // Get CO2 status text
@@ -464,16 +479,17 @@ const PortalMap = {
         return 'Dangerous';
     },
 
-    // Get CO2 color
+    // Get CO2 color using solarized scheme
     getCO2Color(value) {
         if (value === null || value === undefined) return '#7f8c8d';
         
-        if (value <= 800) return '#00e400'; // Green
-        if (value <= 1000) return '#3498db'; // Blue
-        if (value <= 1500) return '#ffff00'; // Yellow
-        if (value <= 2000) return '#ff7e00'; // Orange
-        if (value <= 5000) return '#ff0000'; // Red
-        return '#7e0023'; // Maroon
+        // Use solarized colors for consistency
+        if (value <= 800) return '#859900'; // Solarized green - Excellent
+        if (value <= 1000) return '#2980b9'; // Blue - Good  
+        if (value <= 1500) return '#b58900'; // Solarized yellow - Fair
+        if (value <= 2000) return '#cb4b16'; // Solarized orange - Poor
+        if (value <= 5000) return '#dc322f'; // Solarized red - Very Poor
+        return '#d33682'; // Solarized magenta - Dangerous
     }
 };
 
