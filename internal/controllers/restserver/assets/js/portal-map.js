@@ -111,10 +111,26 @@ const PortalMap = {
             icon: customIcon
         });
         
-        // Store station name for tracking
+        // Store station data for tracking
         marker.stationName = station.name;
+        marker.stationData = station;
+        marker.displayType = currentDisplayType;
         
-        // Create popup content
+        // Handle clicks differently for air quality mode
+        marker.on('click', (e) => {
+            // Check if we're in air quality mode
+            if (marker.displayType === 'airquality') {
+                // Prevent default popup
+                e.target.closePopup();
+                // Trigger air quality modal through the app
+                if (window.portalApp) {
+                    window.portalApp.showAirQualityModal(marker.stationData);
+                }
+                return false; // Prevent further event propagation
+            }
+        });
+        
+        // Always bind popup but it won't show in air quality mode due to click handler
         const popupContent = this.createPopupContent(station);
         marker.bindPopup(popupContent, {
             maxWidth: 320,
@@ -126,6 +142,10 @@ const PortalMap = {
 
     // Update existing marker content
     updateMarkerContent(marker, station, currentDisplayType) {
+        // Update stored station data and display type
+        marker.stationData = station;
+        marker.displayType = currentDisplayType;
+        
         // Get data value and color for current display type
         const dataValue = PortalUtils.getDataValue(station, currentDisplayType);
         const formattedValue = PortalUtils.formatDataValue(dataValue, currentDisplayType);
@@ -155,7 +175,7 @@ const PortalMap = {
         
         marker.setIcon(customIcon);
         
-        // Update popup content
+        // Update popup content (won't show in air quality mode due to click handler)
         const popupContent = this.createPopupContent(station);
         marker.setPopupContent(popupContent);
     },
