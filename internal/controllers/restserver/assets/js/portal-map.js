@@ -122,12 +122,23 @@ const PortalMap = {
         marker.stationData = station;
         marker.displayType = currentDisplayType;
         
-        // Handle clicks differently for air quality mode
+        // Only bind popup if NOT in air quality mode
+        if (currentDisplayType !== 'airquality') {
+            const popupContent = this.createPopupContent(station);
+            marker.bindPopup(popupContent, {
+                maxWidth: 320,
+                className: 'weather-popup'
+            });
+        }
+        
+        // Handle clicks for air quality mode
         marker.on('click', (e) => {
             // Check if we're in air quality mode
             if (marker.displayType === 'airquality') {
-                // Prevent default popup
-                e.target.closePopup();
+                // Prevent any default behavior
+                L.DomEvent.stopPropagation(e);
+                e.originalEvent.preventDefault();
+                
                 // Trigger air quality modal through the app
                 if (PortalMap.appInstance && PortalMap.appInstance.showAirQualityModal) {
                     PortalMap.appInstance.showAirQualityModal(marker.stationData);
@@ -137,13 +148,6 @@ const PortalMap = {
                 }
                 return false; // Prevent further event propagation
             }
-        }); // Arrow function preserves context
-        
-        // Always bind popup but it won't show in air quality mode due to click handler
-        const popupContent = this.createPopupContent(station);
-        marker.bindPopup(popupContent, {
-            maxWidth: 320,
-            className: 'weather-popup'
         });
         
         return marker;
@@ -184,9 +188,24 @@ const PortalMap = {
         
         marker.setIcon(customIcon);
         
-        // Update popup content (won't show in air quality mode due to click handler)
-        const popupContent = this.createPopupContent(station);
-        marker.setPopupContent(popupContent);
+        // Handle popup based on display mode
+        if (currentDisplayType === 'airquality') {
+            // Remove popup in air quality mode
+            if (marker.getPopup()) {
+                marker.unbindPopup();
+            }
+        } else {
+            // Update or add popup for other modes
+            const popupContent = this.createPopupContent(station);
+            if (marker.getPopup()) {
+                marker.setPopupContent(popupContent);
+            } else {
+                marker.bindPopup(popupContent, {
+                    maxWidth: 320,
+                    className: 'weather-popup'
+                });
+            }
+        }
     },
 
     // Create popup content for a station
