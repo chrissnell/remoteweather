@@ -242,11 +242,12 @@ const PortalMap = {
                 
                 // Add PM2.5 concentration if available
                 if (station.weather.pm25 !== undefined && station.weather.pm25 !== null) {
+                    const pm25Value = parseFloat(station.weather.pm25);
                     aqiItems.push({
                         label: 'PM2.5',
-                        value: `${parseFloat(station.weather.pm25).toFixed(1)} μg/m³`,
-                        status: null,
-                        color: null
+                        value: `${pm25Value.toFixed(1)} μg/m³`,
+                        status: this.getPM25Status(pm25Value),
+                        color: this.getPM25Color(pm25Value)
                     });
                 }
                 
@@ -490,6 +491,32 @@ const PortalMap = {
         if (value <= 2000) return '#cb4b16'; // Solarized orange - Poor
         if (value <= 5000) return '#dc322f'; // Solarized red - Very Poor
         return '#d33682'; // Solarized magenta - Dangerous
+    },
+    
+    // Get PM2.5 concentration status text (μg/m³)
+    getPM25Status(value) {
+        if (value === null || value === undefined) return '--';
+        
+        // EPA PM2.5 24-hour average standards
+        if (value <= 12.0) return 'Good';
+        if (value <= 35.4) return 'Moderate';
+        if (value <= 55.4) return 'Unhealthy (Sensitive)';
+        if (value <= 150.4) return 'Unhealthy';
+        if (value <= 250.4) return 'Very Unhealthy';
+        return 'Hazardous';
+    },
+    
+    // Get PM2.5 concentration color using solarized scheme
+    getPM25Color(value) {
+        if (value === null || value === undefined) return '#7f8c8d';
+        
+        // Use same solarized colors as AQI for consistency
+        if (value <= 12.0) return '#859900'; // Solarized green - Good
+        if (value <= 35.4) return '#b58900'; // Solarized yellow - Moderate
+        if (value <= 55.4) return '#cb4b16'; // Solarized orange - Unhealthy for Sensitive
+        if (value <= 150.4) return '#dc322f'; // Solarized red - Unhealthy
+        if (value <= 250.4) return '#d33682'; // Solarized magenta - Very Unhealthy
+        return '#6c71c4'; // Solarized violet - Hazardous
     }
 };
 
