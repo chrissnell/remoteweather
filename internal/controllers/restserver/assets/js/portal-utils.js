@@ -186,13 +186,24 @@ const PortalUtils = {
     },
 
     getAirQualityColor(aqi) {
-        // AQI color standards
-        if (aqi <= 50) return '#00e400'; // Green - Good
-        if (aqi <= 100) return '#ffff00'; // Yellow - Moderate
-        if (aqi <= 150) return '#ff7e00'; // Orange - Unhealthy for Sensitive Groups
-        if (aqi <= 200) return '#ff0000'; // Red - Unhealthy
-        if (aqi <= 300) return '#99004c'; // Purple - Very Unhealthy
-        return '#7e0023'; // Maroon - Hazardous
+        // Solarized color scheme for AQI
+        if (aqi <= 50) return '#859900'; // Solarized green - Good
+        if (aqi <= 100) return '#b58900'; // Solarized yellow - Moderate  
+        if (aqi <= 150) return '#cb4b16'; // Solarized orange - Unhealthy for Sensitive Groups
+        if (aqi <= 200) return '#dc322f'; // Solarized red - Unhealthy
+        if (aqi <= 300) return '#d33682'; // Solarized magenta - Very Unhealthy
+        return '#6c71c4'; // Solarized violet - Hazardous
+    },
+
+    // Check if station is an air quality station (has AQI data)
+    isAirQualityStation(station) {
+        if (!station || !station.weather) return false;
+        
+        // Check if station has any AQI or PM data
+        return (station.weather.aqi_pm25_aqin !== undefined && station.weather.aqi_pm25_aqin !== null) ||
+               (station.weather.aqi_pm10_aqin !== undefined && station.weather.aqi_pm10_aqin !== null) ||
+               (station.weather.pm25 !== undefined && station.weather.pm25 !== null && station.weather.pm25 > 0) ||
+               (station.weather.co2 !== undefined && station.weather.co2 !== null && station.weather.co2 > 0);
     },
 
     // Station status functions
