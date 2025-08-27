@@ -89,6 +89,8 @@ type WeatherReading struct {
 	SnowDistance          json.Number `json:"snowdistance,omitempty"`
 	PM25                  json.Number `json:"pm25"`
 	CO2                   json.Number `json:"co2"`
+	AQIPM25AQIN           json.Number `json:"aqi_pm25_aqin"`
+	AQIPM10AQIN           json.Number `json:"aqi_pm10_aqin"`
 	ExtraFloat1           json.Number `json:"extrafloat1,omitempty"`
 	ExtraFloat2           json.Number `json:"extrafloat2,omitempty"`
 	ExtraFloat3           json.Number `json:"extrafloat3,omitempty"`
@@ -154,6 +156,11 @@ func float32ToJSONNumber(f float32) json.Number {
 		s = fmt.Sprint(f)
 	}
 	return json.Number(s)
+}
+
+// int32ToJSONNumber converts an int32 to a JSON number
+func int32ToJSONNumber(i int32) json.Number {
+	return json.Number(fmt.Sprint(i))
 }
 
 // mmToInches converts millimeters to inches
