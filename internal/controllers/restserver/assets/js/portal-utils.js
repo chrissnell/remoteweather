@@ -56,12 +56,19 @@ const PortalUtils = {
                 return station.weather.winds ? parseFloat(station.weather.winds) : null;
             case 'airquality':
                 // Return the higher of PM2.5 or PM10 AQI values
-                const pm25 = station.weather.aqi_pm25_aqin ? parseFloat(station.weather.aqi_pm25_aqin) : null;
-                const pm10 = station.weather.aqi_pm10_aqin ? parseFloat(station.weather.aqi_pm10_aqin) : null;
+                const pm25 = (station.weather.aqi_pm25_aqin !== undefined && station.weather.aqi_pm25_aqin !== null) 
+                    ? parseFloat(station.weather.aqi_pm25_aqin) : null;
+                const pm10 = (station.weather.aqi_pm10_aqin !== undefined && station.weather.aqi_pm10_aqin !== null) 
+                    ? parseFloat(station.weather.aqi_pm10_aqin) : null;
+                
+                // If both are null, return null
                 if (pm25 === null && pm10 === null) return null;
-                if (pm25 === null) return pm10;
-                if (pm10 === null) return pm25;
-                return Math.max(pm25, pm10);
+                
+                // If both are valid (including 0), return the max
+                if (pm25 !== null && pm10 !== null) return Math.max(pm25, pm10);
+                
+                // Return whichever is not null
+                return pm25 !== null ? pm25 : pm10;
             default:
                 return null;
         }
