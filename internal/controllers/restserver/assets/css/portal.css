@@ -672,3 +672,78 @@
     font-size: 1.25rem;
   }
 }
+
+/* Dark mode popup styles */
+.leaflet-popup-content-wrapper {
+  background-color: #1a2332 !important; /* Dark blue background */
+  color: #e0e6ed !important;
+  border-radius: 8px !important;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4) !important;
+}
+
+.leaflet-popup-tip {
+  background-color: #1a2332 !important; /* Match popup background */
+}
+
+.leaflet-popup-close-button {
+  color: #e0e6ed !important;
+  font-size: 20px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #cb4b16 !important; /* Solarized orange on hover */
+}
+
+/* Dark mode weather popup content */
+.weather-popup .popup-header {
+  border-bottom-color: #2c3e50 !important;
+}
+
+.weather-popup .popup-station-name {
+  color: #e0e6ed !important;
+}
+
+.weather-popup .popup-timestamp {
+  color: #93a1a1 !important; /* Solarized base1 */
+}
+
+.weather-popup .popup-weather-item {
+  background-color: #243447 !important; /* Slightly lighter than popup bg */
+  border: 1px solid #2c3e50 !important;
+}
+
+.weather-popup .popup-weather-label {
+  color: #93a1a1 !important; /* Solarized base1 */
+}
+
+.weather-popup .popup-weather-value {
+  color: #e0e6ed !important;
+}
+
+.weather-popup .popup-website-link {
+  border-top-color: #2c3e50 !important;
+}
+
+.weather-popup .popup-website-link a {
+  color: #268bd2 !important; /* Solarized blue */
+}
+
+.weather-popup .popup-website-link a:hover {
+  color: #cb4b16 !important; /* Solarized orange */
+}
+
+/* Dark mode windrose styles */
+.weather-popup .popup-windrose-circle {
+  background-color: #243447 !important;
+  border-color: #2c3e50 !important;
+}
+
+.weather-popup .popup-wind-cardinal-dir,
+.weather-popup .popup-wind-speed {
+  color: #e0e6ed !important;
+}
+
+/* Dark mode AQI status text */
+.weather-popup .popup-aqi-status {
+  opacity: 0.9;
+}
