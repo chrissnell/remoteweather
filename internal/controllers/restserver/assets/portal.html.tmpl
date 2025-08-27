@@ -61,6 +61,7 @@
        
        .station-sidebar {
          flex: 0 0 auto !important;
+         width: 100% !important;
          height: calc(48px * 3 + 8px * 2 + 16px + 24px + 16px) !important;
          padding: 8px 16px 16px 16px !important;
          overflow: hidden !important;
@@ -83,6 +84,7 @@
       .data-display-controls {
         margin-top: 0 !important;
         padding-top: 0 !important;
+        width: 100% !important;
       }
       
       .data-display-buttons {
@@ -90,6 +92,11 @@
         grid-template-columns: 1fr 1fr !important;
         gap: 8px !important;
         margin-top: 4px !important;
+      }
+      
+      /* Handle 7 buttons layout - make Air Quality button span full width */
+      .data-display-buttons .data-display-button:nth-child(7):last-child {
+        grid-column: 1 / -1 !important;
       }
       
       .data-display-button {
