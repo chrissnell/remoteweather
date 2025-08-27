@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html data-wf-page="portal" data-wf-site="weather-portal">
+<html>
 <head>
   <meta charset="utf-8">
   <title>Weather Management Portal</title>
@@ -12,7 +12,6 @@
   <meta content="summary_large_image" name="twitter:card">
   <meta content="width=device-width, initial-scale=1" name="viewport">
   <link href="css/normalize.css" rel="stylesheet" type="text/css">
-  <link href="css/webflow.css" rel="stylesheet" type="text/css">
   <link href="css/portal.css" rel="stylesheet" type="text/css">
   <link href="css/portal-responsive.css" rel="stylesheet" type="text/css">
   
@@ -186,6 +185,9 @@
             <button id="display-snow" class="data-display-button" data-type="snow">
               Snow Depth
             </button>
+            <button id="display-airquality" class="data-display-button" data-type="airquality">
+              Air Quality
+            </button>
           </div>
         </div>
       </div>
@@ -203,6 +205,53 @@
     <p>Unable to load weather data. Please try again later.</p>
   </div>
   
-  <!-- Removed webflow.js to fix JS error - not needed for portal functionality -->
+  <!-- Air Quality Modal -->
+  <div id="air-quality-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="air-quality-station-name">Air Quality</h2>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="air-quality-data">
+          <div class="air-quality-grid">
+            <div class="air-quality-metric">
+              <h4>PM2.5</h4>
+              <div class="metric-value" id="aq-pm25">--</div>
+              <div class="metric-unit">μg/m³</div>
+              <div class="metric-status" id="aq-pm25-status">--</div>
+            </div>
+            <div class="air-quality-metric">
+              <h4>PM10</h4>
+              <div class="metric-value" id="aq-pm10">--</div>
+              <div class="metric-unit">μg/m³</div>
+              <div class="metric-status" id="aq-pm10-status">--</div>
+            </div>
+            <div class="air-quality-metric">
+              <h4>CO₂</h4>
+              <div class="metric-value" id="aq-co2">--</div>
+              <div class="metric-unit">ppm</div>
+              <div class="metric-status" id="aq-co2-status">--</div>
+            </div>
+            <div class="air-quality-metric">
+              <h4>AQI PM2.5</h4>
+              <div class="metric-value" id="aq-aqi-pm25">--</div>
+              <div class="metric-unit">index</div>
+              <div class="metric-status" id="aq-aqi-pm25-status">--</div>
+            </div>
+            <div class="air-quality-metric">
+              <h4>AQI PM10</h4>
+              <div class="metric-value" id="aq-aqi-pm10">--</div>
+              <div class="metric-unit">index</div>
+              <div class="metric-status" id="aq-aqi-pm10-status">--</div>
+            </div>
+          </div>
+          <div class="air-quality-no-data" id="air-quality-no-data" style="display: none;">
+            <p>No air quality data available for this station</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html> 
