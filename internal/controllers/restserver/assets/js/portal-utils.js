@@ -267,7 +267,10 @@ const PortalUtils = {
     }
 };
 
-// Export for use in other modules
+// Make PortalUtils globally accessible
+window.PortalUtils = PortalUtils;
+
+// Export for use in other modules (Node.js environments)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = PortalUtils;
 }
