@@ -54,6 +54,14 @@ const PortalUtils = {
                 return station.weather.bar ? parseFloat(station.weather.bar) : null;
             case 'wind':
                 return station.weather.winds ? parseFloat(station.weather.winds) : null;
+            case 'airquality':
+                // Return the higher of PM2.5 or PM10 AQI values
+                const pm25 = station.weather.aqi_pm25_aqin ? parseFloat(station.weather.aqi_pm25_aqin) : null;
+                const pm10 = station.weather.aqi_pm10_aqin ? parseFloat(station.weather.aqi_pm10_aqin) : null;
+                if (pm25 === null && pm10 === null) return null;
+                if (pm25 === null) return pm10;
+                if (pm10 === null) return pm25;
+                return Math.max(pm25, pm10);
             default:
                 return null;
         }
@@ -74,6 +82,8 @@ const PortalUtils = {
             case 'barometer':
                 return `${value.toFixed(1)}`;
             case 'wind':
+                return `${Math.round(value)}`;
+            case 'airquality':
                 return `${Math.round(value)}`;
             default:
                 return '--';
@@ -97,6 +107,8 @@ const PortalUtils = {
                 return this.getBarometerColor(value);
             case 'wind':
                 return this.getWindColor(value);
+            case 'airquality':
+                return this.getAirQualityColor(value);
             default:
                 return '#3498db'; // Default blue
         }
@@ -171,6 +183,16 @@ const PortalUtils = {
         if (windSpeed >= 10) return '#ff6b35'; // Orange (contrasts with blue)
         if (windSpeed >= 5) return '#ff6b35'; // Orange (contrasts with darker blue)
         return '#ff6b35'; // Orange (contrasts with dark blue - calm)
+    },
+
+    getAirQualityColor(aqi) {
+        // AQI color standards
+        if (aqi <= 50) return '#00e400'; // Green - Good
+        if (aqi <= 100) return '#ffff00'; // Yellow - Moderate
+        if (aqi <= 150) return '#ff7e00'; // Orange - Unhealthy for Sensitive Groups
+        if (aqi <= 200) return '#ff0000'; // Red - Unhealthy
+        if (aqi <= 300) return '#99004c'; // Purple - Very Unhealthy
+        return '#7e0023'; // Maroon - Hazardous
     },
 
     // Station status functions
