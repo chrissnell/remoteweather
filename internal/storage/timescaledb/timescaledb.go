@@ -200,22 +200,9 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
-	// There is no updating of views in PostgreSQL, so we have to drop the rain-since-midnight
-	// view if it exists
-	log.Info("Dropping the rain-since-midnight view if it exists...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(dropRainSinceMidnightViewSQL).Error
-	if err != nil {
-		log.Warn("warning: could not drop rain-since-midnight view")
-		return &Storage{}, err
-	}
-
-	// Add the rain-since-midnight view
-	log.Info("Adding rain-since-midnight view...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainSinceMidnightViewSQL).Error
-	if err != nil {
-		log.Warn("warning: could not create rain-since-midnight view")
-		return &Storage{}, err
-	}
+	// The today_rainfall view was removed in favor of the calculate_daily_rainfall() function
+	// which is created via migration 004_add_daily_rainfall_function.up.sql
+	// This provides better performance (45a3e98) and station-specific calculations
 
 	// Add the 1m aggregation policy
 	log.Info("Adding 1m aggregation policy...")
