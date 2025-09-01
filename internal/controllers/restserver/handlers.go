@@ -258,49 +258,11 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
 
-		// Add total rainfall for the day
+		// Add total rainfall for the day using the shared optimized calculation
 		if len(dbFetchedReadings) > 0 {
 			stationName := dbFetchedReadings[0].StationName
-			type Rainfall struct {
-				TotalRain float32
-			}
-			var totalRainfall Rainfall
-			
-			// Get today's rainfall in two fast queries to avoid slow subquery
-			var aggregatedRain float32
-			var lastBucket *time.Time
-			
-			// First get aggregated rain and find last bucket time
-			var result struct {
-				Total      float32    `gorm:"column:total"`
-				LastBucket *time.Time `gorm:"column:last_bucket"`
-			}
-			h.controller.DB.Raw(`
-				SELECT 
-					COALESCE(SUM(period_rain), 0) as total,
-					MAX(bucket) as last_bucket
-				FROM weather_5m 
-				WHERE stationname = ? 
-				AND bucket >= date_trunc('day', NOW())
-			`, stationName).Scan(&result)
-			aggregatedRain = result.Total
-			lastBucket = result.LastBucket
-			
-			// Then get incremental rain since last bucket (if any)
-			var incrementalRain float32
-			if lastBucket != nil {
-				h.controller.DB.Raw(`
-					SELECT COALESCE(SUM(rainincremental), 0) as total
-					FROM weather
-					WHERE stationname = ?
-					AND time > ?
-					AND time >= NOW() - INTERVAL '1 hour'
-				`, stationName, lastBucket).Scan(&incrementalRain)
-			}
-			
-			totalRainfall.TotalRain = aggregatedRain + incrementalRain
-			
-			latestReading.RainfallDay = float32ToJSONNumber(totalRainfall.TotalRain)
+			calculatedDayRain := controllers.CalculateDailyRainfall(h.controller.DB, stationName)
+			latestReading.RainfallDay = float32ToJSONNumber(calculatedDayRain)
 		}
 
 		// Calculate rainfall totals using summary table with recent data

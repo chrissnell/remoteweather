@@ -391,8 +391,11 @@ func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, readi
 	// Then we add our temperature reading
 	buffer.WriteString(fmt.Sprintf("t%03d", int64(reading.OutTemp)))
 
+	// Calculate accurate daily rainfall from incremental values using the same
+	// optimized method as the REST server
+	calculatedDayRain := controllers.CalculateDailyRainfall(a.DB, reading.StationName)
 	// Then we add our rainfall since midnight
-	buffer.WriteString(fmt.Sprintf("P%03d", int64(reading.DayRain*100)))
+	buffer.WriteString(fmt.Sprintf("P%03d", int64(calculatedDayRain*100)))
 
 	// Then we add our humidity
 	buffer.WriteString(fmt.Sprintf("h%02d", int64(reading.OutHumidity)))

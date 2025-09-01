@@ -124,7 +124,12 @@ func (p *WeatherUndergroundController) sendReadingsToWeatherUnderground(device c
 	v.Set("windspeedmph", strconv.FormatInt(int64(r.WindSpeed), 10))
 	v.Set("humidity", strconv.FormatInt(int64(r.OutHumidity), 10))
 	v.Set("tempf", fmt.Sprintf("%.1f", r.OutTemp))
-	v.Set("dailyrainin", fmt.Sprintf("%.2f", r.DayRain))
+	
+	// Calculate accurate daily rainfall from incremental values using the same
+	// optimized method as the REST server
+	calculatedDayRain := controllers.CalculateDailyRainfall(p.DB, r.StationName)
+	v.Set("dailyrainin", fmt.Sprintf("%.2f", calculatedDayRain))
+	
 	v.Set("baromin", fmt.Sprintf("%.2f", r.Barometer))
 	v.Set("softwaretype", fmt.Sprintf("RemoteWeather %v", constants.Version))
 
