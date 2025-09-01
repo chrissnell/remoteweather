@@ -12,6 +12,7 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/controllers"
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -262,7 +263,9 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		// Add total rainfall for the day using the shared optimized calculation
 		if len(dbFetchedReadings) > 0 {
 			stationName := dbFetchedReadings[0].StationName
-			calculatedDayRain := controllers.CalculateDailyRainfall(h.controller.DB, stationName)
+			// Create a temporary database.Client wrapper for the CalculateDailyRainfall function
+			dbClient := &database.Client{DB: h.controller.DB}
+			calculatedDayRain := controllers.CalculateDailyRainfall(dbClient, stationName)
 			latestReading.RainfallDay = float32ToJSONNumber(calculatedDayRain)
 		}
 
