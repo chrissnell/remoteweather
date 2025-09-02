@@ -16,6 +16,33 @@ const WeatherCharts = (function() {
         return WeatherUtils.getAirQualityMetricColor(chartType, latestValue);
     };
     
+    // Helper function to create color zones for air quality charts using centralized thresholds
+    const getAirQualityZones = (chartType) => {
+        const thresholds = WeatherUtils.getAirQualityThresholds(chartType);
+        if (!thresholds || thresholds.length === 0) return null;
+        
+        const zones = [];
+        
+        // Convert thresholds to Highcharts zones format
+        // Each zone defines the color up to the threshold value
+        for (const threshold of thresholds) {
+            const color = WeatherUtils.getAirQualityColor(threshold.level);
+            
+            if (threshold.max === Infinity) {
+                // Last zone - no value limit
+                zones.push({ color: color });
+            } else {
+                // Zone with upper limit
+                zones.push({ 
+                    value: threshold.max, 
+                    color: color 
+                });
+            }
+        }
+        
+        return zones;
+    };
+    
     // Default chart options factory
     const getDefaultChartOptions = () => ({
         chart: {
@@ -216,6 +243,10 @@ const WeatherCharts = (function() {
                     color: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) 
                         ? getAirQualityChartColor(chartName, data)
                         : WeatherUtils.getCSSVariable('--chart-series-color'),
+                    zones: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)
+                        ? getAirQualityZones(chartName)
+                        : undefined,
+                    zoneAxis: 'y',
                     marker: {
                         enabled: false,
                         states: {

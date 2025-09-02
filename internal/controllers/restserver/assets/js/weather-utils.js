@@ -150,117 +150,86 @@ const WeatherUtils = (function() {
         [AirQualityLevels.UNKNOWN]: '#7f8c8d'     // Gray
     };
     
-    // Get air quality level for PM1.0 (μg/m³)
-    const getPM1Level = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // PM1.0 thresholds (more stringent than PM2.5)
-        if (value <= 10.0) return AirQualityLevels.GOOD;
-        if (value <= 25.0) return AirQualityLevels.MODERATE;
-        if (value <= 50.0) return AirQualityLevels.UNHEALTHY;
-        return AirQualityLevels.UNHEALTHY;
+    // Define thresholds as data structures - single source of truth
+    const AirQualityThresholds = {
+        pm1: [
+            { max: 10.0, level: AirQualityLevels.GOOD },
+            { max: 25.0, level: AirQualityLevels.MODERATE },
+            { max: 50.0, level: AirQualityLevels.UNHEALTHY },
+            { max: Infinity, level: AirQualityLevels.UNHEALTHY }
+        ],
+        pm25: [
+            { max: 12.0, level: AirQualityLevels.GOOD },
+            { max: 35.4, level: AirQualityLevels.MODERATE },
+            { max: 55.4, level: AirQualityLevels.UNHEALTHY },
+            { max: 150.4, level: AirQualityLevels.UNHEALTHY },
+            { max: 250.4, level: AirQualityLevels.VERY_UNHEALTHY },
+            { max: Infinity, level: AirQualityLevels.HAZARDOUS }
+        ],
+        pm10: [
+            { max: 54, level: AirQualityLevels.GOOD },
+            { max: 154, level: AirQualityLevels.MODERATE },
+            { max: 254, level: AirQualityLevels.UNHEALTHY },
+            { max: 354, level: AirQualityLevels.UNHEALTHY },
+            { max: 424, level: AirQualityLevels.VERY_UNHEALTHY },
+            { max: Infinity, level: AirQualityLevels.HAZARDOUS }
+        ],
+        co2: [
+            { max: 800, level: AirQualityLevels.EXCELLENT },
+            { max: 1000, level: AirQualityLevels.GOOD },
+            { max: 1500, level: AirQualityLevels.FAIR },
+            { max: 2000, level: AirQualityLevels.POOR },
+            { max: 5000, level: AirQualityLevels.VERY_UNHEALTHY },
+            { max: Infinity, level: AirQualityLevels.DANGEROUS }
+        ],
+        tvocindex: [
+            { max: 100, level: AirQualityLevels.EXCELLENT },
+            { max: 200, level: AirQualityLevels.GOOD },
+            { max: 300, level: AirQualityLevels.FAIR },
+            { max: 400, level: AirQualityLevels.POOR },
+            { max: Infinity, level: AirQualityLevels.VERY_UNHEALTHY }
+        ],
+        noxindex: [
+            { max: 20, level: AirQualityLevels.EXCELLENT },
+            { max: 50, level: AirQualityLevels.GOOD },
+            { max: 100, level: AirQualityLevels.FAIR },
+            { max: 200, level: AirQualityLevels.POOR },
+            { max: Infinity, level: AirQualityLevels.VERY_UNHEALTHY }
+        ],
+        aqi: [
+            { max: 50, level: AirQualityLevels.GOOD },
+            { max: 100, level: AirQualityLevels.MODERATE },
+            { max: 150, level: AirQualityLevels.UNHEALTHY },
+            { max: 200, level: AirQualityLevels.UNHEALTHY },
+            { max: 300, level: AirQualityLevels.VERY_UNHEALTHY },
+            { max: Infinity, level: AirQualityLevels.HAZARDOUS }
+        ]
     };
     
-    // Get air quality level for PM2.5 (μg/m³)
-    const getPM25Level = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // EPA PM2.5 24-hour average standards
-        if (value <= 12.0) return AirQualityLevels.GOOD;
-        if (value <= 35.4) return AirQualityLevels.MODERATE;
-        if (value <= 55.4) return AirQualityLevels.UNHEALTHY;
-        if (value <= 150.4) return AirQualityLevels.UNHEALTHY;
-        if (value <= 250.4) return AirQualityLevels.VERY_UNHEALTHY;
-        return AirQualityLevels.HAZARDOUS;
-    };
-    
-    // Get air quality level for PM10 (μg/m³)
-    const getPM10Level = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // EPA PM10 24-hour average standards
-        if (value <= 54) return AirQualityLevels.GOOD;
-        if (value <= 154) return AirQualityLevels.MODERATE;
-        if (value <= 254) return AirQualityLevels.UNHEALTHY;
-        if (value <= 354) return AirQualityLevels.UNHEALTHY;
-        if (value <= 424) return AirQualityLevels.VERY_UNHEALTHY;
-        return AirQualityLevels.HAZARDOUS;
-    };
-    
-    // Get air quality level for CO2 (ppm)
-    const getCO2Level = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // Indoor air quality CO2 standards
-        if (value <= 800) return AirQualityLevels.EXCELLENT;
-        if (value <= 1000) return AirQualityLevels.GOOD;
-        if (value <= 1500) return AirQualityLevels.FAIR;
-        if (value <= 2000) return AirQualityLevels.POOR;
-        if (value <= 5000) return AirQualityLevels.VERY_UNHEALTHY;
-        return AirQualityLevels.DANGEROUS;
-    };
-    
-    // Get air quality level for TVOC Index
-    const getTVOCLevel = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // TVOC Index thresholds
-        if (value <= 100) return AirQualityLevels.EXCELLENT;
-        if (value <= 200) return AirQualityLevels.GOOD;
-        if (value <= 300) return AirQualityLevels.FAIR;
-        if (value <= 400) return AirQualityLevels.POOR;
-        return AirQualityLevels.VERY_UNHEALTHY;
-    };
-    
-    // Get air quality level for NOx Index
-    const getNOxLevel = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // NOx Index thresholds
-        if (value <= 20) return AirQualityLevels.EXCELLENT;
-        if (value <= 50) return AirQualityLevels.GOOD;
-        if (value <= 100) return AirQualityLevels.FAIR;
-        if (value <= 200) return AirQualityLevels.POOR;
-        return AirQualityLevels.VERY_UNHEALTHY;
-    };
-    
-    // Get air quality level for AQI
-    const getAQILevel = (value) => {
-        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
-        
-        // Standard AQI ranges
-        if (value <= 50) return AirQualityLevels.GOOD;
-        if (value <= 100) return AirQualityLevels.MODERATE;
-        if (value <= 150) return AirQualityLevels.UNHEALTHY;
-        if (value <= 200) return AirQualityLevels.UNHEALTHY;
-        if (value <= 300) return AirQualityLevels.VERY_UNHEALTHY;
-        return AirQualityLevels.HAZARDOUS;
-    };
-    
-    // Universal function to get air quality level for any metric
+    // Get air quality level for any metric using the threshold data
     const getAirQualityLevel = (metricType, value) => {
-        switch(metricType.toLowerCase()) {
-            case 'pm1':
-            case 'pm1.0':
-                return getPM1Level(value);
-            case 'pm25':
-            case 'pm2.5':
-                return getPM25Level(value);
-            case 'pm10':
-                return getPM10Level(value);
-            case 'co2':
-                return getCO2Level(value);
-            case 'tvoc':
-            case 'tvocindex':
-                return getTVOCLevel(value);
-            case 'nox':
-            case 'noxindex':
-                return getNOxLevel(value);
-            case 'aqi':
-                return getAQILevel(value);
-            default:
-                return AirQualityLevels.UNKNOWN;
+        if (value === null || value === undefined) return AirQualityLevels.UNKNOWN;
+        
+        // Normalize metric type
+        let normalizedType = metricType.toLowerCase();
+        if (normalizedType === 'pm1.0') normalizedType = 'pm1';
+        if (normalizedType === 'pm2.5') normalizedType = 'pm25';
+        if (normalizedType === 'tvoc') normalizedType = 'tvocindex';
+        if (normalizedType === 'nox') normalizedType = 'noxindex';
+        
+        // Get thresholds for this metric
+        const thresholds = AirQualityThresholds[normalizedType];
+        if (!thresholds) return AirQualityLevels.UNKNOWN;
+        
+        // Find the appropriate level based on value
+        for (const threshold of thresholds) {
+            if (value <= threshold.max) {
+                return threshold.level;
+            }
         }
+        
+        // Should never reach here, but return UNKNOWN as fallback
+        return AirQualityLevels.UNKNOWN;
     };
     
     // Get color for air quality level
@@ -289,6 +258,18 @@ const WeatherUtils = (function() {
             [AirQualityLevels.UNKNOWN]: '--'
         };
         return statusMap[level] || '--';
+    };
+    
+    // Get thresholds for a specific air quality metric for chart zones
+    const getAirQualityThresholds = (metricType) => {
+        // Normalize metric type
+        let normalizedType = metricType.toLowerCase();
+        if (normalizedType === 'pm1.0') normalizedType = 'pm1';
+        if (normalizedType === 'pm2.5') normalizedType = 'pm25';
+        if (normalizedType === 'tvoc') normalizedType = 'tvocindex';
+        if (normalizedType === 'nox') normalizedType = 'noxindex';
+        
+        return AirQualityThresholds[normalizedType] || [];
     };
     
     // Public API
@@ -325,10 +306,12 @@ const WeatherUtils = (function() {
         // Air Quality System
         AirQualityLevels,
         AirQualityColors,
+        AirQualityThresholds,
         getAirQualityLevel,
         getAirQualityColor,
         getAirQualityMetricColor,
-        getAirQualityStatusText
+        getAirQualityStatusText,
+        getAirQualityThresholds
     };
 })();
 
