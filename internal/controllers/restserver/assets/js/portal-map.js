@@ -457,66 +457,29 @@ const PortalMap = {
 
     // Get AQI color using solarized scheme
     getAQIColor(value) {
-        if (value === null || value === undefined) return '#7f8c8d';
-        
-        // Use solarized colors to match portal-utils.js
-        if (value <= 50) return '#859900'; // Solarized green - Good
-        if (value <= 100) return '#b58900'; // Solarized yellow - Moderate
-        if (value <= 150) return '#cb4b16'; // Solarized orange - Unhealthy for Sensitive Groups
-        if (value <= 200) return '#dc322f'; // Solarized red - Unhealthy
-        if (value <= 300) return '#d33682'; // Solarized magenta - Very Unhealthy
-        return '#6c71c4'; // Solarized violet - Hazardous
+        return WeatherUtils.getAirQualityMetricColor('aqi', value);
     },
 
     // Get CO2 status text
     getCO2Status(value) {
-        if (value === null || value === undefined) return '--';
-        
-        if (value <= 800) return 'Excellent';
-        if (value <= 1000) return 'Good';
-        if (value <= 1500) return 'Fair';
-        if (value <= 2000) return 'Poor';
-        if (value <= 5000) return 'Very Poor';
-        return 'Dangerous';
+        const level = WeatherUtils.getAirQualityLevel('co2', value);
+        return WeatherUtils.getAirQualityStatusText(level);
     },
 
-    // Get CO2 color using solarized scheme
+    // Get CO2 color using centralized scheme
     getCO2Color(value) {
-        if (value === null || value === undefined) return '#7f8c8d';
-        
-        // Use solarized colors for consistency
-        if (value <= 800) return '#859900'; // Solarized green - Excellent
-        if (value <= 1000) return '#2980b9'; // Blue - Good  
-        if (value <= 1500) return '#b58900'; // Solarized yellow - Fair
-        if (value <= 2000) return '#cb4b16'; // Solarized orange - Poor
-        if (value <= 5000) return '#dc322f'; // Solarized red - Very Poor
-        return '#d33682'; // Solarized magenta - Dangerous
+        return WeatherUtils.getAirQualityMetricColor('co2', value);
     },
     
     // Get PM2.5 concentration status text (μg/m³)
     getPM25Status(value) {
-        if (value === null || value === undefined) return '--';
-        
-        // EPA PM2.5 24-hour average standards
-        if (value <= 12.0) return 'Good';
-        if (value <= 35.4) return 'Moderate';
-        if (value <= 55.4) return 'Unhealthy (Sensitive)';
-        if (value <= 150.4) return 'Unhealthy';
-        if (value <= 250.4) return 'Very Unhealthy';
-        return 'Hazardous';
+        const level = WeatherUtils.getAirQualityLevel('pm25', value);
+        return WeatherUtils.getAirQualityStatusText(level);
     },
     
-    // Get PM2.5 concentration color using solarized scheme
+    // Get PM2.5 concentration color using centralized scheme
     getPM25Color(value) {
-        if (value === null || value === undefined) return '#7f8c8d';
-        
-        // Use same solarized colors as AQI for consistency
-        if (value <= 12.0) return '#859900'; // Solarized green - Good
-        if (value <= 35.4) return '#b58900'; // Solarized yellow - Moderate
-        if (value <= 55.4) return '#cb4b16'; // Solarized orange - Unhealthy for Sensitive
-        if (value <= 150.4) return '#dc322f'; // Solarized red - Unhealthy
-        if (value <= 250.4) return '#d33682'; // Solarized magenta - Very Unhealthy
-        return '#6c71c4'; // Solarized violet - Hazardous
+        return WeatherUtils.getAirQualityMetricColor('pm25', value);
     }
 };
 

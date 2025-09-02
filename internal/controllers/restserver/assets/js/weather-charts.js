@@ -7,6 +7,15 @@ const WeatherCharts = (function() {
     // Chart registry to track created charts
     const chartRegistry = new Map();
     
+    // Helper function to get air quality chart color based on latest value
+    const getAirQualityChartColor = (chartType, data) => {
+        // Get the most recent value to determine the color
+        if (!data || data.length === 0) return WeatherUtils.getCSSVariable('--chart-series-color');
+        
+        const latestValue = data[data.length - 1][1];
+        return WeatherUtils.getAirQualityMetricColor(chartType, latestValue);
+    };
+    
     // Default chart options factory
     const getDefaultChartOptions = () => ({
         chart: {
@@ -204,7 +213,9 @@ const WeatherCharts = (function() {
                 {
                     name: title,
                     data: data,
-                    color: WeatherUtils.getCSSVariable('--chart-series-color'),
+                    color: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) 
+                        ? getAirQualityChartColor(chartName, data)
+                        : WeatherUtils.getCSSVariable('--chart-series-color'),
                     marker: {
                         enabled: false,
                         states: {
@@ -266,7 +277,7 @@ const WeatherCharts = (function() {
                 
             case 'winddirection':
                 return rawData
-                    .filter((item, i) => i % dataModulo === 0 || rawData.length < 50)
+                    .filter((_, i) => i % dataModulo === 0 || rawData.length < 50)
                     .map(item => [item.ts, 0, item.winds, item.windd]);
                 
             case 'rainfall':
