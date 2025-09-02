@@ -131,6 +131,7 @@ const WeatherCharts = (function() {
             unit: " V"
         },
         pm25: {
+            displayName: "PM2.5",
             yAxisLabel: "µg/m³",
             chartType: "spline",
             tooltipDecimals: 1,
@@ -142,6 +143,7 @@ const WeatherCharts = (function() {
             ]
         },
         pm10: {
+            displayName: "PM10",
             yAxisLabel: "µg/m³",
             chartType: "spline",
             tooltipDecimals: 1,
@@ -152,6 +154,7 @@ const WeatherCharts = (function() {
             ]
         },
         co2: {
+            displayName: "CO₂",
             yAxisLabel: "ppm",
             chartType: "spline",
             tooltipDecimals: 0,
@@ -163,6 +166,7 @@ const WeatherCharts = (function() {
             ]
         },
         tvocindex: {
+            displayName: "TVOC Index",
             yAxisLabel: "Index",
             chartType: "spline",
             tooltipDecimals: 0,
@@ -175,6 +179,7 @@ const WeatherCharts = (function() {
             ]
         },
         noxindex: {
+            displayName: "NOx Index",
             yAxisLabel: "Index",
             chartType: "spline",
             tooltipDecimals: 0,
@@ -191,7 +196,10 @@ const WeatherCharts = (function() {
     // Create a single chart
     const createChart = (chartName, targetDiv, data, title, customOptions = {}) => {
         const config = chartTypeConfigs[chartName] || {};
-        const { yAxisLabel, chartType = 'spline', tooltipFormat, additionalSeries = [] } = { ...config, ...customOptions };
+        const { displayName, yAxisLabel, chartType = 'spline', tooltipFormat, additionalSeries = [] } = { ...config, ...customOptions };
+        
+        // Use display name if available, otherwise use title
+        const seriesName = displayName || title;
         
         const baseOptions = getDefaultChartOptions();
         
@@ -234,11 +242,29 @@ const WeatherCharts = (function() {
                 ...(tooltipFormat || {
                     valueDecimals: config.tooltipDecimals || 2,
                     valueSuffix: config.unit || ''
-                })
+                }),
+                // Custom formatter for air quality charts to show status
+                formatter: function() {
+                    if (['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)) {
+                        const value = this.y;
+                        const level = WeatherUtils.getAirQualityLevel(chartName, value);
+                        const status = WeatherUtils.getAirQualityStatusText(level);
+                        const color = WeatherUtils.getAirQualityColor(level);
+                        const decimals = config.tooltipDecimals || 2;
+                        const unit = config.unit || '';
+                        
+                        return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
+                               `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
+                               `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
+                    } else {
+                        // Default formatter for non-air quality charts
+                        return undefined; // Use Highcharts default
+                    }
+                }
             },
             series: [
                 {
-                    name: title,
+                    name: seriesName,
                     data: data,
                     color: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) 
                         ? getAirQualityChartColor(chartName, data)
