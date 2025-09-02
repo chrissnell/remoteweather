@@ -95,53 +95,21 @@ const WeatherDOM = (function() {
     };
     
     // Air quality thresholds configuration
-    const airQualityThresholds = {
-        pm25: [
-            { limit: 12, status: 'Good', class: 'air-quality-good' },
-            { limit: 35, status: 'Moderate', class: 'air-quality-moderate' },
-            { limit: 55, status: 'Unhealthy (Sensitive)', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 150, status: 'Unhealthy', class: 'air-quality-unhealthy' },
-            { limit: 250, status: 'Very Unhealthy', class: 'air-quality-very-unhealthy' },
-            { limit: Infinity, status: 'Hazardous', class: 'air-quality-hazardous' }
-        ],
-        pm10: [
-            { limit: 54, status: 'Good', class: 'air-quality-good' },
-            { limit: 154, status: 'Moderate', class: 'air-quality-moderate' },
-            { limit: 254, status: 'Unhealthy (Sensitive)', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 354, status: 'Unhealthy', class: 'air-quality-unhealthy' },
-            { limit: 424, status: 'Very Unhealthy', class: 'air-quality-very-unhealthy' },
-            { limit: Infinity, status: 'Hazardous', class: 'air-quality-hazardous' }
-        ],
-        pm1: [
-            { limit: 10, status: 'Good', class: 'air-quality-good' },
-            { limit: 25, status: 'Moderate', class: 'air-quality-moderate' },
-            { limit: 50, status: 'Elevated', class: 'air-quality-unhealthy-sensitive' },
-            { limit: Infinity, status: 'High', class: 'air-quality-unhealthy' }
-        ],
-        co2: [
-            { limit: 800, status: 'Excellent', class: 'air-quality-good' },
-            { limit: 1000, status: 'Good', class: 'air-quality-good' },
-            { limit: 1500, status: 'Fair', class: 'air-quality-moderate' },
-            { limit: 2000, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 5000, status: 'Very Poor', class: 'air-quality-unhealthy' },
-            { limit: Infinity, status: 'Dangerous', class: 'air-quality-hazardous' }
-        ],
-        tvoc: [
-            { limit: 65, status: 'Excellent', class: 'air-quality-good' },
-            { limit: 220, status: 'Good', class: 'air-quality-good' },
-            { limit: 660, status: 'Fair', class: 'air-quality-moderate' },
-            { limit: 1430, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 2200, status: 'Bad', class: 'air-quality-unhealthy' },
-            { limit: Infinity, status: 'Very Bad', class: 'air-quality-very-unhealthy' }
-        ],
-        nox: [
-            { limit: 20, status: 'Excellent', class: 'air-quality-good' },
-            { limit: 50, status: 'Good', class: 'air-quality-good' },
-            { limit: 150, status: 'Fair', class: 'air-quality-moderate' },
-            { limit: 250, status: 'Poor', class: 'air-quality-unhealthy-sensitive' },
-            { limit: 400, status: 'Bad', class: 'air-quality-unhealthy' },
-            { limit: Infinity, status: 'Very Bad', class: 'air-quality-very-unhealthy' }
-        ]
+    // Map air quality levels to CSS classes
+    const getAirQualityClass = (level) => {
+        const classMap = {
+            [WeatherUtils.AirQualityLevels.EXCELLENT]: 'air-quality-good',
+            [WeatherUtils.AirQualityLevels.GOOD]: 'air-quality-good',
+            [WeatherUtils.AirQualityLevels.FAIR]: 'air-quality-moderate',
+            [WeatherUtils.AirQualityLevels.MODERATE]: 'air-quality-moderate',
+            [WeatherUtils.AirQualityLevels.POOR]: 'air-quality-unhealthy-sensitive',
+            [WeatherUtils.AirQualityLevels.UNHEALTHY]: 'air-quality-unhealthy',
+            [WeatherUtils.AirQualityLevels.VERY_UNHEALTHY]: 'air-quality-very-unhealthy',
+            [WeatherUtils.AirQualityLevels.HAZARDOUS]: 'air-quality-hazardous',
+            [WeatherUtils.AirQualityLevels.DANGEROUS]: 'air-quality-hazardous',
+            [WeatherUtils.AirQualityLevels.UNKNOWN]: ''
+        };
+        return classMap[level] || '';
     };
 
     // Format value helper
@@ -166,28 +134,31 @@ const WeatherDOM = (function() {
         
         // Update status for each metric
         ['pm25', 'pm10', 'pm1', 'co2', 'tvoc', 'nox'].forEach(metric => {
-            if (airQualityThresholds[metric]) {
-                updateAirQualityStatus(metric, airQualityData[metric], airQualityThresholds[metric]);
-            }
+            updateAirQualityStatus(metric, airQualityData[metric]);
         });
         
         // Update last updated time
         updateElement('air-quality-last-updated', `Updated: ${new Date().toLocaleTimeString()}`);
     };
     
-    // Helper function to update air quality status with color
-    const updateAirQualityStatus = (metric, value, thresholds) => {
+    // Helper function to update air quality status with color using centralized system
+    const updateAirQualityStatus = (metric, value) => {
         const statusElement = getCachedElement(`${metric}-status`);
         
         if (!statusElement || value === null || value === undefined) return;
         
-        for (const threshold of thresholds) {
-            if (value < threshold.limit) {
-                statusElement.textContent = threshold.status;
-                statusElement.className = `metric-status ${threshold.class}`;
-                break;
-            }
-        }
+        // Handle special metric name mapping
+        let metricType = metric;
+        if (metric === 'tvoc') metricType = 'tvocindex';
+        if (metric === 'nox') metricType = 'noxindex';
+        
+        const level = WeatherUtils.getAirQualityLevel(metricType, value);
+        const statusText = WeatherUtils.getAirQualityStatusText(level);
+        const cssClass = getAirQualityClass(level);
+        
+        statusElement.textContent = statusText;
+        statusElement.className = `metric-status ${cssClass}`;
+        statusElement.style.color = WeatherUtils.getAirQualityColor(level);
     };
     
     // Update windrose display
@@ -722,14 +693,14 @@ const WeatherDOM = (function() {
             });
             
             // Desktop: hover events
-            icon.addEventListener('mouseenter', (e) => {
+            icon.addEventListener('mouseenter', () => {
                 if (window.innerWidth > 768) {
                     showTooltip(icon);
                 }
             });
             
             // Hide tooltip on mouse leave (desktop only)
-            icon.addEventListener('mouseleave', (e) => {
+            icon.addEventListener('mouseleave', () => {
                 if (window.innerWidth > 768) {
                     // Add a small delay to prevent flickering when moving between icon and tooltip
                     setTimeout(() => {
@@ -744,11 +715,11 @@ const WeatherDOM = (function() {
         
         // Keep tooltip visible when hovering over it
         if (tooltipContainer) {
-            tooltipContainer.addEventListener('mouseenter', (e) => {
+            tooltipContainer.addEventListener('mouseenter', () => {
                 tooltipContainer.style.display = 'block';
             });
             
-            tooltipContainer.addEventListener('mouseleave', (e) => {
+            tooltipContainer.addEventListener('mouseleave', () => {
                 tooltipContainer.style.display = 'none';
             });
         }
