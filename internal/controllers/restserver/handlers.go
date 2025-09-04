@@ -268,7 +268,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			// Create a temporary database.Client wrapper for the CalculateDailyRainfall function
 			dbClient := &database.Client{DB: h.controller.DB}
 			calculatedDayRain := controllers.CalculateDailyRainfall(dbClient, stationName)
-			latestReading.RainfallDay = float32ToJSONNumber(calculatedDayRain)
+			latestReading.RainfallDay = calculatedDayRain
 		}
 
 		// Calculate rainfall totals using summary table with recent data
@@ -301,9 +301,9 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 				`, stationName).Scan(&rainfallPeriods)
 			}
 			
-			latestReading.Rainfall24h = float32ToJSONNumber(rainfallPeriods.Rain24h)
-			latestReading.Rainfall48h = float32ToJSONNumber(rainfallPeriods.Rain48h)
-			latestReading.Rainfall72h = float32ToJSONNumber(rainfallPeriods.Rain72h)
+			latestReading.Rainfall24h = rainfallPeriods.Rain24h
+			latestReading.Rainfall48h = rainfallPeriods.Rain48h
+			latestReading.Rainfall72h = rainfallPeriods.Rain72h
 
 			// Storm rainfall total using existing function
 			type StormRainResult struct {
@@ -316,7 +316,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				log.Errorf("error getting storm rainfall from DB: %v", err)
 			} else {
-				latestReading.RainfallStorm = float32ToJSONNumber(stormResult.TotalRainfall)
+				latestReading.RainfallStorm = stormResult.TotalRainfall
 			}
 		}
 
@@ -331,7 +331,7 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				log.Errorf("error getting wind gust from DB: %v", err)
 			} else {
-				latestReading.WindGust = float32ToJSONNumber(windGustResult.WindGust)
+				latestReading.WindGust = windGustResult.WindGust
 			}
 		}
 
