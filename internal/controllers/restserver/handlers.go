@@ -560,6 +560,28 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		// Parse period parameter if provided
+		periodStr := req.URL.Query().Get("period")
+		var periodSpecified bool
+		var period int
+		if periodStr != "" {
+			var err error
+			period, err = strconv.Atoi(periodStr)
+			if err != nil {
+				log.Errorf("invalid period parameter: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				h.formatter.WriteResponse(w, req, map[string]string{"error": "Invalid period parameter - must be a number"}, nil)
+				return
+			}
+			if period < 0 {
+				log.Errorf("period must be non-negative, got %d", period)
+				w.WriteHeader(http.StatusBadRequest)
+				h.formatter.WriteResponse(w, req, map[string]string{"error": "period must be a non-negative number"}, nil)
+				return
+			}
+			periodSpecified = true
+		}
+
 		// Support both station_id (preferred) and station (legacy) parameters
 		stationIDStr := req.URL.Query().Get("station_id")
 		stationName := req.URL.Query().Get("station")
@@ -615,10 +637,47 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		// If period is specified, return only that specific period
+		dataBytes := record.Data.Bytes
+		if periodSpecified {
+			// Parse the JSON data
+			var data []interface{}
+			err := json.Unmarshal(dataBytes, &data)
+			if err != nil {
+				log.Errorf("error parsing forecast data: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				h.formatter.WriteResponse(w, req, map[string]string{"error": "Error processing forecast data"}, nil)
+				return
+			}
+
+			// Check if period index is within bounds
+			if period >= len(data) {
+				log.Errorf("period %d exceeds available periods (0-%d)", period, len(data)-1)
+				w.WriteHeader(http.StatusBadRequest)
+				h.formatter.WriteResponse(w, req, map[string]string{
+					"error": fmt.Sprintf("period %d exceeds available periods (valid range: 0-%d)", period, len(data)-1),
+				}, nil)
+				return
+			}
+
+			// Return only the requested period as a single element
+			singlePeriod := data[period]
+			
+			// Re-encode the single period data
+			singlePeriodBytes, err := json.Marshal(singlePeriod)
+			if err != nil {
+				log.Errorf("error encoding period data: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				h.formatter.WriteResponse(w, req, map[string]string{"error": "Error encoding period data"}, nil)
+				return
+			}
+			dataBytes = singlePeriodBytes
+		}
+
 		wrapper := &responseformat.JSONWrapper{
 			LastUpdated: record.UpdatedAt.String(),
 		}
-		err := h.formatter.WriteRawJSON(w, req, record.Data.Bytes, wrapper)
+		err := h.formatter.WriteRawJSON(w, req, dataBytes, wrapper)
 		if err != nil {
 			log.Errorf("error encoding forecast: %v", err)
 			http.Error(w, "error encoding forecast data", http.StatusInternalServerError)
