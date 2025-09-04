@@ -10,6 +10,7 @@ require (
 	github.com/jackc/pgtype v1.14.4
 	github.com/panjf2000/gnet/v2 v2.9.1
 	github.com/tarm/goserial v0.0.0-20151007205400-b3440c3c6355
+	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.uber.org/zap v1.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250212204824-5a70512c5d8b
 	google.golang.org/grpc v1.70.0
@@ -18,6 +19,8 @@ require (
 	gorm.io/gorm v1.30.0
 	modernc.org/sqlite v1.38.0
 )
+
+require github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 
 require github.com/lib/pq v1.10.9 // direct
 

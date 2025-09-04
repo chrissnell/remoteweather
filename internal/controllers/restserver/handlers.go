@@ -16,6 +16,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
+	"github.com/chrissnell/remoteweather/pkg/responseformat"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -24,12 +25,14 @@ import (
 // Handlers contains all HTTP handlers for the REST server
 type Handlers struct {
 	controller *Controller
+	formatter  *responseformat.Formatter
 }
 
 // NewHandlers creates a new handlers instance
 func NewHandlers(ctrl *Controller) *Handlers {
 	return &Handlers{
 		controller: ctrl,
+		formatter:  responseformat.NewFormatter(),
 	}
 }
 
@@ -195,12 +198,11 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 	// Check if any website is configured
 	website := h.getWebsiteFromContext(req)
 	if website == nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
+		h.formatter.WriteResponse(w, req, map[string]string{
 			"error": "No weather websites configured",
 			"message": "Weather data is not available until at least one weather website is configured",
-		})
+		}, nil)
 		return
 	}
 
@@ -333,12 +335,12 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		err = json.NewEncoder(w).Encode(latestReading)
+		headers := map[string]string{
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		}
+		err = h.formatter.WriteResponse(w, req, latestReading, headers)
 		if err != nil {
-			log.Error("error encoding latest weather readings to JSON:", err)
+			log.Error("error encoding latest weather readings:", err)
 			return
 		}
 	} else {
@@ -351,12 +353,11 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 	// Get website from context and check if snow is enabled
 	website := h.getWebsiteFromContext(req)
 	if website == nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
+		h.formatter.WriteResponse(w, req, map[string]string{
 			"error": "No weather websites configured",
 			"message": "Snow data is not available until at least one weather website is configured",
-		})
+		}, nil)
 		return
 	}
 	if !website.SnowEnabled {
@@ -511,17 +512,12 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			SnowfallRate: float32(snowfallRate),
 		}
 
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "application/json")
-
-		jsonResponse, err := json.Marshal(&snowReading)
+		err = h.formatter.WriteResponse(w, req, &snowReading, nil)
 		if err != nil {
-			log.Errorf("error marshalling snowReading: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+			log.Errorf("error encoding snowReading: %v", err)
+			http.Error(w, "error encoding snow data", http.StatusInternalServerError)
 			return
 		}
-
-		w.Write(jsonResponse)
 	} else {
 		http.Error(w, "database not enabled", http.StatusInternalServerError)
 	}
@@ -532,12 +528,11 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 	// Check if any website is configured
 	website := h.getWebsiteFromContext(req)
 	if website == nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(map[string]string{
+		h.formatter.WriteResponse(w, req, map[string]string{
 			"error": "No weather websites configured",
 			"message": "Forecast data is not available until at least one weather website is configured",
-		})
+		}, nil)
 		return
 	}
 
@@ -620,11 +615,14 @@ func (h *Handlers) GetForecast(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("{\"lastUpdated\": \"" + record.UpdatedAt.String() + "\", \"data\": "))
-		w.Write(record.Data.Bytes)
-		w.Write([]byte("}"))
+		wrapper := &responseformat.JSONWrapper{
+			LastUpdated: record.UpdatedAt.String(),
+		}
+		err := h.formatter.WriteRawJSON(w, req, record.Data.Bytes, wrapper)
+		if err != nil {
+			log.Errorf("error encoding forecast: %v", err)
+			http.Error(w, "error encoding forecast data", http.StatusInternalServerError)
+		}
 	} else {
 		http.Error(w, "database not enabled", http.StatusInternalServerError)
 	}
