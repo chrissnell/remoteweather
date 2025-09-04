@@ -27,76 +27,77 @@ type WeatherReading struct {
 	StationType      string `json:"stationtype,omitempty"`
 	ReadingTimestamp int64  `json:"ts"`
 	// Using float32 for all numeric fields - proper types for both JSON and MessagePack
-	OutsideTemperature  float32 `json:"otemp,omitempty"`
-	ExtraTemp1          float32 `json:"extratemp1,omitempty"`
-	ExtraTemp2          float32 `json:"extratemp2,omitempty"`
-	ExtraTemp3          float32 `json:"extratemp3,omitempty"`
-	ExtraTemp4          float32 `json:"extratemp4,omitempty"`
-	ExtraTemp5          float32 `json:"extratemp5,omitempty"`
-	ExtraTemp6          float32 `json:"extratemp6,omitempty"`
-	ExtraTemp7          float32 `json:"extratemp7,omitempty"`
-	SoilTemp1           float32 `json:"soiltemp1,omitempty"`
-	SoilTemp2           float32 `json:"soiltemp2,omitempty"`
-	SoilTemp3           float32 `json:"soiltemp3,omitempty"`
-	SoilTemp4           float32 `json:"soiltemp4,omitempty"`
-	LeafTemp1           float32 `json:"leaftemp1,omitempty"`
-	LeafTemp2           float32 `json:"leaftemp2,omitempty"`
-	LeafTemp3           float32 `json:"leaftemp3,omitempty"`
-	LeafTemp4           float32 `json:"leaftemp4,omitempty"`
-	OutHumidity         float32 `json:"outhumidity,omitempty"`
-	ExtraHumidity1      float32 `json:"extrahumidity1,omitempty"`
-	ExtraHumidity2      float32 `json:"extrahumidity2,omitempty"`
-	ExtraHumidity3      float32 `json:"extrahumidity3,omitempty"`
-	ExtraHumidity4      float32 `json:"extrahumidity4,omitempty"`
-	ExtraHumidity5      float32 `json:"extrahumidity5,omitempty"`
-	ExtraHumidity6      float32 `json:"extrahumidity6,omitempty"`
-	ExtraHumidity7      float32 `json:"extrahumidity7,omitempty"`
-	OutsideHumidity     float32 `json:"ohum,omitempty"`
-	RainRate            float32 `json:"rainrate,omitempty"`
-	RainIncremental     float32 `json:"rainincremental,omitempty"`
-	PeriodRain          float32 `json:"period_rain,omitempty"`
-	SolarWatts          float32 `json:"solarwatts,omitempty"`
-	PotentialSolarWatts float32 `json:"potentialsolarwatts,omitempty"`
-	SolarJoules         float32 `json:"solarjoules,omitempty"`
-	UV                  float32 `json:"uv,omitempty"`
-	Radiation           float32 `json:"radiation,omitempty"`
-	StormRain           float32 `json:"stormrain,omitempty"`
-	DayRain             float32 `json:"dayrain,omitempty"`
-	MonthRain           float32 `json:"monthrain,omitempty"`
-	YearRain            float32 `json:"yearrain,omitempty"`
-	Barometer           float32 `json:"bar,omitempty"`
+	// Note: omitempty removed from numeric fields to ensure zeros are included in JSON output
+	OutsideTemperature  float32 `json:"otemp"`
+	ExtraTemp1          float32 `json:"extratemp1"`
+	ExtraTemp2          float32 `json:"extratemp2"`
+	ExtraTemp3          float32 `json:"extratemp3"`
+	ExtraTemp4          float32 `json:"extratemp4"`
+	ExtraTemp5          float32 `json:"extratemp5"`
+	ExtraTemp6          float32 `json:"extratemp6"`
+	ExtraTemp7          float32 `json:"extratemp7"`
+	SoilTemp1           float32 `json:"soiltemp1"`
+	SoilTemp2           float32 `json:"soiltemp2"`
+	SoilTemp3           float32 `json:"soiltemp3"`
+	SoilTemp4           float32 `json:"soiltemp4"`
+	LeafTemp1           float32 `json:"leaftemp1"`
+	LeafTemp2           float32 `json:"leaftemp2"`
+	LeafTemp3           float32 `json:"leaftemp3"`
+	LeafTemp4           float32 `json:"leaftemp4"`
+	OutHumidity         float32 `json:"outhumidity"`
+	ExtraHumidity1      float32 `json:"extrahumidity1"`
+	ExtraHumidity2      float32 `json:"extrahumidity2"`
+	ExtraHumidity3      float32 `json:"extrahumidity3"`
+	ExtraHumidity4      float32 `json:"extrahumidity4"`
+	ExtraHumidity5      float32 `json:"extrahumidity5"`
+	ExtraHumidity6      float32 `json:"extrahumidity6"`
+	ExtraHumidity7      float32 `json:"extrahumidity7"`
+	OutsideHumidity     float32 `json:"ohum"`
+	RainRate            float32 `json:"rainrate"`
+	RainIncremental     float32 `json:"rainincremental"`
+	PeriodRain          float32 `json:"period_rain"`
+	SolarWatts          float32 `json:"solarwatts"`
+	PotentialSolarWatts float32 `json:"potentialsolarwatts"`
+	SolarJoules         float32 `json:"solarjoules"`
+	UV                  float32 `json:"uv"`
+	Radiation           float32 `json:"radiation"`
+	StormRain           float32 `json:"stormrain"`
+	DayRain             float32 `json:"dayrain"`
+	MonthRain           float32 `json:"monthrain"`
+	YearRain            float32 `json:"yearrain"`
+	Barometer           float32 `json:"bar"`
 	// New rainfall total fields
-	Rainfall24h           float32 `json:"rainfall24h,omitempty"`
-	Rainfall48h           float32 `json:"rainfall48h,omitempty"`
-	Rainfall72h           float32 `json:"rainfall72h,omitempty"`
-	RainfallStorm         float32 `json:"rainfallstorm,omitempty"`
-	WindSpeed             float32 `json:"winds,omitempty"`
-	WindGust              float32 `json:"windgust,omitempty"`
-	WindDirection         float32 `json:"windd,omitempty"`
+	Rainfall24h           float32 `json:"rainfall24h"`
+	Rainfall48h           float32 `json:"rainfall48h"`
+	Rainfall72h           float32 `json:"rainfall72h"`
+	RainfallStorm         float32 `json:"rainfallstorm"`
+	WindSpeed             float32 `json:"winds"`
+	WindGust              float32 `json:"windgust"`
+	WindDirection         float32 `json:"windd"`
 	CardinalDirection     string  `json:"windcard,omitempty"`
-	RainfallDay           float32 `json:"rainday,omitempty"`
-	WindChill             float32 `json:"windch,omitempty"`
-	HeatIndex             float32 `json:"heatidx,omitempty"`
-	InsideTemperature     float32 `json:"itemp,omitempty"`
-	InsideHumidity        float32 `json:"ihum,omitempty"`
-	ConsBatteryVoltage    float32 `json:"consbatteryvoltage,omitempty"`
-	StationBatteryVoltage float32 `json:"stationbatteryvoltage,omitempty"`
-	SnowDepth             float32 `json:"snowdepth,omitempty"`
-	SnowDistance          float32 `json:"snowdistance,omitempty"`
+	RainfallDay           float32 `json:"rainday"`
+	WindChill             float32 `json:"windch"`
+	HeatIndex             float32 `json:"heatidx"`
+	InsideTemperature     float32 `json:"itemp"`
+	InsideHumidity        float32 `json:"ihum"`
+	ConsBatteryVoltage    float32 `json:"consbatteryvoltage"`
+	StationBatteryVoltage float32 `json:"stationbatteryvoltage"`
+	SnowDepth             float32 `json:"snowdepth"`
+	SnowDistance          float32 `json:"snowdistance"`
 	PM25                  float32 `json:"pm25"`
 	CO2                   float32 `json:"co2"`
 	AQIPM25AQIN           float32 `json:"aqi_pm25_aqin"`
 	AQIPM10AQIN           float32 `json:"aqi_pm10_aqin"`
-	ExtraFloat1           float32 `json:"extrafloat1,omitempty"`
-	ExtraFloat2           float32 `json:"extrafloat2,omitempty"`
-	ExtraFloat3           float32 `json:"extrafloat3,omitempty"`
-	ExtraFloat4           float32 `json:"extrafloat4,omitempty"`
-	ExtraFloat5           float32 `json:"extrafloat5,omitempty"`
-	ExtraFloat6           float32 `json:"extrafloat6,omitempty"`
-	ExtraFloat7           float32 `json:"extrafloat7,omitempty"`
-	ExtraFloat8           float32 `json:"extrafloat8,omitempty"`
-	ExtraFloat9           float32 `json:"extrafloat9,omitempty"`
-	ExtraFloat10          float32 `json:"extrafloat10,omitempty"`
+	ExtraFloat1           float32 `json:"extrafloat1"`
+	ExtraFloat2           float32 `json:"extrafloat2"`
+	ExtraFloat3           float32 `json:"extrafloat3"`
+	ExtraFloat4           float32 `json:"extrafloat4"`
+	ExtraFloat5           float32 `json:"extrafloat5"`
+	ExtraFloat6           float32 `json:"extrafloat6"`
+	ExtraFloat7           float32 `json:"extrafloat7"`
+	ExtraFloat8           float32 `json:"extrafloat8"`
+	ExtraFloat9           float32 `json:"extrafloat9"`
+	ExtraFloat10          float32 `json:"extrafloat10"`
 	ExtraText1            string      `json:"extratext1,omitempty"`
 	ExtraText2            string      `json:"extratext2,omitempty"`
 	ExtraText3            string      `json:"extratext3,omitempty"`
