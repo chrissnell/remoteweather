@@ -1,9 +1,6 @@
 package restserver
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
@@ -29,78 +26,77 @@ type WeatherReading struct {
 	StationName      string `json:"stationname"`
 	StationType      string `json:"stationtype,omitempty"`
 	ReadingTimestamp int64  `json:"ts"`
-	// Using pointers for readings ensures that json.Marshall will encode zeros as 0
-	// instead of simply not including the field in the data structure
-	OutsideTemperature  json.Number `json:"otemp,omitempty"`
-	ExtraTemp1          json.Number `json:"extratemp1,omitempty"`
-	ExtraTemp2          json.Number `json:"extratemp2,omitempty"`
-	ExtraTemp3          json.Number `json:"extratemp3,omitempty"`
-	ExtraTemp4          json.Number `json:"extratemp4,omitempty"`
-	ExtraTemp5          json.Number `json:"extratemp5,omitempty"`
-	ExtraTemp6          json.Number `json:"extratemp6,omitempty"`
-	ExtraTemp7          json.Number `json:"extratemp7,omitempty"`
-	SoilTemp1           json.Number `json:"soiltemp1,omitempty"`
-	SoilTemp2           json.Number `json:"soiltemp2,omitempty"`
-	SoilTemp3           json.Number `json:"soiltemp3,omitempty"`
-	SoilTemp4           json.Number `json:"soiltemp4,omitempty"`
-	LeafTemp1           json.Number `json:"leaftemp1,omitempty"`
-	LeafTemp2           json.Number `json:"leaftemp2,omitempty"`
-	LeafTemp3           json.Number `json:"leaftemp3,omitempty"`
-	LeafTemp4           json.Number `json:"leaftemp4,omitempty"`
-	OutHumidity         json.Number `json:"outhumidity,omitempty"`
-	ExtraHumidity1      json.Number `json:"extrahumidity1,omitempty"`
-	ExtraHumidity2      json.Number `json:"extrahumidity2,omitempty"`
-	ExtraHumidity3      json.Number `json:"extrahumidity3,omitempty"`
-	ExtraHumidity4      json.Number `json:"extrahumidity4,omitempty"`
-	ExtraHumidity5      json.Number `json:"extrahumidity5,omitempty"`
-	ExtraHumidity6      json.Number `json:"extrahumidity6,omitempty"`
-	ExtraHumidity7      json.Number `json:"extrahumidity7,omitempty"`
-	OutsideHumidity     json.Number `json:"ohum,omitempty"`
-	RainRate            json.Number `json:"rainrate,omitempty"`
-	RainIncremental     json.Number `json:"rainincremental,omitempty"`
-	PeriodRain          json.Number `json:"period_rain,omitempty"`
-	SolarWatts          json.Number `json:"solarwatts,omitempty"`
-	PotentialSolarWatts json.Number `json:"potentialsolarwatts,omitempty"`
-	SolarJoules         json.Number `json:"solarjoules,omitempty"`
-	UV                  json.Number `json:"uv,omitempty"`
-	Radiation           json.Number `json:"radiation,omitempty"`
-	StormRain           json.Number `json:"stormrain,omitempty"`
-	DayRain             json.Number `json:"dayrain,omitempty"`
-	MonthRain           json.Number `json:"monthrain,omitempty"`
-	YearRain            json.Number `json:"yearrain,omitempty"`
-	Barometer           json.Number `json:"bar,omitempty"`
+	// Using float32 for all numeric fields - proper types for both JSON and MessagePack
+	OutsideTemperature  float32 `json:"otemp,omitempty"`
+	ExtraTemp1          float32 `json:"extratemp1,omitempty"`
+	ExtraTemp2          float32 `json:"extratemp2,omitempty"`
+	ExtraTemp3          float32 `json:"extratemp3,omitempty"`
+	ExtraTemp4          float32 `json:"extratemp4,omitempty"`
+	ExtraTemp5          float32 `json:"extratemp5,omitempty"`
+	ExtraTemp6          float32 `json:"extratemp6,omitempty"`
+	ExtraTemp7          float32 `json:"extratemp7,omitempty"`
+	SoilTemp1           float32 `json:"soiltemp1,omitempty"`
+	SoilTemp2           float32 `json:"soiltemp2,omitempty"`
+	SoilTemp3           float32 `json:"soiltemp3,omitempty"`
+	SoilTemp4           float32 `json:"soiltemp4,omitempty"`
+	LeafTemp1           float32 `json:"leaftemp1,omitempty"`
+	LeafTemp2           float32 `json:"leaftemp2,omitempty"`
+	LeafTemp3           float32 `json:"leaftemp3,omitempty"`
+	LeafTemp4           float32 `json:"leaftemp4,omitempty"`
+	OutHumidity         float32 `json:"outhumidity,omitempty"`
+	ExtraHumidity1      float32 `json:"extrahumidity1,omitempty"`
+	ExtraHumidity2      float32 `json:"extrahumidity2,omitempty"`
+	ExtraHumidity3      float32 `json:"extrahumidity3,omitempty"`
+	ExtraHumidity4      float32 `json:"extrahumidity4,omitempty"`
+	ExtraHumidity5      float32 `json:"extrahumidity5,omitempty"`
+	ExtraHumidity6      float32 `json:"extrahumidity6,omitempty"`
+	ExtraHumidity7      float32 `json:"extrahumidity7,omitempty"`
+	OutsideHumidity     float32 `json:"ohum,omitempty"`
+	RainRate            float32 `json:"rainrate,omitempty"`
+	RainIncremental     float32 `json:"rainincremental,omitempty"`
+	PeriodRain          float32 `json:"period_rain,omitempty"`
+	SolarWatts          float32 `json:"solarwatts,omitempty"`
+	PotentialSolarWatts float32 `json:"potentialsolarwatts,omitempty"`
+	SolarJoules         float32 `json:"solarjoules,omitempty"`
+	UV                  float32 `json:"uv,omitempty"`
+	Radiation           float32 `json:"radiation,omitempty"`
+	StormRain           float32 `json:"stormrain,omitempty"`
+	DayRain             float32 `json:"dayrain,omitempty"`
+	MonthRain           float32 `json:"monthrain,omitempty"`
+	YearRain            float32 `json:"yearrain,omitempty"`
+	Barometer           float32 `json:"bar,omitempty"`
 	// New rainfall total fields
-	Rainfall24h           json.Number `json:"rainfall24h,omitempty"`
-	Rainfall48h           json.Number `json:"rainfall48h,omitempty"`
-	Rainfall72h           json.Number `json:"rainfall72h,omitempty"`
-	RainfallStorm         json.Number `json:"rainfallstorm,omitempty"`
-	WindSpeed             json.Number `json:"winds,omitempty"`
-	WindGust              json.Number `json:"windgust,omitempty"`
-	WindDirection         json.Number `json:"windd,omitempty"`
-	CardinalDirection     string      `json:"windcard,omitempty"`
-	RainfallDay           json.Number `json:"rainday,omitempty"`
-	WindChill             json.Number `json:"windch,omitempty"`
-	HeatIndex             json.Number `json:"heatidx,omitempty"`
-	InsideTemperature     json.Number `json:"itemp,omitempty"`
-	InsideHumidity        json.Number `json:"ihum,omitempty"`
-	ConsBatteryVoltage    json.Number `json:"consbatteryvoltage,omitempty"`
-	StationBatteryVoltage json.Number `json:"stationbatteryvoltage,omitempty"`
-	SnowDepth             json.Number `json:"snowdepth,omitempty"`
-	SnowDistance          json.Number `json:"snowdistance,omitempty"`
-	PM25                  json.Number `json:"pm25"`
-	CO2                   json.Number `json:"co2"`
-	AQIPM25AQIN           json.Number `json:"aqi_pm25_aqin"`
-	AQIPM10AQIN           json.Number `json:"aqi_pm10_aqin"`
-	ExtraFloat1           json.Number `json:"extrafloat1,omitempty"`
-	ExtraFloat2           json.Number `json:"extrafloat2,omitempty"`
-	ExtraFloat3           json.Number `json:"extrafloat3,omitempty"`
-	ExtraFloat4           json.Number `json:"extrafloat4,omitempty"`
-	ExtraFloat5           json.Number `json:"extrafloat5,omitempty"`
-	ExtraFloat6           json.Number `json:"extrafloat6,omitempty"`
-	ExtraFloat7           json.Number `json:"extrafloat7,omitempty"`
-	ExtraFloat8           json.Number `json:"extrafloat8,omitempty"`
-	ExtraFloat9           json.Number `json:"extrafloat9,omitempty"`
-	ExtraFloat10          json.Number `json:"extrafloat10,omitempty"`
+	Rainfall24h           float32 `json:"rainfall24h,omitempty"`
+	Rainfall48h           float32 `json:"rainfall48h,omitempty"`
+	Rainfall72h           float32 `json:"rainfall72h,omitempty"`
+	RainfallStorm         float32 `json:"rainfallstorm,omitempty"`
+	WindSpeed             float32 `json:"winds,omitempty"`
+	WindGust              float32 `json:"windgust,omitempty"`
+	WindDirection         float32 `json:"windd,omitempty"`
+	CardinalDirection     string  `json:"windcard,omitempty"`
+	RainfallDay           float32 `json:"rainday,omitempty"`
+	WindChill             float32 `json:"windch,omitempty"`
+	HeatIndex             float32 `json:"heatidx,omitempty"`
+	InsideTemperature     float32 `json:"itemp,omitempty"`
+	InsideHumidity        float32 `json:"ihum,omitempty"`
+	ConsBatteryVoltage    float32 `json:"consbatteryvoltage,omitempty"`
+	StationBatteryVoltage float32 `json:"stationbatteryvoltage,omitempty"`
+	SnowDepth             float32 `json:"snowdepth,omitempty"`
+	SnowDistance          float32 `json:"snowdistance,omitempty"`
+	PM25                  float32 `json:"pm25"`
+	CO2                   float32 `json:"co2"`
+	AQIPM25AQIN           float32 `json:"aqi_pm25_aqin"`
+	AQIPM10AQIN           float32 `json:"aqi_pm10_aqin"`
+	ExtraFloat1           float32 `json:"extrafloat1,omitempty"`
+	ExtraFloat2           float32 `json:"extrafloat2,omitempty"`
+	ExtraFloat3           float32 `json:"extrafloat3,omitempty"`
+	ExtraFloat4           float32 `json:"extrafloat4,omitempty"`
+	ExtraFloat5           float32 `json:"extrafloat5,omitempty"`
+	ExtraFloat6           float32 `json:"extrafloat6,omitempty"`
+	ExtraFloat7           float32 `json:"extrafloat7,omitempty"`
+	ExtraFloat8           float32 `json:"extrafloat8,omitempty"`
+	ExtraFloat9           float32 `json:"extrafloat9,omitempty"`
+	ExtraFloat10          float32 `json:"extrafloat10,omitempty"`
 	ExtraText1            string      `json:"extratext1,omitempty"`
 	ExtraText2            string      `json:"extratext2,omitempty"`
 	ExtraText3            string      `json:"extratext3,omitempty"`
@@ -146,22 +142,6 @@ type SnowAllCalculationsResult struct {
 }
 
 // Utility functions
-
-// float32ToJSONNumber converts a float32 to a JSON number, handling NaN and Inf values
-func float32ToJSONNumber(f float32) json.Number {
-	var s string
-	if f == float32(int32(f)) {
-		s = fmt.Sprintf("%.1f", f) // 1 decimal if integer
-	} else {
-		s = fmt.Sprint(f)
-	}
-	return json.Number(s)
-}
-
-// int32ToJSONNumber converts an int32 to a JSON number
-func int32ToJSONNumber(i int32) json.Number {
-	return json.Number(fmt.Sprint(i))
-}
 
 // mmToInches converts millimeters to inches
 func mmToInches(mm float32) float32 {
