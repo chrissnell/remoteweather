@@ -99,8 +99,17 @@ func (h *Handlers) GetLogs(w http.ResponseWriter, r *http.Request) {
 
 // reverseLookupWithTimeout performs a reverse DNS lookup with a timeout
 func reverseLookupWithTimeout(ipAddr string, timeout time.Duration) string {
+	// Strip port if present (e.g., "10.50.0.20:54520" -> "10.50.0.20")
+	if idx := strings.LastIndex(ipAddr, ":"); idx != -1 {
+		// Check if this looks like an IPv4:port or [IPv6]:port
+		if !strings.Contains(ipAddr[:idx], ":") || strings.HasPrefix(ipAddr, "[") {
+			ipAddr = ipAddr[:idx]
+		}
+	}
+	// Remove brackets from IPv6 addresses
+	ipAddr = strings.TrimPrefix(strings.TrimSuffix(ipAddr, "]"), "[")
+	
 	// Simple defensive approach: just try to parse as IP
-	// If it has a port, ParseIP will fail and we return empty
 	parsedIP := net.ParseIP(ipAddr)
 	if parsedIP == nil {
 		// Not a valid IP address, can't do reverse lookup
@@ -155,12 +164,20 @@ func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 
+	// Limit concurrent DNS lookups to prevent resource exhaustion
+	maxConcurrent := 10
+	sem := make(chan struct{}, maxConcurrent)
+
 	// Process logs concurrently for DNS lookups
 	for _, entry := range logs {
 		entry := entry // Capture loop variable
 		wg.Add(1)
 		go func(entry log.LogEntry) {
 			defer wg.Done()
+			
+			// Acquire semaphore
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
 			logEntry := map[string]interface{}{
 				"timestamp": entry.Timestamp.Format(time.RFC3339),
@@ -181,8 +198,6 @@ func (h *Handlers) GetHTTPLogs(w http.ResponseWriter, r *http.Request) {
 
 				// Perform reverse DNS lookup for remote_addr
 				if remoteAddr, ok := entry.Fields["remote_addr"].(string); ok && remoteAddr != "" {
-					// Debug: log what we're trying to lookup
-					log.Debugf("DNS lookup for remote_addr: %s", remoteAddr)
 					// Use a short timeout to avoid blocking
 					if hostname := reverseLookupWithTimeout(remoteAddr, 100*time.Millisecond); hostname != "" {
 						logEntry["remote_hostname"] = hostname
