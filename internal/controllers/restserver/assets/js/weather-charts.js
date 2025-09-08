@@ -7,6 +7,9 @@ const WeatherCharts = (function() {
     // Chart registry to track created charts
     const chartRegistry = new Map();
     
+    // Track all charts by time range for synchronization
+    const chartsByRange = new Map();
+    
     // Helper function to get air quality chart color based on latest value
     const getAirQualityChartColor = (chartType, data) => {
         // Get the most recent value to determine the color
@@ -59,7 +62,12 @@ const WeatherCharts = (function() {
             dateTimeLabelFormats: { hour: '%l %p', minute: '%I:%M %p' },
             lineColor: WeatherUtils.getCSSVariable('--chart-grid'),
             tickColor: WeatherUtils.getCSSVariable('--chart-grid'),
-            labels: { style: { color: WeatherUtils.getCSSVariable('--chart-text') } }
+            labels: { style: { color: WeatherUtils.getCSSVariable('--chart-text') } },
+            crosshair: {
+                color: WeatherUtils.getCSSVariable('--chart-text'),
+                width: 1,
+                dashStyle: 'ShortDot'
+            }
         },
         tooltip: {
             backgroundColor: WeatherUtils.getCSSVariable('--chart-tooltip-bg'),
@@ -193,6 +201,34 @@ const WeatherCharts = (function() {
         }
     };
     
+    // Synchronize tooltips across all charts in the same range
+    const syncTooltips = (container, p) => {
+        const charts = chartsByRange.get(container) || [];
+        charts.forEach(chart => {
+            if (chart && chart.tooltip) {
+                const event = chart.pointer.normalize(p);
+                const point = chart.series[0] ? chart.series[0].searchPoint(event, true) : null;
+                
+                if (point) {
+                    point.highlight(p);
+                }
+            }
+        });
+    };
+    
+    // Reset tooltips for all charts in a range
+    const resetTooltips = (container) => {
+        const charts = chartsByRange.get(container) || [];
+        charts.forEach(chart => {
+            if (chart && chart.tooltip) {
+                chart.tooltip.hide();
+                if (chart.xAxis && chart.xAxis[0] && chart.xAxis[0].crosshair) {
+                    chart.xAxis[0].hideCrosshair();
+                }
+            }
+        });
+    };
+    
     // Create a single chart
     const createChart = (chartName, targetDiv, data, title, customOptions = {}) => {
         const config = chartTypeConfigs[chartName] || {};
@@ -201,6 +237,10 @@ const WeatherCharts = (function() {
         // Use display name if available, otherwise use title
         const seriesName = displayName || title;
         
+        // Extract range from targetDiv (e.g., "temperatureChart24h" -> "24h")
+        const rangeMatch = targetDiv.match(/(24h|72h|7d|30d|1y)$/);
+        const range = rangeMatch ? rangeMatch[1] : null;
+        
         const baseOptions = getDefaultChartOptions();
         
         const chartConfig = {
@@ -208,7 +248,36 @@ const WeatherCharts = (function() {
             chart: {
                 ...baseOptions.chart,
                 type: chartType,
-                renderTo: targetDiv
+                renderTo: targetDiv,
+                events: range ? {
+                    load: function() {
+                        const container = document.getElementById(targetDiv).parentElement;
+                        
+                        // Add mousemove and mouseleave listeners to the container
+                        if (container && !container.hasAttribute('data-sync-initialized')) {
+                            container.setAttribute('data-sync-initialized', 'true');
+                            
+                            container.addEventListener('mousemove', function(e) {
+                                syncTooltips(range, e);
+                            });
+                            
+                            container.addEventListener('mouseleave', function() {
+                                resetTooltips(range);
+                            });
+                        }
+                    }
+                } : {}
+            },
+            plotOptions: {
+                series: {
+                    point: {
+                        events: range ? {
+                            mouseOver: function(e) {
+                                syncTooltips(range, e);
+                            }
+                        } : {}
+                    }
+                }
             },
             title: { 
                 text: null  // Remove duplicate title
@@ -239,6 +308,8 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
+                shared: false,
+                crosshairs: true,
                 ...(tooltipFormat || {
                     valueDecimals: config.tooltipDecimals || 2,
                     valueSuffix: config.unit || ''
@@ -308,6 +379,14 @@ const WeatherCharts = (function() {
             chartRegistry.get(chartKey).destroy();
         }
         chartRegistry.set(chartKey, chart);
+        
+        // Track charts by range for synchronization
+        if (range) {
+            if (!chartsByRange.has(range)) {
+                chartsByRange.set(range, []);
+            }
+            chartsByRange.get(range).push(chart);
+        }
         
         return chart;
     };
@@ -418,6 +497,14 @@ const WeatherCharts = (function() {
             }
         });
         chartRegistry.clear();
+        chartsByRange.clear();
+    };
+    
+    // Clear charts for a specific range
+    const clearChartsForRange = (range) => {
+        if (chartsByRange.has(range)) {
+            chartsByRange.set(range, []);
+        }
     };
     
     // Destroy specific chart
@@ -443,6 +530,7 @@ const WeatherCharts = (function() {
         getAdditionalSeriesData,
         destroyAllCharts,
         destroyChart,
+        clearChartsForRange,
         getChartConfig,
         chartTypeConfigs
     };
