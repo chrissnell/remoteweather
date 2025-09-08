@@ -122,15 +122,11 @@ const WeatherCharts = (function() {
             unit: " in"
         },
         solarwatts: {
+            displayName: "Observed Solar Radiation",
             yAxisLabel: "Watts/m²",
             chartType: "spline",
             tooltipDecimals: 1,
-            unit: " W/m²",
-            additionalSeries: [{
-                name: "Maximum Potential Solar Radiation",
-                data: [],
-                color: 'rgb(255, 81, 0)'
-            }]
+            unit: " W/m²"
         },
         voltage: {
             yAxisLabel: "Volts",
@@ -342,6 +338,7 @@ const WeatherCharts = (function() {
                 },
                 ...additionalSeries.map(series => ({
                     ...series,
+                    visible: true,
                     color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
                     dashStyle: series.dashStyle || 'Solid',
                     marker: {
@@ -469,7 +466,8 @@ const WeatherCharts = (function() {
         if (chartType === 'solarwatts' && rawData) {
             return [{
                 name: "Maximum Potential Solar Radiation",
-                data: rawData.map(item => [item.ts, item.potentialsolarwatts])
+                data: rawData.map(item => [item.ts, item.potentialsolarwatts]),
+                color: 'rgb(255, 81, 0)'
             }];
         }
         return [];
