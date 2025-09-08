@@ -201,8 +201,8 @@ const WeatherCharts = (function() {
         }
     };
     
-    // Setup synchronized crosshairs for charts (tooltips work independently)
-    const setupSynchronizedCrosshairs = (range) => {
+    // Setup synchronized tooltips (keeping the old name for compatibility)
+    const setupSynchronizedTooltips = (range) => {
         if (!range) return;
         
         const container = document.getElementById(`charts-${range}`);
