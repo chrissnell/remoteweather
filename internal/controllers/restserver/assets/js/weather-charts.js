@@ -64,9 +64,9 @@ const WeatherCharts = (function() {
             tickColor: WeatherUtils.getCSSVariable('--chart-grid'),
             labels: { style: { color: WeatherUtils.getCSSVariable('--chart-text') } },
             crosshair: {
-                color: WeatherUtils.getCSSVariable('--chart-text'),
+                color: WeatherUtils.getCSSVariable('--chart-grid'),
                 width: 1,
-                dashStyle: 'ShortDot'
+                dashStyle: 'Dot'
             }
         },
         tooltip: {
@@ -201,31 +201,49 @@ const WeatherCharts = (function() {
         }
     };
     
-    // Synchronize tooltips across all charts in the same range
-    const syncTooltips = (container, p) => {
-        const charts = chartsByRange.get(container) || [];
-        charts.forEach(chart => {
-            if (chart && chart.tooltip) {
-                const event = chart.pointer.normalize(p);
-                const point = chart.series[0] ? chart.series[0].searchPoint(event, true) : null;
-                
-                if (point) {
-                    point.highlight(p);
+    // Setup synchronized crosshairs for charts (tooltips work independently)
+    const setupSynchronizedCrosshairs = (range) => {
+        if (!range) return;
+        
+        const container = document.getElementById(`charts-${range}`);
+        if (!container || container.hasAttribute('data-sync-setup')) return;
+        
+        container.setAttribute('data-sync-setup', 'true');
+        
+        // Track mouse position for crosshair sync
+        let currentEvent = null;
+        
+        container.addEventListener('mousemove', function(e) {
+            currentEvent = e;
+            const charts = chartsByRange.get(range) || [];
+            
+            charts.forEach(chart => {
+                if (chart && chart.pointer) {
+                    const event = chart.pointer.normalize(e);
+                    
+                    // Just draw crosshair, don't touch tooltips
+                    if (chart.xAxis && chart.xAxis[0]) {
+                        // Find the closest point for crosshair positioning
+                        if (chart.series && chart.series[0]) {
+                            const point = chart.series[0].searchPoint(event, true);
+                            if (point) {
+                                chart.xAxis[0].drawCrosshair(event, point);
+                            }
+                        }
+                    }
                 }
-            }
+            });
         });
-    };
-    
-    // Reset tooltips for all charts in a range
-    const resetTooltips = (container) => {
-        const charts = chartsByRange.get(container) || [];
-        charts.forEach(chart => {
-            if (chart && chart.tooltip) {
-                chart.tooltip.hide();
-                if (chart.xAxis && chart.xAxis[0] && chart.xAxis[0].crosshair) {
+        
+        container.addEventListener('mouseleave', function() {
+            const charts = chartsByRange.get(range) || [];
+            
+            charts.forEach(chart => {
+                // Just hide crosshair, let Highcharts handle its own tooltips
+                if (chart && chart.xAxis && chart.xAxis[0]) {
                     chart.xAxis[0].hideCrosshair();
                 }
-            }
+            });
         });
     };
     
@@ -237,7 +255,7 @@ const WeatherCharts = (function() {
         // Use display name if available, otherwise use title
         const seriesName = displayName || title;
         
-        // Extract range from targetDiv (e.g., "temperatureChart24h" -> "24h")
+        // Extract range from targetDiv for synchronization
         const rangeMatch = targetDiv.match(/(24h|72h|7d|30d|1y)$/);
         const range = rangeMatch ? rangeMatch[1] : null;
         
@@ -248,36 +266,7 @@ const WeatherCharts = (function() {
             chart: {
                 ...baseOptions.chart,
                 type: chartType,
-                renderTo: targetDiv,
-                events: range ? {
-                    load: function() {
-                        const container = document.getElementById(targetDiv).parentElement;
-                        
-                        // Add mousemove and mouseleave listeners to the container
-                        if (container && !container.hasAttribute('data-sync-initialized')) {
-                            container.setAttribute('data-sync-initialized', 'true');
-                            
-                            container.addEventListener('mousemove', function(e) {
-                                syncTooltips(range, e);
-                            });
-                            
-                            container.addEventListener('mouseleave', function() {
-                                resetTooltips(range);
-                            });
-                        }
-                    }
-                } : {}
-            },
-            plotOptions: {
-                series: {
-                    point: {
-                        events: range ? {
-                            mouseOver: function(e) {
-                                syncTooltips(range, e);
-                            }
-                        } : {}
-                    }
-                }
+                renderTo: targetDiv
             },
             title: { 
                 text: null  // Remove duplicate title
@@ -308,8 +297,6 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
-                shared: false,
-                crosshairs: true,
                 ...(tooltipFormat || {
                     valueDecimals: config.tooltipDecimals || 2,
                     valueSuffix: config.unit || ''
@@ -531,6 +518,7 @@ const WeatherCharts = (function() {
         destroyAllCharts,
         destroyChart,
         clearChartsForRange,
+        setupSynchronizedCrosshairs,
         getChartConfig,
         chartTypeConfigs
     };
