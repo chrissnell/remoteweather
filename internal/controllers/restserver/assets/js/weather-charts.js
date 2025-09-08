@@ -205,46 +205,54 @@ const WeatherCharts = (function() {
     const setupSynchronizedCrosshairs = (range) => {
         if (!range) return;
         
-        const container = document.getElementById(`charts-${range}`);
-        if (!container || container.hasAttribute('data-sync-setup')) return;
-        
-        container.setAttribute('data-sync-setup', 'true');
-        
-        // Track mouse position for crosshair sync
-        let currentEvent = null;
-        
-        container.addEventListener('mousemove', function(e) {
-            currentEvent = e;
-            const charts = chartsByRange.get(range) || [];
+        // Wait a bit for DOM to be ready
+        setTimeout(() => {
+            const container = document.getElementById(`charts-${range}`);
+            if (!container || container.hasAttribute('data-sync-setup')) return;
             
-            charts.forEach(chart => {
-                if (chart && chart.pointer) {
-                    const event = chart.pointer.normalize(e);
-                    
-                    // Just draw crosshair, don't touch tooltips
-                    if (chart.xAxis && chart.xAxis[0]) {
-                        // Find the closest point for crosshair positioning
-                        if (chart.series && chart.series[0]) {
-                            const point = chart.series[0].searchPoint(event, true);
-                            if (point) {
-                                chart.xAxis[0].drawCrosshair(event, point);
+            container.setAttribute('data-sync-setup', 'true');
+            
+            container.addEventListener('mousemove', function(e) {
+                const charts = chartsByRange.get(range) || [];
+                if (charts.length === 0) return;
+                
+                charts.forEach(chart => {
+                    if (chart && chart.pointer) {
+                        try {
+                            const event = chart.pointer.normalize(e);
+                            
+                            // Just draw crosshair, don't touch tooltips
+                            if (chart.xAxis && chart.xAxis[0]) {
+                                // Find the closest point for crosshair positioning
+                                if (chart.series && chart.series[0]) {
+                                    const point = chart.series[0].searchPoint(event, true);
+                                    if (point) {
+                                        chart.xAxis[0].drawCrosshair(event, point);
+                                    }
+                                }
                             }
+                        } catch (err) {
+                            // Ignore errors during crosshair sync
                         }
                     }
-                }
+                });
             });
-        });
-        
-        container.addEventListener('mouseleave', function() {
-            const charts = chartsByRange.get(range) || [];
             
-            charts.forEach(chart => {
-                // Just hide crosshair, let Highcharts handle its own tooltips
-                if (chart && chart.xAxis && chart.xAxis[0]) {
-                    chart.xAxis[0].hideCrosshair();
-                }
+            container.addEventListener('mouseleave', function() {
+                const charts = chartsByRange.get(range) || [];
+                
+                charts.forEach(chart => {
+                    // Just hide crosshair, let Highcharts handle its own tooltips
+                    if (chart && chart.xAxis && chart.xAxis[0]) {
+                        try {
+                            chart.xAxis[0].hideCrosshair();
+                        } catch (err) {
+                            // Ignore errors
+                        }
+                    }
+                });
             });
-        });
+        }, 100);
     };
     
     // Create a single chart
