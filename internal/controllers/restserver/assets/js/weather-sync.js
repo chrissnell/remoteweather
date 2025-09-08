@@ -14,12 +14,8 @@ const WeatherChartSync = (function() {
         
         if (charts.length < 2) return; // No need to sync single chart
         
-        /**
-         * Override the reset function to hide tooltip and crosshair on mouse out
-         */
-        Highcharts.Pointer.prototype.reset = function() {
-            return undefined;
-        };
+        // Don't override the reset function globally as it breaks series states
+        // Instead, handle tooltip hiding in the mouseleave event
         
         /**
          * Synchronize zooming through the setExtremes event handler
