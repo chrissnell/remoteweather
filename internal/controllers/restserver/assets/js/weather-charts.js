@@ -72,7 +72,8 @@ const WeatherCharts = (function() {
         tooltip: {
             backgroundColor: WeatherUtils.getCSSVariable('--chart-tooltip-bg'),
             borderColor: WeatherUtils.getCSSVariable('--chart-tooltip-border'),
-            style: { color: WeatherUtils.getCSSVariable('--chart-text') }
+            style: { color: WeatherUtils.getCSSVariable('--chart-text') },
+            shared: true
         }
     });
     
@@ -122,6 +123,7 @@ const WeatherCharts = (function() {
             unit: " in"
         },
         solarwatts: {
+            displayName: "Observed Solar Radiation",
             yAxisLabel: "Watts/m²",
             chartType: "spline",
             tooltipDecimals: 1,
@@ -210,11 +212,7 @@ const WeatherCharts = (function() {
         
         container.setAttribute('data-sync-setup', 'true');
         
-        // Track mouse position for crosshair sync
-        let currentEvent = null;
-        
         container.addEventListener('mousemove', function(e) {
-            currentEvent = e;
             const charts = chartsByRange.get(range) || [];
             
             charts.forEach(chart => {
