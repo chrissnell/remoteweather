@@ -122,11 +122,15 @@ const WeatherCharts = (function() {
             unit: " in"
         },
         solarwatts: {
-            displayName: "Observed Solar Radiation",
             yAxisLabel: "Watts/m²",
             chartType: "spline",
             tooltipDecimals: 1,
-            unit: " W/m²"
+            unit: " W/m²",
+            additionalSeries: [{
+                name: "Maximum Potential Solar Radiation",
+                data: [],
+                color: 'rgb(255, 81, 0)'
+            }]
         },
         voltage: {
             yAxisLabel: "Volts",
@@ -197,54 +201,49 @@ const WeatherCharts = (function() {
         }
     };
     
-    // Setup synchronized tooltips using Highcharts built-in approach
-    const setupSynchronizedTooltips = (range) => {
+    // Setup synchronized crosshairs for charts (tooltips work independently)
+    const setupSynchronizedCrosshairs = (range) => {
         if (!range) return;
         
-        const charts = chartsByRange.get(range) || [];
-        if (charts.length === 0) return;
+        const container = document.getElementById(`charts-${range}`);
+        if (!container || container.hasAttribute('data-sync-setup')) return;
         
-        // Synchronize zooming and tooltips
-        charts.forEach(chart => {
-            // Remove any existing handlers
-            if (chart.container) {
-                const container = chart.container;
-                
-                // Use Highcharts' pointer events for synchronization
-                ['mousemove', 'touchmove', 'touchstart'].forEach(eventType => {
-                    container.addEventListener(eventType, function(e) {
-                        charts.forEach(otherChart => {
-                            if (otherChart === chart) return; // Skip self
-                            
-                            if (otherChart.pointer) {
-                                const event = otherChart.pointer.normalize(e);
-                                if (otherChart.series && otherChart.series[0]) {
-                                    const point = otherChart.series[0].searchPoint(event, true);
-                                    if (point) {
-                                        point.setState('hover');
-                                        otherChart.tooltip.refresh(point);
-                                        otherChart.xAxis[0].drawCrosshair(event, point);
-                                    }
-                                }
+        container.setAttribute('data-sync-setup', 'true');
+        
+        // Track mouse position for crosshair sync
+        let currentEvent = null;
+        
+        container.addEventListener('mousemove', function(e) {
+            currentEvent = e;
+            const charts = chartsByRange.get(range) || [];
+            
+            charts.forEach(chart => {
+                if (chart && chart.pointer) {
+                    const event = chart.pointer.normalize(e);
+                    
+                    // Just draw crosshair, don't touch tooltips
+                    if (chart.xAxis && chart.xAxis[0]) {
+                        // Find the closest point for crosshair positioning
+                        if (chart.series && chart.series[0]) {
+                            const point = chart.series[0].searchPoint(event, true);
+                            if (point) {
+                                chart.xAxis[0].drawCrosshair(event, point);
                             }
-                        });
-                    });
-                });
-                
-                // Hide tooltips on mouse leave
-                ['mouseleave'].forEach(eventType => {
-                    container.addEventListener(eventType, function() {
-                        charts.forEach(otherChart => {
-                            if (otherChart.tooltip) {
-                                otherChart.tooltip.hide();
-                            }
-                            if (otherChart.xAxis && otherChart.xAxis[0]) {
-                                otherChart.xAxis[0].hideCrosshair();
-                            }
-                        });
-                    });
-                });
-            }
+                        }
+                    }
+                }
+            });
+        });
+        
+        container.addEventListener('mouseleave', function() {
+            const charts = chartsByRange.get(range) || [];
+            
+            charts.forEach(chart => {
+                // Just hide crosshair, let Highcharts handle its own tooltips
+                if (chart && chart.xAxis && chart.xAxis[0]) {
+                    chart.xAxis[0].hideCrosshair();
+                }
+            });
         });
     };
     
@@ -298,22 +297,28 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
-                valueDecimals: config.tooltipDecimals || 2,
-                valueSuffix: config.unit || '',
-                ...tooltipFormat,
+                ...(tooltipFormat || {
+                    valueDecimals: config.tooltipDecimals || 2,
+                    valueSuffix: config.unit || ''
+                }),
                 // Custom formatter for air quality charts to show status
-                formatter: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) ? function() {
-                    const value = this.y;
-                    const level = WeatherUtils.getAirQualityLevel(chartName, value);
-                    const status = WeatherUtils.getAirQualityStatusText(level);
-                    const color = WeatherUtils.getAirQualityColor(level);
-                    const decimals = config.tooltipDecimals || 2;
-                    const unit = config.unit || '';
-                    
-                    return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
-                           `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
-                           `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
-                } : undefined
+                formatter: function() {
+                    if (['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)) {
+                        const value = this.y;
+                        const level = WeatherUtils.getAirQualityLevel(chartName, value);
+                        const status = WeatherUtils.getAirQualityStatusText(level);
+                        const color = WeatherUtils.getAirQualityColor(level);
+                        const decimals = config.tooltipDecimals || 2;
+                        const unit = config.unit || '';
+                        
+                        return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
+                               `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
+                               `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
+                    } else {
+                        // Default formatter for non-air quality charts
+                        return undefined; // Use Highcharts default
+                    }
+                }
             },
             series: [
                 {
@@ -338,7 +343,6 @@ const WeatherCharts = (function() {
                 },
                 ...additionalSeries.map(series => ({
                     ...series,
-                    visible: true,
                     color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
                     dashStyle: series.dashStyle || 'Solid',
                     marker: {
@@ -466,8 +470,7 @@ const WeatherCharts = (function() {
         if (chartType === 'solarwatts' && rawData) {
             return [{
                 name: "Maximum Potential Solar Radiation",
-                data: rawData.map(item => [item.ts, item.potentialsolarwatts]),
-                color: 'rgb(255, 81, 0)'
+                data: rawData.map(item => [item.ts, item.potentialsolarwatts])
             }];
         }
         return [];
