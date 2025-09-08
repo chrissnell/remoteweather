@@ -201,58 +201,55 @@ const WeatherCharts = (function() {
         }
     };
     
-    // Setup synchronized crosshairs for charts (tooltips work independently)
-    const setupSynchronizedCrosshairs = (range) => {
+    // Setup synchronized tooltips using Highcharts built-in approach
+    const setupSynchronizedTooltips = (range) => {
         if (!range) return;
         
-        // Wait a bit for DOM to be ready
-        setTimeout(() => {
-            const container = document.getElementById(`charts-${range}`);
-            if (!container || container.hasAttribute('data-sync-setup')) return;
-            
-            container.setAttribute('data-sync-setup', 'true');
-            
-            container.addEventListener('mousemove', function(e) {
-                const charts = chartsByRange.get(range) || [];
-                if (charts.length === 0) return;
+        const charts = chartsByRange.get(range) || [];
+        if (charts.length === 0) return;
+        
+        // Synchronize zooming and tooltips
+        charts.forEach(chart => {
+            // Remove any existing handlers
+            if (chart.container) {
+                const container = chart.container;
                 
-                charts.forEach(chart => {
-                    if (chart && chart.pointer) {
-                        try {
-                            const event = chart.pointer.normalize(e);
+                // Use Highcharts' pointer events for synchronization
+                ['mousemove', 'touchmove', 'touchstart'].forEach(eventType => {
+                    container.addEventListener(eventType, function(e) {
+                        charts.forEach(otherChart => {
+                            if (otherChart === chart) return; // Skip self
                             
-                            // Just draw crosshair, don't touch tooltips
-                            if (chart.xAxis && chart.xAxis[0]) {
-                                // Find the closest point for crosshair positioning
-                                if (chart.series && chart.series[0]) {
-                                    const point = chart.series[0].searchPoint(event, true);
+                            if (otherChart.pointer) {
+                                const event = otherChart.pointer.normalize(e);
+                                if (otherChart.series && otherChart.series[0]) {
+                                    const point = otherChart.series[0].searchPoint(event, true);
                                     if (point) {
-                                        chart.xAxis[0].drawCrosshair(event, point);
+                                        point.setState('hover');
+                                        otherChart.tooltip.refresh(point);
+                                        otherChart.xAxis[0].drawCrosshair(event, point);
                                     }
                                 }
                             }
-                        } catch (err) {
-                            // Ignore errors during crosshair sync
-                        }
-                    }
+                        });
+                    });
                 });
-            });
-            
-            container.addEventListener('mouseleave', function() {
-                const charts = chartsByRange.get(range) || [];
                 
-                charts.forEach(chart => {
-                    // Just hide crosshair, let Highcharts handle its own tooltips
-                    if (chart && chart.xAxis && chart.xAxis[0]) {
-                        try {
-                            chart.xAxis[0].hideCrosshair();
-                        } catch (err) {
-                            // Ignore errors
-                        }
-                    }
+                // Hide tooltips on mouse leave
+                ['mouseleave'].forEach(eventType => {
+                    container.addEventListener(eventType, function() {
+                        charts.forEach(otherChart => {
+                            if (otherChart.tooltip) {
+                                otherChart.tooltip.hide();
+                            }
+                            if (otherChart.xAxis && otherChart.xAxis[0]) {
+                                otherChart.xAxis[0].hideCrosshair();
+                            }
+                        });
+                    });
                 });
-            });
-        }, 100);
+            }
+        });
     };
     
     // Create a single chart
@@ -305,28 +302,22 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
-                ...(tooltipFormat || {
-                    valueDecimals: config.tooltipDecimals || 2,
-                    valueSuffix: config.unit || ''
-                }),
+                valueDecimals: config.tooltipDecimals || 2,
+                valueSuffix: config.unit || '',
+                ...tooltipFormat,
                 // Custom formatter for air quality charts to show status
-                formatter: function() {
-                    if (['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)) {
-                        const value = this.y;
-                        const level = WeatherUtils.getAirQualityLevel(chartName, value);
-                        const status = WeatherUtils.getAirQualityStatusText(level);
-                        const color = WeatherUtils.getAirQualityColor(level);
-                        const decimals = config.tooltipDecimals || 2;
-                        const unit = config.unit || '';
-                        
-                        return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
-                               `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
-                               `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
-                    } else {
-                        // Default formatter for non-air quality charts
-                        return undefined; // Use Highcharts default
-                    }
-                }
+                formatter: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) ? function() {
+                    const value = this.y;
+                    const level = WeatherUtils.getAirQualityLevel(chartName, value);
+                    const status = WeatherUtils.getAirQualityStatusText(level);
+                    const color = WeatherUtils.getAirQualityColor(level);
+                    const decimals = config.tooltipDecimals || 2;
+                    const unit = config.unit || '';
+                    
+                    return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
+                           `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
+                           `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
+                } : undefined
             },
             series: [
                 {
@@ -526,7 +517,7 @@ const WeatherCharts = (function() {
         destroyAllCharts,
         destroyChart,
         clearChartsForRange,
-        setupSynchronizedCrosshairs,
+        setupSynchronizedTooltips,
         getChartConfig,
         chartTypeConfigs
     };

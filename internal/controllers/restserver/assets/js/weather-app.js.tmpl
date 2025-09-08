@@ -235,8 +235,10 @@ const WeatherApp = (function() {
                 }
             }
             
-            // Setup synchronized crosshairs for this range after all charts are created
-            WeatherCharts.setupSynchronizedCrosshairs(range);
+            // Setup synchronized tooltips for this range after all charts are created
+            if (typeof WeatherChartSync !== 'undefined') {
+                WeatherChartSync.initializeForRange(range);
+            }
         } catch (error) {
             if (config.debug) console.error('Error loading charts:', error);
         }
