@@ -319,6 +319,7 @@ const WeatherCharts = (function() {
                     name: seriesName,
                     data: data,
                     visible: true,
+                    showInLegend: true,
                     color: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) 
                         ? getAirQualityChartColor(chartName, data)
                         : WeatherUtils.getCSSVariable('--chart-series-color'),
@@ -334,11 +335,17 @@ const WeatherCharts = (function() {
                                 radius: 3
                             }
                         }
+                    },
+                    states: {
+                        inactive: {
+                            opacity: 1
+                        }
                     }
                 },
                 ...additionalSeries.map(series => ({
                     ...series,
                     visible: true,
+                    showInLegend: true,
                     color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
                     dashStyle: series.dashStyle || 'Solid',
                     marker: {
@@ -348,6 +355,11 @@ const WeatherCharts = (function() {
                                 enabled: true,
                                 radius: 3
                             }
+                        }
+                    },
+                    states: {
+                        inactive: {
+                            opacity: 1
                         }
                     }
                 }))
