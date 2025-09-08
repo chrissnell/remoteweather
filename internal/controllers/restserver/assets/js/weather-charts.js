@@ -64,9 +64,9 @@ const WeatherCharts = (function() {
             tickColor: WeatherUtils.getCSSVariable('--chart-grid'),
             labels: { style: { color: WeatherUtils.getCSSVariable('--chart-text') } },
             crosshair: {
-                color: WeatherUtils.getCSSVariable('--chart-grid'),
-                width: 1,
-                dashStyle: 'Dot'
+                color: WeatherUtils.getCSSVariable('--chart-crosshair'),
+                width: 2,
+                dashStyle: 'Solid'
             }
         },
         tooltip: {
