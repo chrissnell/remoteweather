@@ -186,6 +186,9 @@ const WeatherApp = (function() {
             
             if (!mainData) return;
             
+            // Clear any existing charts for this range (for synchronization)
+            WeatherCharts.clearChartsForRange(range);
+            
             // Create charts for each metric
             const chartMetrics = Object.keys(WeatherCharts.chartTypeConfigs);
             
@@ -325,6 +328,7 @@ const WeatherApp = (function() {
     // Global function for theme refresh
     window.refreshChartsForTheme = () => {
         WeatherCharts.destroyAllCharts();
+        WeatherCharts.clearChartsForRange(state.currentRange);
         loadChartsForRange(state.currentRange);
     };
     
