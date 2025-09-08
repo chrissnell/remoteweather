@@ -61,6 +61,25 @@ const WeatherChartSync = (function() {
                                     const point = series.searchPoint(event, true);
                                     if (point) {
                                         point.onMouseOver();
+                                    } else if (series.type === 'vector' && series.points.length > 0) {
+                                        // For vector charts with sparse data, find the nearest point
+                                        const xPos = event.chartX;
+                                        let nearestPoint = null;
+                                        let minDistance = Infinity;
+                                        
+                                        series.points.forEach(p => {
+                                            if (p && p.plotX !== undefined) {
+                                                const distance = Math.abs(p.plotX - xPos);
+                                                if (distance < minDistance) {
+                                                    minDistance = distance;
+                                                    nearestPoint = p;
+                                                }
+                                            }
+                                        });
+                                        
+                                        if (nearestPoint && minDistance < 50) { // Within 50 pixels
+                                            nearestPoint.onMouseOver();
+                                        }
                                     }
                                 }
                             });
