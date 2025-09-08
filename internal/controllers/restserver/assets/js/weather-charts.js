@@ -297,13 +297,11 @@ const WeatherCharts = (function() {
             },
             tooltip: {
                 ...baseOptions.tooltip,
-                ...(tooltipFormat || {
-                    valueDecimals: config.tooltipDecimals || 2,
-                    valueSuffix: config.unit || ''
-                }),
+                valueDecimals: config.tooltipDecimals || 2,
+                valueSuffix: config.unit || '',
+                ...tooltipFormat,
                 // Custom formatter for air quality charts to show status
-                formatter: function() {
-                    if (['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)) {
+                formatter: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) ? function() {
                         const value = this.y;
                         const level = WeatherUtils.getAirQualityLevel(chartName, value);
                         const status = WeatherUtils.getAirQualityStatusText(level);
@@ -314,16 +312,13 @@ const WeatherCharts = (function() {
                         return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
                                `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
                                `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
-                    } else {
-                        // Default formatter for non-air quality charts
-                        return undefined; // Use Highcharts default
-                    }
-                }
+                } : undefined
             },
             series: [
                 {
                     name: seriesName,
                     data: data,
+                    visible: true,
                     color: ['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName) 
                         ? getAirQualityChartColor(chartName, data)
                         : WeatherUtils.getCSSVariable('--chart-series-color'),
@@ -343,6 +338,7 @@ const WeatherCharts = (function() {
                 },
                 ...additionalSeries.map(series => ({
                     ...series,
+                    visible: true,
                     color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
                     dashStyle: series.dashStyle || 'Solid',
                     marker: {
