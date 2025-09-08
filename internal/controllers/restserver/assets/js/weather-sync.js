@@ -41,7 +41,7 @@ const WeatherChartSync = (function() {
         }
         
         // Add synchronization to each chart
-        charts.forEach((chart, index) => {
+        charts.forEach((chart) => {
             const container = chart.renderTo;
             
             // Clean up previous listeners
