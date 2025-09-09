@@ -8,6 +8,7 @@ const ManagementNavigation = (function() {
     '/': 'weather-stations-pane',
     '/weather-stations': 'weather-stations-pane', 
     '/controllers': 'controllers-pane',
+    '/remote-stations': 'remote-stations-pane',
     '/storage': 'storage-pane',
     '/websites': 'websites-pane',
     '/logs': 'logs-pane',
@@ -18,7 +19,8 @@ const ManagementNavigation = (function() {
   // Tab to URL mapping
   const tabToUrl = {
     'weather-stations-pane': '/weather-stations',
-    'controllers-pane': '/controllers', 
+    'controllers-pane': '/controllers',
+    'remote-stations-pane': '/remote-stations',
     'storage-pane': '/storage',
     'websites-pane': '/websites',
     'logs-pane': '/logs',
@@ -30,6 +32,7 @@ const ManagementNavigation = (function() {
   const tabToPaneMapping = {
     'weather-stations': 'weather-stations-pane',
     'controllers': 'controllers-pane',
+    'remote-stations': 'remote-stations-pane',
     'storage': 'storage-pane',
     'websites': 'websites-pane',
     'logs': 'logs-pane',
@@ -44,6 +47,7 @@ const ManagementNavigation = (function() {
   const tabChangeCallbacks = {
     'weather-stations-pane': [],
     'controllers-pane': [],
+    'remote-stations-pane': [],
     'storage-pane': [],
     'websites-pane': [],
     'logs-pane': [],
