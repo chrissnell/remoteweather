@@ -39,7 +39,9 @@
   --chart-series-color: #ffaa00;
   --chart-series-color-alt: #ff6600;
   --chart-crosshair: rgba(255, 255, 255, 0.4);
-  --chart-hover-halo: rgba(255, 255, 255, 0.5);
+  --chart-hover-halo: rgba(255, 255, 255, 0.3);
+  --chart-hover-marker-fill: #ffffff;
+  --chart-hover-marker-border: rgba(255, 255, 255, 0.8);
 }
 
 /* Light theme */
@@ -70,7 +72,9 @@ html[data-theme="light"] {
   --chart-series-color: #d40000;
   --chart-series-color-alt: #949494;
   --chart-crosshair: rgba(0, 0, 0, 0.2);
-  --chart-hover-halo: rgba(0, 0, 0, 0.15);
+  --chart-hover-halo: rgba(0, 0, 0, 0.1);
+  --chart-hover-marker-fill: #333333;
+  --chart-hover-marker-border: rgba(0, 0, 0, 0.5);
 }
 
 

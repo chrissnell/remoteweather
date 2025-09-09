@@ -79,13 +79,22 @@ const WeatherCharts = (function() {
             series: {
                 states: {
                     hover: {
+                        enabled: true,
+                        lineWidthPlus: 0,
                         halo: {
-                            size: 8,
+                            size: 10,
+                            opacity: 0.5,
                             attributes: {
                                 fill: WeatherUtils.getCSSVariable('--chart-hover-halo'),
-                                'stroke-width': 2,
-                                stroke: WeatherUtils.getCSSVariable('--chart-hover-halo')
+                                'stroke-width': 0
                             }
+                        }
+                    }
+                },
+                marker: {
+                    states: {
+                        hover: {
+                            radiusPlus: 2
                         }
                     }
                 }
@@ -346,7 +355,10 @@ const WeatherCharts = (function() {
                         states: {
                             hover: {
                                 enabled: true,
-                                radius: 3
+                                radius: 4,
+                                lineWidth: 2,
+                                lineColor: WeatherUtils.getCSSVariable('--chart-hover-marker-border'),
+                                fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill')
                             }
                         }
                     },
@@ -367,7 +379,10 @@ const WeatherCharts = (function() {
                         states: {
                             hover: {
                                 enabled: true,
-                                radius: 3
+                                radius: 4,
+                                lineWidth: 2,
+                                lineColor: WeatherUtils.getCSSVariable('--chart-hover-marker-border'),
+                                fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill')
                             }
                         }
                     },
