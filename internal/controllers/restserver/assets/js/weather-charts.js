@@ -237,31 +237,35 @@ const WeatherCharts = (function() {
                 borderWidth: 0,
                 y: 10
             },
-            tooltip: {
-                ...baseOptions.tooltip,
-                ...(tooltipFormat || {
-                    valueDecimals: config.tooltipDecimals || 2,
-                    valueSuffix: config.unit || ''
-                }),
-                // Custom formatter for air quality charts to show status
-                formatter: function() {
-                    if (['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)) {
-                        const value = this.y;
-                        const level = WeatherUtils.getAirQualityLevel(chartName, value);
-                        const status = WeatherUtils.getAirQualityStatusText(level);
-                        const color = WeatherUtils.getAirQualityColor(level);
-                        const decimals = config.tooltipDecimals || 2;
-                        const unit = config.unit || '';
-                        
-                        return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
-                               `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
-                               `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
-                    } else {
-                        // Default formatter for non-air quality charts
-                        return undefined; // Use Highcharts default
-                    }
+            tooltip: (() => {
+                // Air quality charts get a custom formatter
+                if (['pm25', 'pm10', 'co2', 'tvocindex', 'noxindex'].includes(chartName)) {
+                    return {
+                        ...baseOptions.tooltip,
+                        formatter: function() {
+                            const value = this.y;
+                            const level = WeatherUtils.getAirQualityLevel(chartName, value);
+                            const status = WeatherUtils.getAirQualityStatusText(level);
+                            const color = WeatherUtils.getAirQualityColor(level);
+                            const decimals = config.tooltipDecimals || 2;
+                            const unit = config.unit || '';
+                            
+                            return `<b>${Highcharts.dateFormat('%A, %b %e, %l:%M %p', this.x)}</b><br/>` +
+                                   `<span style="color:${this.color}">\u25CF</span> ${seriesName}: <b>${value.toFixed(decimals)}${unit}</b><br/>` +
+                                   `<span style="color:${color}">\u25CF</span> Status: <b style="color:${color}">${status}</b>`;
+                        }
+                    };
+                } else {
+                    // Standard charts use tooltipFormat if provided, otherwise valueDecimals/valueSuffix
+                    return {
+                        ...baseOptions.tooltip,
+                        ...(tooltipFormat || {
+                            valueDecimals: config.tooltipDecimals || 2,
+                            valueSuffix: config.unit || ''
+                        })
+                    };
                 }
-            },
+            })(),
             series: [
                 {
                     name: seriesName,
