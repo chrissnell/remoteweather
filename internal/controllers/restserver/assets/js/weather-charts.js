@@ -74,6 +74,22 @@ const WeatherCharts = (function() {
             borderColor: WeatherUtils.getCSSVariable('--chart-tooltip-border'),
             style: { color: WeatherUtils.getCSSVariable('--chart-text') },
             shared: true
+        },
+        plotOptions: {
+            series: {
+                states: {
+                    hover: {
+                        halo: {
+                            size: 8,
+                            attributes: {
+                                fill: WeatherUtils.getCSSVariable('--chart-hover-halo'),
+                                'stroke-width': 2,
+                                stroke: WeatherUtils.getCSSVariable('--chart-hover-halo')
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
     
