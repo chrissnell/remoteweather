@@ -92,9 +92,10 @@ const WeatherCharts = (function() {
                     }
                 },
                 marker: {
+                    enabledThreshold: 0,  // Force marker creation even when disabled
                     states: {
                         hover: {
-                            radiusPlus: 2
+                            enabled: true
                         }
                     }
                 }
@@ -351,11 +352,21 @@ const WeatherCharts = (function() {
                         : undefined,
                     zoneAxis: 'y',
                     marker: {
-                        enabled: true,
-                        radius: 0,  // Invisible by default
-                        fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill'),  // Set default fill
+                        enabled: false,
+                        symbol: 'circle',
+                        radius: 4,
+                        fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill'),
+                        lineColor: WeatherUtils.getCSSVariable('--chart-hover-marker-border'),
+                        lineWidth: 2,
                         states: {
                             hover: {
+                                enabled: true,
+                                radius: 4,
+                                lineWidth: 2,
+                                lineColor: WeatherUtils.getCSSVariable('--chart-hover-marker-border'),
+                                fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill')
+                            },
+                            select: {
                                 enabled: true,
                                 radius: 4,
                                 lineWidth: 2,
@@ -377,11 +388,21 @@ const WeatherCharts = (function() {
                     color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
                     dashStyle: series.dashStyle || 'Solid',
                     marker: {
-                        enabled: true,
-                        radius: 0,  // Invisible by default
-                        fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill'),  // Set default fill
+                        enabled: false,
+                        symbol: 'circle',
+                        radius: 4,
+                        fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill'),
+                        lineColor: WeatherUtils.getCSSVariable('--chart-hover-marker-border'),
+                        lineWidth: 2,
                         states: {
                             hover: {
+                                enabled: true,
+                                radius: 4,
+                                lineWidth: 2,
+                                lineColor: WeatherUtils.getCSSVariable('--chart-hover-marker-border'),
+                                fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill')
+                            },
+                            select: {
                                 enabled: true,
                                 radius: 4,
                                 lineWidth: 2,
