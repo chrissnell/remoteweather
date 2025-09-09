@@ -353,6 +353,7 @@ const WeatherCharts = (function() {
                     marker: {
                         enabled: true,
                         radius: 0,  // Invisible by default
+                        fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill'),  // Set default fill
                         states: {
                             hover: {
                                 enabled: true,
@@ -378,6 +379,7 @@ const WeatherCharts = (function() {
                     marker: {
                         enabled: true,
                         radius: 0,  // Invisible by default
+                        fillColor: WeatherUtils.getCSSVariable('--chart-hover-marker-fill'),  // Set default fill
                         states: {
                             hover: {
                                 enabled: true,
