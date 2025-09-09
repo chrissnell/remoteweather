@@ -351,7 +351,8 @@ const WeatherCharts = (function() {
                         : undefined,
                     zoneAxis: 'y',
                     marker: {
-                        enabled: false,
+                        enabled: true,
+                        radius: 0,  // Invisible by default
                         states: {
                             hover: {
                                 enabled: true,
@@ -375,7 +376,8 @@ const WeatherCharts = (function() {
                     color: series.color || WeatherUtils.getCSSVariable('--chart-series-color-alt'),
                     dashStyle: series.dashStyle || 'Solid',
                     marker: {
-                        enabled: false,
+                        enabled: true,
+                        radius: 0,  // Invisible by default
                         states: {
                             hover: {
                                 enabled: true,
