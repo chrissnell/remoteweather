@@ -26,6 +26,7 @@ type Controller struct {
 	logger           *zap.SugaredLogger
 	handlers         *Handlers
 	app              interfaces.AppReloader // Interface to trigger app configuration reload
+	assetsFS         fs.FS                  // Cached assets filesystem
 }
 
 // NewController creates a new management API controller
@@ -100,6 +101,13 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 
 	// Create handlers
 	ctrl.handlers = NewHandlers(ctrl)
+
+	// Load assets filesystem
+	assets, err := GetAssets()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load assets: %v", err)
+	}
+	ctrl.assetsFS = assets
 
 	// Set up router
 	router := ctrl.setupRouter()
@@ -222,7 +230,8 @@ func (c *Controller) setupRouter() *mux.Router {
 
 // setupManagementInterface sets up routes for the management web interface
 func (c *Controller) setupManagementInterface(router *mux.Router) {
-	assets := GetAssets()
+	// Use cached assets from controller initialization
+	assets := c.assetsFS
 
 	// Serve static assets
 	router.PathPrefix("/css/").Handler(http.StripPrefix("/", http.FileServer(http.FS(assets))))
@@ -245,7 +254,8 @@ func (c *Controller) setupManagementInterface(router *mux.Router) {
 
 // serveManagementInterface serves the main management interface HTML
 func (c *Controller) serveManagementInterface(w http.ResponseWriter, r *http.Request) {
-	assets := GetAssets()
+	// Use cached assets from controller initialization
+	assets := c.assetsFS
 
 	// Read the index.html file content
 	content, err := fs.ReadFile(assets, "index.html")
