@@ -236,6 +236,15 @@
               
               <!-- Advanced Tab -->
               <div class="tab-panel" id="advanced-tab">
+                <fieldset>
+                  <legend>Sensor Corrections</legend>
+                  <label>
+                    Wind Direction Correction (degrees)
+                    <input type="number" id="wind-dir-correction" min="-359" max="359" step="1" placeholder="0" />
+                    <span class="help-text">Correction applied to wind direction readings (-359 to +359 degrees)</span>
+                  </label>
+                </fieldset>
+
                 <fieldset id="tls-fieldset" class="conn-fieldset hidden">
                   <legend>TLS Configuration (Optional)</legend>
                   <label>

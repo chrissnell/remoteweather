@@ -611,7 +611,7 @@ func (s *Station) convertLoopPacket(lp *LoopPacketWithTrend) types.Reading {
 		OutTemp:               s.convBigVal10(lp.OutTemp),
 		WindSpeed:             s.convLittleVal(lp.WindSpeed),
 		WindSpeed10:           s.convLittleVal(lp.WindSpeed10),
-		WindDir:               s.convBigVal(lp.WindDir),
+		WindDir:               s.correctWindDirection(lp.WindDir),
 		ExtraTemp1:            s.convLittleTemp(lp.ExtraTemp1),
 		ExtraTemp2:            s.convLittleTemp(lp.ExtraTemp2),
 		ExtraTemp3:            s.convLittleTemp(lp.ExtraTemp3),
@@ -692,6 +692,30 @@ func (s *Station) convBigVal(v uint16) float32 {
 		return 0
 	}
 	return float32(v)
+}
+
+// correctWindDirection applies the configured wind direction correction
+func (s *Station) correctWindDirection(windDir uint16) float32 {
+	if windDir == 0x7FFF {
+		return 0
+	}
+
+	corrected := int16(windDir)
+
+	if s.config.WindDirCorrection != 0 {
+		s.logger.Debugf("Correcting wind direction by %v degrees", s.config.WindDirCorrection)
+		corrected += s.config.WindDirCorrection
+
+		// Normalize to 0-359 range
+		for corrected >= 360 {
+			corrected -= 360
+		}
+		for corrected < 0 {
+			corrected += 360
+		}
+	}
+
+	return float32(corrected)
 }
 
 func (s *Station) convBigVal10(v int16) float32 {
