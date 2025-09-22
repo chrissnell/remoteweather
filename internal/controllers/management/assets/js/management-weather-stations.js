@@ -88,7 +88,10 @@ const ManagementWeatherStations = (function() {
       // TLS fields
       tlsFieldset: document.getElementById('tls-fieldset'),
       tlsCertPath: document.getElementById('tls-cert-path'),
-      tlsKeyPath: document.getElementById('tls-key-path')
+      tlsKeyPath: document.getElementById('tls-key-path'),
+
+      // Advanced fields
+      windDirCorrection: document.getElementById('wind-dir-correction')
     };
   }
 
@@ -332,6 +335,11 @@ const ManagementWeatherStations = (function() {
       formElements.tlsKeyPath.value = dev.tls_key_path || '';
     }
 
+    // Populate wind direction correction (for stations with wind sensors)
+    if (dev.wind_dir_correction !== undefined) {
+      formElements.windDirCorrection.value = dev.wind_dir_correction;
+    }
+
     modalElements.modal.classList.remove('hidden');
     
     // Update field visibility based on initial station type
@@ -476,13 +484,22 @@ const ManagementWeatherStations = (function() {
     if (type === 'grpcreceiver') {
       const tlsCertPath = formElements.tlsCertPath.value.trim();
       const tlsKeyPath = formElements.tlsKeyPath.value.trim();
-      
+
       if (tlsCertPath && tlsKeyPath) {
         device.tls_cert_path = tlsCertPath;
         device.tls_key_path = tlsKeyPath;
       } else if (tlsCertPath || tlsKeyPath) {
         alert('Both TLS certificate and key paths must be provided');
         return null;
+      }
+    }
+
+    // Wind direction correction (for stations with wind sensors)
+    const windDirCorrection = formElements.windDirCorrection.value.trim();
+    if (windDirCorrection) {
+      const correction = parseInt(windDirCorrection, 10);
+      if (!isNaN(correction) && correction >= -359 && correction <= 359) {
+        device.wind_dir_correction = correction;
       }
     }
 

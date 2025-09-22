@@ -199,6 +199,8 @@ func (s *Station) parseWeatherData(query map[string][]string, reading *types.Rea
 	parseFloat("humidity", &reading.OutHumidity)
 	parseFloat("dewptf", &reading.ExtraTemp1)
 	parseFloat("winddir", &reading.WindDir)
+	// Apply wind direction correction
+	reading.WindDir = s.correctWindDirection(reading.WindDir)
 	parseFloat("windspeedmph", &reading.WindSpeed)
 	parseFloat("windgustmph", &reading.WindSpeed10)
 	parseFloat("rainin", &reading.RainIncremental)
@@ -382,4 +384,24 @@ func (s *Station) parseWeatherData(query map[string][]string, reading *types.Rea
 			reading.TxBatteryStatus = uint8(parsed)
 		}
 	}
+}
+
+// correctWindDirection applies the configured wind direction correction
+func (s *Station) correctWindDirection(windDir float32) float32 {
+	if s.config.WindDirCorrection == 0 {
+		return windDir
+	}
+
+	s.logger.Debugf("Correcting wind direction by %v degrees", s.config.WindDirCorrection)
+	corrected := int16(windDir) + s.config.WindDirCorrection
+
+	// Normalize to 0-359 range
+	for corrected >= 360 {
+		corrected -= 360
+	}
+	for corrected < 0 {
+		corrected += 360
+	}
+
+	return float32(corrected)
 }
