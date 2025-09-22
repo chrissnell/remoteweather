@@ -245,7 +245,10 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	ctrl.handlers = NewHandlers(ctrl)
 
 	// Set up filesystem for assets (either from disk or embedded)
-	assets := GetAssets()
+	assets, err := GetAssets()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load assets: %v", err)
+	}
 	ctrl.FS = &assets
 
 	// Set up router
