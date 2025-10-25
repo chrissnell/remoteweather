@@ -85,6 +85,12 @@ func (s *Station) StationName() string {
 	return s.config.Name
 }
 
+// Capabilities returns the measurement capabilities of this station.
+// AirGradient stations measure air quality (PM2.5, CO2, VOC, NOx).
+func (s *Station) Capabilities() weatherstations.Capabilities {
+	return weatherstations.Capabilities(weatherstations.AirQuality)
+}
+
 // StartWeatherStation starts polling the AirGradient device
 func (s *Station) StartWeatherStation() error {
 	if s.config.Hostname == "" {

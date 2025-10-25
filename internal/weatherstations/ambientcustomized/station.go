@@ -51,6 +51,12 @@ func (s *Station) StationName() string {
 	return s.config.Name
 }
 
+// Capabilities returns the measurement capabilities of this station.
+// Ambient Weather stations provide standard weather measurements.
+func (s *Station) Capabilities() weatherstations.Capabilities {
+	return weatherstations.Capabilities(weatherstations.Weather)
+}
+
 func (s *Station) StartWeatherStation() error {
 	// Use configured path or default to "/"
 	path := s.config.Path

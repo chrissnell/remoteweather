@@ -58,6 +58,14 @@ func (s *Station) StationName() string {
 	return s.deviceName
 }
 
+// Capabilities returns the measurement capabilities of this station.
+// gRPC receiver stations can have dynamic capabilities based on remote stations.
+// For now, we default to Weather for backward compatibility.
+// TODO: Query registry to determine actual capabilities from remote stations.
+func (s *Station) Capabilities() weatherstations.Capabilities {
+	return weatherstations.Capabilities(weatherstations.Weather)
+}
+
 // SetRegistry sets the remote station registry for this receiver
 func (s *Station) SetRegistry(registry *RemoteStationRegistry) {
 	s.registry = registry
