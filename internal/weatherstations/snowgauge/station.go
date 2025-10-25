@@ -54,6 +54,12 @@ func (s *Station) StationName() string {
 	return s.config.Name
 }
 
+// Capabilities returns the measurement capabilities of this station.
+// Snow gauge stations measure snow depth only.
+func (s *Station) Capabilities() weatherstations.Capabilities {
+	return weatherstations.Capabilities(weatherstations.Snow)
+}
+
 func (s *Station) StartWeatherStation() error {
 	s.logger.Infof("Starting SnowGauge weather station [%s]", s.config.Name)
 

@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/chrissnell/remoteweather/internal/controllers/management"
+	"github.com/chrissnell/remoteweather/internal/interfaces"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/managers"
 	"github.com/chrissnell/remoteweather/pkg/config"
@@ -21,7 +22,7 @@ type App struct {
 	configProvider       config.ConfigProvider
 	logger               *zap.SugaredLogger
 	storageManager       *managers.StorageManager
-	weatherManager       managers.WeatherStationManager
+	weatherManager       interfaces.WeatherStationManager
 	controllerManager    managers.ControllerManager
 	managementController *management.Controller // Direct reference to management controller
 	ctx                  context.Context        // App context for dynamic operations
@@ -62,7 +63,7 @@ func (a *App) Run(ctx context.Context, enableManagementAPI bool) error {
 	go a.weatherManager.StartWeatherStations()
 
 	// Initialize the controller manager
-	a.controllerManager, err = managers.NewControllerManager(ctx, &wg, a.configProvider, a.logger, a)
+	a.controllerManager, err = managers.NewControllerManager(ctx, &wg, a.configProvider, a.logger, a, a.weatherManager)
 	if err != nil {
 		return err
 	}

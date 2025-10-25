@@ -17,8 +17,10 @@ import (
 	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/database"
+	"github.com/chrissnell/remoteweather/internal/interfaces"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/storage"
+	"github.com/chrissnell/remoteweather/internal/weatherstations"
 	aprspkg "github.com/chrissnell/remoteweather/pkg/aprs"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
@@ -30,6 +32,7 @@ type Controller struct {
 	cancel           context.CancelFunc
 	configProvider   config.ConfigProvider
 	DB               *database.Client
+	stationManager   interfaces.WeatherStationManager
 	wg               *sync.WaitGroup
 	logger           *zap.SugaredLogger
 	running          bool
@@ -37,7 +40,7 @@ type Controller struct {
 }
 
 // New creates a new APRS controller
-func New(configProvider config.ConfigProvider) (*Controller, error) {
+func New(configProvider config.ConfigProvider, stationManager interfaces.WeatherStationManager) (*Controller, error) {
 	// Validate TimescaleDB configuration
 	if err := controllers.ValidateTimescaleDBConfig(configProvider, "APRS"); err != nil {
 		return nil, err
@@ -52,6 +55,7 @@ func New(configProvider config.ConfigProvider) (*Controller, error) {
 	a := &Controller{
 		configProvider: configProvider,
 		DB:             db,
+		stationManager: stationManager,
 		wg:             &sync.WaitGroup{},
 	}
 
@@ -251,6 +255,20 @@ func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, 
 func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup, device config.DeviceData) {
 	wg.Add(1)
 	defer wg.Done()
+
+	// Check if station has Weather capability
+	// APRS-IS is for weather data only, not snow or air quality
+	station := a.stationManager.GetStation(device.Name)
+	if station == nil {
+		log.Debugf("Station %s not found in station manager, skipping APRS report", device.Name)
+		return
+	}
+
+	if !station.Capabilities().Has(weatherstations.Weather) {
+		log.Debugf("Skipping APRS report for %s - station does not have Weather capability (capabilities: %s)",
+			device.Name, station.Capabilities())
+		return
+	}
 
 	// Get latest reading from database
 	reading, err := a.DB.GetReadingsFromTimescaleDB(device.Name)

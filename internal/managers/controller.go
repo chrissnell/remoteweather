@@ -30,7 +30,7 @@ type Controller interface {
 }
 
 // NewControllerManager creates a new controller manager
-func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger, appReloader interfaces.AppReloader) (ControllerManager, error) {
+func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger, appReloader interfaces.AppReloader, stationManager interfaces.WeatherStationManager) (ControllerManager, error) {
 	cm := &controllerManager{
 		ctx:            ctx,
 		wg:             wg,
@@ -38,6 +38,7 @@ func NewControllerManager(ctx context.Context, wg *sync.WaitGroup, configProvide
 		logger:         logger,
 		controllers:    make(map[string]Controller),
 		appReloader:    appReloader,
+		stationManager: stationManager,
 	}
 
 	// Load configuration
@@ -82,6 +83,7 @@ type controllerManager struct {
 	ctx            context.Context
 	wg             *sync.WaitGroup
 	configProvider config.ConfigProvider
+	stationManager interfaces.WeatherStationManager
 	logger         *zap.SugaredLogger
 	controllers    map[string]Controller
 	appReloader    interfaces.AppReloader
@@ -228,7 +230,7 @@ func (cm *controllerManager) createController(controllerType string, config *con
 	case "weatherunderground":
 		return wunderground.NewWeatherUndergroundController(cm.ctx, cm.wg, cm.configProvider, cm.logger)
 	case "aprs":
-		return aprs.New(cm.configProvider)
+		return aprs.New(cm.configProvider, cm.stationManager)
 	
 	default:
 		return nil, fmt.Errorf("unknown controller type: %s", controllerType)

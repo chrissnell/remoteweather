@@ -11,6 +11,7 @@ type WeatherStation interface {
 	StartWeatherStation() error
 	StopWeatherStation() error
 	StationName() string
+	Capabilities() Capabilities
 }
 
 // StationFactory creates weather stations based on configuration

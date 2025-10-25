@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/chrissnell/remoteweather/internal/interfaces"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/internal/weatherstations"
@@ -18,16 +19,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// WeatherStationManager interface for the weather station manager
-type WeatherStationManager interface {
-	StartWeatherStations() error
-	AddWeatherStation(deviceName string) error
-	RemoveWeatherStation(deviceName string) error
-	ReloadWeatherStationsConfig() error
-}
-
 // NewWeatherStationManager creates a WeatherStationManager object, populated with all configured weather stations
-func NewWeatherStationManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, distributor chan types.Reading, logger *zap.SugaredLogger) (WeatherStationManager, error) {
+func NewWeatherStationManager(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, distributor chan types.Reading, logger *zap.SugaredLogger) (interfaces.WeatherStationManager, error) {
 	// Load configuration
 	cfgData, err := configProvider.LoadConfig()
 	if err != nil {
@@ -66,6 +59,7 @@ type weatherStationManager struct {
 	distributor    chan types.Reading
 	logger         *zap.SugaredLogger
 	stations       map[string]weatherstations.WeatherStation
+	mu             sync.RWMutex
 }
 
 func (w *weatherStationManager) StartWeatherStations() error {
@@ -81,6 +75,9 @@ func (w *weatherStationManager) StartWeatherStations() error {
 
 // AddWeatherStation adds a new weather station dynamically
 func (w *weatherStationManager) AddWeatherStation(deviceName string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	// Check if station already exists
 	if _, exists := w.stations[deviceName]; exists {
 		return fmt.Errorf("weather station %s already exists", deviceName)
@@ -114,6 +111,9 @@ func (w *weatherStationManager) AddWeatherStation(deviceName string) error {
 
 // RemoveWeatherStation removes a weather station dynamically
 func (w *weatherStationManager) RemoveWeatherStation(deviceName string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	station, exists := w.stations[deviceName]
 	if !exists {
 		return fmt.Errorf("weather station %s not found", deviceName)
@@ -167,6 +167,20 @@ func (w *weatherStationManager) ReloadWeatherStationsConfig() error {
 	}
 
 	return nil
+}
+
+// GetStation retrieves a weather station by name.
+// Returns nil if the station does not exist.
+// This method is safe for concurrent use.
+func (w *weatherStationManager) GetStation(deviceName string) weatherstations.WeatherStation {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	station, exists := w.stations[deviceName]
+	if !exists {
+		return nil
+	}
+	return station
 }
 
 // createStationFromConfig creates the appropriate weather station based on device type
