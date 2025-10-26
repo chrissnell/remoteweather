@@ -2468,7 +2468,7 @@ const createRainfallSummaryTableSQL = `CREATE TABLE IF NOT EXISTS rainfall_summa
 CREATE INDEX IF NOT EXISTS idx_rainfall_summary_stationname 
 ON rainfall_summary (stationname);`
 
-const createUpdateRainfallSummarySQL = `CREATE OR REPLACE FUNCTION update_rainfall_summary()
+const createUpdateRainfallSummarySQL = `CREATE OR REPLACE FUNCTION update_rainfall_summary(job_id INT DEFAULT NULL, config JSONB DEFAULT NULL)
 RETURNS void AS $$
 DECLARE
     last_hour TIMESTAMPTZ;
