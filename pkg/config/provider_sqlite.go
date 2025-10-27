@@ -611,12 +611,6 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 					PullFromDevice: grpcPullFromDevice.String,
 				}
 			}
-		case "aprs":
-			if aprsServer.Valid {
-				storage.APRS = &APRSData{
-					Server: aprsServer.String,
-				}
-			}
 		}
 	}
 

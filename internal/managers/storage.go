@@ -7,7 +7,6 @@ import (
 
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/storage"
-	"github.com/chrissnell/remoteweather/internal/storage/aprs"
 	"github.com/chrissnell/remoteweather/internal/storage/grpcstream"
 	"github.com/chrissnell/remoteweather/internal/storage/timescaledb"
 	"github.com/chrissnell/remoteweather/internal/types"
@@ -64,24 +63,6 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 		}
 	}
 
-	// Check for APRS configuration in storage configs + device configs
-	if cfgData.Storage.APRS != nil && cfgData.Storage.APRS.Server != "" {
-		// Also check if we have devices with APRS enabled
-		devices, err := configProvider.GetDevices()
-		if err == nil && len(devices) > 0 {
-			// Check if at least one device has APRS enabled
-			for _, device := range devices {
-				if device.APRSEnabled && device.APRSCallsign != "" {
-					err = s.AddEngine(ctx, wg, "aprs", configProvider)
-					if err != nil {
-						return &s, fmt.Errorf("could not add APRS storage backend: %v", err)
-					}
-					break
-				}
-			}
-		}
-	}
-
 	return &s, nil
 }
 
@@ -120,15 +101,6 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 		log.Infof("Added gRPC storage engine")
-	case "aprs":
-		se := StorageEngine{Name: engineName}
-		se.Engine, err = aprs.New(configProvider)
-		if err != nil {
-			return err
-		}
-		se.C = se.Engine.StartStorageEngine(ctx, wg)
-		s.Engines = append(s.Engines, se)
-		log.Infof("Added APRS storage engine")
 	}
 
 	return nil
@@ -166,22 +138,6 @@ func (s *StorageManager) ReloadStorageConfig(ctx context.Context, wg *sync.WaitG
 	}
 	if cfgData.Storage.GRPC != nil && cfgData.Storage.GRPC.Port != 0 {
 		shouldBeActive["grpc"] = true
-	}
-
-	// Check for APRS configuration in storage configs + device configs
-	storageConfig, err := configProvider.GetStorageConfig()
-	if err == nil && storageConfig.APRS != nil && storageConfig.APRS.Server != "" {
-		// Also check if we have devices with APRS enabled
-		devices, err := configProvider.GetDevices()
-		if err == nil && len(devices) > 0 {
-			// Check if at least one device has APRS enabled
-			for _, device := range devices {
-				if device.APRSEnabled && device.APRSCallsign != "" {
-					shouldBeActive["aprs"] = true
-					break
-				}
-			}
-		}
 	}
 
 	// Remove engines that should no longer be active

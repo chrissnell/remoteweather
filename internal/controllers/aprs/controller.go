@@ -277,9 +277,22 @@ func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.Wa
 		return
 	}
 
+	// Calculate wind gust from last 10 minutes (same as website)
+	type WindGustResult struct {
+		WindGust float32
+	}
+	var windGustResult WindGustResult
+	query := "SELECT calculate_wind_gust(?) AS wind_gust"
+	err = a.DB.DB.Raw(query, device.Name).Scan(&windGustResult).Error
+	if err != nil {
+		log.Errorf("error getting wind gust from DB for %s: %v", device.Name, err)
+		// Continue with 0 wind gust if query fails
+		windGustResult.WindGust = 0
+	}
+
 	connectionTimeout := 3 * time.Second
 
-	pkt := a.CreateCompleteWeatherReport(device, reading, '/', '_')
+	pkt := a.CreateCompleteWeatherReport(device, reading, windGustResult.WindGust, '/', '_')
 	log.Debugf("sending reading to APRS-IS for station %s: %+v", device.Name, pkt)
 
 	// Use device's APRS server or default
@@ -361,7 +374,7 @@ func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.Wa
 
 // CreateCompleteWeatherReport creates an APRS weather report with compressed position
 // report included.
-func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, reading database.FetchedBucketReading, symTable, symCode rune) string {
+func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, reading database.FetchedBucketReading, windGust float32, symTable, symCode rune) string {
 	var buffer bytes.Buffer
 
 	// Build callsign and position
@@ -403,8 +416,8 @@ func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, readi
 	// Then our wind direction and speed
 	buffer.WriteString(fmt.Sprintf("%03d/%03d", int(reading.WindDir), int(reading.WindSpeed)))
 
-	// We don't keep track of gusts
-	buffer.WriteString("g...")
+	// Add wind gust (using calculate_wind_gust from last 10 minutes)
+	buffer.WriteString(fmt.Sprintf("g%03d", int(windGust)))
 
 	// Then we add our temperature reading
 	buffer.WriteString(fmt.Sprintf("t%03d", int64(reading.OutTemp)))
