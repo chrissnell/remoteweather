@@ -378,27 +378,28 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		var tlsCertFile, tlsKeyFile, path sql.NullString
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var latitude, longitude, altitude sql.NullFloat64
+		var enabled sql.NullBool
 		var aprsEnabled sql.NullBool
-		
+
 		// PWS Weather fields
 		var pwsEnabled sql.NullBool
 		var pwsStationID, pwsPassword, pwsAPIEndpoint sql.NullString
 		var pwsUploadInterval sql.NullInt64
-		
+
 		// Weather Underground fields
 		var wuEnabled sql.NullBool
 		var wuStationID, wuPassword, wuAPIEndpoint sql.NullString
 		var wuUploadInterval sql.NullInt64
-		
+
 		// APRS additional fields
 		var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment, aprsServer sql.NullString
-		
+
 		// Aeris Weather fields
 		var aerisEnabled sql.NullBool
 		var aerisAPIClientID, aerisAPIClientSecret, aerisAPIEndpoint sql.NullString
 
 		err := rows.Scan(
-			&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
+			&device.ID, &device.Name, &device.Type, &enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
 			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
 			&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
@@ -448,6 +449,11 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if altitude.Valid {
 			device.Altitude = altitude.Float64
+		}
+
+		// Set device enabled
+		if enabled.Valid {
+			device.Enabled = enabled.Bool
 		}
 
 		// Set APRS data
@@ -1646,6 +1652,7 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		var website WeatherWebsiteData
 		var deviceID sql.NullInt64
 		var deviceName, hostname, pageTitle, aboutHTML, snowDeviceName sql.NullString
+		var snowEnabled sql.NullBool
 		var airQualityEnabled sql.NullBool
 		var airQualityDeviceName sql.NullString
 		var tlsCertPath, tlsKeyPath sql.NullString
@@ -1658,7 +1665,7 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 			&hostname,
 			&pageTitle,
 			&aboutHTML,
-			&website.SnowEnabled,
+			&snowEnabled,
 			&snowDeviceName,
 			&airQualityEnabled,
 			&airQualityDeviceName,
@@ -1679,6 +1686,9 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		website.Hostname = hostname.String
 		website.PageTitle = pageTitle.String
 		website.AboutStationHTML = aboutHTML.String
+		if snowEnabled.Valid {
+			website.SnowEnabled = snowEnabled.Bool
+		}
 		website.SnowDeviceName = snowDeviceName.String
 		if airQualityEnabled.Valid {
 			website.AirQualityEnabled = airQualityEnabled.Bool
@@ -1707,6 +1717,7 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	var website WeatherWebsiteData
 	var deviceID sql.NullInt64
 	var deviceName, hostname, pageTitle, aboutHTML, snowDeviceName sql.NullString
+	var snowEnabled sql.NullBool
 	var airQualityEnabled sql.NullBool
 	var airQualityDeviceName sql.NullString
 	var tlsCertPath, tlsKeyPath sql.NullString
@@ -1719,7 +1730,7 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 		&hostname,
 		&pageTitle,
 		&aboutHTML,
-		&website.SnowEnabled,
+		&snowEnabled,
 		&snowDeviceName,
 		&airQualityEnabled,
 		&airQualityDeviceName,
@@ -1744,6 +1755,9 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	website.Hostname = hostname.String
 	website.PageTitle = pageTitle.String
 	website.AboutStationHTML = aboutHTML.String
+	if snowEnabled.Valid {
+		website.SnowEnabled = snowEnabled.Bool
+	}
 	website.SnowDeviceName = snowDeviceName.String
 	if airQualityEnabled.Valid {
 		website.AirQualityEnabled = airQualityEnabled.Bool
