@@ -405,23 +405,34 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		// Get snow base distance from the snow device (needed for calculations)
+		snowBaseDistance := h.getSnowBaseDistance(website)
+
+		// Always use the snow device name for querying, unless a specific station is requested
+		queryStation := website.SnowDeviceName
 		if stationName != "" {
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", stationName).Order("time DESC").Find(&dbFetchedReadings)
-		} else {
-			// Client did not supply a station name, so pull from the configured snow device
-			h.controller.DB.Table("weather").Limit(1).Where("stationname = ?", website.SnowDeviceName).Order("time DESC").Find(&dbFetchedReadings)
+			queryStation = stationName
 		}
+
+		log.Debugf("GetSnowLatest: querying station='%s', snowBaseDistance=%.2f", queryStation, snowBaseDistance)
+		// Query for latest reading from snow station, ensuring snowdistance is not null/zero
+		h.controller.DB.Table("weather").
+			Where("stationname = ?", queryStation).
+			Where("snowdistance IS NOT NULL AND snowdistance > 0").
+			Order("time DESC").
+			Limit(1).
+			Find(&dbFetchedReadings)
 
 		log.Debugf("returned rows: %v", len(dbFetchedReadings))
 
 		if len(dbFetchedReadings) > 0 {
-			log.Debugf("latest snow reading: %v", mmToInches(dbFetchedReadings[0].SnowDistance))
+			log.Debugf("latest snow reading: stationname='%s', snowdistance=%.2f, calculated_depth=%.2f",
+				dbFetchedReadings[0].StationName,
+				dbFetchedReadings[0].SnowDistance,
+				mmToInches(snowBaseDistance - dbFetchedReadings[0].SnowDistance))
 		}
 
 		var result SnowDeltaResult
-
-		// Get snow base distance from the snow device
-		snowBaseDistance := h.getSnowBaseDistance(website)
 
 		// Get the snowfall since midnight
 		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
