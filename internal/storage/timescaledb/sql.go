@@ -2023,6 +2023,7 @@ CREATE INDEX IF NOT EXISTS weather_1d_bucket_stationname_idx ON weather_1d (stat
 -- Weather table indexes
 CREATE INDEX IF NOT EXISTS weather_stationname_time_idx ON weather (stationname, time DESC);
 CREATE INDEX IF NOT EXISTS weather_time_stationname_idx ON weather (time DESC, stationname);
+CREATE INDEX IF NOT EXISTS weather_stationname_snowdistance_time_idx ON weather (stationname, time DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;
 -- Rainfall summary index
 CREATE INDEX IF NOT EXISTS rainfall_summary_stationname_idx ON rainfall_summary (stationname);`
 
