@@ -523,7 +523,10 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			SnowfallRate: float32(snowfallRate),
 		}
 
-		err = h.formatter.WriteResponse(w, req, &snowReading, nil)
+		headers := map[string]string{
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		}
+		err = h.formatter.WriteResponse(w, req, &snowReading, headers)
 		if err != nil {
 			log.Errorf("error encoding snowReading: %v", err)
 			http.Error(w, "error encoding snow data", http.StatusInternalServerError)
