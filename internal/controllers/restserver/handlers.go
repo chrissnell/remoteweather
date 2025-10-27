@@ -509,7 +509,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		if len(dbFetchedReadings) > 0 {
 			snowDepth = mmToInches(snowBaseDistance - dbFetchedReadings[0].SnowDistance)
 		} else {
-			log.Warnf("No readings available from snow device '%s' - returning zero values", website.SnowDeviceName)
+			log.Debugf("No readings available from snow device '%s' - returning zero values", website.SnowDeviceName)
 		}
 
 		snowReading := SnowReading{
