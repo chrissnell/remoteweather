@@ -443,7 +443,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
-		snowSinceMidnight := mmToInches(result.Snowfall)
+		snowSinceMidnight := mmToInchesWithThreshold(result.Snowfall)
 
 		// Get the snowfall in the last 24 hours
 		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
@@ -454,7 +454,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
-		snowLast24 := mmToInches(result.Snowfall)
+		snowLast24 := mmToInchesWithThreshold(result.Snowfall)
 
 		// Get the snowfall in the last 72 hours
 		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
@@ -465,7 +465,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
-		snowLast72 := mmToInches(result.Snowfall)
+		snowLast72 := mmToInchesWithThreshold(result.Snowfall)
 
 		// Get the season total snowfall
 		query = "SELECT calculate_total_season_snowfall(?, ?) AS snowfall"
@@ -476,7 +476,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		log.Debugf("Season total snowfall: %.2f mm\n", result.Snowfall)
-		snowSeason := mmToInches(result.Snowfall)
+		snowSeason := mmToInchesWithThreshold(result.Snowfall)
 
 		// Get the storm total snowfall
 		type StormResult struct {
@@ -491,7 +491,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		log.Debugf("Storm total snowfall: %.2f mm\n", stormResult.TotalSnowfall)
-		snowStorm := mmToInches(stormResult.TotalSnowfall)
+		snowStorm := mmToInchesWithThreshold(stormResult.TotalSnowfall)
 
 		// Get the current snowfall rate
 		query = "SELECT calculate_current_snowfall_rate(?) AS snowfall"
