@@ -20,7 +20,10 @@ require (
 	modernc.org/sqlite v1.38.0
 )
 
-require github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+require (
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+	gonum.org/v1/gonum v0.16.0 // indirect
+)
 
 require github.com/lib/pq v1.10.9 // direct
 
