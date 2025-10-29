@@ -502,12 +502,12 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		log.Debugf("Current snowfall rate: %.2f mm/hr\n", result.Snowfall)
-		snowfallRate := mmToInches(result.Snowfall)
+		snowfallRate := mmToInchesWithThreshold(result.Snowfall)
 
 		// Check if we have any readings from the snow gauge
 		var snowDepth float32 = 0.0
 		if len(dbFetchedReadings) > 0 {
-			snowDepth = mmToInches(snowBaseDistance - dbFetchedReadings[0].SnowDistance)
+			snowDepth = mmToInchesWithThreshold(snowBaseDistance - dbFetchedReadings[0].SnowDistance)
 		} else {
 			log.Debugf("No readings available from snow device '%s' - returning zero values", website.SnowDeviceName)
 		}

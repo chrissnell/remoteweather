@@ -1,6 +1,8 @@
 package restserver
 
 import (
+	"math"
+
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
 )
@@ -146,7 +148,24 @@ type SnowAllCalculationsResult struct {
 
 // mmToInches converts millimeters to inches
 func mmToInches(mm float32) float32 {
-	return mm / 25.4
+	inches := mm / 25.4
+	// Round to tenths place for clean display
+	return float32(math.Round(float64(inches)*10) / 10)
+}
+
+// mmToInchesWithThreshold converts millimeters to inches with a minimum threshold
+// to filter out sensor noise. Use for current readings, not cumulative totals.
+func mmToInchesWithThreshold(mm float32) float32 {
+	inches := mm / 25.4
+	const threshold = 0.1
+	
+	// Filter out noise below threshold
+	if inches < threshold {
+		return 0.0
+	}
+	
+	// Round to tenths place
+	return float32(math.Round(float64(inches)*10) / 10)
 }
 
 // headingToCardinalDirection converts a wind direction heading to a cardinal direction
