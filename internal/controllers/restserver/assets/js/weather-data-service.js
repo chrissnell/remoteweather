@@ -157,22 +157,24 @@ const WeatherDataService = (function() {
                 last24: '0.00',
                 last72: '0.00',
                 stormTotal: '0.00',
+                seasonTotal: '0.00',
                 accumulationRate: '0.00'
             };
         }
-        
+
         let accumulationRate = '0.00';
         if (data.snowfallrate != null && data.snowfallrate > 0) {
             accumulationRate = parseFloat(data.snowfallrate).toFixed(3);
         } else if (data.snowlast24 && data.snowlast24 > 0) {
             accumulationRate = (data.snowlast24 / 24).toFixed(3);
         }
-        
+
         return {
             depth: WeatherUtils.formatValue(data.snowdepth, 2),
             last24: WeatherUtils.formatValue(data.snowlast24, 2),
             last72: WeatherUtils.formatValue(data.snowlast72, 2),
             stormTotal: WeatherUtils.formatValue(data.snowstorm, 2),
+            seasonTotal: WeatherUtils.formatValue(data.snowseason, 2),
             accumulationRate: accumulationRate
         };
     };

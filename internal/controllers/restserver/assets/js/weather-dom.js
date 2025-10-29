@@ -90,6 +90,7 @@ const WeatherDOM = (function() {
             'snow-24hr': snowData.last24,
             'snow-72hr': snowData.last72,
             'snow-storm-total': snowData.stormTotal,
+            'snow-season-total': snowData.seasonTotal,
             'snow-accumulation-rate': snowData.accumulationRate
         });
     };
