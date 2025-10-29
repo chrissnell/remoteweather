@@ -63,7 +63,7 @@ func (h *Handlers) transformSpanReadings(dbReadings *[]types.BucketReading) []*W
 			InsideHumidity:        r.InHumidity,
 			ConsBatteryVoltage:    r.ConsBatteryVoltage,
 			StationBatteryVoltage: r.StationBatteryVoltage,
-			SnowDepth:             mmToInches(r.SnowDepth),
+			SnowDepth:             mmToInchesWithThreshold(r.SnowDepth),
 			SnowDistance:          r.SnowDistance,
 			PM25:                  r.PM25,
 			CO2:                   r.CO2,
