@@ -85,13 +85,19 @@ const WeatherDOM = (function() {
     
     // Update snow data display
     const updateSnowData = (snowData) => {
+        // Format snow values to 1 decimal place
+        const formatSnow = (value) => {
+            if (value === null || value === undefined) return '--';
+            return parseFloat(value).toFixed(1);
+        };
+
         updateElements({
-            'snow-depth': snowData.depth,
-            'snow-24hr': snowData.last24,
-            'snow-72hr': snowData.last72,
-            'snow-storm-total': snowData.stormTotal,
-            'snow-season-total': snowData.seasonTotal,
-            'snow-accumulation-rate': snowData.accumulationRate
+            'snow-depth': formatSnow(snowData.depth),
+            'snow-24hr': formatSnow(snowData.last24),
+            'snow-72hr': formatSnow(snowData.last72),
+            'snow-storm-total': formatSnow(snowData.stormTotal),
+            'snow-season-total': formatSnow(snowData.seasonTotal),
+            'snow-accumulation-rate': formatSnow(snowData.accumulationRate)
         });
     };
     
