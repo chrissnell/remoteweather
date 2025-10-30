@@ -8,10 +8,12 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgtype v1.14.4
+	github.com/lib/pq v1.10.9
 	github.com/panjf2000/gnet/v2 v2.9.1
 	github.com/tarm/goserial v0.0.0-20151007205400-b3440c3c6355
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.uber.org/zap v1.27.0
+	gonum.org/v1/gonum v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250212204824-5a70512c5d8b
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
@@ -20,12 +22,7 @@ require (
 	modernc.org/sqlite v1.38.0
 )
 
-require (
-	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	gonum.org/v1/gonum v0.16.0 // indirect
-)
-
-require github.com/lib/pq v1.10.9 // direct
+require github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
