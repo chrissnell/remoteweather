@@ -1854,4 +1854,42 @@ html[data-theme="light"] .theme-toggle::before {
   margin-top: 15px;
   font-size: 0.875rem;
   color: var(--text-secondary);
-} 
+}
+
+/* Almanac Section */
+.almanac-section {
+  margin-top: 40px;
+  padding-top: 20px;
+}
+
+.almanac-section .section-title {
+  margin-bottom: 20px;
+}
+
+.almanac-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  padding: 15px 0;
+}
+
+.almanac-timestamp {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Responsive adjustments for almanac */
+@media (max-width: 768px) {
+  .almanac-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .almanac-metrics {
+    grid-template-columns: 1fr;
+  }
+}

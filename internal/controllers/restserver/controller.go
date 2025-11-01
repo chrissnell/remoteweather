@@ -385,6 +385,7 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.HandleFunc("/span/{span}", c.handlers.GetWeatherSpan)
 	router.HandleFunc("/latest", c.handlers.GetWeatherLatest)
 	router.HandleFunc("/snow", c.handlers.GetSnowLatest) // Will check if snow is enabled per request
+	router.HandleFunc("/almanac", c.handlers.GetAlmanac)
 
 	// We only enable the /forecast endpoint if Aeris Weather has been configured.
 	if c.AerisWeatherEnabled {
