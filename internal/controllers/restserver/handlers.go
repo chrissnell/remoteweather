@@ -2,6 +2,7 @@ package restserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	htmltemplate "html/template"
 	"net/http"
@@ -254,6 +255,14 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		// Use the shared database fetching logic
 		fetchedReading, err := h.controller.fetchLatestReading(queryStation, float64(baseDistance))
 		if err != nil {
+			// Check if this is a "no readings found" error (station offline/no recent data)
+			// vs an actual database error
+			if errors.Is(err, ErrNoReadingsFound) {
+				log.Warnf("No recent readings for station %s: %v", queryStation, err)
+				http.Error(w, "no recent weather data available for this station", http.StatusNotFound)
+				return
+			}
+			// Actual database error
 			log.Errorf("Error fetching latest reading: %v", err)
 			http.Error(w, "error fetching weather data", http.StatusInternalServerError)
 			return

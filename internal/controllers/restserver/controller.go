@@ -40,6 +40,11 @@ const (
 // Assets are now handled by the GetAssets() function in assets.go
 
 // Controller represents the unified REST/gRPC server controller
+
+// ErrNoReadingsFound is returned when no weather readings are available for a station
+// This is used to distinguish from actual database errors
+var ErrNoReadingsFound = fmt.Errorf("no recent readings available")
+
 type Controller struct {
 	ctx                 context.Context
 	wg                  *sync.WaitGroup
@@ -781,7 +786,8 @@ func (c *Controller) fetchLatestReading(stationName string, baseDistance float64
 	}
 
 	if len(dbFetchedReadings) == 0 {
-		return nil, fmt.Errorf("no weather readings found for station %s", stationName)
+		// Return sentinel error to distinguish from actual database errors
+		return nil, fmt.Errorf("%w for station %s", ErrNoReadingsFound, stationName)
 	}
 
 	return &dbFetchedReadings[0], nil
