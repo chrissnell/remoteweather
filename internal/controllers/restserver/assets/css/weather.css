@@ -600,9 +600,76 @@ html[data-theme="light"] .theme-toggle::before {
   justify-content: center;
   align-items: center;
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: 220px;
+  height: 220px;
   top: 10px;
+}
+
+.windrose-bezel {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid var(--windrose-border);
+  background-color: var(--bg-secondary);
+  z-index: 0;
+}
+
+.bezel-label {
+  position: absolute;
+  font-family: Inconsolata, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transform-origin: center;
+}
+
+.bezel-n {
+  top: 8%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.bezel-ne {
+  top: 18%;
+  left: 82%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.bezel-e {
+  top: 50%;
+  left: 92%;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.bezel-se {
+  top: 82%;
+  left: 82%;
+  transform: translate(-50%, -50%) rotate(135deg);
+}
+
+.bezel-s {
+  top: 92%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+.bezel-sw {
+  top: 82%;
+  left: 18%;
+  transform: translate(-50%, -50%) rotate(225deg);
+}
+
+.bezel-w {
+  top: 50%;
+  left: 8%;
+  transform: translate(-50%, -50%) rotate(270deg);
+}
+
+.bezel-nw {
+  top: 18%;
+  left: 18%;
+  transform: translate(-50%, -50%) rotate(315deg);
 }
 
 .windrose-circle {
@@ -610,7 +677,9 @@ html[data-theme="light"] .theme-toggle::before {
   border-radius: 50%;
   width: 160px;
   height: 160px;
-  display: block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   position: relative;
   background-color: var(--bg-tertiary);
   z-index: 1;
@@ -628,6 +697,15 @@ html[data-theme="light"] .theme-toggle::before {
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
+}
+
+.wind-heading {
+  text-align: center;
+  font-family: Inconsolata, monospace;
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--text-accent);
+  z-index: 2;
 }
 
 .wind-speed {

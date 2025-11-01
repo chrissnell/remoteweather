@@ -174,10 +174,9 @@ const WeatherDOM = (function() {
         if (windDirElement && direction != null) {
             windDirElement.style.transform = `rotate(${direction}deg)`;
         }
-        
+
         updateElements({
-            'rdg-winddir-cardinal': cardinalDir || '---',
-            'rdg-windspeed': speed !== null && speed !== undefined ? speed : '--'
+            'rdg-winddir-degrees': direction !== null && direction !== undefined ? `${direction}°` : '---°'
         });
     };
     
