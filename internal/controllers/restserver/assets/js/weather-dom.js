@@ -171,8 +171,15 @@ const WeatherDOM = (function() {
     // Update windrose display
     const updateWindrose = (direction, speed, cardinalDir) => {
         const windDirElement = getCachedElement('rdg-winddir');
+        const headingElement = getCachedElement('rdg-winddir-degrees');
+
         if (windDirElement && direction != null) {
             windDirElement.style.transform = `rotate(${direction}deg)`;
+
+            // Counter-rotate the heading text to keep it upright
+            if (headingElement) {
+                headingElement.style.transform = `rotate(${-direction}deg)`;
+            }
         }
 
         updateElements({
