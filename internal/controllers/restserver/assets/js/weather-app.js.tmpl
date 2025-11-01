@@ -118,14 +118,108 @@ const WeatherApp = (function() {
     const startTimers = () => {
         // Live data refresh timer
         state.liveDataTimer = setInterval(refreshLiveData, INTERVALS.LIVE_DATA);
-        
+
         // Update timer (for "last updated X seconds ago")
         state.updateTimerInterval = setInterval(() => {
             state.secondsSinceLastUpdate++;
             WeatherDOM.updateLiveIndicator(true, state.secondsSinceLastUpdate);
         }, 1000);
     };
-    
+
+    // Load almanac data
+    const loadAlmanac = async () => {
+        try {
+            const url = `/almanac?station=${config.pullFromDevice}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch almanac data: ${response.statusText}`);
+            }
+
+            const almanac = await response.json();
+            updateAlmanacDisplay(almanac);
+        } catch (error) {
+            if (config.debug) console.error('Error loading almanac data:', error);
+        }
+    };
+
+    // Update almanac display
+    const updateAlmanacDisplay = (almanac) => {
+        // Helper function to format timestamp
+        const formatTimestamp = (timestamp) => {
+            if (!timestamp) return '--';
+            const date = new Date(timestamp);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        };
+
+        // Helper function to get wind direction from degrees
+        const getWindDirection = (degrees) => {
+            if (degrees === null || degrees === undefined) return '--';
+            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const index = Math.round(degrees / 22.5) % 16;
+            return `${directions[index]} (${Math.round(degrees)}°)`;
+        };
+
+        // Helper function to update metric
+        const updateMetric = (valueId, timeId, record, precision = 1) => {
+            const valueEl = document.getElementById(valueId);
+            const timeEl = document.getElementById(timeId);
+
+            if (valueEl && record) {
+                valueEl.textContent = record.value.toFixed(precision);
+            }
+            if (timeEl && record) {
+                timeEl.textContent = formatTimestamp(record.timestamp);
+            }
+        };
+
+        // Update basic metrics
+        updateMetric('almanac-high-temp', 'almanac-high-temp-time', almanac.high_temp);
+        updateMetric('almanac-low-temp', 'almanac-low-temp-time', almanac.low_temp);
+        updateMetric('almanac-max-rain-hour', 'almanac-max-rain-hour-time', almanac.max_rain_hour, 2);
+        updateMetric('almanac-max-rain-day', 'almanac-max-rain-day-time', almanac.max_rain_day, 2);
+        updateMetric('almanac-low-baro', 'almanac-low-baro-time', almanac.low_barometer, 2);
+        updateMetric('almanac-high-solar', 'almanac-high-solar-time', almanac.high_solar, 0);
+        updateMetric('almanac-low-humidity', 'almanac-low-humidity-time', almanac.low_humidity, 0);
+
+        // Update wind with direction
+        if (almanac.high_wind_speed) {
+            const windValueEl = document.getElementById('almanac-high-wind');
+            const windDirEl = document.getElementById('almanac-high-wind-dir');
+            const windTimeEl = document.getElementById('almanac-high-wind-time');
+
+            if (windValueEl) windValueEl.textContent = almanac.high_wind_speed.value.toFixed(1);
+            if (windDirEl && almanac.high_wind_speed.wind_dir !== undefined) {
+                windDirEl.textContent = `from ${getWindDirection(almanac.high_wind_speed.wind_dir)}`;
+            }
+            if (windTimeEl) windTimeEl.textContent = formatTimestamp(almanac.high_wind_speed.timestamp);
+        }
+
+        // Update snow metrics if enabled
+        if (config.snowEnabled) {
+            updateMetric('almanac-deepest-snow', 'almanac-deepest-snow-time', almanac.deepest_snow, 1);
+            updateMetric('almanac-max-snow-hour', 'almanac-max-snow-hour-time', almanac.max_snow_hour, 1);
+            updateMetric('almanac-max-snow-day', 'almanac-max-snow-day-time', almanac.max_snow_day, 1);
+        }
+
+        // Update air quality metrics if enabled
+        if (config.airQualityEnabled) {
+            updateMetric('almanac-high-pm25', 'almanac-high-pm25-time', almanac.high_pm25, 1);
+            updateMetric('almanac-high-pm10', 'almanac-high-pm10-time', almanac.high_pm10_in, 1);
+            updateMetric('almanac-high-co2', 'almanac-high-co2-time', almanac.high_co2, 0);
+            updateMetric('almanac-high-aqi-pm25', 'almanac-high-aqi-pm25-time', almanac.high_aqi_pm25, 0);
+            updateMetric('almanac-high-aqi-pm10', 'almanac-high-aqi-pm10-time', almanac.high_aqi_pm10, 0);
+            updateMetric('almanac-high-aqi-pm25-in', 'almanac-high-aqi-pm25-in-time', almanac.high_aqi_pm25_in, 0);
+        }
+    };
+
     // Load initial data
     const loadInitialData = async () => {
         // Load all data in parallel for faster initial load
