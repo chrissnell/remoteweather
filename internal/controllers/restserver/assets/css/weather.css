@@ -625,7 +625,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .bezel-n {
-  top: 8%;
+  top: 4%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(0deg);
 }
@@ -638,7 +638,7 @@ html[data-theme="light"] .theme-toggle::before {
 
 .bezel-e {
   top: 50%;
-  left: 92%;
+  left: 96%;
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
@@ -649,7 +649,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .bezel-s {
-  top: 92%;
+  top: 96%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(180deg);
 }
@@ -662,7 +662,7 @@ html[data-theme="light"] .theme-toggle::before {
 
 .bezel-w {
   top: 50%;
-  left: 8%;
+  left: 4%;
   transform: translate(-50%, -50%) rotate(270deg);
 }
 
