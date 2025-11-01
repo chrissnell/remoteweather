@@ -585,8 +585,6 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .windrose-box {
-  width: 68%;
-  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -594,8 +592,6 @@ html[data-theme="light"] .theme-toggle::before {
 
 .windrose-box.measurement-part {
   flex-direction: row;
-  width: auto;
-  height: auto;
   justify-content: center;
   align-items: center;
 }
