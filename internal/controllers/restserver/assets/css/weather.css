@@ -588,12 +588,14 @@ html[data-theme="light"] .theme-toggle::before {
   display: flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
 }
 
 .windrose-box.measurement-part {
   flex-direction: row;
   justify-content: center;
   align-items: center;
+  width: 100%;
 }
 
 .windrose-box-container {
