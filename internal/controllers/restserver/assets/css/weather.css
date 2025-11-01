@@ -576,7 +576,7 @@ html[data-theme="light"] .theme-toggle::before {
   align-items: center;
   margin-left: 0;
   margin-right: 0;
-  margin-top: 17px;
+  margin-top: 0;
   padding-top: 0;
   font-family: Inconsolata, monospace;
   display: flex;
@@ -605,7 +605,6 @@ html[data-theme="light"] .theme-toggle::before {
   position: relative;
   width: 220px;
   height: 220px;
-  top: 10px;
 }
 
 .windrose-bezel {
