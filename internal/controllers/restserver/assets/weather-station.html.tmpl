@@ -1072,10 +1072,115 @@
           </div>
         </div>
       </div>
-      
+
+      <!-- Almanac Section -->
+      <div class="almanac-section">
+        <h2 class="section-title">Almanac</h2>
+
+        <div class="metric-groups">
+          <div class="metric-group span-full">
+            <div class="group-title">ALL-TIME EXTREMES</div>
+            <div class="group-metrics almanac-metrics">
+              <div class="metric-item">
+                <div class="metric-label">Highest Temperature</div>
+                <div class="metric-value" id="almanac-high-temp">--</div><span class="metric-unit">°F</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-temp-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Lowest Temperature</div>
+                <div class="metric-value" id="almanac-low-temp">--</div><span class="metric-unit">°F</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-low-temp-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest Wind Speed</div>
+                <div class="metric-value" id="almanac-high-wind">--</div><span class="metric-unit">MPH</span>
+                <div class="metric-sub almanac-timestamp">
+                  <span id="almanac-high-wind-dir">--</span><br>
+                  <span id="almanac-high-wind-time">--</span>
+                </div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Most Rain in 1 Hour</div>
+                <div class="metric-value" id="almanac-max-rain-hour">--</div><span class="metric-unit">in</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-max-rain-hour-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Most Rain in 1 Day</div>
+                <div class="metric-value" id="almanac-max-rain-day">--</div><span class="metric-unit">in</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-max-rain-day-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Lowest Barometer</div>
+                <div class="metric-value" id="almanac-low-baro">--</div><span class="metric-unit">inHg</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-low-baro-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest Solar Radiation</div>
+                <div class="metric-value" id="almanac-high-solar">--</div><span class="metric-unit">W/m²</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-solar-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Lowest Humidity</div>
+                <div class="metric-value" id="almanac-low-humidity">--</div><span class="metric-unit">%</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-low-humidity-time">--</div>
+              </div>
+              {{ if .SnowEnabled }}
+              <div class="metric-item">
+                <div class="metric-label">Deepest Snow</div>
+                <div class="metric-value" id="almanac-deepest-snow">--</div><span class="metric-unit">in</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-deepest-snow-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Most Snow in 1 Hour</div>
+                <div class="metric-value" id="almanac-max-snow-hour">--</div><span class="metric-unit">in</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-max-snow-hour-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Most Snow in 1 Day</div>
+                <div class="metric-value" id="almanac-max-snow-day">--</div><span class="metric-unit">in</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-max-snow-day-time">--</div>
+              </div>
+              {{ end }}
+              {{ if .AirQualityEnabled }}
+              <div class="metric-item">
+                <div class="metric-label">Highest PM2.5</div>
+                <div class="metric-value" id="almanac-high-pm25">--</div><span class="metric-unit">µg/m³</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-pm25-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest PM10</div>
+                <div class="metric-value" id="almanac-high-pm10">--</div><span class="metric-unit">µg/m³</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-pm10-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest CO₂</div>
+                <div class="metric-value" id="almanac-high-co2">--</div><span class="metric-unit">ppm</span>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-co2-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest AQI PM2.5</div>
+                <div class="metric-value" id="almanac-high-aqi-pm25">--</div>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-aqi-pm25-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest AQI PM10</div>
+                <div class="metric-value" id="almanac-high-aqi-pm10">--</div>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-aqi-pm10-time">--</div>
+              </div>
+              <div class="metric-item">
+                <div class="metric-label">Highest Indoor AQI PM2.5</div>
+                <div class="metric-value" id="almanac-high-aqi-pm25-in">--</div>
+                <div class="metric-sub almanac-timestamp" id="almanac-high-aqi-pm25-in-time">--</div>
+              </div>
+              {{ end }}
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
-  
+
   <!-- Theme Toggle Script -->
   <script>
     (function() {
