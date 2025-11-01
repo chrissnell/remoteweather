@@ -627,50 +627,50 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .bezel-n {
-  top: 4%;
+  top: 7%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(0deg);
 }
 
 .bezel-ne {
-  top: 18%;
-  left: 82%;
+  top: 14.5%;
+  left: 85.5%;
   transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .bezel-e {
   top: 50%;
-  left: 96%;
+  left: 93%;
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .bezel-se {
-  top: 82%;
-  left: 82%;
+  top: 85.5%;
+  left: 85.5%;
   transform: translate(-50%, -50%) rotate(135deg);
 }
 
 .bezel-s {
-  top: 96%;
+  top: 93%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(180deg);
 }
 
 .bezel-sw {
-  top: 82%;
-  left: 18%;
+  top: 85.5%;
+  left: 14.5%;
   transform: translate(-50%, -50%) rotate(225deg);
 }
 
 .bezel-w {
   top: 50%;
-  left: 4%;
+  left: 7%;
   transform: translate(-50%, -50%) rotate(270deg);
 }
 
 .bezel-nw {
-  top: 18%;
-  left: 18%;
+  top: 14.5%;
+  left: 14.5%;
   transform: translate(-50%, -50%) rotate(315deg);
 }
 
@@ -689,13 +689,13 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .windrose-arrow {
-  border-top: 36px solid var(--text-accent);
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
+  border-top: 30px solid var(--text-accent);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
   width: 0;
   height: 0;
   position: absolute;
-  top: -18px;
+  top: -8px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
