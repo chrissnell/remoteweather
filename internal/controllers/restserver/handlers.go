@@ -1091,26 +1091,33 @@ type AlmanacRecord struct {
 
 // AlmanacData represents all almanac extreme records
 type AlmanacData struct {
-	HighTemp         *AlmanacRecord `json:"high_temp,omitempty"`
-	LowTemp          *AlmanacRecord `json:"low_temp,omitempty"`
-	HighWindSpeed    *AlmanacRecord `json:"high_wind_speed,omitempty"`
-	MaxRainHour      *AlmanacRecord `json:"max_rain_hour,omitempty"`
-	MaxRainDay       *AlmanacRecord `json:"max_rain_day,omitempty"`
-	LowBarometer     *AlmanacRecord `json:"low_barometer,omitempty"`
-	HighSolar        *AlmanacRecord `json:"high_solar,omitempty"`
-	LowHumidity      *AlmanacRecord `json:"low_humidity,omitempty"`
-	DeepestSnow      *AlmanacRecord `json:"deepest_snow,omitempty"`
-	MaxSnowHour      *AlmanacRecord `json:"max_snow_hour,omitempty"`
-	MaxSnowDay       *AlmanacRecord `json:"max_snow_day,omitempty"`
-	HighPM25         *AlmanacRecord `json:"high_pm25,omitempty"`
-	HighPM10In       *AlmanacRecord `json:"high_pm10_in,omitempty"`
-	HighCO2          *AlmanacRecord `json:"high_co2,omitempty"`
-	HighAQIPM25      *AlmanacRecord `json:"high_aqi_pm25,omitempty"`
-	HighAQIPM10      *AlmanacRecord `json:"high_aqi_pm10,omitempty"`
-	HighAQIPM25In    *AlmanacRecord `json:"high_aqi_pm25_in,omitempty"`
+	HighTemp      *AlmanacRecord `json:"high_temp,omitempty"`
+	LowTemp       *AlmanacRecord `json:"low_temp,omitempty"`
+	HighWindSpeed *AlmanacRecord `json:"high_wind_speed,omitempty"`
+	MaxRainHour   *AlmanacRecord `json:"max_rain_hour,omitempty"`
+	MaxRainDay    *AlmanacRecord `json:"max_rain_day,omitempty"`
+	LowBarometer  *AlmanacRecord `json:"low_barometer,omitempty"`
+	LowHumidity   *AlmanacRecord `json:"low_humidity,omitempty"`
+	DeepestSnow   *AlmanacRecord `json:"deepest_snow,omitempty"`
+	MaxSnowHour   *AlmanacRecord `json:"max_snow_hour,omitempty"`
+	MaxSnowDay    *AlmanacRecord `json:"max_snow_day,omitempty"`
+	HighPM25      *AlmanacRecord `json:"high_pm25,omitempty"`
+	HighPM10In    *AlmanacRecord `json:"high_pm10_in,omitempty"`
+	HighCO2       *AlmanacRecord `json:"high_co2,omitempty"`
+	HighAQIPM25   *AlmanacRecord `json:"high_aqi_pm25,omitempty"`
+	// Note: HighSolar and HighAQIPM10 removed (too slow to query)
+}
+
+// AlmanacCacheRow represents a row from the almanac_cache table
+type AlmanacCacheRow struct {
+	MetricName string
+	Value      float32
+	Timestamp  time.Time
+	WindDir    *float32
 }
 
 // GetAlmanac handles requests for almanac (all-time extreme) weather data
+// Uses pre-computed almanac_cache table for fast response times
 func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	// Check if any website is configured
 	website := h.getWebsiteFromContext(req)
@@ -1141,125 +1148,58 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Snow base distance for snow depth calculation
-	baseDistance := h.getSnowBaseDistance(website)
-
 	almanac := &AlmanacData{}
 
-	// Query highest temperature
-	var highTemp struct {
-		MaxOutTemp float32
-		Time       time.Time
-	}
-	err := h.controller.DB.Table("weather").
-		Select("MAX(outtemp) as max_out_temp, (SELECT time FROM weather w WHERE w.outtemp = MAX(weather.outtemp) AND w.stationname = ? LIMIT 1) as time", stationName).
+	// Query all almanac records from cache table in one query
+	var cacheRows []AlmanacCacheRow
+	err := h.controller.DB.Table("almanac_cache").
+		Select("metric_name, value, timestamp, wind_dir").
 		Where("stationname = ?", stationName).
-		Scan(&highTemp).Error
-	if err == nil && highTemp.MaxOutTemp != 0 {
-		almanac.HighTemp = &AlmanacRecord{Value: highTemp.MaxOutTemp, Timestamp: highTemp.Time}
+		Scan(&cacheRows).Error
+
+	if err != nil {
+		log.Error("error querying almanac cache:", err)
+		http.Error(w, "error querying almanac data", http.StatusInternalServerError)
+		return
 	}
 
-	// Query lowest temperature
-	var lowTemp struct {
-		MinOutTemp float32
-		Time       time.Time
-	}
-	err = h.controller.DB.Table("weather").
-		Select("MIN(outtemp) as min_out_temp, (SELECT time FROM weather w WHERE w.outtemp = MIN(weather.outtemp) AND w.stationname = ? LIMIT 1) as time", stationName).
-		Where("stationname = ?", stationName).
-		Scan(&lowTemp).Error
-	if err == nil && lowTemp.MinOutTemp != 0 {
-		almanac.LowTemp = &AlmanacRecord{Value: lowTemp.MinOutTemp, Timestamp: lowTemp.Time}
-	}
-
-	// Query highest wind speed with direction
-	var highWind struct {
-		MaxWindSpeed float32
-		WindDir      float32
-		Time         time.Time
-	}
-	err = h.controller.DB.Table("weather").
-		Select("windspeed as max_wind_speed, winddir, time").
-		Where("stationname = ?", stationName).
-		Order("windspeed DESC").
-		Limit(1).
-		Scan(&highWind).Error
-	if err == nil && highWind.MaxWindSpeed != 0 {
-		almanac.HighWindSpeed = &AlmanacRecord{
-			Value:     highWind.MaxWindSpeed,
-			Timestamp: highWind.Time,
-			WindDir:   &highWind.WindDir,
+	// Map cache rows to almanac structure
+	for _, row := range cacheRows {
+		record := &AlmanacRecord{
+			Value:     row.Value,
+			Timestamp: row.Timestamp,
+			WindDir:   row.WindDir,
 		}
+
+		switch row.MetricName {
+		case "high_temp":
+			almanac.HighTemp = record
+		case "low_temp":
+			almanac.LowTemp = record
+		case "high_wind_speed":
+			almanac.HighWindSpeed = record
+		case "max_rain_hour":
+			almanac.MaxRainHour = record
+		case "max_rain_day":
+			almanac.MaxRainDay = record
+		case "low_barometer":
+			almanac.LowBarometer = record
+		case "low_humidity":
+			almanac.LowHumidity = record
+		case "high_pm25":
+			almanac.HighPM25 = record
+		case "high_pm10_in":
+			almanac.HighPM10In = record
+		case "high_co2":
+			almanac.HighCO2 = record
+		case "high_aqi_pm25":
+			almanac.HighAQIPM25 = record
+		}
+		// Note: high_solar and high_aqi_pm10 removed (too slow to compute)
 	}
 
-	// Query max rain in 1 hour - using weather_1h aggregated table for efficiency
-	var maxRainHour struct {
-		MaxPeriodRain float32
-		Bucket        time.Time
-	}
-	err = h.controller.DB.Table("weather_1h").
-		Select("MAX(period_rain) as max_period_rain, (SELECT bucket FROM weather_1h w WHERE w.period_rain = MAX(weather_1h.period_rain) AND w.stationname = ? LIMIT 1) as bucket", stationName).
-		Where("stationname = ?", stationName).
-		Scan(&maxRainHour).Error
-	if err == nil && maxRainHour.MaxPeriodRain != 0 {
-		almanac.MaxRainHour = &AlmanacRecord{Value: maxRainHour.MaxPeriodRain, Timestamp: maxRainHour.Bucket}
-	}
-
-	// Query max rain in 1 day - using weather_1d aggregated table for efficiency
-	var maxRainDay struct {
-		MaxPeriodRain float32
-		Bucket        time.Time
-	}
-	err = h.controller.DB.Table("weather_1d").
-		Select("MAX(period_rain) as max_period_rain, (SELECT bucket FROM weather_1d w WHERE w.period_rain = MAX(weather_1d.period_rain) AND w.stationname = ? LIMIT 1) as bucket", stationName).
-		Where("stationname = ?", stationName).
-		Scan(&maxRainDay).Error
-	if err == nil && maxRainDay.MaxPeriodRain != 0 {
-		almanac.MaxRainDay = &AlmanacRecord{Value: maxRainDay.MaxPeriodRain, Timestamp: maxRainDay.Bucket}
-	}
-
-	// Query lowest barometer
-	var lowBaro struct {
-		MinBarometer float32
-		Time         time.Time
-	}
-	err = h.controller.DB.Table("weather").
-		Select("MIN(barometer) as min_barometer, (SELECT time FROM weather w WHERE w.barometer = MIN(weather.barometer) AND w.stationname = ? LIMIT 1) as time", stationName).
-		Where("stationname = ?", stationName).
-		Where("barometer > 0"). // Filter out invalid zero readings
-		Scan(&lowBaro).Error
-	if err == nil && lowBaro.MinBarometer != 0 {
-		almanac.LowBarometer = &AlmanacRecord{Value: lowBaro.MinBarometer, Timestamp: lowBaro.Time}
-	}
-
-	// Query highest solar radiation
-	var highSolar struct {
-		MaxSolarWatts float32
-		Time          time.Time
-	}
-	err = h.controller.DB.Table("weather").
-		Select("MAX(solarwatts) as max_solar_watts, (SELECT time FROM weather w WHERE w.solarwatts = MAX(weather.solarwatts) AND w.stationname = ? LIMIT 1) as time", stationName).
-		Where("stationname = ?", stationName).
-		Scan(&highSolar).Error
-	if err == nil && highSolar.MaxSolarWatts != 0 {
-		almanac.HighSolar = &AlmanacRecord{Value: highSolar.MaxSolarWatts, Timestamp: highSolar.Time}
-	}
-
-	// Query lowest humidity
-	var lowHumid struct {
-		MinOutHumidity float32
-		Time           time.Time
-	}
-	err = h.controller.DB.Table("weather").
-		Select("MIN(outhumidity) as min_out_humidity, (SELECT time FROM weather w WHERE w.outhumidity = MIN(weather.outhumidity) AND w.stationname = ? LIMIT 1) as time", stationName).
-		Where("stationname = ?", stationName).
-		Where("outhumidity > 0"). // Filter out invalid zero readings
-		Scan(&lowHumid).Error
-	if err == nil && lowHumid.MinOutHumidity != 0 {
-		almanac.LowHumidity = &AlmanacRecord{Value: lowHumid.MinOutHumidity, Timestamp: lowHumid.Time}
-	}
-
-	// Snow metrics (only if snow is enabled)
+	// Snow metrics (only if snow is enabled - these require baseDistance calculation)
+	baseDistance := h.getSnowBaseDistance(website)
 	if website.SnowEnabled {
 		// Query deepest snow
 		var deepestSnow struct {
@@ -1320,107 +1260,15 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	// Air quality metrics (only if air quality is enabled)
-	if website.AirQualityEnabled {
-		airQualityDeviceID := h.getAirQualityDeviceID(website)
-		if airQualityDeviceID > 0 {
-			// For air quality, we need to query by the specific device
-			// Since air quality might be on a different device, we should use the device ID
-			// For now, we'll query using station name and assume air quality data is available
-
-			// Query highest PM2.5
-			var highPM25 struct {
-				MaxPM25 float32
-				Time    time.Time
-			}
-			err = h.controller.DB.Table("weather").
-				Select("MAX(pm25) as max_pm25, (SELECT time FROM weather w WHERE w.pm25 = MAX(weather.pm25) AND w.stationname = ? LIMIT 1) as time", stationName).
-				Where("stationname = ?", stationName).
-				Where("pm25 > 0").
-				Scan(&highPM25).Error
-			if err == nil && highPM25.MaxPM25 != 0 {
-				almanac.HighPM25 = &AlmanacRecord{Value: highPM25.MaxPM25, Timestamp: highPM25.Time}
-			}
-
-			// Query highest PM10
-			var highPM10 struct {
-				MaxPM10In float32
-				Time      time.Time
-			}
-			err = h.controller.DB.Table("weather").
-				Select("MAX(pm25_in) as max_pm10_in, (SELECT time FROM weather w WHERE w.pm25_in = MAX(weather.pm25_in) AND w.stationname = ? LIMIT 1) as time", stationName).
-				Where("stationname = ?", stationName).
-				Where("pm25_in > 0").
-				Scan(&highPM10).Error
-			if err == nil && highPM10.MaxPM10In != 0 {
-				almanac.HighPM10In = &AlmanacRecord{Value: highPM10.MaxPM10In, Timestamp: highPM10.Time}
-			}
-
-			// Query highest CO2
-			var highCO2 struct {
-				MaxCO2 float32
-				Time   time.Time
-			}
-			err = h.controller.DB.Table("weather").
-				Select("MAX(co2) as max_co2, (SELECT time FROM weather w WHERE w.co2 = MAX(weather.co2) AND w.stationname = ? LIMIT 1) as time", stationName).
-				Where("stationname = ?", stationName).
-				Where("co2 > 0").
-				Scan(&highCO2).Error
-			if err == nil && highCO2.MaxCO2 != 0 {
-				almanac.HighCO2 = &AlmanacRecord{Value: highCO2.MaxCO2, Timestamp: highCO2.Time}
-			}
-
-			// Query highest AQI PM2.5
-			var highAQIPM25 struct {
-				MaxAQI int32
-				Time   time.Time
-			}
-			err = h.controller.DB.Table("weather").
-				Select("MAX(aqi_pm25_in) as max_aqi, (SELECT time FROM weather w WHERE w.aqi_pm25_in = MAX(weather.aqi_pm25_in) AND w.stationname = ? LIMIT 1) as time", stationName).
-				Where("stationname = ?", stationName).
-				Where("aqi_pm25_in > 0").
-				Scan(&highAQIPM25).Error
-			if err == nil && highAQIPM25.MaxAQI != 0 {
-				almanac.HighAQIPM25 = &AlmanacRecord{Value: float32(highAQIPM25.MaxAQI), Timestamp: highAQIPM25.Time}
-			}
-
-			// Query highest AQI PM10
-			var highAQIPM10 struct {
-				MaxAQI int32
-				Time   time.Time
-			}
-			err = h.controller.DB.Table("weather").
-				Select("MAX(aqi_pm10_in) as max_aqi, (SELECT time FROM weather w WHERE w.aqi_pm10_in = MAX(weather.aqi_pm10_in) AND w.stationname = ? LIMIT 1) as time", stationName).
-				Where("stationname = ?", stationName).
-				Where("aqi_pm10_in > 0").
-				Scan(&highAQIPM10).Error
-			if err == nil && highAQIPM10.MaxAQI != 0 {
-				almanac.HighAQIPM10 = &AlmanacRecord{Value: float32(highAQIPM10.MaxAQI), Timestamp: highAQIPM10.Time}
-			}
-
-			// Query highest indoor AQI PM2.5
-			var highAQIPM25In struct {
-				MaxAQI int32
-				Time   time.Time
-			}
-			err = h.controller.DB.Table("weather").
-				Select("MAX(aqi_pm25_in) as max_aqi, (SELECT time FROM weather w WHERE w.aqi_pm25_in = MAX(weather.aqi_pm25_in) AND w.stationname = ? LIMIT 1) as time", stationName).
-				Where("stationname = ?", stationName).
-				Where("aqi_pm25_in > 0").
-				Scan(&highAQIPM25In).Error
-			if err == nil && highAQIPM25In.MaxAQI != 0 {
-				almanac.HighAQIPM25In = &AlmanacRecord{Value: float32(highAQIPM25In.MaxAQI), Timestamp: highAQIPM25In.Time}
-			}
-		}
-	}
+	// Note: Air quality metrics are now loaded from almanac_cache table above
+	// No need for additional queries - cache is refreshed hourly by PostgreSQL job
 
 	// Set caching headers - almanac data changes infrequently
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "max-age=3600") // Cache for 1 hour
 
-	err = json.NewEncoder(w).Encode(almanac)
-	if err != nil {
+	if err := json.NewEncoder(w).Encode(almanac); err != nil {
 		log.Error("error encoding almanac data to JSON:", err)
 		http.Error(w, "error encoding almanac data", http.StatusInternalServerError)
 		return
