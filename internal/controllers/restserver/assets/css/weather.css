@@ -710,6 +710,32 @@ html[data-theme="light"] .theme-toggle::before {
   z-index: 2;
 }
 
+.wind-speed-center {
+  text-align: center;
+  font-family: Inconsolata, monospace;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--text-accent);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.wind-direction-center {
+  text-align: center;
+  font-family: Inconsolata, monospace;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  position: absolute;
+  top: 65%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
 .wind-speed {
   text-align: center;
   font-family: Inconsolata, monospace;
