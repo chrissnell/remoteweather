@@ -732,7 +732,7 @@ html[data-theme="light"] .theme-toggle::before {
   position: absolute;
   top: 62%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 2;
 }
 
