@@ -169,7 +169,7 @@ const WeatherDOM = (function() {
     };
     
     // Update windrose display
-    const updateWindrose = (direction, speed, cardinalDir) => {
+    const updateWindrose = (direction, speed) => {
         const windDirElement = getCachedElement('rdg-winddir');
         const speedElement = getCachedElement('rdg-windspeed-display');
         const directionElement = getCachedElement('rdg-winddir-cardinal');
@@ -178,6 +178,7 @@ const WeatherDOM = (function() {
             windDirElement.style.transform = `rotate(${direction}deg)`;
 
             // Counter-rotate the speed and direction text to keep them upright
+            // Apply translate first, then rotate to keep elements centered
             if (speedElement) {
                 speedElement.style.transform = `translate(-50%, -50%) rotate(${-direction}deg)`;
             }
