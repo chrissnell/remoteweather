@@ -1198,67 +1198,11 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 		// Note: high_solar and high_aqi_pm10 removed (too slow to compute)
 	}
 
-	// Snow metrics (only if snow is enabled - these require baseDistance calculation)
-	baseDistance := h.getSnowBaseDistance(website)
-	if website.SnowEnabled {
-		// Query deepest snow
-		var deepestSnow struct {
-			MaxSnowDepth float32
-			Time         time.Time
-		}
-		err = h.controller.DB.Table("weather").
-			Select("MAX(? - snowdistance) as max_snow_depth, (SELECT time FROM weather w WHERE (? - w.snowdistance) = MAX(? - weather.snowdistance) AND w.stationname = ? LIMIT 1) as time", baseDistance, baseDistance, baseDistance, stationName).
-			Where("stationname = ?", stationName).
-			Where("snowdistance > 0").
-			Scan(&deepestSnow).Error
-		if err == nil && deepestSnow.MaxSnowDepth != 0 {
-			almanac.DeepestSnow = &AlmanacRecord{Value: deepestSnow.MaxSnowDepth, Timestamp: deepestSnow.Time}
-		}
-
-		// Query max snow in 1 hour - calculate delta between consecutive hours
-		var maxSnowHour struct {
-			MaxSnowDelta float32
-			Bucket       time.Time
-		}
-		err = h.controller.DB.Raw(`
-			SELECT MAX(snow_delta) as max_snow_delta, bucket FROM (
-				SELECT
-					bucket,
-					GREATEST(0, LAG(? - snowdistance) OVER (ORDER BY bucket) - (? - snowdistance)) as snow_delta
-				FROM weather_1h
-				WHERE stationname = ? AND snowdistance > 0
-			) AS snow_deltas
-			WHERE snow_delta > 0
-			GROUP BY bucket
-			ORDER BY max_snow_delta DESC
-			LIMIT 1
-		`, baseDistance, baseDistance, stationName).Scan(&maxSnowHour).Error
-		if err == nil && maxSnowHour.MaxSnowDelta != 0 {
-			almanac.MaxSnowHour = &AlmanacRecord{Value: maxSnowHour.MaxSnowDelta, Timestamp: maxSnowHour.Bucket}
-		}
-
-		// Query max snow in 1 day
-		var maxSnowDay struct {
-			MaxSnowDelta float32
-			Bucket       time.Time
-		}
-		err = h.controller.DB.Raw(`
-			SELECT MAX(snow_delta) as max_snow_delta, bucket FROM (
-				SELECT
-					bucket,
-					GREATEST(0, LAG(? - snowdistance) OVER (ORDER BY bucket) - (? - snowdistance)) as snow_delta
-				FROM weather_1d
-				WHERE stationname = ? AND snowdistance > 0
-			) AS snow_deltas
-			WHERE snow_delta > 0
-			GROUP BY bucket
-			ORDER BY max_snow_delta DESC
-			LIMIT 1
-		`, baseDistance, baseDistance, stationName).Scan(&maxSnowDay).Error
-		if err == nil && maxSnowDay.MaxSnowDelta != 0 {
-			almanac.MaxSnowDay = &AlmanacRecord{Value: maxSnowDay.MaxSnowDelta, Timestamp: maxSnowDay.Bucket}
-		}
-	}
+	// Snow metrics temporarily disabled due to performance issues
+	// TODO: Move snow calculations to almanac_cache refresh job
+	// These window function queries are too slow for real-time requests
+	// See: https://github.com/your-repo/issues/XXX
+	_ = h.getSnowBaseDistance(website) // Keep for future use
 
 	// Note: Air quality metrics are now loaded from almanac_cache table above
 	// No need for additional queries - cache is refreshed hourly by PostgreSQL job
