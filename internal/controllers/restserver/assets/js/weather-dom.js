@@ -171,19 +171,24 @@ const WeatherDOM = (function() {
     // Update windrose display
     const updateWindrose = (direction, speed, cardinalDir) => {
         const windDirElement = getCachedElement('rdg-winddir');
-        const headingElement = getCachedElement('rdg-winddir-degrees');
+        const speedElement = getCachedElement('rdg-windspeed-display');
+        const directionElement = getCachedElement('rdg-winddir-cardinal');
 
         if (windDirElement && direction != null) {
             windDirElement.style.transform = `rotate(${direction}deg)`;
 
-            // Counter-rotate the heading text to keep it upright
-            if (headingElement) {
-                headingElement.style.transform = `rotate(${-direction}deg)`;
+            // Counter-rotate the speed and direction text to keep them upright
+            if (speedElement) {
+                speedElement.style.transform = `translate(-50%, -50%) rotate(${-direction}deg)`;
+            }
+            if (directionElement) {
+                directionElement.style.transform = `translate(-50%, -50%) rotate(${-direction}deg)`;
             }
         }
 
         updateElements({
-            'rdg-winddir-degrees': direction !== null && direction !== undefined ? `${direction}°` : '---°'
+            'rdg-windspeed-display': speed !== null && speed !== undefined ? `${speed}` : '--',
+            'rdg-winddir-cardinal': cardinalDir || '--'
         });
     };
     
