@@ -188,7 +188,7 @@ const WeatherDOM = (function() {
 
         updateElements({
             'rdg-windspeed-display': speed !== null && speed !== undefined ? `${speed}` : '--',
-            'rdg-winddir-cardinal': cardinalDir || '--'
+            'rdg-winddir-cardinal': direction !== null && direction !== undefined ? `${direction}°` : '--'
         });
     };
     
