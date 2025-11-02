@@ -717,7 +717,7 @@ html[data-theme="light"] .theme-toggle::before {
   font-weight: 700;
   color: var(--text-accent);
   position: absolute;
-  top: 50%;
+  top: 42%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
@@ -726,11 +726,11 @@ html[data-theme="light"] .theme-toggle::before {
 .wind-direction-center {
   text-align: center;
   font-family: Inconsolata, monospace;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
   position: absolute;
-  top: 65%;
+  top: 62%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
