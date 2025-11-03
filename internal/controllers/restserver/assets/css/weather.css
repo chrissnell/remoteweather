@@ -731,7 +731,7 @@ html[data-theme="light"] .theme-toggle::before {
   color: var(--text-primary);
   position: absolute;
   top: 62%;
-  left: 50%;
+  left: 52%;
   transform: translate(-50%, -50%);
   z-index: 2;
 }
