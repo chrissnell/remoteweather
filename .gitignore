@@ -24,3 +24,4 @@ cmd/live-data-simulator/live-data-simulator
 release-assets/
 .claude
 .playwright-mcp
+.context/
