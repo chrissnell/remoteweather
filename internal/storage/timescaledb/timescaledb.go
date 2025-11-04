@@ -280,6 +280,13 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	log.Info("Adding dual-threshold snow detection function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDualThresholdSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add dual-threshold snow detection function")
+		return &Storage{}, err
+	}
+
 	log.Info("Adding 72h snow delta function...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta72hSQL).Error
 	if err != nil {
