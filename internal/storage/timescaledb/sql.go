@@ -2132,181 +2132,120 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`
 
-const createSnowDelta72hSQL = `CREATE OR REPLACE FUNCTION get_new_snow_72h(
+const createSnowDualThresholdSQL = `DROP FUNCTION IF EXISTS get_new_snow_dual_threshold(TEXT, FLOAT, INTERVAL);
+CREATE OR REPLACE FUNCTION get_new_snow_dual_threshold(
     p_stationname TEXT,
-    p_base_distance FLOAT
-) RETURNS TABLE(snowfall FLOAT) AS $$
+    p_base_distance FLOAT,
+    p_time_window INTERVAL
+) RETURNS FLOAT AS $$
 DECLARE
-    threshold FLOAT := 10.0;  -- 10mm threshold to filter sensor noise
+    quick_threshold FLOAT := 20.0;      -- 0.8" rapid accumulation
+    gradual_threshold FLOAT := 15.0;    -- 0.6" gradual accumulation
+    melt_threshold FLOAT := 10.0;       -- >10mm drop = melting
+
     total_accumulation FLOAT := 0.0;
-    prev_depth FLOAT := 0.0;
+    baseline_depth FLOAT := NULL;
+    prev_depth FLOAT := NULL;
     current_depth FLOAT;
     current_distance FLOAT;
+    hourly_delta FLOAT;
 BEGIN
-    -- Iterate through hourly averages (smooths sensor noise)
     FOR current_distance IN
         SELECT snowdistance
         FROM weather_1h
         WHERE stationname = p_stationname
-          AND bucket >= now() - interval '72 hours'
+          AND bucket >= now() - p_time_window
           AND snowdistance IS NOT NULL
-          AND snowdistance <= p_base_distance
+          AND snowdistance < p_base_distance - 2  -- Filter readings within 2mm of base (no/minimal snow)
         ORDER BY bucket ASC
     LOOP
-        -- Calculate snow depth (distance from sensor decreased = more snow)
         current_depth := p_base_distance - current_distance;
 
-        -- Only add to total if depth increased by more than threshold
-        IF current_depth > prev_depth + threshold THEN
-            total_accumulation := total_accumulation + (current_depth - prev_depth);
+        IF prev_depth IS NULL THEN
+            baseline_depth := current_depth;
+            prev_depth := current_depth;
+            CONTINUE;
         END IF;
 
-        -- Always update prev_depth to handle melting correctly
+        hourly_delta := current_depth - prev_depth;
+
+        -- Quick accumulation: >20mm in one hour
+        IF hourly_delta > quick_threshold THEN
+            total_accumulation := total_accumulation + hourly_delta;
+            baseline_depth := current_depth;
+
+        -- Gradual accumulation: >15mm above baseline
+        ELSIF current_depth > baseline_depth + gradual_threshold THEN
+            total_accumulation := total_accumulation + (current_depth - baseline_depth);
+            baseline_depth := current_depth;
+
+        -- Reset on significant melt
+        ELSIF current_depth < baseline_depth - melt_threshold THEN
+            baseline_depth := current_depth;
+        END IF;
+
         prev_depth := current_depth;
     END LOOP;
 
-    RETURN QUERY SELECT total_accumulation;
+    RETURN total_accumulation;
 END;
 $$ LANGUAGE plpgsql;`
 
-const createSnowDelta24hSQL = `CREATE OR REPLACE FUNCTION get_new_snow_24h(
+const createSnowDelta72hSQL = `DROP FUNCTION IF EXISTS get_new_snow_72h(TEXT, FLOAT);
+CREATE OR REPLACE FUNCTION get_new_snow_72h(
     p_stationname TEXT,
     p_base_distance FLOAT
-) RETURNS TABLE(snowfall FLOAT) AS $$
-DECLARE
-    threshold FLOAT := 10.0;  -- 10mm threshold to filter sensor noise
-    total_accumulation FLOAT := 0.0;
-    prev_depth FLOAT := 0.0;
-    current_depth FLOAT;
-    current_distance FLOAT;
+) RETURNS FLOAT AS $$
 BEGIN
-    -- Iterate through hourly averages (smooths sensor noise)
-    FOR current_distance IN
-        SELECT snowdistance
-        FROM weather_1h
-        WHERE stationname = p_stationname
-          AND bucket >= now() - interval '24 hours'
-          AND snowdistance IS NOT NULL
-          AND snowdistance <= p_base_distance
-        ORDER BY bucket ASC
-    LOOP
-        -- Calculate snow depth
-        current_depth := p_base_distance - current_distance;
-
-        -- Only add to total if depth increased by more than threshold
-        IF current_depth > prev_depth + threshold THEN
-            total_accumulation := total_accumulation + (current_depth - prev_depth);
-        END IF;
-
-        prev_depth := current_depth;
-    END LOOP;
-
-    RETURN QUERY SELECT total_accumulation;
+    RETURN get_new_snow_dual_threshold(p_stationname, p_base_distance, interval '72 hours');
 END;
 $$ LANGUAGE plpgsql;`
 
-const createSnowDeltaSinceMidnightSQL = `CREATE OR REPLACE FUNCTION get_new_snow_midnight(
+const createSnowDelta24hSQL = `DROP FUNCTION IF EXISTS get_new_snow_24h(TEXT, FLOAT);
+CREATE OR REPLACE FUNCTION get_new_snow_24h(
     p_stationname TEXT,
     p_base_distance FLOAT
-) RETURNS TABLE(snowfall FLOAT) AS $$
-DECLARE
-    threshold FLOAT := 10.0;  -- 10mm threshold to filter sensor noise
-    midnight TIMESTAMPTZ;
-    total_accumulation FLOAT := 0.0;
-    prev_depth FLOAT := 0.0;
-    current_depth FLOAT;
-    current_distance FLOAT;
+) RETURNS FLOAT AS $$
 BEGIN
-    midnight := date_trunc('day', now());
+    RETURN get_new_snow_dual_threshold(p_stationname, p_base_distance, interval '24 hours');
+END;
+$$ LANGUAGE plpgsql;`
 
-    -- Iterate through hourly averages since midnight
-    FOR current_distance IN
-        SELECT snowdistance
-        FROM weather_1h
-        WHERE stationname = p_stationname
-          AND bucket >= midnight
-          AND snowdistance IS NOT NULL
-          AND snowdistance <= p_base_distance
-        ORDER BY bucket ASC
-    LOOP
-        current_depth := p_base_distance - current_distance;
-
-        IF current_depth > prev_depth + threshold THEN
-            total_accumulation := total_accumulation + (current_depth - prev_depth);
-        END IF;
-
-        prev_depth := current_depth;
-    END LOOP;
-
-    RETURN QUERY SELECT total_accumulation;
+const createSnowDeltaSinceMidnightSQL = `DROP FUNCTION IF EXISTS get_new_snow_midnight(TEXT, FLOAT);
+CREATE OR REPLACE FUNCTION get_new_snow_midnight(
+    p_stationname TEXT,
+    p_base_distance FLOAT
+) RETURNS FLOAT AS $$
+BEGIN
+    RETURN get_new_snow_dual_threshold(
+        p_stationname,
+        p_base_distance,
+        now() - date_trunc('day', now() AT TIME ZONE 'America/Denver') AT TIME ZONE 'America/Denver'
+    );
 END;
 $$ LANGUAGE plpgsql;`
 
 const createSnowSeasonTotalSQL = `DROP FUNCTION IF EXISTS calculate_total_season_snowfall(TEXT, FLOAT, TIMESTAMPTZ);
+DROP FUNCTION IF EXISTS calculate_total_season_snowfall(TEXT, FLOAT);
 CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
     p_stationname TEXT,
-    base_distance FLOAT,
-    start_of_season TIMESTAMPTZ = NULL
+    p_base_distance FLOAT
 ) RETURNS FLOAT AS $$
 DECLARE
-    threshold FLOAT := 10.0;  -- 10mm threshold to filter sensor noise
-    total_snowfall FLOAT := 0.0;
-    prev_depth FLOAT := 0.0;
-    current_depth FLOAT;
-    current_distance FLOAT;
-    local_start_of_season TIMESTAMPTZ;
-    season_end TIMESTAMPTZ;
-    current_year INTEGER;
-    current_month INTEGER;
+    season_start DATE;
 BEGIN
-    -- Determine the current snow season (October 1 to May 1)
-    IF start_of_season IS NULL THEN
-        current_year := extract(YEAR FROM now())::INT;
-        current_month := extract(MONTH FROM now())::INT;
-
-        -- Determine which season we're in
-        IF current_month >= 10 THEN
-            -- October-December: current season (Oct 1 current year to May 1 next year)
-            local_start_of_season := make_timestamptz(current_year, 10, 1, 0, 0, 0, current_setting('TimeZone'));
-        ELSIF current_month <= 4 THEN
-            -- January-April: current season (Oct 1 previous year to May 1 current year)
-            local_start_of_season := make_timestamptz(current_year - 1, 10, 1, 0, 0, 0, current_setting('TimeZone'));
-        ELSE
-            -- May-September: off-season, use most recent completed season
-            local_start_of_season := make_timestamptz(current_year - 1, 10, 1, 0, 0, 0, current_setting('TimeZone'));
-        END IF;
+    -- Snow season starts July 1st
+    IF EXTRACT(MONTH FROM now()) >= 7 THEN
+        season_start := DATE_TRUNC('year', now())::DATE + INTERVAL '6 months';
     ELSE
-        local_start_of_season := start_of_season;
+        season_start := DATE_TRUNC('year', now() - INTERVAL '1 year')::DATE + INTERVAL '6 months';
     END IF;
 
-    -- Calculate season end (May 1 of the following year)
-    season_end := local_start_of_season + interval '7 months';
-
-    -- Iterate through HOURLY averages (much smoother than daily)
-    FOR current_distance IN
-        SELECT snowdistance
-        FROM weather_1h
-        WHERE stationname = p_stationname
-          AND bucket >= local_start_of_season
-          AND bucket < season_end
-          AND snowdistance IS NOT NULL
-          AND snowdistance <= base_distance
-        ORDER BY bucket ASC
-    LOOP
-        -- Calculate snow depth
-        current_depth := base_distance - current_distance;
-
-        -- Only add to season total if depth increased by more than threshold
-        IF current_depth > prev_depth + threshold THEN
-            total_snowfall := total_snowfall + (current_depth - prev_depth);
-        END IF;
-
-        -- Always update prev_depth to track current state
-        prev_depth := current_depth;
-    END LOOP;
-
-    -- Return the total snowfall, ensuring it's not negative
-    RETURN GREATEST(total_snowfall, 0.0);
+    RETURN get_new_snow_dual_threshold(
+        p_stationname,
+        p_base_distance,
+        now() - season_start::TIMESTAMP
+    );
 END;
 $$ LANGUAGE plpgsql;
 `
@@ -2361,9 +2300,8 @@ DECLARE
     -- Note: base_distance hardcoded here - should match your sensor configuration
     base_dist FLOAT := 1798.0;
 BEGIN
-    -- Use the improved 24h function which includes threshold filtering
-    SELECT snowfall INTO total_snowfall_amount
-    FROM get_new_snow_24h(p_stationname, base_dist);
+    -- Use the dual-threshold 24h function
+    total_snowfall_amount := get_new_snow_24h(p_stationname, base_dist);
 
     -- If no significant snowfall, return no storm
     IF total_snowfall_amount IS NULL OR total_snowfall_amount <= 0 THEN
