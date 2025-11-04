@@ -2234,11 +2234,11 @@ CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
 DECLARE
     season_start DATE;
 BEGIN
-    -- Snow season starts July 1st
-    IF EXTRACT(MONTH FROM now()) >= 7 THEN
-        season_start := DATE_TRUNC('year', now())::DATE + INTERVAL '6 months';
+    -- Snow season starts September 1st, ends June 1st (following year)
+    IF EXTRACT(MONTH FROM now()) >= 9 THEN
+        season_start := DATE_TRUNC('year', now())::DATE + INTERVAL '8 months';
     ELSE
-        season_start := DATE_TRUNC('year', now() - INTERVAL '1 year')::DATE + INTERVAL '6 months';
+        season_start := DATE_TRUNC('year', now() - INTERVAL '1 year')::DATE + INTERVAL '8 months';
     END IF;
 
     RETURN get_new_snow_dual_threshold(
