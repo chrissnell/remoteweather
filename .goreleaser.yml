@@ -5,6 +5,118 @@ before:
     - go mod tidy
 
 builds:
+  # Migrate tool - Linux AMD64
+  - id: migrate-amd64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    main: ./cmd/migrate
+    ldflags:
+      - -s -w
+    binary: remoteweather-migrate
+
+  # Migrate tool - Linux ARM64
+  - id: migrate-arm64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm64
+    main: ./cmd/migrate
+    ldflags:
+      - -s -w
+    binary: remoteweather-migrate
+
+  # Migrate tool - Linux ARMv7
+  - id: migrate-armv7
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "7"
+    main: ./cmd/migrate
+    ldflags:
+      - -s -w
+    binary: remoteweather-migrate
+
+  # Migrate tool - Linux ARMv6
+  - id: migrate-armv6
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "6"
+    main: ./cmd/migrate
+    ldflags:
+      - -s -w
+    binary: remoteweather-migrate
+
+  # TimescaleDB Provisioner - Linux AMD64
+  - id: timescaledb-provisioner-amd64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    main: ./cmd/remoteweather-timescaledb-provisioner
+    ldflags:
+      - -s -w
+    binary: remoteweather-timescaledb-provisioner
+
+  # TimescaleDB Provisioner - Linux ARM64
+  - id: timescaledb-provisioner-arm64
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm64
+    main: ./cmd/remoteweather-timescaledb-provisioner
+    ldflags:
+      - -s -w
+    binary: remoteweather-timescaledb-provisioner
+
+  # TimescaleDB Provisioner - Linux ARMv7
+  - id: timescaledb-provisioner-armv7
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "7"
+    main: ./cmd/remoteweather-timescaledb-provisioner
+    ldflags:
+      - -s -w
+    binary: remoteweather-timescaledb-provisioner
+
+  # TimescaleDB Provisioner - Linux ARMv6
+  - id: timescaledb-provisioner-armv6
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm
+    goarm:
+      - "6"
+    main: ./cmd/remoteweather-timescaledb-provisioner
+    ldflags:
+      - -s -w
+    binary: remoteweather-timescaledb-provisioner
+
   # Windows builds (no CGO needed for serial on Windows)
   - id: windows
     env:
@@ -101,11 +213,28 @@ nfpms:
     formats:
       - deb
       - rpm
+    builds:
+      - linux-amd64
+      - linux-arm64
+      - linux-armv7
+      - linux-armv6
+      - migrate-amd64
+      - migrate-arm64
+      - migrate-armv7
+      - migrate-armv6
+      - timescaledb-provisioner-amd64
+      - timescaledb-provisioner-arm64
+      - timescaledb-provisioner-armv7
+      - timescaledb-provisioner-armv6
     bindir: /usr/bin
     contents:
       - src: packaging/systemd/remoteweather.service
         dst: /usr/lib/systemd/system/remoteweather.service
         type: config
+      - src: migrations/config/*.sql
+        dst: /usr/share/remoteweather/migrations/config/
+      - src: migrations/weather/*.sql
+        dst: /usr/share/remoteweather/migrations/weather/
     scripts:
       postinstall: packaging/deb/postinst
       preremove: packaging/deb/prerm
@@ -116,6 +245,10 @@ nfpms:
           - src: packaging/systemd/remoteweather.service
             dst: /usr/lib/systemd/system/remoteweather.service
             type: config
+          - src: migrations/config/*.sql
+            dst: /usr/share/remoteweather/migrations/config/
+          - src: migrations/weather/*.sql
+            dst: /usr/share/remoteweather/migrations/weather/
         scripts:
           preinstall: packaging/rpm/preinstall.sh
           postinstall: packaging/rpm/postinstall.sh
