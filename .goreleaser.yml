@@ -199,6 +199,12 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    builds:
+      - windows
+      - linux-amd64
+      - linux-arm64
+      - linux-armv7
+      - linux-armv6
     files:
       - none*  # Only include the binary
 
