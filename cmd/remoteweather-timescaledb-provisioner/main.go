@@ -24,6 +24,25 @@ const (
 )
 
 func main() {
+	// Check for root privileges first
+	if os.Geteuid() != 0 {
+		fmt.Println("❌ This tool must be run as root")
+		fmt.Println()
+		fmt.Println("Root access is required to:")
+		fmt.Println("  • Modify pg_hba.conf for PostgreSQL access")
+		fmt.Println("  • Write to /var/lib/remoteweather/config.db")
+		fmt.Println("  • Reload PostgreSQL configuration")
+		fmt.Println()
+		fmt.Println("Please run with:")
+		fmt.Println("  sudo remoteweather-timescaledb-provisioner <command>")
+		fmt.Println()
+		fmt.Println("Or switch to root:")
+		fmt.Println("  su -")
+		fmt.Println("  remoteweather-timescaledb-provisioner <command>")
+		fmt.Println()
+		os.Exit(1)
+	}
+
 	// Define command-line flags
 	initCmd := flag.NewFlagSet("init", flag.ExitOnError)
 	statusCmd := flag.NewFlagSet("status", flag.ExitOnError)

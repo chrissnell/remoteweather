@@ -7,10 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
-
-	"golang.org/x/term"
 )
 
 // DetectHbaPath gets pg_hba.conf location from PostgreSQL
@@ -97,84 +94,13 @@ func PromptUserForFix() bool {
 	return response == "y" || response == "yes"
 }
 
-// CheckRootAccess determines if we're running as root
-func CheckRootAccess() bool {
-	return os.Geteuid() == 0
-}
-
-// GetSudoPassword prompts for sudo password
-func GetSudoPassword() (string, error) {
-	fmt.Println()
-	fmt.Println("Root access is required to modify pg_hba.conf.")
-	fmt.Print("Please enter your sudo password: ")
-
-	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-	fmt.Println()
-	if err != nil {
-		return "", err
-	}
-
-	return string(passwordBytes), nil
-}
-
-// ValidateSudoPassword checks if sudo password works
-func ValidateSudoPassword(password string) error {
-	cmd := exec.Command("sudo", "-S", "true")
-	cmd.Stdin = strings.NewReader(password + "\n")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		if strings.Contains(string(output), "not in the sudoers file") {
-			return fmt.Errorf("user not in sudoers file")
-		}
-		return fmt.Errorf("sudo authentication failed")
-	}
-	return nil
-}
-
-// PrintSudoersInstructions shows how to add user to sudoers
-func PrintSudoersInstructions() {
-	username := os.Getenv("USER")
-	if username == "" {
-		username = "youruser"
-	}
-
-	fmt.Println()
-	fmt.Println("❌ Sudo Access Required")
-	fmt.Println("======================")
-	fmt.Println()
-	fmt.Println("Your user is not in the sudoers file. To add yourself:")
-	fmt.Println()
-	fmt.Println("1. Switch to root:")
-	fmt.Println("   su -")
-	fmt.Println()
-	fmt.Println("2. Add your user to sudoers:")
-	fmt.Printf("   echo '%s ALL=(ALL) ALL' >> /etc/sudoers.d/%s\n", username, username)
-	fmt.Println()
-	fmt.Println("   OR add to sudo group (Debian/Ubuntu):")
-	fmt.Printf("   usermod -aG sudo %s\n", username)
-	fmt.Println()
-	fmt.Println("   OR add to wheel group (RHEL/Fedora/Arch):")
-	fmt.Printf("   usermod -aG wheel %s\n", username)
-	fmt.Println()
-	fmt.Println("3. Log out and log back in")
-	fmt.Println()
-	fmt.Println("Alternatively, you can run this provisioner as root.")
-	fmt.Println()
-}
 
 // BackupHbaFile creates timestamped backup
-func BackupHbaFile(hbaPath string, sudoPassword string) (string, error) {
+func BackupHbaFile(hbaPath string) (string, error) {
 	timestamp := time.Now().Format("20060102-150405")
 	backupPath := fmt.Sprintf("%s.provisioner-backup.%s", hbaPath, timestamp)
 
-	var cmd *exec.Cmd
-	if sudoPassword != "" {
-		cmd = exec.Command("sudo", "-S", "cp", hbaPath, backupPath)
-		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
-	} else {
-		cmd = exec.Command("cp", hbaPath, backupPath)
-	}
-
+	cmd := exec.Command("cp", hbaPath, backupPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("backup failed: %w\n%s", err, output)
@@ -184,7 +110,7 @@ func BackupHbaFile(hbaPath string, sudoPassword string) (string, error) {
 }
 
 // ModifyHbaFile adds TCP localhost rule
-func ModifyHbaFile(hbaPath string, sudoPassword string) error {
+func ModifyHbaFile(hbaPath string) error {
 	// Read current content
 	content, err := os.ReadFile(hbaPath)
 	if err != nil {
@@ -246,15 +172,8 @@ func ModifyHbaFile(hbaPath string, sudoPassword string) error {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 
-	// Move temp file to actual location using sudo if needed
-	var cmd *exec.Cmd
-	if sudoPassword != "" {
-		cmd = exec.Command("sudo", "-S", "mv", tmpFile, hbaPath)
-		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
-	} else {
-		cmd = exec.Command("mv", tmpFile, hbaPath)
-	}
-
+	// Move temp file to actual location
+	cmd := exec.Command("mv", tmpFile, hbaPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		os.Remove(tmpFile)
@@ -262,11 +181,8 @@ func ModifyHbaFile(hbaPath string, sudoPassword string) error {
 	}
 
 	// Set proper permissions
-	if sudoPassword != "" {
-		cmd = exec.Command("sudo", "-S", "chmod", "0640", hbaPath)
-		cmd.Stdin = strings.NewReader(sudoPassword + "\n")
-		cmd.Run()
-	}
+	cmd = exec.Command("chmod", "0640", hbaPath)
+	cmd.Run()
 
 	return nil
 }
@@ -291,7 +207,7 @@ func ReloadPostgreSQL(cfg *Config) error {
 }
 
 // ReloadPostgreSQLSystemctl uses systemctl as fallback
-func ReloadPostgreSQLSystemctl(sudoPassword string) error {
+func ReloadPostgreSQLSystemctl() error {
 	services := []string{
 		"postgresql",
 		"postgresql@16-main",
@@ -303,14 +219,7 @@ func ReloadPostgreSQLSystemctl(sudoPassword string) error {
 	}
 
 	for _, service := range services {
-		var cmd *exec.Cmd
-		if sudoPassword != "" {
-			cmd = exec.Command("sudo", "-S", "systemctl", "reload", service)
-			cmd.Stdin = strings.NewReader(sudoPassword + "\n")
-		} else {
-			cmd = exec.Command("systemctl", "reload", service)
-		}
-
+		cmd := exec.Command("systemctl", "reload", service)
 		err := cmd.Run()
 		if err == nil {
 			fmt.Printf("✅ Reloaded via systemctl (%s)\n", service)
@@ -328,7 +237,7 @@ func AutoFixPgHba(cfg *Config) error {
 		return fmt.Errorf("user declined auto-fix.\n\n" +
 			"Please manually add to pg_hba.conf:\n" +
 			"  host    all             all             127.0.0.1/32            scram-sha-256\n\n" +
-			"Then reload: sudo systemctl reload postgresql")
+			"Then reload: systemctl reload postgresql")
 	}
 
 	// Step 2: Detect pg_hba.conf location
@@ -342,28 +251,7 @@ func AutoFixPgHba(cfg *Config) error {
 	}
 	fmt.Printf("✅ Found: %s\n", hbaPath)
 
-	// Step 3: Check root access and get sudo password if needed
-	var sudoPassword string
-	if !CheckRootAccess() {
-		sudoPassword, err = GetSudoPassword()
-		if err != nil {
-			return fmt.Errorf("failed to get sudo password: %w", err)
-		}
-
-		// Validate sudo password
-		if err := ValidateSudoPassword(sudoPassword); err != nil {
-			if strings.Contains(err.Error(), "not in the sudoers file") {
-				PrintSudoersInstructions()
-				return fmt.Errorf("sudo access required but user not in sudoers file")
-			}
-			return err
-		}
-		fmt.Println("✅ Sudo access verified")
-	} else {
-		fmt.Println("✅ Running as root")
-	}
-
-	// Step 4: Final confirmation
+	// Step 3: Final confirmation
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println()
 	fmt.Println("Ready to modify pg_hba.conf:")
@@ -378,39 +266,39 @@ func AutoFixPgHba(cfg *Config) error {
 		return fmt.Errorf("operation cancelled by user")
 	}
 
-	// Step 5: Backup
+	// Step 4: Backup
 	fmt.Println()
 	fmt.Println("💾 Creating backup...")
-	backupPath, err := BackupHbaFile(hbaPath, sudoPassword)
+	backupPath, err := BackupHbaFile(hbaPath)
 	if err != nil {
 		return fmt.Errorf("backup failed: %w", err)
 	}
 	fmt.Printf("✅ Backup created: %s\n", backupPath)
 
-	// Step 6: Modify
+	// Step 5: Modify
 	fmt.Println("✏️  Modifying pg_hba.conf...")
-	if err := ModifyHbaFile(hbaPath, sudoPassword); err != nil {
+	if err := ModifyHbaFile(hbaPath); err != nil {
 		return fmt.Errorf("modification failed: %w\nBackup available at: %s", err, backupPath)
 	}
 	fmt.Println("✅ pg_hba.conf updated")
 
-	// Step 7: Reload - try SQL first, then systemctl
+	// Step 6: Reload - try SQL first, then systemctl
 	fmt.Println("🔄 Reloading PostgreSQL configuration...")
 	if err := ReloadPostgreSQL(cfg); err != nil {
 		// Try systemctl as fallback
-		if err := ReloadPostgreSQLSystemctl(sudoPassword); err != nil {
+		if err := ReloadPostgreSQLSystemctl(); err != nil {
 			return fmt.Errorf("reload failed: %w\nBackup available at: %s\n\n"+
-				"Try manually: sudo systemctl reload postgresql", err, backupPath)
+				"Try manually: systemctl reload postgresql", err, backupPath)
 		}
 	} else {
 		fmt.Println("✅ Configuration reloaded via SQL")
 	}
 
-	// Step 8: Wait a moment for changes to apply
+	// Step 7: Wait a moment for changes to apply
 	fmt.Println("⏳ Waiting for configuration to apply...")
 	time.Sleep(2 * time.Second)
 
-	// Step 9: Test connection again
+	// Step 8: Test connection again
 	fmt.Println("🔍 Testing connection...")
 	if err := checkPostgreSQLConnection(cfg); err != nil {
 		return fmt.Errorf("connection still failing after fix: %w\n"+
