@@ -894,7 +894,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 			rest_port, rest_listen_addr,
 			management_cert, management_key, management_port, management_listen_addr,
 			management_auth_token, management_enable_cors, aprs_server
-		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
