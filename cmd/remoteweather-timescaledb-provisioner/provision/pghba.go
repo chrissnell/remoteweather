@@ -211,6 +211,27 @@ func ReloadPostgreSQL(cfg *Config) error {
 	return nil
 }
 
+// SetPostgresPassword sets a password for the postgres user
+// Uses sudo -u postgres as a fallback since setuid() is permanent and would affect the parent process
+func SetPostgresPassword() (string, error) {
+	// Generate a secure password
+	password, err := GeneratePassword(PasswordLength)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate password: %w", err)
+	}
+
+	// Use sudo to become postgres user and set password
+	// We can't use setuid() directly because it's permanent for the process
+	sqlCmd := fmt.Sprintf("ALTER USER postgres WITH PASSWORD '%s';", password)
+	cmd := exec.Command("sudo", "-u", "postgres", "psql", "-c", sqlCmd)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to set password: %w\n%s", err, output)
+	}
+
+	return password, nil
+}
+
 // ReloadPostgreSQLSystemctl uses systemctl as fallback
 func ReloadPostgreSQLSystemctl() error {
 	services := []string{
@@ -236,10 +257,12 @@ func ReloadPostgreSQLSystemctl() error {
 }
 
 // AutoFixPgHba orchestrates the entire fix process for pg_hba.conf
-func AutoFixPgHba(cfg *Config) error {
+// Returns the postgres password if one was set, empty string otherwise
+func AutoFixPgHba(cfg *Config) (string, error) {
+	postgresPassword := ""
 	// Step 1: Ask user permission
 	if !PromptUserForFix() {
-		return fmt.Errorf("user declined auto-fix.\n\n" +
+		return "", fmt.Errorf("user declined auto-fix.\n\n" +
 			"Please manually add to pg_hba.conf:\n" +
 			"  local   all   all   scram-sha-256\n\n" +
 			"Then reload: systemctl reload postgresql")
@@ -250,7 +273,7 @@ func AutoFixPgHba(cfg *Config) error {
 	fmt.Println("🔍 Detecting pg_hba.conf location...")
 	hbaPath, err := DetectHbaPath(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to detect pg_hba.conf: %w", err)
+		return "", fmt.Errorf("failed to detect pg_hba.conf: %w", err)
 	}
 	fmt.Printf("✅ Found: %s\n", hbaPath)
 
@@ -266,7 +289,7 @@ func AutoFixPgHba(cfg *Config) error {
 	response = strings.ToLower(strings.TrimSpace(response))
 
 	if response != "y" && response != "yes" {
-		return fmt.Errorf("operation cancelled by user")
+		return "", fmt.Errorf("operation cancelled by user")
 	}
 
 	// Step 4: Backup
@@ -274,14 +297,14 @@ func AutoFixPgHba(cfg *Config) error {
 	fmt.Println("💾 Creating backup...")
 	backupPath, err := BackupHbaFile(hbaPath)
 	if err != nil {
-		return fmt.Errorf("backup failed: %w", err)
+		return "", fmt.Errorf("backup failed: %w", err)
 	}
 	fmt.Printf("✅ Backup created: %s\n", backupPath)
 
 	// Step 5: Modify pg_hba.conf
 	fmt.Println("✏️  Modifying pg_hba.conf...")
 	if err := ModifyHbaFile(hbaPath); err != nil {
-		return fmt.Errorf("modification failed: %w\nBackup available at: %s", err, backupPath)
+		return "", fmt.Errorf("modification failed: %w\nBackup available at: %s", err, backupPath)
 	}
 	fmt.Println("✅ pg_hba.conf updated")
 
@@ -290,7 +313,7 @@ func AutoFixPgHba(cfg *Config) error {
 	if err := ReloadPostgreSQL(cfg); err != nil {
 		// Try systemctl as fallback
 		if err := ReloadPostgreSQLSystemctl(); err != nil {
-			return fmt.Errorf("reload failed: %w\nBackup available at: %s\n\n"+
+			return "", fmt.Errorf("reload failed: %w\nBackup available at: %s\n\n"+
 				"Try manually: systemctl reload postgresql", err, backupPath)
 		}
 	} else {
@@ -301,10 +324,25 @@ func AutoFixPgHba(cfg *Config) error {
 	fmt.Println("⏳ Waiting for configuration to apply...")
 	time.Sleep(2 * time.Second)
 
-	// Step 8: Test connection again
+	// Step 8: Set a temporary password for postgres user if needed
+	if cfg.UsePeerAuth {
+		fmt.Println("🔑 Setting temporary password for postgres user...")
+		tempPassword, err := SetPostgresPassword()
+		if err != nil {
+			return "", fmt.Errorf("failed to set postgres password: %w\nBackup available at: %s", err, backupPath)
+		}
+
+		// Update config to use the new password
+		cfg.PostgresPassword = tempPassword
+		cfg.UsePeerAuth = false
+		postgresPassword = tempPassword
+		fmt.Println("✅ Password set for postgres user")
+	}
+
+	// Step 9: Test connection again
 	fmt.Println("🔍 Testing connection...")
 	if err := checkPostgreSQLConnection(cfg); err != nil {
-		return fmt.Errorf("connection still failing after fix: %w\n"+
+		return "", fmt.Errorf("connection still failing after fix: %w\n"+
 			"Backup available at: %s\n\n"+
 			"The pg_hba.conf has been modified but connection still fails.\n"+
 			"Please check PostgreSQL logs for details.", err, backupPath)
@@ -312,5 +350,5 @@ func AutoFixPgHba(cfg *Config) error {
 	fmt.Println("✅ Connection successful!")
 	fmt.Println()
 
-	return nil
+	return postgresPassword, nil
 }

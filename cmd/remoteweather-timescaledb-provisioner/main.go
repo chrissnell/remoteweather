@@ -223,7 +223,8 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 	}
 
 	// Run pre-flight checks
-	if err := provision.PreflightChecks(cfg); err != nil {
+	postgresPassword, err := provision.PreflightChecks(cfg)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
@@ -246,8 +247,14 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 		os.Exit(1)
 	}
 
-	// Display generated password
-	provision.DisplayPasswordWarning(dbPassword)
+	// Display generated passwords
+	if postgresPassword != "" {
+		// We set a postgres password during auto-fix
+		provision.DisplayBothPasswords(postgresPassword, dbPassword)
+	} else {
+		// Only show the remoteweather password
+		provision.DisplayPasswordWarning(dbPassword)
+	}
 
 	// Update config.db
 	if err := provision.UpdateConfigDB(cfg); err != nil {

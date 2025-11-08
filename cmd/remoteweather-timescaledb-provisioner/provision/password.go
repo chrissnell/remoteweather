@@ -67,3 +67,25 @@ func DisplayPasswordWarning(password string) {
 	fmt.Println("and will be used by remoteweather automatically.")
 	fmt.Println()
 }
+
+// DisplayBothPasswords prints both the postgres and remoteweather passwords
+func DisplayBothPasswords(postgresPassword, remoteweatherPassword string) {
+	fmt.Println()
+	fmt.Printf("%s%s🔐 Generated Passwords%s\n", ColorBold, ColorBrightYellow, ColorReset)
+	fmt.Printf("%s╔════════════════════════════════════════════════╗%s\n", ColorBrightYellow, ColorReset)
+	fmt.Printf("%s║  ⚠️  SAVE THESE PASSWORDS - THEY WON'T BE SHOWN AGAIN  ║%s\n", ColorBrightYellow, ColorReset)
+	fmt.Printf("%s╚════════════════════════════════════════════════╝%s\n", ColorBrightYellow, ColorReset)
+	fmt.Println()
+	fmt.Printf("  %sPostgreSQL 'postgres' user password:%s\n", ColorBold, ColorReset)
+	fmt.Printf("  %s%s%s\n", ColorBrightCyan, postgresPassword, ColorReset)
+	fmt.Println()
+	fmt.Printf("  %sRemoteweather database user password:%s\n", ColorBold, ColorReset)
+	fmt.Printf("  %s%s%s\n", ColorBrightCyan, remoteweatherPassword, ColorReset)
+	fmt.Println()
+	fmt.Println("The remoteweather password has been saved to your config.db")
+	fmt.Println("and will be used by remoteweather automatically.")
+	fmt.Println()
+	fmt.Println("The postgres password is for administrative access only.")
+	fmt.Println("You typically won't need it for normal operations.")
+	fmt.Println()
+}
