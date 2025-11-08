@@ -25,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("remoteweather %s (%s/%s)\n", constants.Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("remoteweather %s (commit: %s, %s/%s)\n", constants.Version, constants.CommitID, runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
 
@@ -35,6 +35,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer log.Sync()
+
+	// Log version and build information
+	log.Infof("Starting remoteweather %s (commit: %s, %s/%s)",
+		constants.Version, constants.CommitID, runtime.GOOS, runtime.GOARCH)
 
 	// Create and run the application
 	configProvider, err := createConfigProvider(*cfgFile)

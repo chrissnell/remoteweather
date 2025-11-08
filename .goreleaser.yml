@@ -127,7 +127,7 @@ builds:
       - amd64
     main: ./cmd/remoteweather
     ldflags:
-      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}} -X github.com/chrissnell/remoteweather/internal/constants.CommitID={{.FullCommit}}
     binary: remoteweather
 
   # Linux AMD64 with CGO
@@ -140,7 +140,7 @@ builds:
       - amd64
     main: ./cmd/remoteweather
     ldflags:
-      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}} -X github.com/chrissnell/remoteweather/internal/constants.CommitID={{.FullCommit}}
     binary: remoteweather
 
   # Linux ARM64 with CGO (Raspberry Pi 3/4/5 64-bit)
@@ -155,7 +155,7 @@ builds:
       - arm64
     main: ./cmd/remoteweather
     ldflags:
-      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}} -X github.com/chrissnell/remoteweather/internal/constants.CommitID={{.FullCommit}}
     binary: remoteweather
 
   # Linux ARMv7 with CGO (Raspberry Pi 2/3/4 32-bit)
@@ -172,7 +172,7 @@ builds:
       - "7"
     main: ./cmd/remoteweather
     ldflags:
-      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}} -X github.com/chrissnell/remoteweather/internal/constants.CommitID={{.FullCommit}}
     binary: remoteweather
 
   # Linux ARMv6 with CGO (Raspberry Pi Zero/1)
@@ -189,7 +189,7 @@ builds:
       - "6"
     main: ./cmd/remoteweather
     ldflags:
-      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}}
+      - -s -w -X github.com/chrissnell/remoteweather/internal/constants.Version={{.Version}} -X github.com/chrissnell/remoteweather/internal/constants.CommitID={{.FullCommit}}
     binary: remoteweather
 
 
