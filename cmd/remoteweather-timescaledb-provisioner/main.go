@@ -10,6 +10,14 @@ import (
 	"github.com/chrissnell/remoteweather/cmd/remoteweather-timescaledb-provisioner/provision"
 )
 
+// Color constants
+const (
+	colorReset         = "\033[0m"
+	colorBrightCyan    = "\033[96m"
+	colorBrightYellow  = "\033[93m"
+	colorBold          = "\033[1m"
+)
+
 const (
 	DefaultDBName    = "remoteweather"
 	DefaultDBUser    = "remoteweather"
@@ -32,7 +40,7 @@ func main() {
 		fmt.Println("  • Reload PostgreSQL configuration")
 		fmt.Println()
 		fmt.Println("Just run:")
-		fmt.Println("  sudo remoteweather-timescaledb-provisioner init")
+		fmt.Printf("  %s%ssudo remoteweather-timescaledb-provisioner init%s\n", colorBold, colorBrightCyan, colorReset)
 		fmt.Println()
 		fmt.Println("Don't know your PostgreSQL postgres password? No problem!")
 		fmt.Println("The tool will automatically configure PostgreSQL for you.")
@@ -104,14 +112,14 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  # Standard usage - just run it!")
-	fmt.Println("  sudo remoteweather-timescaledb-provisioner init")
+	fmt.Printf("  %s%ssudo remoteweather-timescaledb-provisioner init%s\n", colorBold, colorBrightCyan, colorReset)
 	fmt.Println()
 	fmt.Println("  # If you know your postgres password, set it via environment variable")
-	fmt.Println("  export POSTGRES_ADMIN_PASSWORD='yourpassword'")
-	fmt.Println("  sudo remoteweather-timescaledb-provisioner init")
+	fmt.Printf("  %sexport POSTGRES_ADMIN_PASSWORD='yourpassword'%s\n", colorBrightCyan, colorReset)
+	fmt.Printf("  %ssudo remoteweather-timescaledb-provisioner init%s\n", colorBrightCyan, colorReset)
 	fmt.Println()
 	fmt.Println("  # Or provide it via command line flag")
-	fmt.Println("  sudo remoteweather-timescaledb-provisioner init --postgres-admin-password yourpassword")
+	fmt.Printf("  %ssudo remoteweather-timescaledb-provisioner init --postgres-admin-password yourpassword%s\n", colorBrightCyan, colorReset)
 	fmt.Println()
 	fmt.Println("  # Don't know the password? No problem!")
 	fmt.Println("  # Just run without setting it and the tool will auto-configure PostgreSQL")
@@ -266,8 +274,10 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 	fmt.Printf("  SSL Mode: %s\n", cfg.SSLMode)
 	fmt.Println("  TimescaleDB: enabled")
 	fmt.Println()
-	fmt.Println("Next Steps:")
-	fmt.Println("  1. Start remoteweather: ./remoteweather --config config.db")
+	fmt.Printf("%s%sNext Steps:%s\n", colorBold, colorBrightYellow, colorReset)
+	fmt.Println("  1. Start remoteweather:")
+	fmt.Printf("     %s%s./remoteweather --config config.db%s\n", colorBold, colorBrightCyan, colorReset)
+	fmt.Println()
 	fmt.Println("  2. remoteweather will automatically:")
 	fmt.Println("     ✓ Connect to TimescaleDB")
 	fmt.Println("     ✓ Create all tables and hypertables")
@@ -275,7 +285,7 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 	fmt.Println("     ✓ Run any pending migrations")
 	fmt.Println()
 	fmt.Println("Manual Connection (if needed):")
-	fmt.Printf("  psql -h %s -p %d -U %s -d %s\n", cfg.PostgresHost, cfg.PostgresPort, cfg.DBUser, cfg.DBName)
+	fmt.Printf("  %spsql -h %s -p %d -U %s -d %s%s\n", colorBrightCyan, cfg.PostgresHost, cfg.PostgresPort, cfg.DBUser, cfg.DBName, colorReset)
 	fmt.Println()
 }
 

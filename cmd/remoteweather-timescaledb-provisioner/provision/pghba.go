@@ -71,8 +71,8 @@ func PromptUserForFix() bool {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println()
-	fmt.Println("⚠️  PostgreSQL Authentication Configuration Required")
-	fmt.Println("====================================================")
+	fmt.Printf("%s%s⚠️  PostgreSQL Authentication Configuration Required%s\n", ColorBold, ColorBrightYellow, ColorReset)
+	fmt.Printf("%s====================================================%s\n", ColorBrightYellow, ColorReset)
 	fmt.Println()
 	fmt.Println("The provisioner cannot connect to PostgreSQL because password")
 	fmt.Println("authentication is not enabled in pg_hba.conf.")
@@ -83,7 +83,7 @@ func PromptUserForFix() bool {
 	fmt.Println("  2. Create a timestamped backup of it")
 	fmt.Println("  3. Add this line to enable password authentication:")
 	fmt.Println()
-	fmt.Println("     local   all   all   scram-sha-256")
+	fmt.Printf("     %s%slocal   all   all   scram-sha-256%s\n", ColorBold, ColorBrightCyan, ColorReset)
 	fmt.Println()
 	fmt.Println("  4. Reload PostgreSQL to apply the change")
 	fmt.Println()
@@ -124,59 +124,47 @@ func ModifyHbaFile(hbaPath string) error {
 
 	lines := strings.Split(string(content), "\n")
 
-	// Check if our rules already exist
+	// Check if our password rule already exists at the right position
 	hasPasswordRule := false
-
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "local") &&
 			strings.Contains(trimmed, "all") &&
+			strings.Contains(trimmed, "all") &&
 			strings.Contains(trimmed, "scram-sha-256") {
 			hasPasswordRule = true
+			break
 		}
 	}
 
 	if hasPasswordRule {
-		fmt.Println("ℹ️  Appropriate rules already exist in pg_hba.conf")
+		fmt.Println("ℹ️  Password authentication rule already exists in pg_hba.conf")
 		return nil
 	}
 
-	// Build new lines with our rule inserted
+	// Build new lines - insert our rule at the VERY TOP (before any other rules)
 	newLines := []string{}
 	inserted := false
 
-	for i, line := range lines {
+	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Insert after the first peer auth line (usually "local all postgres peer")
-		if !inserted && strings.HasPrefix(trimmed, "local") &&
-			strings.Contains(trimmed, "peer") {
-			newLines = append(newLines, line)
-
-			// Add password auth rule for all users
-			if !hasPasswordRule {
-				newLines = append(newLines, "")
-				newLines = append(newLines, "# Allow any Unix user to connect with password")
-				newLines = append(newLines, "local   all             all                                     scram-sha-256")
-			}
+		// Insert BEFORE the first "local" rule (so our rule takes precedence)
+		if !inserted && strings.HasPrefix(trimmed, "local") {
+			newLines = append(newLines, "# Allow any Unix user to connect with password (provisioner-added)")
+			newLines = append(newLines, "local   all             all                                     scram-sha-256")
+			newLines = append(newLines, "")
 			inserted = true
-			continue
 		}
 
 		newLines = append(newLines, line)
+	}
 
-		// Fallback: insert before TYPE DATABASE USER comment if we haven't inserted yet
-		if !inserted && i < len(lines)-1 &&
-			strings.Contains(trimmed, "TYPE") &&
-			strings.Contains(trimmed, "DATABASE") &&
-			strings.Contains(trimmed, "USER") {
-			if !hasPasswordRule {
-				newLines = append(newLines, "")
-				newLines = append(newLines, "# Allow any Unix user to connect with password")
-				newLines = append(newLines, "local   all             all                                     scram-sha-256")
-			}
-			inserted = true
-		}
+	// If we never found a "local" line, append at the end
+	if !inserted {
+		newLines = append(newLines, "")
+		newLines = append(newLines, "# Allow any Unix user to connect with password (provisioner-added)")
+		newLines = append(newLines, "local   all             all                                     scram-sha-256")
 	}
 
 	newContent := strings.Join(newLines, "\n")
@@ -199,6 +187,8 @@ func ModifyHbaFile(hbaPath string) error {
 	// Set proper permissions
 	cmd = exec.Command("chmod", "0640", hbaPath)
 	cmd.Run()
+
+	fmt.Println("ℹ️  Added password auth rule at TOP of pg_hba.conf (takes precedence over peer auth)")
 
 	return nil
 }
