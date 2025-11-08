@@ -15,12 +15,24 @@ type Config struct {
 	PostgresPort     int
 	PostgresAdmin    string
 	PostgresPassword string
+	UsePeerAuth      bool   // Use peer authentication instead of password
 	DBName           string
 	DBUser           string
 	DBPassword       string
 	SSLMode          string
 	Timezone         string
 	ConfigDBPath     string
+}
+
+// BuildConnString builds a PostgreSQL connection string based on config
+func (cfg *Config) BuildConnString(dbname string) string {
+	if cfg.UsePeerAuth {
+		// Peer authentication - use Unix socket, no password needed
+		// Omitting host makes pgx use Unix socket with peer auth
+		return fmt.Sprintf("user=%s dbname=%s sslmode=disable", cfg.PostgresAdmin, dbname)
+	}
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, dbname, cfg.SSLMode)
 }
 
 // PreflightChecks runs all pre-flight validation checks
@@ -76,8 +88,7 @@ func PreflightChecks(cfg *Config) error {
 
 // checkPostgreSQLConnection verifies PostgreSQL is accessible
 func checkPostgreSQLConnection(cfg *Config) error {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -101,8 +112,7 @@ func checkPostgreSQLConnection(cfg *Config) error {
 
 // checkTimescaleDBAvailable checks if TimescaleDB extension is available
 func checkTimescaleDBAvailable(cfg *Config) error {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -146,8 +156,7 @@ func checkConfigDB(path string) error {
 
 // checkExistingResources checks if database or user already exists
 func checkExistingResources(cfg *Config) (bool, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -181,8 +190,7 @@ func checkExistingResources(cfg *Config) (bool, error) {
 
 // DropExistingResources drops the database and user if they exist
 func DropExistingResources(cfg *Config) error {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
