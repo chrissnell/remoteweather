@@ -100,6 +100,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Header */
 .weather-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
   background: var(--header-bg);
   color: var(--text-primary);
   padding: 12px 0;
