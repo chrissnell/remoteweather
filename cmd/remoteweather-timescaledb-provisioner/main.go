@@ -19,7 +19,7 @@ const (
 	DefaultPort      = 5432
 	DefaultSSLMode   = "prefer"
 	DefaultTimezone  = "UTC"
-	DefaultConfigDB  = "./config.db"
+	DefaultConfigDB  = "/var/lib/remoteweather/config.db"
 	DefaultAdminUser = "postgres"
 )
 
