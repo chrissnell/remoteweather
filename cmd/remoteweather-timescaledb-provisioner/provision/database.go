@@ -11,8 +11,7 @@ import (
 func CreateDatabase(cfg *Config) error {
 	fmt.Println("🗄️  Creating Database")
 
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -44,8 +43,7 @@ func EnableTimescaleDB(cfg *Config) error {
 	fmt.Println("🔌 Enabling TimescaleDB Extension")
 
 	// Connect to the newly created database
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.DBName, cfg.SSLMode)
+	connStr := cfg.BuildConnString(cfg.DBName)
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {

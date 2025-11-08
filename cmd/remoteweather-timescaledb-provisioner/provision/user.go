@@ -11,8 +11,7 @@ import (
 func CreateUser(cfg *Config) error {
 	fmt.Println("👤 Creating User")
 
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -41,8 +40,7 @@ func CreateUser(cfg *Config) error {
 // grantPrivileges grants all necessary privileges to the database user
 func grantPrivileges(cfg *Config) error {
 	// Connect to postgres database to grant database-level privileges
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -60,8 +58,7 @@ func grantPrivileges(cfg *Config) error {
 	fmt.Printf("✅ Database privileges granted\n")
 
 	// Connect to the target database to grant schema and table privileges
-	dbConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.DBName, cfg.SSLMode)
+	dbConnStr := cfg.BuildConnString(cfg.DBName)
 
 	targetDB, err := sql.Open("pgx", dbConnStr)
 	if err != nil {

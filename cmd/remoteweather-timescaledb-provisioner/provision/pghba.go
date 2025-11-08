@@ -13,8 +13,7 @@ import (
 // DetectHbaPath gets pg_hba.conf location from PostgreSQL
 func DetectHbaPath(cfg *Config) (string, error) {
 	// Try to connect to query settings (might fail auth but still connect)
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -189,8 +188,7 @@ func ModifyHbaFile(hbaPath string) error {
 
 // ReloadPostgreSQL reloads configuration via SQL
 func ReloadPostgreSQL(cfg *Config) error {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
-		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+	connStr := cfg.BuildConnString("postgres")
 
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {

@@ -24,7 +24,7 @@ const (
 )
 
 func main() {
-	// Check for root privileges first
+	// Check for root privileges
 	if os.Geteuid() != 0 {
 		fmt.Println("❌ This tool must be run as root")
 		fmt.Println()
@@ -33,12 +33,12 @@ func main() {
 		fmt.Println("  • Write to /var/lib/remoteweather/config.db")
 		fmt.Println("  • Reload PostgreSQL configuration")
 		fmt.Println()
-		fmt.Println("Please run with:")
-		fmt.Println("  sudo remoteweather-timescaledb-provisioner <command>")
+		fmt.Println("If you don't have the postgres password:")
+		fmt.Println("  1. Set a password: sudo -u postgres psql -c \"ALTER USER postgres PASSWORD 'newpass';\"")
+		fmt.Println("  2. Or use peer auth: sudo remoteweather-timescaledb-provisioner init --use-peer-auth")
 		fmt.Println()
-		fmt.Println("Or switch to root:")
-		fmt.Println("  su -")
-		fmt.Println("  remoteweather-timescaledb-provisioner <command>")
+		fmt.Println("Otherwise run with:")
+		fmt.Println("  sudo remoteweather-timescaledb-provisioner init")
 		fmt.Println()
 		os.Exit(1)
 	}
@@ -55,6 +55,7 @@ func main() {
 	postgresPort := initCmd.Int("postgres-port", DefaultPort, "PostgreSQL port")
 	postgresAdmin := initCmd.String("postgres-admin", DefaultAdminUser, "PostgreSQL admin user")
 	postgresAdminPassword := initCmd.String("postgres-admin-password", "", "PostgreSQL admin password (or use POSTGRES_ADMIN_PASSWORD env var)")
+	usePeer := initCmd.Bool("use-peer-auth", false, "Use peer authentication (no password required, run as postgres user)")
 	sslMode := initCmd.String("ssl-mode", DefaultSSLMode, "SSL mode (disable, require, prefer)")
 	timezone := initCmd.String("timezone", DefaultTimezone, "Database timezone")
 	configDB := initCmd.String("config-db", DefaultConfigDB, "Path to remoteweather config.db")
@@ -76,7 +77,7 @@ func main() {
 	case "init":
 		initCmd.Parse(os.Args[2:])
 		runInit(*dbName, *dbUser, *postgresHost, *postgresPort, *postgresAdmin,
-			*postgresAdminPassword, *sslMode, *timezone, *configDB, *interactive, *reprovision)
+			*postgresAdminPassword, *usePeer, *sslMode, *timezone, *configDB, *interactive, *reprovision)
 
 	case "status":
 		statusCmd.Parse(os.Args[2:])
@@ -109,6 +110,14 @@ func printUsage() {
 	fmt.Println("  # Interactive mode with defaults")
 	fmt.Println("  remoteweather-timescaledb-provisioner init --interactive")
 	fmt.Println()
+	fmt.Println("  # If you don't know your postgres password:")
+	fmt.Println("  # Option 1: Use peer authentication (run as postgres user)")
+	fmt.Println("  sudo -u postgres remoteweather-timescaledb-provisioner init --use-peer-auth")
+	fmt.Println()
+	fmt.Println("  # Option 2: Set a password first")
+	fmt.Println("  sudo -u postgres psql -c \"ALTER USER postgres PASSWORD 'newpassword';\"")
+	fmt.Println("  sudo remoteweather-timescaledb-provisioner init --postgres-admin-password newpassword")
+	fmt.Println()
 	fmt.Println("  # Non-interactive with admin password from env")
 	fmt.Println("  export POSTGRES_ADMIN_PASSWORD='yourpassword'")
 	fmt.Println("  remoteweather-timescaledb-provisioner init")
@@ -123,8 +132,8 @@ func printUsage() {
 	fmt.Println("  remoteweather-timescaledb-provisioner init --reprovision")
 }
 
-func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmin, postgresAdminPassword,
-	sslMode, timezone, configDB string, interactive, reprovision bool) {
+func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmin, postgresAdminPassword string,
+	usePeer bool, sslMode, timezone, configDB string, interactive, reprovision bool) {
 
 	fmt.Println("🚀 remoteweather TimescaleDB Provisioner")
 	fmt.Println("========================================")
@@ -135,8 +144,9 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 		postgresAdminPassword = os.Getenv("POSTGRES_ADMIN_PASSWORD")
 	}
 
-	// Interactive mode
-	if interactive || postgresAdminPassword == "" {
+	// Interactive mode or password prompt needed
+	needPasswordPrompt := !usePeer && postgresAdminPassword == ""
+	if interactive || needPasswordPrompt {
 		fmt.Println("Configuration:")
 		fmt.Printf("  PostgreSQL Host: %s:%d\n", postgresHost, postgresPort)
 		fmt.Printf("  Database Name: %s\n", dbName)
@@ -158,9 +168,14 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 			}
 		}
 
-		// Always prompt for password if not provided
-		if postgresAdminPassword == "" {
-			fmt.Print("PostgreSQL admin password: ")
+		// Prompt for password if not using peer auth and password not provided
+		if needPasswordPrompt {
+			fmt.Println()
+			fmt.Println("💡 Tip: If you don't have a postgres password set, you can:")
+			fmt.Println("   • Press Enter to try peer authentication (passwordless)")
+			fmt.Println("   • Or run with: --use-peer-auth")
+			fmt.Println()
+			fmt.Print("PostgreSQL admin password (or press Enter for peer auth): ")
 			passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
 			fmt.Println()
 			if err != nil {
@@ -168,6 +183,12 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 				os.Exit(1)
 			}
 			postgresAdminPassword = string(passwordBytes)
+
+			// If user pressed Enter (empty password), try peer auth
+			if postgresAdminPassword == "" {
+				usePeer = true
+				fmt.Println("ℹ️  Will attempt peer authentication (no password)")
+			}
 		}
 
 		fmt.Println()
@@ -196,6 +217,7 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 		PostgresPort:     postgresPort,
 		PostgresAdmin:    postgresAdmin,
 		PostgresPassword: postgresAdminPassword,
+		UsePeerAuth:      usePeer,
 		DBName:           dbName,
 		DBUser:           dbUser,
 		DBPassword:       dbPassword,
