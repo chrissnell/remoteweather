@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -49,8 +50,8 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	}
 
 	if ctrl.managementConfig.ListenAddr == "" {
-		logger.Info("management API listen-addr not provided; defaulting to 127.0.0.1 (localhost only)")
-		ctrl.managementConfig.ListenAddr = "127.0.0.1"
+		logger.Info("management API listen-addr not provided; defaulting to 0.0.0.0 (all interfaces)")
+		ctrl.managementConfig.ListenAddr = "0.0.0.0"
 	}
 
 	// Use existing token from database or generate a new one if none exists
@@ -61,6 +62,11 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 		logger.Info("═══════════════════════════════════════════════════════════════")
 		logger.Infof("   Token: %s", mc.AuthToken)
 		logger.Info("   Use this token for API authentication")
+		logger.Info("   ")
+		logger.Info("   Management API available at:")
+		for _, url := range getListenURLs(ctrl.managementConfig.ListenAddr, ctrl.managementConfig.Port) {
+			logger.Infof("     %s", url)
+		}
 		logger.Info("═══════════════════════════════════════════════════════════════")
 	} else {
 		// No token in database, generate a new one and save it
@@ -335,4 +341,57 @@ func (c *Controller) authMiddleware(next http.Handler) http.Handler {
 		c.logger.Debugf("Auth failed for %s - no valid token or cookie", r.URL.Path)
 		http.Error(w, "Authentication required", http.StatusUnauthorized)
 	})
+}
+
+// getListenURLs returns a list of URLs the API is accessible from
+func getListenURLs(listenAddr string, port int) []string {
+	// If listening on a specific interface, just return that
+	if listenAddr != "" && listenAddr != "0.0.0.0" && listenAddr != "::" {
+		return []string{fmt.Sprintf("http://%s:%d", listenAddr, port)}
+	}
+
+	// If listening on all interfaces (0.0.0.0 or ::), enumerate them
+	var urls []string
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		// Fallback if we can't enumerate interfaces
+		return []string{fmt.Sprintf("http://%s:%d", listenAddr, port)}
+	}
+
+	for _, iface := range ifaces {
+		// Skip down interfaces
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			// Skip if not an IPv4 address or is loopback/link-local
+			if ip == nil || ip.To4() == nil {
+				continue
+			}
+
+			urls = append(urls, fmt.Sprintf("http://%s:%d", ip.String(), port))
+		}
+	}
+
+	// If we didn't find any interfaces, return the original
+	if len(urls) == 0 {
+		return []string{fmt.Sprintf("http://%s:%d", listenAddr, port)}
+	}
+
+	return urls
 }

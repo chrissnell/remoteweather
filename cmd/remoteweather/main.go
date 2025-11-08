@@ -98,7 +98,7 @@ func createBootstrapDatabase(dbPath string) error {
 		Type: "management",
 		ManagementAPI: &config.ManagementAPIData{
 			Port:       8081,
-			ListenAddr: "localhost",
+			ListenAddr: "0.0.0.0",
 			AuthToken:  token,
 		},
 	}
@@ -108,13 +108,6 @@ func createBootstrapDatabase(dbPath string) error {
 		return fmt.Errorf("failed to add management API controller: %w", err)
 	}
 
-	log.Info("═══════════════════════════════════════════════════════════════")
-	log.Info("         BOOTSTRAP: MANAGEMENT API ACCESS TOKEN               ")
-	log.Info("═══════════════════════════════════════════════════════════════")
-	log.Infof("   Token: %s", token)
-	log.Info("   *** SAVE THIS TOKEN - YOU'LL NEED IT TO ACCESS THE API ***")
-	log.Info("   Management API will be available at http://localhost:8081")
-	log.Info("═══════════════════════════════════════════════════════════════")
 
 	return nil
 }
