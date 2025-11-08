@@ -74,16 +74,22 @@ func PromptUserForFix() bool {
 	fmt.Println("⚠️  PostgreSQL Authentication Configuration Required")
 	fmt.Println("====================================================")
 	fmt.Println()
-	fmt.Println("The provisioner cannot connect to PostgreSQL via TCP localhost.")
-	fmt.Println("This is required for remoteweather to function properly.")
+	fmt.Println("The provisioner cannot connect to PostgreSQL because password")
+	fmt.Println("authentication is not enabled in pg_hba.conf.")
 	fmt.Println()
-	fmt.Println("I can automatically fix this by modifying pg_hba.conf to add:")
-	fmt.Println("  host    all             all             127.0.0.1/32            scram-sha-256")
+	fmt.Println("What I'll do to fix this:")
 	fmt.Println()
-	fmt.Println("This will:")
-	fmt.Println("  ✓ Allow TCP connections from localhost with password authentication")
-	fmt.Println("  ✓ Create a backup of your current pg_hba.conf")
-	fmt.Println("  ✓ Reload PostgreSQL configuration")
+	fmt.Println("  1. Find your pg_hba.conf file")
+	fmt.Println("  2. Create a timestamped backup of it")
+	fmt.Println("  3. Add this line to enable password authentication:")
+	fmt.Println()
+	fmt.Println("     local   all   all   scram-sha-256")
+	fmt.Println()
+	fmt.Println("  4. Reload PostgreSQL to apply the change")
+	fmt.Println()
+	fmt.Println("This allows any Unix user (including root) to connect to any")
+	fmt.Println("PostgreSQL database by providing a password. Your backup file")
+	fmt.Println("will be saved if you need to restore the original settings.")
 	fmt.Println()
 	fmt.Print("Would you like me to fix this automatically? [y/N]: ")
 
@@ -108,7 +114,7 @@ func BackupHbaFile(hbaPath string) (string, error) {
 	return backupPath, nil
 }
 
-// ModifyHbaFile adds TCP localhost rule
+// ModifyHbaFile modifies pg_hba.conf to allow peer and password auth
 func ModifyHbaFile(hbaPath string) error {
 	// Read current content
 	content, err := os.ReadFile(hbaPath)
@@ -118,48 +124,59 @@ func ModifyHbaFile(hbaPath string) error {
 
 	lines := strings.Split(string(content), "\n")
 
-	// Check if rule already exists
-	targetRule := "host    all             all             127.0.0.1/32            scram-sha-256"
-	ruleExists := false
+	// Check if our rules already exist
+	hasPasswordRule := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "host") &&
-			strings.Contains(trimmed, "127.0.0.1/32") &&
-			(strings.Contains(trimmed, "scram-sha-256") || strings.Contains(trimmed, "md5")) {
-			ruleExists = true
-			break
+		if strings.HasPrefix(trimmed, "local") &&
+			strings.Contains(trimmed, "all") &&
+			strings.Contains(trimmed, "scram-sha-256") {
+			hasPasswordRule = true
 		}
 	}
 
-	if ruleExists {
-		fmt.Println("ℹ️  Appropriate rule already exists in pg_hba.conf")
+	if hasPasswordRule {
+		fmt.Println("ℹ️  Appropriate rules already exist in pg_hba.conf")
 		return nil
 	}
 
-	// Add rule after IPv4 local connections comment or at appropriate location
+	// Build new lines with our rule inserted
 	newLines := []string{}
 	inserted := false
 
-	for _, line := range lines {
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Insert after the first peer auth line (usually "local all postgres peer")
+		if !inserted && strings.HasPrefix(trimmed, "local") &&
+			strings.Contains(trimmed, "peer") {
+			newLines = append(newLines, line)
+
+			// Add password auth rule for all users
+			if !hasPasswordRule {
+				newLines = append(newLines, "")
+				newLines = append(newLines, "# Allow any Unix user to connect with password")
+				newLines = append(newLines, "local   all             all                                     scram-sha-256")
+			}
+			inserted = true
+			continue
+		}
+
 		newLines = append(newLines, line)
 
-		if !inserted {
-			trimmed := strings.TrimSpace(line)
-			// Look for "# IPv4 local connections:" comment
-			if strings.Contains(trimmed, "IPv4 local connections") {
-				// Insert after this comment
-				newLines = append(newLines, targetRule)
-				inserted = true
+		// Fallback: insert before TYPE DATABASE USER comment if we haven't inserted yet
+		if !inserted && i < len(lines)-1 &&
+			strings.Contains(trimmed, "TYPE") &&
+			strings.Contains(trimmed, "DATABASE") &&
+			strings.Contains(trimmed, "USER") {
+			if !hasPasswordRule {
+				newLines = append(newLines, "")
+				newLines = append(newLines, "# Allow any Unix user to connect with password")
+				newLines = append(newLines, "local   all             all                                     scram-sha-256")
 			}
+			inserted = true
 		}
-	}
-
-	// If we didn't find the comment, append at end
-	if !inserted {
-		newLines = append(newLines, "")
-		newLines = append(newLines, "# Added by remoteweather-timescaledb-provisioner")
-		newLines = append(newLines, targetRule)
 	}
 
 	newContent := strings.Join(newLines, "\n")
@@ -228,13 +245,13 @@ func ReloadPostgreSQLSystemctl() error {
 	return fmt.Errorf("could not reload PostgreSQL service")
 }
 
-// AutoFixPgHba orchestrates the entire fix process
+// AutoFixPgHba orchestrates the entire fix process for pg_hba.conf
 func AutoFixPgHba(cfg *Config) error {
 	// Step 1: Ask user permission
 	if !PromptUserForFix() {
 		return fmt.Errorf("user declined auto-fix.\n\n" +
 			"Please manually add to pg_hba.conf:\n" +
-			"  host    all             all             127.0.0.1/32            scram-sha-256\n\n" +
+			"  local   all   all   scram-sha-256\n\n" +
 			"Then reload: systemctl reload postgresql")
 	}
 
@@ -243,9 +260,7 @@ func AutoFixPgHba(cfg *Config) error {
 	fmt.Println("🔍 Detecting pg_hba.conf location...")
 	hbaPath, err := DetectHbaPath(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to detect pg_hba.conf: %w\n\n"+
-			"Please manually locate pg_hba.conf and add:\n"+
-			"  host    all             all             127.0.0.1/32            scram-sha-256", err)
+		return fmt.Errorf("failed to detect pg_hba.conf: %w", err)
 	}
 	fmt.Printf("✅ Found: %s\n", hbaPath)
 
@@ -254,7 +269,7 @@ func AutoFixPgHba(cfg *Config) error {
 	fmt.Println()
 	fmt.Println("Ready to modify pg_hba.conf:")
 	fmt.Printf("  File: %s\n", hbaPath)
-	fmt.Println("  Change: Add TCP localhost password authentication")
+	fmt.Println("  Change: Add password authentication for all Unix users")
 	fmt.Println()
 	fmt.Print("Proceed with modification? [y/N]: ")
 	response, _ := reader.ReadString('\n')
@@ -273,7 +288,7 @@ func AutoFixPgHba(cfg *Config) error {
 	}
 	fmt.Printf("✅ Backup created: %s\n", backupPath)
 
-	// Step 5: Modify
+	// Step 5: Modify pg_hba.conf
 	fmt.Println("✏️  Modifying pg_hba.conf...")
 	if err := ModifyHbaFile(hbaPath); err != nil {
 		return fmt.Errorf("modification failed: %w\nBackup available at: %s", err, backupPath)
@@ -304,7 +319,7 @@ func AutoFixPgHba(cfg *Config) error {
 			"The pg_hba.conf has been modified but connection still fails.\n"+
 			"Please check PostgreSQL logs for details.", err, backupPath)
 	}
-	fmt.Println("✅ TCP localhost connection successful!")
+	fmt.Println("✅ Connection successful!")
 	fmt.Println()
 
 	return nil
