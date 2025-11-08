@@ -28,10 +28,25 @@ func PreflightChecks(cfg *Config) error {
 	fmt.Println("🔍 Pre-flight Checks")
 
 	// Check PostgreSQL connection
-	if err := checkPostgreSQLConnection(cfg); err != nil {
-		return fmt.Errorf("❌ PostgreSQL connection failed: %w", err)
+	err := checkPostgreSQLConnection(cfg)
+	if err != nil {
+		// Check if it's an authentication error that we can fix
+		if IsAuthError(err) {
+			fmt.Printf("⚠️  Connection failed: %v\n", err)
+
+			// Offer to auto-fix pg_hba.conf
+			if err := AutoFixPgHba(cfg); err != nil {
+				return fmt.Errorf("❌ %w", err)
+			}
+
+			// If we get here, auto-fix succeeded
+			// Connection test happens inside AutoFixPgHba
+		} else {
+			return fmt.Errorf("❌ PostgreSQL connection failed: %w", err)
+		}
+	} else {
+		fmt.Println("✅ PostgreSQL connection successful")
 	}
-	fmt.Println("✅ PostgreSQL connection successful")
 
 	// Check TimescaleDB extension availability
 	if err := checkTimescaleDBAvailable(cfg); err != nil {
