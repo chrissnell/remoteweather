@@ -243,6 +243,8 @@ CREATE TABLE weather_websites (
     about_station_html TEXT,
     snow_enabled BOOLEAN DEFAULT FALSE,
     snow_device_name TEXT,
+    air_quality_enabled BOOLEAN DEFAULT FALSE,
+    air_quality_device_name TEXT,
     tls_cert_path TEXT,
     tls_key_path TEXT,
     is_portal BOOLEAN DEFAULT FALSE,
