@@ -2026,9 +2026,7 @@ CREATE INDEX IF NOT EXISTS weather_time_stationname_idx ON weather (time DESC, s
 CREATE INDEX IF NOT EXISTS weather_stationname_snowdistance_time_idx ON weather (stationname, time DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;
 -- Snow indexes for aggregation tables (for almanac queries)
 CREATE INDEX IF NOT EXISTS weather_1h_stationname_snowdistance_bucket_idx ON weather_1h (stationname, bucket DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;
-CREATE INDEX IF NOT EXISTS weather_1d_stationname_snowdistance_bucket_idx ON weather_1d (stationname, bucket DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;
--- Rainfall summary index
-CREATE INDEX IF NOT EXISTS rainfall_summary_stationname_idx ON rainfall_summary (stationname);`
+CREATE INDEX IF NOT EXISTS weather_1d_stationname_snowdistance_bucket_idx ON weather_1d (stationname, bucket DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;`
 
 const addAggregationPolicy1mSQL = `SELECT add_continuous_aggregate_policy('weather_1m', INTERVAL '1 month', INTERVAL '1 minute', INTERVAL '1 minute', if_not_exists => true);`
 const addAggregationPolicy5mSQL = `SELECT add_continuous_aggregate_policy('weather_5m', INTERVAL '6 months', INTERVAL '5 minutes', INTERVAL '5 minutes', if_not_exists => true);`
