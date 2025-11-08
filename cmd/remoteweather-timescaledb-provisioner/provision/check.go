@@ -3,8 +3,8 @@ package provision
 import (
 	"database/sql"
 	"fmt"
-	"os"
 
+	"github.com/chrissnell/remoteweather/pkg/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "modernc.org/sqlite"
 )
@@ -39,11 +39,11 @@ func PreflightChecks(cfg *Config) error {
 	}
 	fmt.Println("✅ TimescaleDB extension available")
 
-	// Check config.db exists
+	// Check/create config.db
 	if err := checkConfigDB(cfg.ConfigDBPath); err != nil {
 		return fmt.Errorf("❌ Config database check failed: %w", err)
 	}
-	fmt.Printf("✅ Config database found: %s\n", cfg.ConfigDBPath)
+	fmt.Printf("✅ Config database ready: %s\n", cfg.ConfigDBPath)
 
 	// Check for existing database/user conflicts
 	conflicts, err := checkExistingResources(cfg)
@@ -110,29 +110,20 @@ func checkTimescaleDBAvailable(cfg *Config) error {
 }
 
 // checkConfigDB verifies the config database exists and is accessible
+// If it doesn't exist, it will be created with the default schema
 func checkConfigDB(path string) error {
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("config database not found at %s", path)
-		}
-		return err
-	}
-
-	// Try to open and query the database
-	db, err := sql.Open("sqlite", path)
+	// Use the config package to open/create the database
+	// This will automatically initialize the schema if the database doesn't exist
+	provider, err := config.NewSQLiteProvider(path)
 	if err != nil {
-		return fmt.Errorf("failed to open config database: %w", err)
+		return fmt.Errorf("failed to open/create config database: %w", err)
 	}
-	defer db.Close()
+	defer provider.Close()
 
-	// Verify configs table exists
-	var tableName string
-	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='configs'").Scan(&tableName)
-	if err == sql.ErrNoRows {
-		return fmt.Errorf("configs table not found in database - is this a valid remoteweather config.db?")
-	}
+	// Verify we can load the config (validates schema is correct)
+	_, err = provider.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to query database: %w", err)
+		return fmt.Errorf("failed to load config from database: %w", err)
 	}
 
 	return nil
@@ -171,6 +162,74 @@ func checkExistingResources(cfg *Config) (bool, error) {
 	}
 
 	return dbExists || userExists, nil
+}
+
+// DropExistingResources drops the database and user if they exist
+func DropExistingResources(cfg *Config) error {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=postgres sslmode=%s",
+		cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresAdmin, cfg.PostgresPassword, cfg.SSLMode)
+
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// Check for existing database
+	var dbExists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", cfg.DBName).Scan(&dbExists)
+	if err != nil {
+		return err
+	}
+
+	// Check for existing user
+	var userExists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)", cfg.DBUser).Scan(&userExists)
+	if err != nil {
+		return err
+	}
+
+	// Drop database if exists
+	if dbExists {
+		fmt.Printf("🗑️  Dropping database '%s'...\n", cfg.DBName)
+		
+		// Terminate existing connections to the database
+		terminateQuery := `
+			SELECT pg_terminate_backend(pg_stat_activity.pid)
+			FROM pg_stat_activity
+			WHERE pg_stat_activity.datname = $1
+			AND pid <> pg_backend_pid()
+		`
+		_, err = db.Exec(terminateQuery, cfg.DBName)
+		if err != nil {
+			return fmt.Errorf("failed to terminate connections: %w", err)
+		}
+
+		// Drop the database
+		dropDBQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", cfg.DBName)
+		_, err = db.Exec(dropDBQuery)
+		if err != nil {
+			return fmt.Errorf("failed to drop database: %w", err)
+		}
+		fmt.Printf("✅ Database '%s' dropped\n", cfg.DBName)
+	}
+
+	// Drop user if exists
+	if userExists {
+		fmt.Printf("🗑️  Dropping user '%s'...\n", cfg.DBUser)
+		dropUserQuery := fmt.Sprintf("DROP USER IF EXISTS %s", cfg.DBUser)
+		_, err = db.Exec(dropUserQuery)
+		if err != nil {
+			return fmt.Errorf("failed to drop user: %w", err)
+		}
+		fmt.Printf("✅ User '%s' dropped\n", cfg.DBUser)
+	}
+
+	if !dbExists && !userExists {
+		fmt.Println("ℹ️  No existing database or user to drop")
+	}
+
+	return nil
 }
 
 // TestConnection tests the newly created database connection

@@ -40,6 +40,7 @@ func main() {
 	timezone := initCmd.String("timezone", DefaultTimezone, "Database timezone")
 	configDB := initCmd.String("config-db", DefaultConfigDB, "Path to remoteweather config.db")
 	interactive := initCmd.Bool("interactive", false, "Run in interactive mode")
+	reprovision := initCmd.Bool("reprovision", false, "Drop existing database and user before provisioning (DESTRUCTIVE)")
 
 	// Status command flags
 	statusConfigDB := statusCmd.String("config-db", DefaultConfigDB, "Path to remoteweather config.db")
@@ -56,7 +57,7 @@ func main() {
 	case "init":
 		initCmd.Parse(os.Args[2:])
 		runInit(*dbName, *dbUser, *postgresHost, *postgresPort, *postgresAdmin,
-			*postgresAdminPassword, *sslMode, *timezone, *configDB, *interactive)
+			*postgresAdminPassword, *sslMode, *timezone, *configDB, *interactive, *reprovision)
 
 	case "status":
 		statusCmd.Parse(os.Args[2:])
@@ -98,10 +99,13 @@ func printUsage() {
 	fmt.Println("    --db-name myweatherdb \\")
 	fmt.Println("    --postgres-host 192.168.1.100 \\")
 	fmt.Println("    --postgres-admin-password secret")
+	fmt.Println()
+	fmt.Println("  # Re-provision (drop and recreate)")
+	fmt.Println("  remoteweather-timescaledb-provisioner init --reprovision")
 }
 
 func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmin, postgresAdminPassword,
-	sslMode, timezone, configDB string, interactive bool) {
+	sslMode, timezone, configDB string, interactive, reprovision bool) {
 
 	fmt.Println("🚀 remoteweather TimescaleDB Provisioner")
 	fmt.Println("========================================")
@@ -179,6 +183,37 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 		SSLMode:          sslMode,
 		Timezone:         timezone,
 		ConfigDBPath:     configDB,
+	}
+
+	// Handle reprovision flag
+	if reprovision {
+		fmt.Println("⚠️  DESTRUCTIVE OPERATION WARNING")
+		fmt.Println("=====================================")
+		fmt.Println()
+		fmt.Printf("This will DROP the following resources if they exist:\n")
+		fmt.Printf("  • Database: %s\n", dbName)
+		fmt.Printf("  • User: %s\n", dbUser)
+		fmt.Println()
+		fmt.Println("⚠️  ALL DATA IN THE DATABASE WILL BE PERMANENTLY DELETED")
+		fmt.Println()
+
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Type 'yes' to confirm you understand and want to proceed: ")
+		confirmation, _ := reader.ReadString('\n')
+		confirmation = strings.TrimSpace(confirmation)
+
+		if confirmation != "yes" {
+			fmt.Println("❌ Operation cancelled")
+			os.Exit(0)
+		}
+		fmt.Println()
+
+		// Drop existing resources
+		if err := provision.DropExistingResources(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "❌ Failed to drop existing resources: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println()
 	}
 
 	// Run pre-flight checks
