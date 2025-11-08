@@ -36,8 +36,10 @@ func (cfg *Config) BuildConnString(dbname string) string {
 }
 
 // PreflightChecks runs all pre-flight validation checks
-func PreflightChecks(cfg *Config) error {
+// Returns the postgres password if one was set during auto-fix, empty string otherwise
+func PreflightChecks(cfg *Config) (string, error) {
 	fmt.Println("🔍 Pre-flight Checks")
+	postgresPassword := ""
 
 	// Check PostgreSQL connection
 	err := checkPostgreSQLConnection(cfg)
@@ -47,14 +49,15 @@ func PreflightChecks(cfg *Config) error {
 			fmt.Printf("⚠️  Connection failed: %v\n", err)
 
 			// Offer to auto-fix pg_hba.conf
-			if err := AutoFixPgHba(cfg); err != nil {
-				return fmt.Errorf("❌ %w", err)
+			postgresPassword, err = AutoFixPgHba(cfg)
+			if err != nil {
+				return "", fmt.Errorf("❌ %w", err)
 			}
 
 			// If we get here, auto-fix succeeded
 			// Connection test happens inside AutoFixPgHba
 		} else {
-			return fmt.Errorf("❌ PostgreSQL connection failed: %w", err)
+			return "", fmt.Errorf("❌ PostgreSQL connection failed: %w", err)
 		}
 	} else {
 		fmt.Println("✅ PostgreSQL connection successful")
@@ -62,28 +65,28 @@ func PreflightChecks(cfg *Config) error {
 
 	// Check TimescaleDB extension availability
 	if err := checkTimescaleDBAvailable(cfg); err != nil {
-		return fmt.Errorf("❌ TimescaleDB extension not available: %w", err)
+		return "", fmt.Errorf("❌ TimescaleDB extension not available: %w", err)
 	}
 	fmt.Println("✅ TimescaleDB extension available")
 
 	// Check/create config.db
 	if err := checkConfigDB(cfg.ConfigDBPath); err != nil {
-		return fmt.Errorf("❌ Config database check failed: %w", err)
+		return "", fmt.Errorf("❌ Config database check failed: %w", err)
 	}
 	fmt.Printf("✅ Config database ready: %s\n", cfg.ConfigDBPath)
 
 	// Check for existing database/user conflicts
 	conflicts, err := checkExistingResources(cfg)
 	if err != nil {
-		return fmt.Errorf("❌ Failed to check existing resources: %w", err)
+		return "", fmt.Errorf("❌ Failed to check existing resources: %w", err)
 	}
 	if conflicts {
-		return fmt.Errorf("❌ Database or user already exists")
+		return "", fmt.Errorf("❌ Database or user already exists")
 	}
 	fmt.Println("✅ No existing database/user conflicts")
 
 	fmt.Println()
-	return nil
+	return postgresPassword, nil
 }
 
 // checkPostgreSQLConnection verifies PostgreSQL is accessible
