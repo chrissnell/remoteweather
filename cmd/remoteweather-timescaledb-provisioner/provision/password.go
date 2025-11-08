@@ -14,6 +14,23 @@ const (
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 		"0123456789" +
 		"!@#$%^&*()-_=+[]{}|;:,.<>?"
+
+	// ANSI color codes for terminal output
+	ColorReset   = "\033[0m"
+	ColorRed     = "\033[31m"
+	ColorGreen   = "\033[32m"
+	ColorYellow  = "\033[33m"
+	ColorBlue    = "\033[34m"
+	ColorMagenta = "\033[35m"
+	ColorCyan    = "\033[36m"
+	ColorWhite   = "\033[37m"
+	ColorBrightRed     = "\033[91m"
+	ColorBrightGreen   = "\033[92m"
+	ColorBrightYellow  = "\033[93m"
+	ColorBrightBlue    = "\033[94m"
+	ColorBrightMagenta = "\033[95m"
+	ColorBrightCyan    = "\033[96m"
+	ColorBold          = "\033[1m"
 )
 
 // GeneratePassword generates a cryptographically secure random password
@@ -39,12 +56,12 @@ func GeneratePassword(length int) (string, error) {
 // DisplayPasswordWarning prints a prominent warning with the generated password
 func DisplayPasswordWarning(password string) {
 	fmt.Println()
-	fmt.Println("🔐 Generated Password")
-	fmt.Println("╔════════════════════════════════════════════════╗")
-	fmt.Println("║  ⚠️  SAVE THIS PASSWORD - IT WON'T BE SHOWN AGAIN  ║")
-	fmt.Println("╚════════════════════════════════════════════════╝")
+	fmt.Printf("%s%s🔐 Generated Password%s\n", ColorBold, ColorBrightYellow, ColorReset)
+	fmt.Printf("%s╔════════════════════════════════════════════════╗%s\n", ColorBrightYellow, ColorReset)
+	fmt.Printf("%s║  ⚠️  SAVE THIS PASSWORD - IT WON'T BE SHOWN AGAIN  ║%s\n", ColorBrightYellow, ColorReset)
+	fmt.Printf("%s╚════════════════════════════════════════════════╝%s\n", ColorBrightYellow, ColorReset)
 	fmt.Println()
-	fmt.Printf("  Password: %s\n", password)
+	fmt.Printf("  %sPassword: %s%s%s%s\n", ColorBold, ColorBrightCyan, password, ColorReset, ColorReset)
 	fmt.Println()
 	fmt.Println("This password has been saved to your config.db")
 	fmt.Println("and will be used by remoteweather automatically.")
