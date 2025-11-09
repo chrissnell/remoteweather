@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/chrissnell/remoteweather/cmd/remoteweather-timescaledb-provisioner/provision"
@@ -271,6 +272,9 @@ func runInit(dbName, dbUser, postgresHost string, postgresPort int, postgresAdmi
 	fmt.Println("✅ Connection verified")
 	fmt.Println()
 
+	// Restart remoteweather service if running
+	restartRemoteweatherService()
+
 	// Print success message
 	fmt.Println("✅ Provisioning Complete!")
 	fmt.Println()
@@ -336,5 +340,33 @@ func runTest(configDB string) {
 	fmt.Println("✅ Connection successful")
 	fmt.Println("✅ TimescaleDB extension is enabled")
 	fmt.Println("✅ User has table creation privileges")
+	fmt.Println()
+}
+
+// restartRemoteweatherService checks if remoteweather is running and restarts it
+func restartRemoteweatherService() {
+	// Check if the service exists and is active
+	checkCmd := exec.Command("systemctl", "is-active", "remoteweather")
+	output, err := checkCmd.CombinedOutput()
+
+	status := strings.TrimSpace(string(output))
+
+	if err != nil || status != "active" {
+		// Service is not running, nothing to restart
+		return
+	}
+
+	// Service is running, restart it
+	fmt.Println("🔄 Restarting remoteweather service...")
+	restartCmd := exec.Command("systemctl", "restart", "remoteweather")
+	if err := restartCmd.Run(); err != nil {
+		fmt.Printf("⚠️  Warning: Failed to restart remoteweather service: %v\n", err)
+		fmt.Println("   You may need to restart it manually with:")
+		fmt.Printf("   %s%ssudo systemctl restart remoteweather%s\n", colorBold, colorBrightCyan, colorReset)
+		fmt.Println()
+		return
+	}
+
+	fmt.Println("✅ remoteweather service restarted")
 	fmt.Println()
 }
