@@ -397,6 +397,8 @@ const WeatherApp = (function() {
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 refreshLiveData();
+                // Also refresh charts for current time range
+                loadChartsForRange(state.currentRange);
             }
         });
     };
