@@ -1,16 +1,14 @@
-# Maintainer: Your Name <your.email@example.com>
+# Maintainer: Chris Snell <chris.snell@gmail.com>
 pkgname=remoteweather
-pkgver=5.5.6
+pkgver=5.7.16
 pkgrel=1
 pkgdesc="Weather station data collection and distribution system with REST API, management API, and dynamic configuration"
 arch=('x86_64' 'aarch64' 'armv7h')
 url="https://github.com/chrissnell/remoteweather"
 license=('Apache')
-depends=('glibc')
+depends=('glibc' 'postgresql' 'timescaledb')
 makedepends=('go' 'git')
-# CRITICAL: config.db contains user configuration and must NEVER be overwritten
-backup=('var/lib/remoteweather/config.db')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/heads/master.tar.gz"
+source=("$pkgname-$pkgver.tar.gz::https://github.com/chrissnell/remoteweather/archive/refs/tags/v$pkgver.tar.gz"
         "remoteweather.service"
         "remoteweather.sysusers")
 sha256sums=('SKIP'
@@ -20,7 +18,7 @@ sha256sums=('SKIP'
 build() {
     cd "$srcdir/remoteweather-master"
     make clean
-    rm -f campbell-emulator davis-emulator migrate
+    rm -f campbell-emulator davis-emulator migrate remoteweather-timescaledb-provisioner
     rm -rf bin/
     export CGO_CPPFLAGS="${CPPFLAGS}"
     export CGO_CFLAGS="${CFLAGS}"
@@ -37,6 +35,7 @@ build() {
     go build -o campbell-emulator ./cmd/campbell-emulator/
     go build -o davis-emulator ./cmd/davis-emulator/
     go build -o migrate ./cmd/migrate/
+    go build -o remoteweather-timescaledb-provisioner ./cmd/remoteweather-timescaledb-provisioner/
 }
 
 package() {
@@ -45,6 +44,7 @@ package() {
     install -Dm755 campbell-emulator "$pkgdir/usr/bin/remoteweather-campbell-emulator"
     install -Dm755 davis-emulator "$pkgdir/usr/bin/remoteweather-davis-emulator"
     install -Dm755 migrate "$pkgdir/usr/bin/remoteweather-migrate"
+    install -Dm755 remoteweather-timescaledb-provisioner "$pkgdir/usr/bin/remoteweather-timescaledb-provisioner"
     install -Dm644 "$srcdir/remoteweather.service" "$pkgdir/usr/lib/systemd/system/remoteweather.service"
     install -Dm644 "$srcdir/remoteweather.sysusers" "$pkgdir/usr/lib/sysusers.d/remoteweather.conf"
     install -dm755 "$pkgdir/var/lib/remoteweather"
