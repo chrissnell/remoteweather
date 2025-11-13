@@ -819,6 +819,76 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 	}
 }
 
+// ServeWeatherWebsiteTemplateNew serves the new enhanced weather HTML template
+func (h *Handlers) ServeWeatherWebsiteTemplateNew(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
+
+	// If this is a portal website, serve the portal instead
+	if website.IsPortal {
+		h.ServePortal(w, req)
+		return
+	}
+
+	// Get the primary device for this website
+	primaryDevice := h.getPrimaryDeviceConfigForWebsite(website)
+	if primaryDevice == nil {
+		http.Error(w, "No device configured for this website", http.StatusInternalServerError)
+		return
+	}
+
+	view := htmltemplate.Must(htmltemplate.New("weather-station-new.html.tmpl").ParseFS(*h.controller.FS, "weather-station-new.html.tmpl"))
+
+	// Create a template data structure with AboutStationHTML as safe HTML
+	templateData := struct {
+		StationName         string
+		StationID           int
+		PullFromDevice      string
+		SnowEnabled         bool
+		SnowDevice          string
+		SnowBaseDistance    float32
+		AirQualityEnabled   bool
+		AirQualityDevice    string
+		AirQualityDeviceID  int
+		PageTitle           string
+		AboutStationHTML    htmltemplate.HTML
+		Version             string
+		AerisWeatherEnabled bool
+	}{
+		StationName:         website.Name,
+		StationID:           primaryDevice.ID,
+		PullFromDevice:      primaryDevice.Name,
+		SnowEnabled:         website.SnowEnabled,
+		SnowDevice:          website.SnowDeviceName,
+		SnowBaseDistance:    h.getSnowBaseDistance(website),
+		AirQualityEnabled:   website.AirQualityEnabled,
+		AirQualityDevice:    website.AirQualityDeviceName,
+		AirQualityDeviceID:  h.getAirQualityDeviceID(website),
+		PageTitle:           website.PageTitle,
+		AboutStationHTML:    htmltemplate.HTML(website.AboutStationHTML),
+		Version:             constants.Version,
+		AerisWeatherEnabled: primaryDevice.AerisEnabled,
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	err := view.Execute(w, templateData)
+	if err != nil {
+		log.Error("error executing new weather template:", err)
+		return
+	}
+}
+
 // ServeWeatherAppJS serves the weather app JavaScript template
 func (h *Handlers) ServeWeatherAppJS(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
