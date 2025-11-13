@@ -168,19 +168,49 @@ const WeatherDOM = (function() {
         statusElement.style.color = WeatherUtils.getAirQualityColor(level);
     };
     
+    // Store previous wind direction to calculate shortest path
+    let previousWindDirection = null;
+
+    // Calculate shortest rotation path between two angles
+    const getShortestRotation = (from, to) => {
+        // Normalize angles to 0-360 range
+        from = ((from % 360) + 360) % 360;
+        to = ((to % 360) + 360) % 360;
+
+        // Calculate the difference
+        let diff = to - from;
+
+        // Adjust for shortest path
+        if (diff > 180) {
+            diff -= 360;
+        } else if (diff < -180) {
+            diff += 360;
+        }
+
+        return from + diff;
+    };
+
     // Update windrose display
     const updateWindrose = (direction, speed) => {
         const windDirElement = getCachedElement('rdg-winddir');
 
         if (windDirElement && direction != null) {
+            // Calculate shortest rotation path
+            if (previousWindDirection !== null) {
+                direction = getShortestRotation(previousWindDirection, direction);
+            }
+
             // Only rotate the windrose circle (with arrow)
             // Text elements are now outside the rotating container, so they stay fixed
             windDirElement.style.transform = `rotate(${direction}deg)`;
+
+            // Store the actual target direction (normalized to 0-360)
+            previousWindDirection = ((direction % 360) + 360) % 360;
         }
 
         updateElements({
             'rdg-windspeed-display': speed !== null && speed !== undefined ? `${speed}` : '--',
-            'rdg-winddir-cardinal': direction !== null && direction !== undefined ? `${direction}°` : '--'
+            'rdg-winddir-cardinal': direction !== null && direction !== undefined ? `${Math.round(((direction % 360) + 360) % 360)}°` : '--'
         });
     };
     
