@@ -399,6 +399,7 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// Template endpoints
 	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
+	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
 	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)
 
 	// Portal endpoints
