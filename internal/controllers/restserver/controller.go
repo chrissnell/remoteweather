@@ -74,6 +74,8 @@ type Controller struct {
 
 // NewController creates a new unified REST/gRPC server controller
 func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, rc config.RESTServerData, logger *zap.SugaredLogger) (*Controller, error) {
+	log.Info("!!!! NewController CALLED - v5.7.30 !!!!")
+
 	ctrl := &Controller{
 		ctx:            ctx,
 		wg:             wg,
@@ -267,6 +269,7 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 
 // StartController starts the unified REST/gRPC server using cmux
 func (c *Controller) StartController() error {
+	log.Info("!!!! StartController CALLED - v5.7.30 !!!!")
 	log.Info("Starting unified REST/gRPC server...")
 	
 	// Determine if we should use HTTPS based on TLS configurations
