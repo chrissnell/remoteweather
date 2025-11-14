@@ -398,8 +398,11 @@ func (c *Controller) setupRouter() *mux.Router {
 	}
 
 	// Specific template endpoints (must be registered before PathPrefix routes)
+	log.Info("Registering route: /new")
 	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
+	log.Info("Registering route: /portal")
 	router.HandleFunc("/portal", c.handlers.ServePortal)
+	log.Info("Registering route: /js/weather-app.js")
 	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)
 
 	// Station API endpoints
