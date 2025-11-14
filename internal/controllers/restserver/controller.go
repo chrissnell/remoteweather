@@ -412,8 +412,9 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.PathPrefix("/js/").Handler(http.FileServer(http.FS(*c.FS)))
 	router.PathPrefix("/images/").Handler(http.FileServer(http.FS(*c.FS)))
 
-	// Root route must be last (matches all remaining paths)
-	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
+	// Root route must be last and must only match exactly "/" (not all paths)
+	// Using PathPrefix would match all paths, so we use MatcherFunc to match only "/"
+	router.Path("/").HandlerFunc(c.handlers.ServeWeatherWebsiteTemplate)
 
 	return router
 }
