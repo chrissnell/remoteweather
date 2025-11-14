@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chrissnell/remoteweather/internal/constants"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/grpcutil"
 	"github.com/chrissnell/remoteweather/internal/log"
@@ -398,6 +399,12 @@ func (c *Controller) setupRouter() *mux.Router {
 	}
 
 	// Specific template endpoints (must be registered before PathPrefix routes)
+	log.Info("Registering route: /test-endpoint")
+	router.HandleFunc("/test-endpoint", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("TEST ENDPOINT WORKS! Version: " + constants.Version))
+	})
+
 	log.Info("Registering route: /new")
 	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
 	log.Info("Registering route: /portal")
