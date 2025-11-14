@@ -413,8 +413,10 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.PathPrefix("/images/").Handler(http.FileServer(http.FS(*c.FS)))
 
 	// Root route must be last and must only match exactly "/" (not all paths)
-	// Using PathPrefix would match all paths, so we use MatcherFunc to match only "/"
-	router.Path("/").HandlerFunc(c.handlers.ServeWeatherWebsiteTemplate)
+	// We use a custom matcher to ensure this only matches "/" and not other paths
+	router.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
+		return r.URL.Path == "/"
+	}).HandlerFunc(c.handlers.ServeWeatherWebsiteTemplate)
 
 	return router
 }
