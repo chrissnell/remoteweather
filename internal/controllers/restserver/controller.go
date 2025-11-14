@@ -397,23 +397,25 @@ func (c *Controller) setupRouter() *mux.Router {
 		router.HandleFunc("/forecast/{span}", c.handlers.GetForecast)
 	}
 
-	// Template endpoints
-	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
-	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
-	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)
+	// Serve fonts with long-term caching headers (before catch-all routes)
+	router.PathPrefix("/fonts/").Handler(c.cachingMiddleware(365*24*time.Hour, http.FileServer(http.FS(*c.FS))))
 
-	// Portal endpoints
+	// Static file serving for CSS, JS, and other assets (must come before template endpoints)
+	router.PathPrefix("/css/").Handler(http.FileServer(http.FS(*c.FS)))
+	router.PathPrefix("/js/").Handler(http.FileServer(http.FS(*c.FS)))
+	router.PathPrefix("/images/").Handler(http.FileServer(http.FS(*c.FS)))
+
+	// Template endpoints (specific routes must come before catch-all)
+	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
 	router.HandleFunc("/portal", c.handlers.ServePortal)
+	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)
 
 	// Station API endpoints
 	router.HandleFunc("/api/stations", c.handlers.GetStations)
 	router.HandleFunc("/api/remote-stations", c.handlers.GetRemoteStations)
 
-	// Serve fonts with long-term caching headers
-	router.PathPrefix("/fonts/").Handler(c.cachingMiddleware(365*24*time.Hour, http.FileServer(http.FS(*c.FS))))
-	
-	// Static file serving for other assets
-	router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
+	// Root route must be last (catch-all for home page)
+	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
 
 	return router
 }
