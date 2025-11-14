@@ -751,6 +751,8 @@ func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 
 // ServeWeatherWebsiteTemplate serves the weather HTML template
 func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
+	log.Infof("ROOT HANDLER CALLED - Path: %s - v5.7.27 CODE RUNNING", req.URL.Path)
+
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
 
