@@ -821,6 +821,8 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 
 // ServeWeatherWebsiteTemplateNew serves the new enhanced weather HTML template
 func (h *Handlers) ServeWeatherWebsiteTemplateNew(w http.ResponseWriter, req *http.Request) {
+	log.Infof("NEW TEMPLATE HANDLER CALLED - Path: %s, Method: %s", req.URL.Path, req.Method)
+
 	// Get website from context
 	website := h.getWebsiteFromContext(req)
 
