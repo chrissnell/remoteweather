@@ -379,6 +379,10 @@ func (c *Controller) StartController() error {
 
 // setupRouter configures the HTTP router with all endpoints
 func (c *Controller) setupRouter() *mux.Router {
+	log.Info("========================================")
+	log.Info("SETUPROUTER CALLED - v5.7.29 CODE")
+	log.Info("========================================")
+
 	router := mux.NewRouter()
 
 	// Add middleware to identify the website based on Host header
