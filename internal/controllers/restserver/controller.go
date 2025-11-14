@@ -397,23 +397,23 @@ func (c *Controller) setupRouter() *mux.Router {
 		router.HandleFunc("/forecast/{span}", c.handlers.GetForecast)
 	}
 
-	// Template endpoints
-	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
+	// Specific template endpoints (must be registered before PathPrefix routes)
 	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
-	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)
-
-	// Portal endpoints
 	router.HandleFunc("/portal", c.handlers.ServePortal)
+	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)
 
 	// Station API endpoints
 	router.HandleFunc("/api/stations", c.handlers.GetStations)
 	router.HandleFunc("/api/remote-stations", c.handlers.GetRemoteStations)
 
-	// Serve fonts with long-term caching headers
+	// Static file serving with PathPrefix (must come after specific routes)
 	router.PathPrefix("/fonts/").Handler(c.cachingMiddleware(365*24*time.Hour, http.FileServer(http.FS(*c.FS))))
-	
-	// Static file serving for other assets
-	router.PathPrefix("/").Handler(http.FileServer(http.FS(*c.FS)))
+	router.PathPrefix("/css/").Handler(http.FileServer(http.FS(*c.FS)))
+	router.PathPrefix("/js/").Handler(http.FileServer(http.FS(*c.FS)))
+	router.PathPrefix("/images/").Handler(http.FileServer(http.FS(*c.FS)))
+
+	// Root route must be last
+	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
 
 	return router
 }
