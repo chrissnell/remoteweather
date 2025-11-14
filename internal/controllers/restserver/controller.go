@@ -405,6 +405,21 @@ func (c *Controller) setupRouter() *mux.Router {
 		w.Write([]byte("TEST ENDPOINT WORKS! Version: " + constants.Version))
 	})
 
+	// Add a debug route that shows all registered routes
+	log.Info("Registering route: /debug-routes")
+	router.HandleFunc("/debug-routes", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Registered routes:\n\n"))
+
+		router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+			path, _ := route.GetPathTemplate()
+			methods, _ := route.GetMethods()
+			fmt.Fprintf(w, "Path: %s, Methods: %v\n", path, methods)
+			return nil
+		})
+	})
+
 	log.Info("Registering route: /new")
 	router.HandleFunc("/new", c.handlers.ServeWeatherWebsiteTemplateNew)
 	log.Info("Registering route: /portal")
