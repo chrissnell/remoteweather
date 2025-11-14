@@ -422,11 +422,20 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.PathPrefix("/js/").Handler(http.FileServer(http.FS(*c.FS)))
 	router.PathPrefix("/images/").Handler(http.FileServer(http.FS(*c.FS)))
 
-	// Root route must be last and must only match exactly "/" (not all paths)
-	// We use a custom matcher to ensure this only matches "/" and not other paths
-	router.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
-		return r.URL.Path == "/"
-	}).HandlerFunc(c.handlers.ServeWeatherWebsiteTemplate)
+	// Root route - this will ONLY match "/" exactly, not other paths
+	// gorilla/mux HandleFunc with an exact path does NOT act as a catch-all
+	log.Info("Registering route: / (root)")
+	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
+
+	// Walk all routes to see what's registered
+	log.Info("===== ROUTE TABLE =====")
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		path, _ := route.GetPathTemplate()
+		methods, _ := route.GetMethods()
+		log.Infof("  Route: path=%s methods=%v", path, methods)
+		return nil
+	})
+	log.Info("===== END ROUTE TABLE =====")
 
 	return router
 }
