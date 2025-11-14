@@ -12,67 +12,67 @@
 
 /* CSS Variables for Theme Colors */
 :root {
-  /* Dark theme (default) - Enhanced with modern colors */
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #242424;
-  --text-primary: #ffffff;
-  --text-secondary: #999999;
-  --text-accent: #ffa500;
-  --text-danger: #ff4757;
-  --border-primary: #2d2d2d;
-  --border-secondary: #404040;
-  --header-bg: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
-  --live-indicator: #00d9ff;
-  --live-indicator-dim: #0088aa;
-  --live-border: #00ff88;
-  --windrose-border: #888888;
-  --shadow: rgba(0, 0, 0, 0.5);
-  --shadow-lg: rgba(0, 0, 0, 0.7);
-  --glow: rgba(255, 165, 0, 0.15);
-  --glow-strong: rgba(255, 165, 0, 0.3);
+  /* Dark theme (default) - Deep ocean/midnight blue palette */
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #141b2d;
+  --bg-tertiary: #1e2740;
+  --text-primary: #e8eaf0;
+  --text-secondary: #8b95b0;
+  --text-accent: #00d4ff;
+  --text-danger: #ff3d71;
+  --border-primary: #2a3750;
+  --border-secondary: #3d4f6e;
+  --header-bg: linear-gradient(135deg, #0f1724 0%, #0a0e1a 100%);
+  --live-indicator: #00ff88;
+  --live-indicator-dim: #00cc6a;
+  --live-border: #00ffaa;
+  --windrose-border: #5a6b8c;
+  --shadow: rgba(0, 0, 0, 0.6);
+  --shadow-lg: rgba(0, 0, 0, 0.8);
+  --glow: rgba(0, 212, 255, 0.1);
+  --glow-strong: rgba(0, 212, 255, 0.25);
 
   /* Highcharts theme variables */
-  --chart-bg: #1a1a1a;
-  --chart-text: #ffffff;
-  --chart-grid: #404040;
-  --chart-border: #404040;
-  --chart-tooltip-bg: #2a2a2a;
-  --chart-tooltip-border: #404040;
-  --chart-series-color: #ffaa00;
-  --chart-series-color-alt: #ff6600;
+  --chart-bg: #141b2d;
+  --chart-text: #e8eaf0;
+  --chart-grid: #2a3750;
+  --chart-border: #2a3750;
+  --chart-tooltip-bg: #1e2740;
+  --chart-tooltip-border: #3d4f6e;
+  --chart-series-color: #00d4ff;
+  --chart-series-color-alt: #7c3aed;
 }
 
-/* Light theme - Enhanced with modern colors */
+/* Light theme - Warm cream/terracotta palette */
 html[data-theme="light"] {
-  --bg-primary: #f8f9fa;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f0f2f5;
-  --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --text-accent: #ff6b35;
-  --text-danger: #e63946;
-  --border-primary: #dee2e6;
-  --border-secondary: #ced4da;
-  --header-bg: linear-gradient(135deg, #ffffff 0%, #f0f2f5 100%);
-  --live-indicator: #0096c7;
-  --live-indicator-dim: #0077b6;
-  --live-border: #06a77d;
-  --windrose-border: #666666;
-  --shadow: rgba(0, 0, 0, 0.08);
-  --shadow-lg: rgba(0, 0, 0, 0.15);
-  --glow: rgba(255, 107, 53, 0.1);
-  --glow-strong: rgba(255, 107, 53, 0.2);
+  --bg-primary: #fdfbf7;
+  --bg-secondary: #fff9f0;
+  --bg-tertiary: #f5ede1;
+  --text-primary: #2d2417;
+  --text-secondary: #7a6f5d;
+  --text-accent: #d97706;
+  --text-danger: #dc2626;
+  --border-primary: #e5dbc9;
+  --border-secondary: #d9cab3;
+  --header-bg: linear-gradient(135deg, #fff9f0 0%, #fdfbf7 100%);
+  --live-indicator: #10b981;
+  --live-indicator-dim: #059669;
+  --live-border: #34d399;
+  --windrose-border: #9ca3af;
+  --shadow: rgba(45, 36, 23, 0.08);
+  --shadow-lg: rgba(45, 36, 23, 0.12);
+  --glow: rgba(217, 119, 6, 0.08);
+  --glow-strong: rgba(217, 119, 6, 0.15);
 
   /* Highcharts light theme variables */
-  --chart-bg: #ffffff;
-  --chart-text: #333333;
-  --chart-grid: #e0e0e0;
-  --chart-border: #e0e0e0;
-  --chart-tooltip-bg: #f5f5f5;
-  --chart-tooltip-border: #e0e0e0;
-  --chart-series-color: #d40000;
-  --chart-series-color-alt: #949494;
+  --chart-bg: #fff9f0;
+  --chart-text: #2d2417;
+  --chart-grid: #e5dbc9;
+  --chart-border: #e5dbc9;
+  --chart-tooltip-bg: #f5ede1;
+  --chart-tooltip-border: #d9cab3;
+  --chart-series-color: #d97706;
+  --chart-series-color-alt: #7c3aed;
 }
 
 
@@ -116,18 +116,17 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0 16px;
 }
 
-/* Header - Enhanced with gradient and modern shadow */
+/* Header - Bold modern design */
 .weather-header {
   position: sticky;
   top: 0;
   z-index: 1000;
   background: var(--header-bg);
   color: var(--text-primary);
-  padding: 16px 0;
-  box-shadow: 0 4px 12px var(--shadow-lg), 0 1px 3px var(--shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border-primary);
+  padding: 20px 0;
+  box-shadow: 0 8px 24px var(--shadow-lg);
+  backdrop-filter: blur(16px);
+  border-bottom: 3px solid var(--text-accent);
 }
 
 .header-content {
@@ -138,14 +137,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .station-name {
   font-family: 'Roboto Slab', serif;
-  font-size: 2.2rem;
-  font-weight: 700;
+  font-size: 2.4rem;
+  font-weight: 800;
   margin: 0;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  background: linear-gradient(135deg, var(--text-accent) 0%, var(--text-danger) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.8px;
+  text-shadow: 0 2px 8px var(--glow);
 }
 
 .header-status {
@@ -182,7 +182,6 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.8rem;
   color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 16px;
   display: flex;
   align-items: center;
@@ -190,18 +189,6 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow: 0 2px 4px var(--shadow);
-}
-
-.theme-toggle:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--text-accent);
-  box-shadow: 0 4px 8px var(--glow), 0 0 12px var(--glow);
-  transform: translateY(-1px);
-}
-
-.theme-toggle:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px var(--shadow);
 }
 
 .theme-toggle::before {
@@ -284,9 +271,8 @@ html[data-theme="light"] .theme-toggle::before {
   background: var(--bg-secondary);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid var(--border-primary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px var(--shadow), 0 0 1px var(--border-primary);
+  border: 2px solid var(--border-primary);
+  box-shadow: 0 4px 12px var(--shadow);
   position: relative;
   overflow: hidden;
 }
@@ -297,27 +283,21 @@ html[data-theme="light"] .theme-toggle::before {
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--text-accent), transparent);
-  opacity: 0.5;
-}
-
-.metric-group:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px var(--shadow-lg), 0 0 2px var(--glow);
-  border-color: var(--border-secondary);
+  height: 3px;
+  background: linear-gradient(90deg, var(--text-accent), var(--text-danger));
+  opacity: 0.8;
 }
 
 .group-title {
   font-family: 'Roboto Slab', serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text-danger);
-  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-accent);
+  margin-bottom: 14px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border-primary);
-  padding-bottom: 4px;
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--text-accent);
+  padding-bottom: 6px;
 }
 
 /* Air Quality Info Icons and Tooltips */
@@ -328,21 +308,14 @@ html[data-theme="light"] .theme-toggle::before {
   line-height: 20px;
   text-align: center;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-accent);
   border-radius: 50%;
   font-size: 16px;
   margin-left: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
   vertical-align: middle;
-  font-weight: 400;
-  opacity: 0.7;
-}
-
-.info-icon:hover {
-  color: #ffaa00;
-  transform: scale(1.15);
-  opacity: 1;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .tooltip-container {
@@ -574,15 +547,7 @@ html[data-theme="light"] .theme-toggle::before {
   border-radius: 8px;
   padding: 12px 14px;
   border: 1px solid var(--border-secondary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-}
-
-.metric-item:hover {
-  background: var(--bg-secondary);
-  border-color: var(--text-accent);
-  box-shadow: 0 2px 8px var(--glow);
-  transform: scale(1.02);
 }
 
 .metric-item.span-two {
@@ -764,7 +729,7 @@ html[data-theme="light"] .theme-toggle::before {
 }
 
 .windrose-arrow {
-  border-top: 30px solid var(--text-accent);
+  border-top: 30px solid var(--text-danger);
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
   width: 0;
@@ -774,6 +739,7 @@ html[data-theme="light"] .theme-toggle::before {
   left: 50%;
   transform: translateX(-50%);
   z-index: 3;
+  filter: drop-shadow(0 2px 4px var(--shadow));
 }
 
 .wind-heading {
@@ -871,49 +837,21 @@ html[data-theme="light"] .theme-toggle::before {
 
 .chart-tab {
   background: var(--bg-secondary);
-  border: 2px solid var(--text-danger);
+  border: 2px solid var(--text-accent);
   border-radius: 8px;
   padding: 10px 18px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-danger);
+  color: var(--text-accent);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
-}
-
-.chart-tab::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: var(--text-danger);
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: -1;
-}
-
-.chart-tab:hover::before {
-  left: 0;
-}
-
-.chart-tab:hover {
-  color: var(--bg-primary);
-  box-shadow: 0 4px 8px var(--shadow);
-  transform: translateY(-2px);
+  box-shadow: 0 2px 6px var(--shadow);
 }
 
 .chart-tab.active {
-  background: var(--text-danger);
+  background: var(--text-accent);
   color: var(--bg-primary);
   box-shadow: 0 4px 12px var(--shadow-lg);
-  transform: translateY(0);
-}
-
-.chart-tab.active::before {
-  left: 0;
 }
 
 /* Chart Containers */
@@ -937,14 +875,7 @@ html[data-theme="light"] .theme-toggle::before {
   border-radius: 10px;
   padding: 16px;
   border: 1px solid var(--border-secondary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 6px var(--shadow);
-}
-
-.chart-wrapper:hover {
-  box-shadow: 0 4px 12px var(--shadow-lg);
-  transform: translateY(-2px);
-  border-color: var(--text-accent);
 }
 
 .chart-title {
@@ -1007,25 +938,19 @@ html[data-theme="light"] .theme-toggle::before {
 
 .forecast-tab {
   background: var(--bg-secondary);
-  border: 1px solid var(--text-danger);
+  border: 2px solid var(--text-accent);
   border-radius: 6px;
   padding: 8px 16px;
   font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-danger);
+  font-weight: 600;
+  color: var(--text-accent);
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.forecast-tab:hover {
-  background: var(--text-danger);
-  color: var(--bg-primary);
 }
 
 .forecast-tab.active {
-  background: var(--text-danger);
+  background: var(--text-accent);
   color: var(--bg-primary);
-  box-shadow: 0 2px 4px var(--shadow);
+  box-shadow: 0 3px 8px var(--shadow);
 }
 
 .forecast-container {
@@ -1051,8 +976,7 @@ html[data-theme="light"] .theme-toggle::before {
   padding: 14px 10px;
   border: 1px solid var(--border-secondary);
   text-align: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px var(--shadow);
+  box-shadow: 0 3px 8px var(--shadow);
   position: relative;
   overflow: hidden;
 }
@@ -1064,19 +988,8 @@ html[data-theme="light"] .theme-toggle::before {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--text-accent), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.forecast-day:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px var(--shadow-lg);
-  border-color: var(--text-accent);
-}
-
-.forecast-day:hover::before {
-  opacity: 1;
+  background: linear-gradient(90deg, var(--text-accent), var(--text-danger));
+  opacity: 0.7;
 }
 
 .forecast-day-title {
@@ -1174,7 +1087,6 @@ html[data-theme="light"] .theme-toggle::before {
   background: var(--bg-tertiary);
   padding: 0px 2px 6px 2px;
   text-align: center;
-  transition: background-color 0.3s ease;
   position: relative;
   min-height: 200px;
   display: flex;
@@ -1933,14 +1845,8 @@ html[data-theme="light"] .theme-toggle::before {
 .footer-content a {
   color: var(--text-accent);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 2px solid var(--text-accent);
   padding-bottom: 2px;
-}
-
-.footer-content a:hover {
-  border-bottom-color: var(--text-accent);
-  color: var(--text-primary);
 }
 
 /* Air Quality Section */
