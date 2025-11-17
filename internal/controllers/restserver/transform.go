@@ -1,6 +1,7 @@
 package restserver
 
 import (
+	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/aqi"
 )
@@ -11,6 +12,15 @@ func (h *Handlers) transformSpanReadings(dbReadings *[]types.BucketReading) []*W
 	wr := make([]*WeatherReading, 0, len(*dbReadings))
 
 	for _, r := range *dbReadings {
+		// Calculate wind chill and heat index from current conditions
+		var windChill, heatIndex float32
+		if r.OutTemp <= 50 && r.WindSpeed >= 3 {
+			windChill = controllers.CalculateWindChill(r.OutTemp, r.WindSpeed)
+		}
+		if r.OutTemp >= 80 {
+			heatIndex = controllers.CalculateHeatIndex(r.OutTemp, r.OutHumidity)
+		}
+
 		wr = append(wr, &WeatherReading{
 			StationName:           r.StationName,
 			StationType:           r.StationType,
@@ -57,8 +67,8 @@ func (h *Handlers) transformSpanReadings(dbReadings *[]types.BucketReading) []*W
 			WindDirection:         r.WindDir,
 			CardinalDirection:     headingToCardinalDirection(r.WindDir),
 			RainfallDay:           r.DayRain,
-			WindChill:             r.WindChill,
-			HeatIndex:             r.HeatIndex,
+			WindChill:             windChill,
+			HeatIndex:             heatIndex,
 			InsideTemperature:     r.InTemp,
 			InsideHumidity:        r.InHumidity,
 			ConsBatteryVoltage:    r.ConsBatteryVoltage,
