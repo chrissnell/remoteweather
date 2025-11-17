@@ -45,8 +45,30 @@ func CalculateDailyRainfall(db *database.Client, stationName string) float32 {
 	
 	totalRainfall := aggregatedRain + incrementalRain
 	
-	log.Debugf("Daily rainfall for %s: %.2f (aggregated: %.2f, incremental: %.2f)", 
+	log.Debugf("Daily rainfall for %s: %.2f (aggregated: %.2f, incremental: %.2f)",
 		stationName, totalRainfall, aggregatedRain, incrementalRain)
-	
+
 	return totalRainfall
+}
+
+// CalculateRainRate calculates the current rain rate in inches per hour
+// by looking at rain incremental values over the last 10 minutes and extrapolating to an hourly rate.
+func CalculateRainRate(db *database.Client, stationName string) float32 {
+	// Get the sum of rainincremental over the last 10 minutes
+	var rainLast10Min float32
+
+	db.DB.Raw(`
+		SELECT COALESCE(SUM(rainincremental), 0) as total
+		FROM weather
+		WHERE stationname = ?
+		AND time >= NOW() - INTERVAL '10 minutes'
+	`, stationName).Scan(&rainLast10Min)
+
+	// Extrapolate to hourly rate: rain in 10 minutes * 6 = rain per hour
+	rainRate := rainLast10Min * 6.0
+
+	log.Debugf("Rain rate for %s: %.2f in/hr (10-min total: %.2f in)",
+		stationName, rainRate, rainLast10Min)
+
+	return rainRate
 }
