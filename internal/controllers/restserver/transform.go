@@ -115,6 +115,15 @@ func (h *Handlers) transformLatestReadings(dbReadings *[]types.BucketReading) *W
 		return &WeatherReading{}
 	}
 
+	// Calculate wind chill and heat index from current conditions
+	var windChill, heatIndex float32
+	if latest.OutTemp <= 50 && latest.WindSpeed >= 3 {
+		windChill = controllers.CalculateWindChill(latest.OutTemp, latest.WindSpeed)
+	}
+	if latest.OutTemp >= 80 {
+		heatIndex = controllers.CalculateHeatIndex(latest.OutTemp, latest.OutHumidity)
+	}
+
 	reading := WeatherReading{
 		StationName:           latest.StationName,
 		StationType:           latest.StationType,
@@ -161,8 +170,8 @@ func (h *Handlers) transformLatestReadings(dbReadings *[]types.BucketReading) *W
 		WindDirection:         latest.WindDir,
 		CardinalDirection:     headingToCardinalDirection(latest.WindDir),
 		RainfallDay:           latest.DayRain,
-		WindChill:             latest.WindChill,
-		HeatIndex:             latest.HeatIndex,
+		WindChill:             windChill,
+		HeatIndex:             heatIndex,
 		InsideTemperature:     latest.InTemp,
 		InsideHumidity:        latest.InHumidity,
 		ConsBatteryVoltage:    latest.ConsBatteryVoltage,
