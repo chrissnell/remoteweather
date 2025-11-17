@@ -9,6 +9,7 @@ import (
 )
 
 // CalculateWindChill calculates wind chill temperature using the NWS formula
+// Returns 0 if wind chill doesn't apply (temp > 50°F or wind < 3 mph)
 func CalculateWindChill(tempF, windSpeedMph float32) float32 {
 	if tempF > 50 || windSpeedMph < 3 {
 		return tempF
@@ -17,6 +18,7 @@ func CalculateWindChill(tempF, windSpeedMph float32) float32 {
 }
 
 // CalculateHeatIndex calculates heat index using the NWS formula
+// Returns 0 if heat index doesn't apply (temp < 80°F)
 func CalculateHeatIndex(tempF, humidity float32) float32 {
 	if tempF < 80 {
 		return tempF

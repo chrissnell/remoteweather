@@ -334,6 +334,25 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			latestReading.RainRate = rainRate
 		}
 
+		// Calculate wind chill and heat index from current conditions
+		if len(dbFetchedReadings) > 0 {
+			// Calculate wind chill (applies when temp <= 50°F and wind >= 3 mph)
+			if latestReading.OutsideTemperature <= 50 && latestReading.WindSpeed >= 3 {
+				windChill := controllers.CalculateWindChill(latestReading.OutsideTemperature, latestReading.WindSpeed)
+				latestReading.WindChill = windChill
+			} else {
+				latestReading.WindChill = 0
+			}
+
+			// Calculate heat index (applies when temp >= 80°F)
+			if latestReading.OutsideTemperature >= 80 {
+				heatIndex := controllers.CalculateHeatIndex(latestReading.OutsideTemperature, latestReading.OutsideHumidity)
+				latestReading.HeatIndex = heatIndex
+			} else {
+				latestReading.HeatIndex = 0
+			}
+		}
+
 		// Calculate wind gust from last 10 minutes
 		if len(dbFetchedReadings) > 0 {
 			type WindGustResult struct {
