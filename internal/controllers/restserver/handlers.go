@@ -327,6 +327,11 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			} else {
 				latestReading.RainfallStorm = stormResult.TotalRainfall
 			}
+
+			// Calculate rain rate from incremental rain over last 10 minutes
+			dbClient := &database.Client{DB: h.controller.DB}
+			rainRate := controllers.CalculateRainRate(dbClient, stationName)
+			latestReading.RainRate = rainRate
 		}
 
 		// Calculate wind gust from last 10 minutes
