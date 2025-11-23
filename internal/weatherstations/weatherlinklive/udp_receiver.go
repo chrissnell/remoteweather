@@ -6,8 +6,6 @@ import (
 	"net"
 	"syscall"
 	"time"
-
-	"github.com/chrissnell/remoteweather/internal/types"
 )
 
 // startUDPReceiver starts listening for UDP broadcast packets
@@ -64,7 +62,10 @@ func (s *Station) receiveUDPPackets() {
 		}
 
 		// Set read deadline to allow periodic context checking
-		s.udpConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err := s.udpConn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			s.logger.Errorf("Failed to set read deadline: %v", err)
+			continue
+		}
 		n, addr, err := s.udpConn.ReadFrom(buffer)
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
@@ -103,19 +104,4 @@ func (s *Station) receiveUDPPackets() {
 			s.setConnected(true)
 		}
 	}
-}
-
-// stopUDPReceiver stops the UDP receiver
-func (s *Station) stopUDPReceiver() {
-	if s.udpConn != nil {
-		s.udpConn.Close()
-		s.udpConn = nil
-	}
-}
-
-// restartUDPReceiver restarts the UDP receiver on a new port
-func (s *Station) restartUDPReceiver(newPort int) error {
-	s.stopUDPReceiver()
-	s.broadcastPort = newPort
-	return s.startUDPReceiver()
 }

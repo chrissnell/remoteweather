@@ -214,6 +214,13 @@ type DeviceData struct {
 	AerisAPIClientID  string    `json:"aeris_api_client_id,omitempty"`
 	AerisAPIClientSecret string `json:"aeris_api_client_secret,omitempty"`
 	AerisAPIEndpoint  string    `json:"aeris_api_endpoint,omitempty"`
+
+	// WeatherLink Live fields
+	WLLHost          string `json:"wll_host,omitempty"`
+	WLLPort          int    `json:"wll_port,omitempty"`
+	WLLBroadcast     bool   `json:"wll_broadcast,omitempty"`
+	WLLSensorMapping string `json:"wll_sensor_mapping,omitempty"`
+	WLLPollInterval  int    `json:"wll_poll_interval,omitempty"`
 }
 
 

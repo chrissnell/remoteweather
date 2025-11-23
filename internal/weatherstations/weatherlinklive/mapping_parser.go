@@ -79,13 +79,3 @@ func ParseMappingString(mappingStr string) ([]SensorMapping, error) {
 
 	return mappings, nil
 }
-
-// hasOption checks if a sensor mapping has a specific option
-func hasOption(options []string, target string) bool {
-	for _, opt := range options {
-		if opt == target {
-			return true
-		}
-	}
-	return false
-}
