@@ -24,6 +24,10 @@ func GetCurrentConditions(ctx context.Context, host string) (*CurrentConditionsR
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
 	var result CurrentConditionsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
@@ -51,6 +55,10 @@ func StartRealTimeBroadcast(ctx context.Context, host string, duration int) (*Re
 		return nil, fmt.Errorf("failed to connect to device: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	var result RealTimeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
