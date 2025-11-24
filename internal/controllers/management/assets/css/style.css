@@ -1107,7 +1107,7 @@ input:checked + .slider:before {
 }
 
 .radio-label input[type="radio"] {
-  margin: 0.25rem 0.75rem 0 0;
+  margin: 0.35rem 0.75rem 0 0;
   flex-shrink: 0;
   cursor: pointer;
   width: 16px;
