@@ -24,6 +24,7 @@ import (
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
@@ -895,7 +896,67 @@ func (c *Controller) GetLatestReading(ctx context.Context, request *weather.Late
 	return nil, fmt.Errorf("no weather readings found")
 }
 
-// GetLiveWeather is not implemented for this controller since it's database-based
+// GetLiveWeather streams live weather data by polling the database every 3 seconds
 func (c *Controller) GetLiveWeather(req *weather.LiveWeatherRequest, stream weather.WeatherV1_GetLiveWeatherServer) error {
-	return fmt.Errorf("live weather streaming not supported by database-based controller")
+	ctx := stream.Context()
+	p, _ := peer.FromContext(ctx)
+
+	if !c.DBEnabled {
+		return fmt.Errorf("database not configured")
+	}
+
+	// Validate station name
+	if err := grpcutil.ValidateStationRequest(req.StationName, c.DeviceManager); err != nil {
+		return err
+	}
+
+	log.Infof("Starting live weather stream for client [%v] requesting station [%s]", p.Addr, req.StationName)
+
+	// Poll database every 3 seconds
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	var lastReadingTime time.Time
+
+	// Send initial reading immediately
+	baseDistance := c.getSnowBaseDistanceForStation(req.StationName)
+	if reading, err := c.fetchLatestReading(req.StationName, baseDistance); err == nil {
+		grpcReadings := grpcutil.TransformBucketReadings(&[]types.BucketReading{*reading})
+		if len(grpcReadings) > 0 {
+			if err := stream.Send(grpcReadings[0]); err != nil {
+				return err
+			}
+			lastReadingTime = reading.Bucket
+			log.Debugf("Sent initial reading to client [%v] for station [%s]", p.Addr, req.StationName)
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("Client [%v] disconnected from live weather stream for station [%s]", p.Addr, req.StationName)
+			return nil
+		case <-ticker.C:
+			// Query latest reading from database
+			reading, err := c.fetchLatestReading(req.StationName, baseDistance)
+			if err != nil {
+				// Log but don't disconnect client - station might be temporarily offline
+				log.Debugf("No reading found for station %s: %v", req.StationName, err)
+				continue
+			}
+
+			// Only send if it's a new reading (different timestamp)
+			if reading.Bucket.After(lastReadingTime) {
+				grpcReadings := grpcutil.TransformBucketReadings(&[]types.BucketReading{*reading})
+				if len(grpcReadings) > 0 {
+					if err := stream.Send(grpcReadings[0]); err != nil {
+						log.Debugf("Error sending to client [%v]: %v", p.Addr, err)
+						return err
+					}
+					lastReadingTime = reading.Bucket
+					log.Debugf("Sent updated reading to client [%v] for station [%s]", p.Addr, req.StationName)
+				}
+			}
+		}
+	}
 }
