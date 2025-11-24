@@ -292,9 +292,9 @@ func (c *Controller) StartController() error {
 			// Create TLS config with SNI support
 			tlsConfig := &tls.Config{
 				GetCertificate: c.getCertificate,
-				// Don't advertise h2 in ALPN when using cmux
-				// cmux handles the protocol detection internally
-				NextProtos: []string{"http/1.1"},
+				// Advertise both h2 and http/1.1 for gRPC and HTTP support
+				// cmux will handle routing based on content-type after TLS handshake
+				NextProtos: []string{"h2", "http/1.1"},
 			}
 			
 			// Wrap listener with TLS
