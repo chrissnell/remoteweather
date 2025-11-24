@@ -609,11 +609,7 @@ func (h *Handlers) convertStorageConfig(storageType string, configData interface
 		h.controller.logger.Debugf("convertStorageConfig: unmarshaled TimescaleDB config=%+v", timescaleConfig)
 		return &timescaleConfig, nil
 	case "grpc":
-		var grpcConfig config.GRPCData
-		if err := json.Unmarshal(jsonData, &grpcConfig); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal GRPC config: %w", err)
-		}
-		return &grpcConfig, nil
+		return nil, fmt.Errorf("grpc storage backend has been deprecated - gRPC is now automatically enabled with the REST server controller")
 	case "grpcstream":
 		var grpcStreamConfig config.GRPCStreamData
 		if err := json.Unmarshal(jsonData, &grpcStreamConfig); err != nil {
@@ -652,16 +648,7 @@ func (h *Handlers) validateStorageConfig(storageType string, configData interfac
 			return fmt.Errorf("password is required for TimescaleDB")
 		}
 	case "grpc":
-		grpc, ok := configData.(*config.GRPCData)
-		if !ok {
-			return fmt.Errorf("invalid GRPC config type")
-		}
-		if grpc.Port <= 0 {
-			return fmt.Errorf("port is required for GRPC")
-		}
-		if grpc.PullFromDevice == "" {
-			return fmt.Errorf("pull_from_device is required for GRPC")
-		}
+		return fmt.Errorf("grpc storage backend has been deprecated - gRPC is now automatically enabled with the REST server controller")
 	case "grpcstream":
 		grpcStream, ok := configData.(*config.GRPCStreamData)
 		if !ok {

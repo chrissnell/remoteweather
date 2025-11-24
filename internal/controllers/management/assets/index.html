@@ -426,7 +426,6 @@
           Storage Type
           <select id="storage-type">
             <option value="timescaledb">TimescaleDB</option>
-            <option value="grpc">gRPC</option>
             <option value="grpcstream">gRPC Streaming Client</option>
           </select>
         </label>
@@ -464,16 +463,6 @@
           <label>
             Timezone (optional)
             <input type="text" id="timescale-timezone" placeholder="UTC" />
-          </label>
-        </div>
-        <div id="grpc-fields" class="hidden">
-          <label>
-            Listen Port
-            <input type="number" id="grpc-port" placeholder="5555" />
-          </label>
-          <label>
-            Pull From Device
-            <select id="grpc-device-select"></select>
           </label>
         </div>
         <div id="grpcstream-fields" class="hidden">
