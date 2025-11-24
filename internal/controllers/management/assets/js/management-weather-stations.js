@@ -91,7 +91,16 @@ const ManagementWeatherStations = (function() {
       tlsKeyPath: document.getElementById('tls-key-path'),
 
       // Advanced fields
-      windDirCorrection: document.getElementById('wind-dir-correction')
+      windDirCorrection: document.getElementById('wind-dir-correction'),
+
+      // WeatherLink Live fields
+      wllFieldset: document.getElementById('wll-fieldset'),
+      wllModeUdp: document.getElementById('wll-mode-udp'),
+      wllModeHttp: document.getElementById('wll-mode-http'),
+      wllTemplate: document.getElementById('wll-template'),
+      wllMapping: document.getElementById('wll-mapping'),
+      wllDiscoverBtn: document.getElementById('wll-discover-btn'),
+      wllDiscoveryResults: document.getElementById('wll-discovery-results')
     };
   }
 
@@ -252,7 +261,7 @@ const ManagementWeatherStations = (function() {
     
     // Check if initial station type should force network connection
     const stationType = formElements.stationType.value;
-    if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge' || stationType === 'airgradient') {
+    if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge' || stationType === 'airgradient' || stationType === 'weatherlink-live') {
       formElements.connectionType.value = 'network';
       formElements.connectionType.disabled = true;
     }
@@ -296,8 +305,8 @@ const ManagementWeatherStations = (function() {
       formElements.connectionType.value = 'network';
     }
     
-    // For ambient-customized, grpcreceiver, snowgauge, and airgradient, disable connection type selector
-    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver' || dev.type === 'snowgauge' || dev.type === 'airgradient') {
+    // For ambient-customized, grpcreceiver, snowgauge, airgradient, and weatherlink-live, disable connection type selector
+    if (dev.type === 'ambient-customized' || dev.type === 'grpcreceiver' || dev.type === 'snowgauge' || dev.type === 'airgradient' || dev.type === 'weatherlink-live') {
       formElements.connectionType.disabled = true;
     } else {
       formElements.connectionType.disabled = false;
@@ -335,6 +344,19 @@ const ManagementWeatherStations = (function() {
       formElements.tlsKeyPath.value = dev.tls_key_path || '';
     }
 
+    // Populate WeatherLink Live fields
+    if (dev.type === 'weatherlink-live') {
+      if (dev.wll_broadcast !== undefined) {
+        if (dev.wll_broadcast) {
+          formElements.wllModeUdp.checked = true;
+        } else {
+          formElements.wllModeHttp.checked = true;
+        }
+      }
+      formElements.wllMapping.value = dev.wll_sensor_mapping || '';
+      formElements.wllTemplate.value = ''; // Always start with custom
+    }
+
     // Populate wind direction correction (for stations with wind sensors)
     if (dev.wind_dir_correction !== undefined) {
       formElements.windDirCorrection.value = dev.wind_dir_correction;
@@ -356,6 +378,8 @@ const ManagementWeatherStations = (function() {
     formElements.snowOptions.classList.add('hidden');
     formElements.aprsConfigFields.classList.add('hidden');
     formElements.tlsFieldset.classList.add('hidden');
+    formElements.wllFieldset.classList.add('hidden');
+    formElements.wllDiscoveryResults.classList.add('hidden');
     formElements.connectionType.value = 'serial';
     formElements.connectionType.disabled = false;
     // Don't call updateConnectionVisibility here - let the caller handle it
@@ -494,6 +518,24 @@ const ManagementWeatherStations = (function() {
       }
     }
 
+    // WeatherLink Live configuration
+    if (type === 'weatherlink-live') {
+      if (!hostname) {
+        alert('WeatherLink Live IP address is required');
+        return null;
+      }
+
+      const wllMapping = formElements.wllMapping.value.trim();
+      if (!wllMapping) {
+        alert('Sensor mapping is required for WeatherLink Live');
+        return null;
+      }
+
+      const wllMode = formElements.wllModeUdp.checked ? 'udp' : 'http';
+      device.wll_broadcast = (wllMode === 'udp');
+      device.wll_sensor_mapping = wllMapping;
+    }
+
     // Wind direction correction (for stations with wind sensors)
     const windDirCorrection = formElements.windDirCorrection.value.trim();
     if (windDirCorrection) {
@@ -578,6 +620,12 @@ const ManagementWeatherStations = (function() {
         formElements.hostnameHelp.textContent = 'IP address or hostname of your AirGradient device';
         formElements.portHelp.textContent = 'HTTP port (usually 80)';
         if (hostnameLabel) hostnameLabel.textContent = 'Device IP/Hostname';
+      } else if (stationType === 'weatherlink-live') {
+        formElements.netHostname.placeholder = '192.168.1.100';
+        formElements.netPort.value = '80';
+        formElements.hostnameHelp.textContent = 'IP address of your WeatherLink Live device';
+        formElements.portHelp.textContent = 'HTTP API port (default 80)';
+        if (hostnameLabel) hostnameLabel.textContent = 'WeatherLink Live IP';
       } else {
         formElements.netHostname.placeholder = '192.168.1.50';
         formElements.netPort.placeholder = '3001';
@@ -598,14 +646,20 @@ const ManagementWeatherStations = (function() {
       formElements.tlsFieldset,
       stationType === 'grpcreceiver' && selected === 'network'
     );
+
+    // Show WLL options for weatherlink-live
+    ManagementUtils.setElementVisibility(
+      formElements.wllFieldset,
+      stationType === 'weatherlink-live' && selected === 'network'
+    );
   }
   
   function updateFieldsVisibility(stationType) {
-    // Hide connection type selector and label for grpcreceiver, snowgauge, and airgradient
+    // Hide connection type selector and label for grpcreceiver, snowgauge, airgradient, and weatherlink-live
     const connectionLabel = formElements.connectionType.parentElement;
     ManagementUtils.setElementVisibility(
       connectionLabel,
-      stationType !== 'grpcreceiver' && stationType !== 'snowgauge' && stationType !== 'airgradient'
+      stationType !== 'grpcreceiver' && stationType !== 'snowgauge' && stationType !== 'airgradient' && stationType !== 'weatherlink-live'
     );
     
     // Find all fieldsets and check their legends
@@ -875,7 +929,17 @@ const ManagementWeatherStations = (function() {
         toggleServiceGroup('pws-group', e.target.checked);
       });
     }
-    
+
+    // WeatherLink Live template selector
+    if (formElements.wllTemplate) {
+      formElements.wllTemplate.addEventListener('change', handleWllTemplateChange);
+    }
+
+    // WeatherLink Live discover button
+    if (formElements.wllDiscoverBtn) {
+      formElements.wllDiscoverBtn.addEventListener('click', discoverWeatherLinkSensors);
+    }
+
     // Tab navigation
     setupTabNavigation();
   }
@@ -920,6 +984,90 @@ const ManagementWeatherStations = (function() {
   }
 
   /* ---------------------------------------------------
+     WeatherLink Live Specific Functions
+  --------------------------------------------------- */
+
+  async function handleWllTemplateChange(e) {
+    const templateId = e.target.value;
+    if (!templateId) {
+      return; // Custom configuration - don't change mapping
+    }
+
+    try {
+      const response = await fetch(`/api/weatherlink/template?id=${encodeURIComponent(templateId)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const template = await response.json();
+
+      if (template && template.mapping_string) {
+        formElements.wllMapping.value = template.mapping_string;
+      }
+    } catch (err) {
+      console.error('Failed to load template:', err);
+      alert('Failed to load template: ' + err.message);
+    }
+  }
+
+  async function discoverWeatherLinkSensors() {
+    const hostname = formElements.netHostname.value.trim();
+    if (!hostname) {
+      alert('Please enter the WeatherLink Live IP address first');
+      return;
+    }
+
+    const resultsDiv = formElements.wllDiscoveryResults;
+    resultsDiv.innerHTML = '<p>Discovering sensors...</p>';
+    resultsDiv.classList.remove('hidden');
+
+    try {
+      const response = await fetch(`/api/weatherlink/discovery?host=${encodeURIComponent(hostname)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const discovery = await response.json();
+      displayDiscoveryResults(discovery);
+    } catch (err) {
+      console.error('Discovery failed:', err);
+      resultsDiv.innerHTML = `<p class="error">Failed to discover sensors: ${err.message}</p>`;
+    }
+  }
+
+  function displayDiscoveryResults(discovery) {
+    const resultsDiv = formElements.wllDiscoveryResults;
+
+    if (!discovery || !discovery.sensors || discovery.sensors.length === 0) {
+      resultsDiv.innerHTML = '<p>No sensors found on this device.</p>';
+      return;
+    }
+
+    let html = '<div class="discovery-results"><h4>Discovered Sensors:</h4><ul>';
+
+    discovery.sensors.forEach(sensor => {
+      const txidStr = sensor.txid !== null ? `:${sensor.txid}` : '';
+      const portStr = sensor.port !== null ? `:${sensor.port}` : '';
+      html += `<li><strong>${sensor.type}${txidStr}${portStr}</strong> - ${sensor.description}</li>`;
+    });
+
+    html += '</ul>';
+
+    if (discovery.suggested_mapping) {
+      html += `<p><strong>Suggested mapping:</strong></p>`;
+      html += `<code>${discovery.suggested_mapping}</code>`;
+      html += `<button type="button" class="secondary-btn" onclick="ManagementWeatherStations.useSuggestedMapping('${discovery.suggested_mapping}')">Use This Mapping</button>`;
+    }
+
+    html += '</div>';
+    resultsDiv.innerHTML = html;
+  }
+
+  function useSuggestedMapping(mapping) {
+    formElements.wllMapping.value = mapping;
+    formElements.wllTemplate.value = ''; // Clear template selection
+  }
+
+  /* ---------------------------------------------------
      Public API
   --------------------------------------------------- */
   
@@ -927,7 +1075,8 @@ const ManagementWeatherStations = (function() {
     init,
     loadWeatherStations,
     openModal,
-    openEditModal
+    openEditModal,
+    useSuggestedMapping
   };
 })();
 
