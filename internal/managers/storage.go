@@ -63,6 +63,13 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 		}
 	}
 
+	if cfgData.Storage.GRPCStream != nil && cfgData.Storage.GRPCStream.Endpoint != "" {
+		err = s.AddEngine(ctx, wg, "grpcstream", configProvider)
+		if err != nil {
+			return &s, fmt.Errorf("could not add gRPC stream storage backend: %v", err)
+		}
+	}
+
 	return &s, nil
 }
 
@@ -101,6 +108,32 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		se.C = se.Engine.StartStorageEngine(ctx, wg)
 		s.Engines = append(s.Engines, se)
 		log.Infof("Added gRPC storage engine")
+	case "grpcstream":
+		se := StorageEngine{Name: engineName}
+
+		cfgData, err := configProvider.LoadConfig()
+		if err != nil {
+			return err
+		}
+
+		if cfgData.Storage.GRPCStream == nil {
+			return fmt.Errorf("GRPCStream storage configuration is missing")
+		}
+
+		cfg := cfgData.Storage.GRPCStream
+
+		// Create client - empty deviceName means stream from all local devices
+		se.Engine = grpcstream.NewClient(
+			cfg.Endpoint,
+			cfg.TLSEnabled,
+			"", // Empty device name - streams from all local weather stations
+			configProvider,
+			log.GetZapLogger().Sugar(),
+		)
+
+		se.C = se.Engine.StartStorageEngine(ctx, wg)
+		s.Engines = append(s.Engines, se)
+		log.Infof("Added gRPC stream storage engine (endpoint: %s)", cfg.Endpoint)
 	}
 
 	return nil

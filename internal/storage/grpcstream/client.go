@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -37,6 +38,7 @@ type ClientStorage struct {
 }
 
 // NewClient creates a new gRPC client storage instance
+// When deviceName is empty, the client streams from all local weather stations
 func NewClient(endpoint string, tlsEnabled bool, deviceName string, configProvider config.ConfigProvider, logger *zap.SugaredLogger) *ClientStorage {
 	return &ClientStorage{
 		endpoint:       endpoint,
@@ -180,6 +182,23 @@ func (c *ClientStorage) persistStationID() error {
 	return nil
 }
 
+// getGRPCReceiverDevices returns a list of grpcreceiver device names
+// These should be filtered out to avoid re-streaming received data
+func (c *ClientStorage) getGRPCReceiverDevices() ([]string, error) {
+	cfgData, err := c.configProvider.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	var grpcReceivers []string
+	for _, device := range cfgData.Devices {
+		if device.Type == "grpcreceiver" {
+			grpcReceivers = append(grpcReceivers, device.Name)
+		}
+	}
+	return grpcReceivers, nil
+}
+
 // connect establishes the gRPC connection
 func (c *ClientStorage) connect(_ context.Context) error {
 	var opts []grpc.DialOption
@@ -254,6 +273,20 @@ func (c *ClientStorage) register(ctx context.Context) error {
 
 // buildRegistrationConfig builds the registration config from device settings
 func (c *ClientStorage) buildRegistrationConfig() *weather.RemoteStationConfig {
+	// If no device name specified, we're in multi-station forwarding mode
+	if c.deviceName == "" {
+		hostname, _ := os.Hostname()
+		if hostname == "" {
+			hostname = "unknown-station"
+		}
+
+		return &weather.RemoteStationConfig{
+			StationId:   c.stationID,
+			StationName: hostname,
+			StationType: "multi-station-forwarder",
+		}
+	}
+
 	// Get the device configuration
 	device, err := c.configProvider.GetDevice(c.deviceName)
 	if err != nil {
@@ -265,41 +298,41 @@ func (c *ClientStorage) buildRegistrationConfig() *weather.RemoteStationConfig {
 			StationType: "remote",
 		}
 	}
-	
+
 	cfg := &weather.RemoteStationConfig{
 		StationId:   c.stationID, // Empty for new registration
 		StationName: device.Name,
 		StationType: device.Type,
 	}
-	
+
 	// APRS configuration from device
 	if device.APRSEnabled {
 		cfg.AprsEnabled = true
 		cfg.AprsCallsign = device.APRSCallsign
 		cfg.AprsPassword = device.APRSPasscode
 	}
-	
+
 	// Weather Underground configuration from device
 	if device.WUEnabled {
 		cfg.WuEnabled = true
 		cfg.WuStationId = device.WUStationID
 		cfg.WuApiKey = device.WUPassword
 	}
-	
+
 	// Aeris configuration from device
 	if device.AerisEnabled {
 		cfg.AerisEnabled = true
 		cfg.AerisClientId = device.AerisAPIClientID
 		cfg.AerisClientSecret = device.AerisAPIClientSecret
 	}
-	
+
 	// PWS Weather configuration from device
 	if device.PWSEnabled {
 		cfg.PwsEnabled = true
 		cfg.PwsStationId = device.PWSStationID
 		cfg.PwsPassword = device.PWSPassword
 	}
-	
+
 	return cfg
 }
 
@@ -338,26 +371,40 @@ func (c *ClientStorage) processReadings(ctx context.Context, readingChan <-chan 
 
 // sendReading sends a single reading to the server
 func (c *ClientStorage) sendReading(reading types.Reading) error {
+	// Filter out readings from grpcreceiver devices to avoid loops
+	grpcReceivers, err := c.getGRPCReceiverDevices()
+	if err != nil {
+		c.logger.Warnf("Failed to get grpcreceiver list: %v", err)
+		// Continue anyway - better to send data than drop it
+	}
+
+	for _, receiver := range grpcReceivers {
+		if reading.StationName == receiver {
+			c.logger.Debugf("Skipping reading from grpcreceiver device: %s", receiver)
+			return nil // Not an error, just filtered
+		}
+	}
+
 	c.mu.RLock()
 	stream := c.stream
 	c.mu.RUnlock()
-	
+
 	if stream == nil {
 		return fmt.Errorf("stream not initialized")
 	}
-	
+
 	// Convert to protobuf
 	pbReading := ConvertToProto(reading)
-	
+
 	// Add station ID
 	pbReading.StationId = c.stationID
-	
+
 	// Send reading
 	if err := stream.Send(pbReading); err != nil {
 		return fmt.Errorf("stream send failed: %w", err)
 	}
-	
-	c.logger.Debugf("sent reading to gRPC server for station %s", c.stationID)
+
+	c.logger.Debugf("sent reading from %s to gRPC server (station %s)", reading.StationName, c.stationID)
 	return nil
 }
 
