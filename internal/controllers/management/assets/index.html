@@ -477,19 +477,18 @@
           </label>
         </div>
         <div id="grpcstream-fields" class="hidden">
+          <div class="info-box">
+            Streams all readings from local weather stations to the remote endpoint.
+            Readings from gRPC Receiver stations are automatically excluded.
+          </div>
           <label>
             Remote Endpoint
             <input type="text" id="grpcstream-endpoint" placeholder="receiver.example.com:5555" />
             <small>Remote gRPC server address (host:port)</small>
           </label>
-          <label>
-            <input type="checkbox" id="grpcstream-tls" />
-            Enable TLS/SSL
+          <label class="checkbox-label">
+            <input type="checkbox" id="grpcstream-tls" /> Enable TLS/SSL
           </label>
-          <div class="info-box">
-            <strong>Note:</strong> Streams all readings from local weather stations to the remote endpoint.
-            Readings from gRPC Receiver stations are automatically excluded.
-          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="secondary-btn" id="cancel-storage-btn">Cancel</button>
