@@ -227,8 +227,9 @@ type DeviceData struct {
 
 // StorageData holds the configuration for various storage backends
 type StorageData struct {
-	TimescaleDB *TimescaleDBData `json:"timescaledb,omitempty"`
-	GRPC        *GRPCData        `json:"grpc,omitempty"`
+	TimescaleDB *TimescaleDBData  `json:"timescaledb,omitempty"`
+	GRPC        *GRPCData         `json:"grpc,omitempty"`
+	GRPCStream  *GRPCStreamData   `json:"grpcstream,omitempty"`
 }
 
 // ControllerData holds the configuration for various controller backends
@@ -301,6 +302,12 @@ type GRPCData struct {
 	Port           int                `json:"port,omitempty"`
 	PullFromDevice string             `json:"pull_from_device,omitempty"`
 	Health         *StorageHealthData `json:"health,omitempty"`
+}
+
+type GRPCStreamData struct {
+	Endpoint   string             `json:"endpoint"`
+	TLSEnabled bool               `json:"tls_enabled"`
+	Health     *StorageHealthData `json:"health,omitempty"`
 }
 
 // Controller configuration structs

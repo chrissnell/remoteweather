@@ -614,6 +614,13 @@ func (h *Handlers) convertStorageConfig(storageType string, configData interface
 			return nil, fmt.Errorf("failed to unmarshal GRPC config: %w", err)
 		}
 		return &grpcConfig, nil
+	case "grpcstream":
+		var grpcStreamConfig config.GRPCStreamData
+		if err := json.Unmarshal(jsonData, &grpcStreamConfig); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal GRPCStream config: %w", err)
+		}
+		h.controller.logger.Debugf("convertStorageConfig: unmarshaled GRPCStream config=%+v", grpcStreamConfig)
+		return &grpcStreamConfig, nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
 	}
@@ -654,6 +661,18 @@ func (h *Handlers) validateStorageConfig(storageType string, configData interfac
 		}
 		if grpc.PullFromDevice == "" {
 			return fmt.Errorf("pull_from_device is required for GRPC")
+		}
+	case "grpcstream":
+		grpcStream, ok := configData.(*config.GRPCStreamData)
+		if !ok {
+			return fmt.Errorf("invalid GRPCStream config type")
+		}
+		if grpcStream.Endpoint == "" {
+			return fmt.Errorf("endpoint is required for GRPCStream")
+		}
+		// Validate endpoint format (must have host:port)
+		if !strings.Contains(grpcStream.Endpoint, ":") {
+			return fmt.Errorf("endpoint must be in format 'host:port'")
 		}
 	default:
 		return fmt.Errorf("unsupported storage type: %s", storageType)

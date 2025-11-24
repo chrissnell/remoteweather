@@ -31,11 +31,12 @@ const ManagementStorage = (function() {
       form: document.getElementById('storage-form'),
       formMode: document.getElementById('storage-form-mode'),
       storageType: document.getElementById('storage-type'),
-      
+
       // Field groups
       tsFields: document.getElementById('timescaledb-fields'),
       grpcFields: document.getElementById('grpc-fields'),
-      
+      grpcstreamFields: document.getElementById('grpcstream-fields'),
+
       // TimescaleDB fields
       timescaleHost: document.getElementById('timescale-host'),
       timescalePort: document.getElementById('timescale-port'),
@@ -44,10 +45,14 @@ const ManagementStorage = (function() {
       timescalePassword: document.getElementById('timescale-password'),
       timescaleSslMode: document.getElementById('timescale-ssl-mode'),
       timescaleTimezone: document.getElementById('timescale-timezone'),
-      
+
       // GRPC fields
       grpcPort: document.getElementById('grpc-port'),
-      grpcDeviceSelect: document.getElementById('grpc-device-select')
+      grpcDeviceSelect: document.getElementById('grpc-device-select'),
+
+      // GRPCStream fields
+      grpcstreamEndpoint: document.getElementById('grpcstream-endpoint'),
+      grpcstreamTLS: document.getElementById('grpcstream-tls')
     };
   }
 
@@ -134,8 +139,10 @@ const ManagementStorage = (function() {
       return formatTimescaleDBConfig(config);
     } else if (type === 'grpc') {
       return formatGRPCConfig(config);
+    } else if (type === 'grpcstream') {
+      return formatGRPCStreamConfig(config);
     }
-    
+
     // Fallback to JSON for other types
     return `<pre class="config-raw">${JSON.stringify(config, null, 2)}</pre>`;
   }
@@ -209,6 +216,36 @@ const ManagementStorage = (function() {
     return html;
   }
 
+  function formatGRPCStreamConfig(config) {
+    let html = '<div class="config-section">';
+    html += '<h4>gRPC Streaming Client</h4>';
+    html += '<div class="config-grid">';
+
+    if (config.endpoint) html += `<div><strong>Remote Endpoint:</strong> ${config.endpoint}</div>`;
+    html += `<div><strong>TLS:</strong> ${config.tls_enabled ? 'Enabled' : 'Disabled'}</div>`;
+    html += '<div><strong>Mode:</strong> Streaming all local station data</div>';
+
+    html += '</div>';
+
+    if (config.health) {
+      html += '<h4>Health Status</h4>';
+      html += '<div class="health-info">';
+      if (config.health.status) {
+        html += `<div><strong>Status:</strong> <span class="health-${config.health.status}">${config.health.status}</span></div>`;
+      }
+      if (config.health.last_check) {
+        html += `<div><strong>Last Check:</strong> ${ManagementUtils.formatDate(config.health.last_check)}</div>`;
+      }
+      if (config.health.message) {
+        html += `<div><strong>Message:</strong> ${config.health.message}</div>`;
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
   async function deleteStorage(type) {
     if (!confirm('Delete storage backend ' + type + '?')) return;
     try {
@@ -254,12 +291,19 @@ const ManagementStorage = (function() {
 
   function updateStorageFieldVisibility() {
     const sel = formElements.storageType.value;
+
+    // Hide all field groups first
+    ManagementUtils.hideElement(formElements.tsFields);
+    ManagementUtils.hideElement(formElements.grpcFields);
+    ManagementUtils.hideElement(formElements.grpcstreamFields);
+
+    // Show the selected one
     if (sel === 'timescaledb') {
       ManagementUtils.showElement(formElements.tsFields);
-      ManagementUtils.hideElement(formElements.grpcFields);
     } else if (sel === 'grpc') {
-      ManagementUtils.hideElement(formElements.tsFields);
       ManagementUtils.showElement(formElements.grpcFields);
+    } else if (sel === 'grpcstream') {
+      ManagementUtils.showElement(formElements.grpcstreamFields);
     }
   }
 
@@ -297,7 +341,7 @@ const ManagementStorage = (function() {
     } else if (storageType === 'grpc') {
       const portVal = parseInt(formElements.grpcPort.value, 10);
       const deviceName = formElements.grpcDeviceSelect.value;
-      
+
       if (!portVal || portVal <= 0) {
         alert('Valid port is required');
         return null;
@@ -306,10 +350,28 @@ const ManagementStorage = (function() {
         alert('Pull From Device is required');
         return null;
       }
-      
-      configObj = { 
-        port: portVal, 
-        pull_from_device: deviceName 
+
+      configObj = {
+        port: portVal,
+        pull_from_device: deviceName
+      };
+    } else if (storageType === 'grpcstream') {
+      const endpoint = formElements.grpcstreamEndpoint.value.trim();
+      const tlsEnabled = formElements.grpcstreamTLS.checked;
+
+      if (!endpoint) {
+        alert('Endpoint is required');
+        return null;
+      }
+
+      if (!endpoint.includes(':')) {
+        alert('Endpoint must include port (e.g., server.example.com:5555)');
+        return null;
+      }
+
+      configObj = {
+        endpoint: endpoint,
+        tls_enabled: tlsEnabled
       };
     }
 
