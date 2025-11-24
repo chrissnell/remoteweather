@@ -15,6 +15,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/weatherstations/davis"
 	"github.com/chrissnell/remoteweather/internal/weatherstations/grpcreceiver"
 	"github.com/chrissnell/remoteweather/internal/weatherstations/snowgauge"
+	"github.com/chrissnell/remoteweather/internal/weatherstations/weatherlinklive"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
@@ -228,6 +229,9 @@ func createStationFromConfig(ctx context.Context, wg *sync.WaitGroup, configProv
 	case "grpcreceiver":
 		log.Infof("Initializing gRPC receiver weather station [%v]", deviceName)
 		return grpcreceiver.NewStation(ctx, wg, configProvider, deviceName, distributor, logger), nil
+	case "weatherlink-live", "wll":
+		log.Infof("Initializing WeatherLink Live station [%v]", deviceName)
+		return weatherlinklive.NewStation(ctx, wg, configProvider, deviceName, distributor, logger), nil
 	default:
 		return nil, fmt.Errorf("unknown weather station type: %s", deviceConfig.Type)
 	}
