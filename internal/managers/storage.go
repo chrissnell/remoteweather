@@ -100,14 +100,7 @@ func (s *StorageManager) AddEngine(ctx context.Context, wg *sync.WaitGroup, engi
 		s.Engines = append(s.Engines, se)
 		log.Infof("Added TimescaleDB storage engine")
 	case "grpc":
-		se := StorageEngine{Name: engineName}
-		se.Engine, err = grpcstream.New(ctx, configProvider)
-		if err != nil {
-			return err
-		}
-		se.C = se.Engine.StartStorageEngine(ctx, wg)
-		s.Engines = append(s.Engines, se)
-		log.Infof("Added gRPC storage engine")
+		return fmt.Errorf("grpc storage backend has been deprecated - gRPC is now automatically enabled with the REST server controller")
 	case "grpcstream":
 		se := StorageEngine{Name: engineName}
 

@@ -34,7 +34,6 @@ const ManagementStorage = (function() {
 
       // Field groups
       tsFields: document.getElementById('timescaledb-fields'),
-      grpcFields: document.getElementById('grpc-fields'),
       grpcstreamFields: document.getElementById('grpcstream-fields'),
 
       // TimescaleDB fields
@@ -45,10 +44,6 @@ const ManagementStorage = (function() {
       timescalePassword: document.getElementById('timescale-password'),
       timescaleSslMode: document.getElementById('timescale-ssl-mode'),
       timescaleTimezone: document.getElementById('timescale-timezone'),
-
-      // GRPC fields
-      grpcPort: document.getElementById('grpc-port'),
-      grpcDeviceSelect: document.getElementById('grpc-device-select'),
 
       // GRPCStream fields
       grpcstreamEndpoint: document.getElementById('grpcstream-endpoint'),
@@ -137,8 +132,6 @@ const ManagementStorage = (function() {
 
     if (type === 'timescaledb') {
       return formatTimescaleDBConfig(config);
-    } else if (type === 'grpc') {
-      return formatGRPCConfig(config);
     } else if (type === 'grpcstream') {
       return formatGRPCStreamConfig(config);
     }
@@ -162,38 +155,6 @@ const ManagementStorage = (function() {
       if (conn.ssl_mode) html += `<div><strong>SSL Mode:</strong> ${conn.ssl_mode}</div>`;
       if (conn.timezone) html += `<div><strong>Timezone:</strong> ${conn.timezone}</div>`;
     }
-    
-    html += '</div>';
-    
-    if (config.health) {
-      html += '<h4>Health Status</h4>';
-      html += '<div class="health-info">';
-      if (config.health.status) {
-        html += `<div><strong>Status:</strong> <span class="health-${config.health.status}">${config.health.status}</span></div>`;
-      }
-      if (config.health.last_check) {
-        html += `<div><strong>Last Check:</strong> ${ManagementUtils.formatDate(config.health.last_check)}</div>`;
-      }
-      if (config.health.message) {
-        html += `<div><strong>Message:</strong> ${config.health.message}</div>`;
-      }
-      html += '</div>';
-    }
-    
-    html += '</div>';
-    return html;
-  }
-
-  function formatGRPCConfig(config) {
-    let html = '<div class="config-section">';
-    html += '<h4>gRPC Server</h4>';
-    html += '<div class="config-grid">';
-    
-    if (config.port) html += `<div><strong>Listen Port:</strong> ${config.port}</div>`;
-    if (config.pull_from_device) html += `<div><strong>Source Device:</strong> ${config.pull_from_device}</div>`;
-    if (config.listen_addr) html += `<div><strong>Listen Address:</strong> ${config.listen_addr}</div>`;
-    if (config.cert) html += `<div><strong>Certificate:</strong> Configured</div>`;
-    if (config.key) html += `<div><strong>Private Key:</strong> Configured</div>`;
     
     html += '</div>';
     
@@ -294,14 +255,11 @@ const ManagementStorage = (function() {
 
     // Hide all field groups first
     ManagementUtils.hideElement(formElements.tsFields);
-    ManagementUtils.hideElement(formElements.grpcFields);
     ManagementUtils.hideElement(formElements.grpcstreamFields);
 
     // Show the selected one
     if (sel === 'timescaledb') {
       ManagementUtils.showElement(formElements.tsFields);
-    } else if (sel === 'grpc') {
-      ManagementUtils.showElement(formElements.grpcFields);
     } else if (sel === 'grpcstream') {
       ManagementUtils.showElement(formElements.grpcstreamFields);
     }
@@ -337,23 +295,6 @@ const ManagementStorage = (function() {
         password: password,
         ssl_mode: sslMode,
         timezone: timezone
-      };
-    } else if (storageType === 'grpc') {
-      const portVal = parseInt(formElements.grpcPort.value, 10);
-      const deviceName = formElements.grpcDeviceSelect.value;
-
-      if (!portVal || portVal <= 0) {
-        alert('Valid port is required');
-        return null;
-      }
-      if (!deviceName) {
-        alert('Pull From Device is required');
-        return null;
-      }
-
-      configObj = {
-        port: portVal,
-        pull_from_device: deviceName
       };
     } else if (storageType === 'grpcstream') {
       const endpoint = formElements.grpcstreamEndpoint.value.trim();
