@@ -1099,7 +1099,8 @@ input:checked + .slider:before {
 }
 
 .radio-label {
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center;
   cursor: pointer;
   line-height: 1.5;
