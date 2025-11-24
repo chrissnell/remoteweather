@@ -57,10 +57,8 @@ func NewStorageManager(ctx context.Context, wg *sync.WaitGroup, configProvider c
 	}
 
 	if cfgData.Storage.GRPC != nil && cfgData.Storage.GRPC.Port != 0 {
-		err = s.AddEngine(ctx, wg, "grpc", configProvider)
-		if err != nil {
-			return &s, fmt.Errorf("could not add gRPC storage backend: %v", err)
-		}
+		log.Warn("Skipping deprecated 'grpc' storage backend - gRPC is now automatically enabled with the REST server controller")
+		log.Warn("Please remove the 'grpc' storage configuration from your database")
 	}
 
 	if cfgData.Storage.GRPCStream != nil && cfgData.Storage.GRPCStream.Endpoint != "" {
