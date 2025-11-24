@@ -1009,8 +1009,8 @@ const ManagementWeatherStations = (function() {
       }
       const template = await response.json();
 
-      if (template && template.mapping_string) {
-        formElements.wllMapping.value = template.mapping_string;
+      if (template && template.MappingString) {
+        formElements.wllMapping.value = template.MappingString;
       }
     } catch (err) {
       console.error('Failed to load template:', err);

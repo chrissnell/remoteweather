@@ -126,11 +126,17 @@
                   <div class="radio-group">
                     <label class="radio-label">
                       <input type="radio" name="wll-mode" id="wll-mode-udp" value="udp" checked />
-                      UDP Broadcast (recommended, requires same subnet, supports wind/rain)
+                      <span>
+                        UDP Broadcast
+                        <span class="help-text" style="display: block; margin-left: 20px;">recommended, requires same subnet, supports wind/rain</span>
+                      </span>
                     </label>
                     <label class="radio-label">
                       <input type="radio" name="wll-mode" id="wll-mode-http" value="http" />
-                      HTTP Polling (works across networks, slower, no wind/rain data)
+                      <span>
+                        HTTP Polling
+                        <span class="help-text" style="display: block; margin-left: 20px;">works across networks, slower, no wind/rain data</span>
+                      </span>
                     </label>
                   </div>
                 </label>
