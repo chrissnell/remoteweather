@@ -1083,35 +1083,37 @@ input:checked + .slider:before {
 .radio-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
 .radio-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .radio-label input[type="radio"] {
-  margin-top: 0.15rem;
-  margin-right: 0.5rem;
+  margin: 0 0.5rem 0 0;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .radio-label-text {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
 }
 
 .radio-label-main {
-  font-weight: 500;
+  font-weight: normal;
+  line-height: 1.5;
 }
 
 .radio-help-text {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
+  line-height: 1.3;
 }
