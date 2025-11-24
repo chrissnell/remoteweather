@@ -1078,3 +1078,40 @@ input:checked + .slider:before {
   color: var(--text-secondary);
   font-style: italic;
 }
+
+/* Radio button group styles */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.radio-label input[type="radio"] {
+  margin-top: 0.15rem;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.radio-label-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.radio-label-main {
+  font-weight: 500;
+}
+
+.radio-help-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
