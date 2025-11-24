@@ -994,11 +994,13 @@ const ManagementWeatherStations = (function() {
     }
 
     try {
-      const response = await fetch('/api/weatherlink/templates');
-      const templates = await response.json();
-      const template = templates.find(t => t.id === templateId);
+      const response = await fetch(`/api/weatherlink/template?id=${encodeURIComponent(templateId)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const template = await response.json();
 
-      if (template) {
+      if (template && template.mapping_string) {
         formElements.wllMapping.value = template.mapping_string;
       }
     } catch (err) {
