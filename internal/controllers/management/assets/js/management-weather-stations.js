@@ -589,13 +589,16 @@ const ManagementWeatherStations = (function() {
   function updateConnectionVisibility(serialDeviceToSelect) {
     const selected = formElements.connectionType.value;
     const stationType = formElements.stationType.value;
-    
+    console.log('[WLL Debug] updateConnectionVisibility called - connection:', selected, 'stationType:', stationType);
+
     if (selected === 'serial') {
+      console.log('[WLL Debug] Showing serial fieldset');
       ManagementUtils.showElement(formElements.serialFieldset);
       ManagementUtils.hideElement(formElements.networkFieldset);
       // Load available serial ports when serial is selected
       loadSerialPorts(serialDeviceToSelect);
     } else if (selected === 'network') {
+      console.log('[WLL Debug] Showing network fieldset');
       ManagementUtils.hideElement(formElements.serialFieldset);
       ManagementUtils.showElement(formElements.networkFieldset);
       
@@ -648,9 +651,11 @@ const ManagementWeatherStations = (function() {
     );
 
     // Show WLL options for weatherlink-live
+    const showWLL = stationType === 'weatherlink-live' && selected === 'network';
+    console.log('[WLL Debug] WLL fieldset visibility - stationType:', stationType, 'selected:', selected, 'showWLL:', showWLL);
     ManagementUtils.setElementVisibility(
       formElements.wllFieldset,
-      stationType === 'weatherlink-live' && selected === 'network'
+      showWLL
     );
   }
   
@@ -861,23 +866,27 @@ const ManagementWeatherStations = (function() {
     if (formElements.stationType) {
       formElements.stationType.addEventListener('change', (e) => {
         const stationType = e.target.value;
-        
+        console.log('[WLL Debug] Station type changed to:', stationType);
+
         ManagementUtils.setElementVisibility(
           formElements.snowOptions,
           stationType === 'snowgauge'
         );
-        
-        // For ambient-customized, grpcreceiver, snowgauge, and airgradient, force network connection and hide the connection type selector
-        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge' || stationType === 'airgradient') {
+
+        // For ambient-customized, grpcreceiver, snowgauge, airgradient, and weatherlink-live, force network connection and hide the connection type selector
+        if (stationType === 'ambient-customized' || stationType === 'grpcreceiver' || stationType === 'snowgauge' || stationType === 'airgradient' || stationType === 'weatherlink-live') {
+          console.log('[WLL Debug] Setting connection type to network for:', stationType);
           formElements.connectionType.value = 'network';
           formElements.connectionType.disabled = true;
         } else {
           formElements.connectionType.disabled = false;
         }
-        
+
+        console.log('[WLL Debug] Connection type is now:', formElements.connectionType.value);
+
         // Update connection visibility and help text
         updateConnectionVisibility();
-        
+
         // Hide/show fields based on station type
         updateFieldsVisibility(stationType);
       });
