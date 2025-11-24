@@ -74,6 +74,7 @@
                 <select id="station-type" required>
                   <option value="davis">Davis Instruments</option>
                   <option value="campbellscientific">Campbell Scientific</option>
+                  <option value="weatherlink-live">WeatherLink Live</option>
                   <option value="snowgauge">Snow Gauge</option>
                   <option value="ambient-customized">Ambient Weather (Customized Server)</option>
                   <option value="airgradient">AirGradient</option>
@@ -115,6 +116,45 @@
                   <input type="text" id="net-port" placeholder="3001" />
                   <span class="help-text" id="port-help">Port number for the connection</span>
                 </label>
+              </fieldset>
+
+              <fieldset id="wll-fieldset" class="conn-fieldset hidden">
+                <legend>WeatherLink Live Configuration</legend>
+
+                <label>
+                  Collection Mode
+                  <div class="radio-group">
+                    <label class="radio-label">
+                      <input type="radio" name="wll-mode" id="wll-mode-udp" value="udp" checked />
+                      UDP Broadcast (recommended, requires same subnet, supports wind/rain)
+                    </label>
+                    <label class="radio-label">
+                      <input type="radio" name="wll-mode" id="wll-mode-http" value="http" />
+                      HTTP Polling (works across networks, slower, no wind/rain data)
+                    </label>
+                  </div>
+                </label>
+
+                <label>
+                  Configuration Template
+                  <select id="wll-template">
+                    <option value="">Custom Configuration</option>
+                    <option value="vp2_basic">Vantage Pro2 or Vantage Vue</option>
+                    <option value="vp2_plus">Vantage Pro2 Plus</option>
+                    <option value="vp2_plus_agricultural">VP2 Plus with Agricultural Station</option>
+                    <option value="vp2_plus_multitx">VP2 Plus with Multiple Transmitters</option>
+                  </select>
+                  <span class="help-text">Select a template or use custom configuration below</span>
+                </label>
+
+                <label>
+                  Sensor Mapping
+                  <textarea id="wll-mapping" rows="4" placeholder="th:1, rain:1, wind:1, uv:1, solar:1, windchill:1, thw:1, thsw:1:appTemp, th_indoor, baro, battery:1"></textarea>
+                  <span class="help-text">Comma-separated sensor mappings (e.g., th:1 = temp/humidity on transmitter 1)</span>
+                </label>
+
+                <button type="button" class="secondary-btn" id="wll-discover-btn">Discover Sensors</button>
+                <div id="wll-discovery-results" class="hidden"></div>
               </fieldset>
 
                 <div id="snow-options" class="snow-options hidden">
