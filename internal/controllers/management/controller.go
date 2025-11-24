@@ -231,6 +231,14 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/logs", c.handlers.GetLogs).Methods("GET")
 	api.HandleFunc("/http-logs", c.handlers.GetHTTPLogs).Methods("GET")
 
+	// WeatherLink Live endpoints
+	api.HandleFunc("/weatherlink/discover", c.handlers.GetWeatherLinkDiscovery).Methods("GET")
+	api.HandleFunc("/weatherlink/validate", c.handlers.ValidateWeatherLinkMapping).Methods("POST")
+	api.HandleFunc("/weatherlink/templates", c.handlers.GetWeatherLinkTemplates).Methods("GET")
+	api.HandleFunc("/weatherlink/template", c.handlers.GetWeatherLinkTemplate).Methods("GET")
+	api.HandleFunc("/weatherlink/template/validate", c.handlers.ValidateWeatherLinkTemplate).Methods("GET")
+	api.HandleFunc("/weatherlink/suggest", c.handlers.SuggestWeatherLinkTemplate).Methods("GET")
+
 	return router
 }
 
