@@ -119,9 +119,17 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 	// Send initial reading immediately
 	if bucketReading, err := c.fetchLatestReading(req.StationName, baseDistance); err == nil {
 		reading := transformBucketReadingToWeatherApps(bucketReading)
-		c.addCalculatedRainTotals(reading, req.StationName)
-		c.addCalculatedWindGust(reading, req.StationName)
-		c.addCalculatedRainRate(reading, req.StationName)
+
+		// Add calculated values (log errors but don't fail the stream)
+		if err := c.addCalculatedRainTotals(reading, req.StationName); err != nil {
+			log.Warnf("Failed to add rain totals to initial reading: %v", err)
+		}
+		if err := c.addCalculatedWindGust(reading, req.StationName); err != nil {
+			log.Warnf("Failed to add wind gust to initial reading: %v", err)
+		}
+		if err := c.addCalculatedRainRate(reading, req.StationName); err != nil {
+			log.Warnf("Failed to add rain rate to initial reading: %v", err)
+		}
 
 		if err := stream.Send(reading); err != nil {
 			return err
@@ -147,9 +155,17 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 			// Only send if this is a new reading
 			if bucketReading.Bucket.After(lastReadingTime) {
 				reading := transformBucketReadingToWeatherApps(bucketReading)
-				c.addCalculatedRainTotals(reading, req.StationName)
-				c.addCalculatedWindGust(reading, req.StationName)
-				c.addCalculatedRainRate(reading, req.StationName)
+
+				// Add calculated values (log errors but don't fail the stream)
+				if err := c.addCalculatedRainTotals(reading, req.StationName); err != nil {
+					log.Warnf("Failed to add rain totals: %v", err)
+				}
+				if err := c.addCalculatedWindGust(reading, req.StationName); err != nil {
+					log.Warnf("Failed to add wind gust: %v", err)
+				}
+				if err := c.addCalculatedRainRate(reading, req.StationName); err != nil {
+					log.Warnf("Failed to add rain rate: %v", err)
+				}
 
 				if err := stream.Send(reading); err != nil {
 					log.Errorf("Error sending weatherapps reading to client [%v]: %v", p.Addr, err)
@@ -183,14 +199,17 @@ func (c *Controller) addCalculatedRainTotals(reading *weatherapps.WeatherReading
 	if err != nil {
 		// Fallback to direct calculation if summary is not available
 		log.Warnf("Failed to get rainfall from summary, falling back to direct calculation: %v", err)
-		c.DB.Raw(`
+		if err := c.DB.Raw(`
 			SELECT
 				COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '24 hours' THEN period_rain END), 0) as rain_24h,
 				COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '48 hours' THEN period_rain END), 0) as rain_48h,
 				COALESCE(SUM(CASE WHEN bucket >= NOW() - INTERVAL '72 hours' THEN period_rain END), 0) as rain_72h
 			FROM weather_5m
 			WHERE stationname = ? AND bucket >= NOW() - INTERVAL '72 hours'
-		`, stationName).Scan(&rainfallPeriods)
+		`, stationName).Scan(&rainfallPeriods).Error; err != nil {
+			log.Errorf("Failed to calculate rainfall directly: %v", err)
+			return err
+		}
 	}
 
 	reading.Rain24H = rainfallPeriods.Rain24h
