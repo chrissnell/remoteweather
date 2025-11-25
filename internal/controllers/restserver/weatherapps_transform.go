@@ -24,16 +24,17 @@ func calculateFeelsLikeTemp(outTemp, outHumidity, windSpeed float32) float32 {
 
 // calculateSkyCondition determines sky conditions based on solar radiation
 // Uses the same algorithm as the website JavaScript (weather-utils.js)
-// If no radiation sensor or radiation is 0, returns SKY_UNKNOWN
+// If no radiation sensor, returns SKY_UNKNOWN
 func calculateSkyCondition(radiation, potentialSolarWatts float32) weatherapps.SkyCondition {
-	// If we don't have solar data, return unknown
-	if radiation <= 0 || potentialSolarWatts <= 0 {
-		return weatherapps.SkyCondition_SKY_UNKNOWN
-	}
-
 	// If potential solar is very low, it's night (matches website: maxValue < 10)
+	// Check this first since potentialSolarWatts is 0 at night
 	if potentialSolarWatts < 10 {
 		return weatherapps.SkyCondition_SKY_NIGHT
+	}
+
+	// If we don't have radiation data, return unknown
+	if radiation <= 0 {
+		return weatherapps.SkyCondition_SKY_UNKNOWN
 	}
 
 	// Calculate the percentage of potential solar radiation
