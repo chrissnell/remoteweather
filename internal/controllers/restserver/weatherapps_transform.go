@@ -23,6 +23,7 @@ func calculateFeelsLikeTemp(outTemp, outHumidity, windSpeed float32) float32 {
 }
 
 // calculateSkyCondition determines sky conditions based on solar radiation
+// Uses the same algorithm as the website JavaScript (weather-utils.js)
 // If no radiation sensor or radiation is 0, returns SKY_UNKNOWN
 func calculateSkyCondition(radiation, potentialSolarWatts float32) weatherapps.SkyCondition {
 	// If we don't have solar data, return unknown
@@ -30,20 +31,22 @@ func calculateSkyCondition(radiation, potentialSolarWatts float32) weatherapps.S
 		return weatherapps.SkyCondition_SKY_UNKNOWN
 	}
 
+	// If potential solar is very low, it's night (matches website: maxValue < 10)
+	if potentialSolarWatts < 10 {
+		return weatherapps.SkyCondition_SKY_NIGHT
+	}
+
 	// Calculate the percentage of potential solar radiation
 	percentage := (radiation / potentialSolarWatts) * 100
 
-	// Classify sky conditions based on percentage
-	// These thresholds are approximate and may need tuning
+	// Classify sky conditions based on percentage (matches website thresholds)
 	switch {
 	case percentage >= 80:
-		return weatherapps.SkyCondition_SKY_CLEAR
-	case percentage >= 60:
-		return weatherapps.SkyCondition_SKY_PARTLY_CLOUDY
+		return weatherapps.SkyCondition_SKY_CLEAR // Sunny
 	case percentage >= 40:
-		return weatherapps.SkyCondition_SKY_CLOUDY
+		return weatherapps.SkyCondition_SKY_PARTLY_CLOUDY
 	default:
-		return weatherapps.SkyCondition_SKY_OVERCAST
+		return weatherapps.SkyCondition_SKY_CLOUDY
 	}
 }
 

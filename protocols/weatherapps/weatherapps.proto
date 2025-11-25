@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package weatherapps.v1;
+
 option go_package = "github.com/chrissnell/remoteweather/protocols/weatherapps/v1";
 
 import "google/protobuf/timestamp.proto";
@@ -50,10 +52,11 @@ message WeatherSpan {
 // Sky condition enum for weather apps
 enum SkyCondition {
     SKY_UNKNOWN = 0;       // Unknown or no solar sensor
-    SKY_CLEAR = 1;         // Clear skies
+    SKY_CLEAR = 1;         // Clear skies (Sunny)
     SKY_PARTLY_CLOUDY = 2; // Partly cloudy
     SKY_CLOUDY = 3;        // Cloudy
     SKY_OVERCAST = 4;      // Overcast
+    SKY_NIGHT = 5;         // Night (potentialSolarWatts < 10)
 }
 
 // WeatherReading for end-user consumption
