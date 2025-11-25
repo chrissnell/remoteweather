@@ -20,6 +20,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
+	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
 	"github.com/gorilla/mux"
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
@@ -70,6 +71,7 @@ type Controller struct {
 	tlsConfigs          map[string]*tls.Config   // hostname -> TLS config for SNI
 
 	weather.UnimplementedWeatherV1Server
+	weatherapps.UnimplementedWeatherAppsV1Server
 }
 
 // NewController creates a new unified REST/gRPC server controller
@@ -104,8 +106,9 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	// When using HTTPS mode, TLS is handled by the outer TLS listener
 	ctrl.GRPCServer = grpc.NewServer()
 
-	// Register the weather service and reflection
-	weather.RegisterWeatherV1Server(ctrl.GRPCServer, ctrl)
+	// Register the weather services and reflection
+	weather.RegisterWeatherV1Server(ctrl.GRPCServer, ctrl)       // Raw station data protocol
+	weatherapps.RegisterWeatherAppsV1Server(ctrl.GRPCServer, ctrl) // End-user protocol with calculated values
 	reflection.Register(ctrl.GRPCServer)
 
 	// Load weather websites and set up hostname-based routing

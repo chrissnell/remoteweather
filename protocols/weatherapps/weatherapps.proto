@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+option go_package = "github.com/chrissnell/remoteweather/protocols/weatherapps/v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/api/annotations.proto";
+
+// WeatherApps service v1.0 - end-user weather data streaming API
+// This protocol is designed for consumption by weather applications and provides
+// calculated, user-friendly values (rain totals, feels-like temp, etc.) sourced
+// from the same data that feeds the /latest REST endpoint.
+service WeatherAppsV1 {
+    // Get live streaming weather readings for display in apps
+    rpc StreamLiveWeather (LiveWeatherRequest) returns (stream WeatherReading) {}
+
+    // Get weather data over a time span
+    rpc GetWeatherTimeSpan (WeatherSpanRequest) returns (WeatherSpan) {
+        option (google.api.http) = {
+            get:"/v1/weatherapps/span/{spanDuration}"
+        };
+    }
+
+    // Get the latest reading for a station
+    rpc GetCurrentReading (LatestReadingRequest) returns (WeatherReading) {
+        option (google.api.http) = {
+            get:"/v1/weatherapps/latest"
+        };
+    }
+}
+
+message LiveWeatherRequest {
+    string stationName = 1;
+}
+
+message WeatherSpanRequest {
+    google.protobuf.Duration spanDuration = 1;
+    string stationName = 2;
+}
+
+message LatestReadingRequest {
+    string stationName = 1;
+}
+
+message WeatherSpan {
+    google.protobuf.Timestamp spanStart = 1;
+    repeated WeatherReading reading = 2;
+}
+
+// Sky condition enum for weather apps
+enum SkyCondition {
+    SKY_UNKNOWN = 0;       // Unknown or no solar sensor
+    SKY_CLEAR = 1;         // Clear skies
+    SKY_PARTLY_CLOUDY = 2; // Partly cloudy
+    SKY_CLOUDY = 3;        // Cloudy
+    SKY_OVERCAST = 4;      // Overcast
+}
+
+// WeatherReading for end-user consumption
+// This message contains calculated values and user-friendly data
+// sourced from the database, matching the /latest REST endpoint
+message WeatherReading {
+    // Basic metadata
+    google.protobuf.Timestamp readingTimestamp = 1;
+    string stationName = 2;
+    string stationType = 3;
+
+    // Temperature readings (Celsius)
+    float outsideTemperature = 4;
+    float insideTemperature = 5;
+
+    // Extra temperature sensors
+    float extraTemp1 = 6;
+    float extraTemp2 = 7;
+    float extraTemp3 = 8;
+    float extraTemp4 = 9;
+    float extraTemp5 = 10;
+    float extraTemp6 = 11;
+    float extraTemp7 = 12;
+
+    // Soil temperature sensors
+    float soilTemp1 = 13;
+    float soilTemp2 = 14;
+    float soilTemp3 = 15;
+    float soilTemp4 = 16;
+
+    // Leaf temperature sensors
+    float leafTemp1 = 17;
+    float leafTemp2 = 18;
+    float leafTemp3 = 19;
+    float leafTemp4 = 20;
+
+    // Calculated temperature index
+    float feelsLikeTemp = 21;    // Unified feels-like temperature (wind chill or heat index)
+
+    // Humidity readings
+    float outsideHumidity = 22;
+    float insideHumidity = 23;
+
+    // Extra humidity sensors
+    float extraHumidity1 = 24;
+    float extraHumidity2 = 25;
+    float extraHumidity3 = 26;
+    float extraHumidity4 = 27;
+    float extraHumidity5 = 28;
+    float extraHumidity6 = 29;
+    float extraHumidity7 = 30;
+
+    // Barometric pressure
+    float barometer = 31;
+
+    // Wind measurements
+    float windSpeed = 32;
+    float windGust = 33;            // 10-minute wind gust (calculated from DB)
+    float windDirection = 34;
+    string cardinalDirection = 35;   // N, NE, E, SE, etc.
+
+    // Rain measurements (all calculated from database)
+    float rainRate = 36;            // Current rain rate (calculated from DB)
+    float rainIncremental = 37;     // Incremental rain since last reading
+    float rainToday = 38;           // Rain since midnight (from dayRain)
+    float rain24h = 39;             // Rain in last 24 hours (calculated from DB)
+    float rain48h = 40;             // Rain in last 48 hours (calculated from DB)
+    float rain72h = 41;             // Rain in last 72 hours (calculated from DB)
+    float rainStormTotal = 42;      // Total rainfall for current storm (calculated from DB)
+    float rainMonth = 43;           // Rain for current month
+    float rainYear = 44;            // Rain for current year
+
+    // Solar measurements
+    float solarWatts = 45;          // Solar irradiance in watts/m²
+    float potentialSolarWatts = 46; // Potential solar irradiance
+    float solarJoules = 47;         // Solar energy in joules
+    float uv = 48;                  // UV index
+    float radiation = 49;           // Solar radiation
+    SkyCondition skyConditions = 50; // Sky conditions based on solar data
+
+    // Snow measurements
+    float snowDepth = 51;           // Current snow depth
+    float snow24h = 80;             // Snow accumulation in last 24 hours (calculated from DB)
+    float snow48h = 81;             // Snow accumulation in last 48 hours (calculated from DB)
+    float snow72h = 82;             // Snow accumulation in last 72 hours (calculated from DB)
+    float snowStormTotal = 83;      // Total snowfall for current storm (calculated from DB)
+    float snowSeasonTotal = 84;     // Total snowfall for season (calculated from DB)
+    float snowAccumulationRate = 85; // Current snow accumulation rate (calculated from DB)
+
+    // Air quality
+    float pm25 = 53;                // PM2.5 outdoor
+    float co2 = 54;                 // CO2 level in ppm
+    int32 aqiPM25 = 55;             // AQI from PM2.5 (calculated or from sensor)
+    int32 aqiPM10 = 56;             // AQI from PM10 (calculated or from sensor)
+
+    // Battery status
+    float consBatteryVoltage = 57;
+    float stationBatteryVoltage = 58;
+
+    // Extended float fields for custom data
+    float extraFloat1 = 59;
+    float extraFloat2 = 60;
+    float extraFloat3 = 61;
+    float extraFloat4 = 62;
+    float extraFloat5 = 63;
+    float extraFloat6 = 64;
+    float extraFloat7 = 65;
+    float extraFloat8 = 66;
+    float extraFloat9 = 67;
+    float extraFloat10 = 68;
+
+    // Extended text fields for custom data
+    string extraText1 = 69;
+    string extraText2 = 70;
+    string extraText3 = 71;
+    string extraText4 = 72;
+    string extraText5 = 73;
+    string extraText6 = 74;
+    string extraText7 = 75;
+    string extraText8 = 76;
+    string extraText9 = 77;
+    string extraText10 = 78;
+}
+
+message Empty {}
