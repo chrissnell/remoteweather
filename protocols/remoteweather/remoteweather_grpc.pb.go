@@ -19,11 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	WeatherV1_SendWeatherReadings_FullMethodName   = "/WeatherV1/SendWeatherReadings"
-	WeatherV1_RegisterRemoteStation_FullMethodName = "/WeatherV1/RegisterRemoteStation"
-	WeatherV1_GetLiveWeather_FullMethodName        = "/WeatherV1/GetLiveWeather"
-	WeatherV1_GetWeatherSpan_FullMethodName        = "/WeatherV1/GetWeatherSpan"
-	WeatherV1_GetLatestReading_FullMethodName      = "/WeatherV1/GetLatestReading"
+	WeatherV1_SendWeatherReadings_FullMethodName   = "/remoteweather.v1.WeatherV1/SendWeatherReadings"
+	WeatherV1_RegisterRemoteStation_FullMethodName = "/remoteweather.v1.WeatherV1/RegisterRemoteStation"
+	WeatherV1_GetLiveWeather_FullMethodName        = "/remoteweather.v1.WeatherV1/GetLiveWeather"
+	WeatherV1_GetWeatherSpan_FullMethodName        = "/remoteweather.v1.WeatherV1/GetWeatherSpan"
+	WeatherV1_GetLatestReading_FullMethodName      = "/remoteweather.v1.WeatherV1/GetLatestReading"
 )
 
 // WeatherV1Client is the client API for WeatherV1 service.
@@ -300,7 +300,7 @@ func _WeatherV1_GetLatestReading_Handler(srv interface{}, ctx context.Context, d
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var WeatherV1_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "WeatherV1",
+	ServiceName: "remoteweather.v1.WeatherV1",
 	HandlerType: (*WeatherV1Server)(nil),
 	Methods: []grpc.MethodDesc{
 		{

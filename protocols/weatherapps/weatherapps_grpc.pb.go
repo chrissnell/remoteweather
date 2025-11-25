@@ -19,9 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	WeatherAppsV1_StreamLiveWeather_FullMethodName  = "/WeatherAppsV1/StreamLiveWeather"
-	WeatherAppsV1_GetWeatherTimeSpan_FullMethodName = "/WeatherAppsV1/GetWeatherTimeSpan"
-	WeatherAppsV1_GetCurrentReading_FullMethodName  = "/WeatherAppsV1/GetCurrentReading"
+	WeatherAppsV1_StreamLiveWeather_FullMethodName  = "/weatherapps.v1.WeatherAppsV1/StreamLiveWeather"
+	WeatherAppsV1_GetWeatherTimeSpan_FullMethodName = "/weatherapps.v1.WeatherAppsV1/GetWeatherTimeSpan"
+	WeatherAppsV1_GetCurrentReading_FullMethodName  = "/weatherapps.v1.WeatherAppsV1/GetCurrentReading"
 )
 
 // WeatherAppsV1Client is the client API for WeatherAppsV1 service.
@@ -207,7 +207,7 @@ func _WeatherAppsV1_GetCurrentReading_Handler(srv interface{}, ctx context.Conte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var WeatherAppsV1_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "WeatherAppsV1",
+	ServiceName: "weatherapps.v1.WeatherAppsV1",
 	HandlerType: (*WeatherAppsV1Server)(nil),
 	Methods: []grpc.MethodDesc{
 		{

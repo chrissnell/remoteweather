@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package remoteweather.v1;
+
 option go_package = "github.com/chrissnell/remoteweather/protocols/remoteweather/v1";
 
 import "google/protobuf/timestamp.proto";
