@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v5.27.1
-// source: protocols/weatherapps/weatherapps.proto
+// source: weatherapps.proto
 
 package v1
 
@@ -226,5 +226,5 @@ var WeatherAppsV1_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "protocols/weatherapps/weatherapps.proto",
+	Metadata: "weatherapps.proto",
 }

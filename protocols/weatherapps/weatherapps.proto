@@ -69,8 +69,7 @@ message WeatherReading {
     string stationType = 3;
 
     // Temperature readings (Celsius)
-    float outsideTemperature = 4;
-    float insideTemperature = 5;
+    float temperature = 4;
 
     // Extra temperature sensors
     float extraTemp1 = 6;
@@ -97,8 +96,7 @@ message WeatherReading {
     float feelsLikeTemp = 21;    // Unified feels-like temperature (wind chill or heat index)
 
     // Humidity readings
-    float outsideHumidity = 22;
-    float insideHumidity = 23;
+    float humidity = 22;
 
     // Extra humidity sensors
     float extraHumidity1 = 24;
