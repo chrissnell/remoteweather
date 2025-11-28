@@ -411,6 +411,7 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Station API endpoints
 	router.HandleFunc("/api/stations", c.handlers.GetStations)
 	router.HandleFunc("/api/remote-stations", c.handlers.GetRemoteStations)
+	router.HandleFunc("/stationinfo", c.handlers.GetStationInfo)
 
 	// Serve fonts with long-term caching headers
 	router.PathPrefix("/fonts/").Handler(c.cachingMiddleware(365*24*time.Hour, http.FileServer(http.FS(*c.FS))))
