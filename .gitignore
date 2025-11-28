@@ -1,6 +1,7 @@
 config-secret.yaml
 /remoteweather
 binaries/
+bin/
 misc/
 
 # Compiled binaries
