@@ -768,13 +768,10 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		tableName = "weather_1d"
 	}
 
-	// Simple fast query without Gaussian smoothing for better performance
-	err := c.DB.Table(tableName).
-		Select("*, (? - snowdistance) AS snowdepth", baseDistance).
-		Where("bucket > ?", spanStart).
-		Where("stationname = ?", stationName).
-		Order("bucket").
-		Find(&dbFetchedReadings).Error
+	// Use raw SQL to avoid GORM query builder planning overhead (~45ms per query)
+	// GORM's Table().Where() generates complex query plans that TimescaleDB re-plans every time
+	query := fmt.Sprintf(`SELECT *, (? - snowdistance) AS snowdepth FROM %s WHERE bucket > ? AND stationname = ? ORDER BY bucket`, tableName)
+	err := c.DB.Raw(query, baseDistance, spanStart, stationName).Scan(&dbFetchedReadings).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("database query failed: %w", err)
