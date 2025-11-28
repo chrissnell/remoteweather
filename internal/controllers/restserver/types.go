@@ -198,3 +198,19 @@ type StationWebsiteData struct {
 	Protocol  string `json:"protocol"`
 	Port      int    `json:"port"`
 }
+
+// StationInfoItem represents a single weather station with its type
+type StationInfoItem struct {
+	ID   int    `json:"id"`
+	Type string `json:"type"`
+}
+
+// StationInfoResponse represents the response for the /stationinfo endpoint
+type StationInfoResponse struct {
+	WebsiteName        string            `json:"website_name"`
+	AboutText          string            `json:"about_text,omitempty"`
+	Stations           []StationInfoItem `json:"stations"`
+	WeatherDevice      *int              `json:"weather_device,omitempty"`
+	SnowDevice         *string           `json:"snow_device,omitempty"`
+	AirQualityDevice   *string           `json:"air_quality_device,omitempty"`
+}

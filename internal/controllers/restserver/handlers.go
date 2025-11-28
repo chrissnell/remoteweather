@@ -996,6 +996,75 @@ func (h *Handlers) GetStations(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// GetStationInfo returns information about available weather stations for the current website
+// Returns: website name, about text, list of station IDs and types, and device associations
+func (h *Handlers) GetStationInfo(w http.ResponseWriter, req *http.Request) {
+	// Get website from context
+	website := h.getWebsiteFromContext(req)
+
+	// Check if website is configured
+	if website == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "No weather websites configured",
+			"message": "The REST server is running but no weather websites have been configured yet",
+		})
+		return
+	}
+
+	// Load current devices from config provider
+	currentDevices, err := h.controller.configProvider.GetDevices()
+	if err != nil {
+		log.Error("error loading current devices from config:", err)
+		http.Error(w, "error loading station data", http.StatusInternalServerError)
+		return
+	}
+
+	// Build the response
+	response := StationInfoResponse{
+		WebsiteName: website.Name,
+		AboutText:   website.AboutStationHTML,
+		Stations:    make([]StationInfoItem, 0),
+	}
+
+	// Set weather device (primary device for this website)
+	if website.DeviceID != nil {
+		response.WeatherDevice = website.DeviceID
+	}
+
+	// Set snow device if enabled
+	if website.SnowEnabled && website.SnowDeviceName != "" {
+		response.SnowDevice = &website.SnowDeviceName
+	}
+
+	// Set air quality device if enabled
+	if website.AirQualityEnabled && website.AirQualityDeviceName != "" {
+		response.AirQualityDevice = &website.AirQualityDeviceName
+	}
+
+	// Add all devices with location data to stations list
+	for _, device := range currentDevices {
+		// Only include devices that have location data
+		if device.Latitude != 0 && device.Longitude != 0 {
+			station := StationInfoItem{
+				ID:   device.ID,
+				Type: device.Type,
+			}
+			response.Stations = append(response.Stations, station)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Error("error encoding station info to JSON:", err)
+		http.Error(w, "error encoding station info", http.StatusInternalServerError)
+		return
+	}
+}
+
 // GetRemoteStations returns all registered remote stations
 func (h *Handlers) GetRemoteStations(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
