@@ -750,70 +750,38 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 	var dbFetchedReadings []types.BucketReading
 	spanStart := time.Now().Add(-span)
 
-	// Select appropriate table and smoothing window based on span duration
+	// Select appropriate table based on span duration
+	// Target: Keep data points under ~300 for reasonable payload size and client rendering
 	var tableName string
-	var lag1, lag2, lag3 int // Gaussian smoothing window offsets
 	switch {
-	case span < 1*Day:
+	case span <= 6*time.Hour:
+		// Up to 6 hours: 1-minute data (max 360 points)
 		tableName = "weather_1m"
-		lag1, lag2, lag3 = 10, 20, 30 // ±30 minutes for 1-minute data
-	case span >= 1*Day && span < 7*Day:
+	case span > 6*time.Hour && span <= 48*time.Hour:
+		// 6-48 hours: 5-minute data (max 576 points, typically ~200-300)
 		tableName = "weather_5m"
-		lag1, lag2, lag3 = 2, 4, 6 // ±30 minutes for 5-minute data
-	case span >= 7*Day && span < 2*Month:
+	case span > 48*time.Hour && span <= 14*Day:
+		// 2-14 days: hourly data (max 336 points)
 		tableName = "weather_1h"
-		lag1, lag2, lag3 = 1, 2, 3 // ±3 hours for hourly data
 	default:
-		// For monthly and yearly spans, use daily aggregated view for performance
+		// > 14 days: daily data (14-365 points)
 		tableName = "weather_1d"
-		lag1, lag2, lag3 = 1, 2, 3 // ±3 days for daily data
 	}
 
-	// Query with Gaussian weighted smoothing for snow depth
-	// This provides superior noise reduction while preserving snow events
-	query := fmt.Sprintf(`
-		SELECT
-			*,
-			-- Gaussian weighted smoothing: center gets more weight (4.0), edges less (1.0)
-			(
-				COALESCE(1.0 * LAG(? - snowdistance, %d) OVER (ORDER BY bucket), 0) +
-				COALESCE(2.0 * LAG(? - snowdistance, %d) OVER (ORDER BY bucket), 0) +
-				COALESCE(3.0 * LAG(? - snowdistance, %d) OVER (ORDER BY bucket), 0) +
-				4.0 * (? - snowdistance) +
-				COALESCE(3.0 * LEAD(? - snowdistance, %d) OVER (ORDER BY bucket), 0) +
-				COALESCE(2.0 * LEAD(? - snowdistance, %d) OVER (ORDER BY bucket), 0) +
-				COALESCE(1.0 * LEAD(? - snowdistance, %d) OVER (ORDER BY bucket), 0)
-			) / (
-				4.0 +
-				CASE WHEN LAG(snowdistance, %d) OVER (ORDER BY bucket) IS NOT NULL THEN 3.0 ELSE 0 END +
-				CASE WHEN LAG(snowdistance, %d) OVER (ORDER BY bucket) IS NOT NULL THEN 2.0 ELSE 0 END +
-				CASE WHEN LAG(snowdistance, %d) OVER (ORDER BY bucket) IS NOT NULL THEN 1.0 ELSE 0 END +
-				CASE WHEN LEAD(snowdistance, %d) OVER (ORDER BY bucket) IS NOT NULL THEN 3.0 ELSE 0 END +
-				CASE WHEN LEAD(snowdistance, %d) OVER (ORDER BY bucket) IS NOT NULL THEN 2.0 ELSE 0 END +
-				CASE WHEN LEAD(snowdistance, %d) OVER (ORDER BY bucket) IS NOT NULL THEN 1.0 ELSE 0 END
-			) AS snowdepth
-		FROM %s
-		WHERE bucket > ?
-		  AND stationname = ?
-		ORDER BY bucket
-	`,
-		lag3, lag2, lag1,     // LAG offsets for weighted values
-		lag1, lag2, lag3,     // LEAD offsets for weighted values
-		lag1, lag2, lag3,     // LAG offsets for divisor checks
-		lag1, lag2, lag3,     // LEAD offsets for divisor checks
-		tableName)
-
-	err := c.DB.Raw(query,
-		baseDistance, baseDistance, baseDistance, baseDistance, // For LAG calculations
-		baseDistance, baseDistance, baseDistance,               // For LEAD calculations
-		spanStart, stationName).Scan(&dbFetchedReadings).Error
+	// Simple fast query without Gaussian smoothing for better performance
+	err := c.DB.Table(tableName).
+		Select("*, (? - snowdistance) AS snowdepth", baseDistance).
+		Where("bucket > ?", spanStart).
+		Where("stationname = ?", stationName).
+		Order("bucket").
+		Find(&dbFetchedReadings).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("database query failed: %w", err)
 	}
 
-	c.logger.Debugf("fetchWeatherSpan returned %d rows for station %s, span %v, table=%s, gaussian smoothing=[%d,%d,%d]",
-		len(dbFetchedReadings), stationName, span, tableName, lag1, lag2, lag3)
+	c.logger.Debugf("fetchWeatherSpan returned %d rows for station %s, span %v, table=%s",
+		len(dbFetchedReadings), stationName, span, tableName)
 	return dbFetchedReadings, nil
 }
 
