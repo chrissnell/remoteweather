@@ -25,8 +25,10 @@ import (
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
 )
@@ -740,6 +742,11 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		return nil, fmt.Errorf("database not enabled")
 	}
 
+	// Reject queries for time spans greater than 1 year
+	if span > 365*24*time.Hour {
+		return nil, fmt.Errorf("time span exceeds maximum allowed duration of 1 year")
+	}
+
 	var dbFetchedReadings []types.BucketReading
 	spanStart := time.Now().Add(-span)
 
@@ -757,8 +764,9 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		tableName = "weather_1h"
 		lag1, lag2, lag3 = 1, 2, 3 // ±3 hours for hourly data
 	default:
-		tableName = "weather_1h"
-		lag1, lag2, lag3 = 1, 2, 3
+		// For monthly and yearly spans, use daily aggregated view for performance
+		tableName = "weather_1d"
+		lag1, lag2, lag3 = 1, 2, 3 // ±3 days for daily data
 	}
 
 	// Query with Gaussian weighted smoothing for snow depth
@@ -861,7 +869,11 @@ func (c *Controller) GetWeatherSpan(ctx context.Context, request *weather.Weathe
 	span := request.SpanDuration.AsDuration()
 	dbFetchedReadings, err := c.fetchWeatherSpan(request.StationName, span, baseDistance)
 	if err != nil {
-		return nil, err
+		// Return InvalidArgument status for span duration errors
+		if err.Error() == "time span exceeds maximum allowed duration of 1 year" {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Transform readings to protobuf format
