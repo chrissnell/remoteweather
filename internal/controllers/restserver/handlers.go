@@ -1049,6 +1049,7 @@ func (h *Handlers) GetStationInfo(w http.ResponseWriter, req *http.Request) {
 		if device.Latitude != 0 && device.Longitude != 0 {
 			station := StationInfoItem{
 				ID:   device.ID,
+				Name: device.Name,
 				Type: device.Type,
 			}
 			response.Stations = append(response.Stations, station)
