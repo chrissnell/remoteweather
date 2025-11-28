@@ -10,7 +10,9 @@ import (
 	"github.com/chrissnell/remoteweather/internal/grpcutil"
 	"github.com/chrissnell/remoteweather/internal/log"
 	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -28,7 +30,11 @@ func (c *Controller) GetWeatherTimeSpan(ctx context.Context, request *weatherapp
 	span := request.SpanDuration.AsDuration()
 	dbFetchedReadings, err := c.fetchWeatherSpan(request.StationName, span, baseDistance)
 	if err != nil {
-		return nil, err
+		// Return InvalidArgument status for span duration errors
+		if err.Error() == "time span exceeds maximum allowed duration of 1 year" {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Transform readings to weatherapps protobuf format

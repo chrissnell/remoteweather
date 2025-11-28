@@ -163,7 +163,12 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 		dbFetchedReadings, err = h.controller.fetchWeatherSpan(stationName, span, float64(baseDistance))
 		if err != nil {
 			log.Errorf("Error fetching weather span: %v", err)
-			http.Error(w, "error fetching weather data", http.StatusInternalServerError)
+			// Return 400 Bad Request if the span exceeds the maximum allowed duration
+			if err.Error() == "time span exceeds maximum allowed duration of 1 year" {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, "error fetching weather data", http.StatusInternalServerError)
+			}
 			return
 		}
 
