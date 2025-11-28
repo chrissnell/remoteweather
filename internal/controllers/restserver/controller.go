@@ -21,6 +21,7 @@ import (
 	"github.com/chrissnell/remoteweather/pkg/config"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
 	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
@@ -391,6 +392,9 @@ func (c *Controller) setupRouter() *mux.Router {
 
 	// Add HTTP logging middleware
 	router.Use(c.httpLoggingMiddleware)
+
+	// Add gzip compression middleware for all responses
+	router.Use(handlers.CompressHandler)
 
 	// API endpoints - these work for all websites
 	router.HandleFunc("/span/{span}", c.handlers.GetWeatherSpan)

@@ -3,6 +3,7 @@ config-secret.yaml
 binaries/
 bin/
 misc/
+scratch/
 
 # Compiled binaries
 config-convert
