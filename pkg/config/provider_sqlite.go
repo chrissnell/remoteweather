@@ -902,23 +902,24 @@ func (s *SQLiteProvider) insertGRPCConfig(tx *sql.Tx, configID int64, grpc *GRPC
 
 func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller *ControllerData) error {
 	// Insert controller record
+	// Note: Device-specific fields (station IDs, API keys, etc.) were moved to devices table in migration 013
+	// Only global API endpoints and server configuration fields remain in controller_configs
 	query := `
 		INSERT INTO controller_configs (
 			config_id, controller_type, enabled,
-			pws_station_id, pws_api_key, pws_upload_interval, pws_pull_from_device, pws_api_endpoint,
-			wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
-			aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_latitude, aeris_longitude,
+			pws_api_endpoint,
+			wu_api_endpoint,
+			aeris_api_endpoint,
 			rest_port, rest_listen_addr,
 			grpc_port, grpc_listen_addr, grpc_cert, grpc_key,
 			management_cert, management_key, management_port, management_listen_addr,
 			management_auth_token, management_enable_cors, aprs_server
-		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
-	var wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint sql.NullString
-	var aerisClientID, aerisClientSecret, aerisAPIEndpoint sql.NullString
-	var aerisLatitude, aerisLongitude sql.NullFloat64
+	var pwsAPIEndpoint sql.NullString
+	var wuAPIEndpoint sql.NullString
+	var aerisAPIEndpoint sql.NullString
 	var restListenAddr sql.NullString
 	var restPort sql.NullInt64
 	var grpcListenAddr, grpcCert, grpcKey sql.NullString
@@ -929,27 +930,15 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	var aprsServer sql.NullString
 
 	if controller.PWSWeather != nil {
-		pwsStationID = sql.NullString{String: controller.PWSWeather.StationID, Valid: controller.PWSWeather.StationID != ""}
-		pwsAPIKey = sql.NullString{String: controller.PWSWeather.APIKey, Valid: controller.PWSWeather.APIKey != ""}
-		pwsUploadInterval = sql.NullString{String: controller.PWSWeather.UploadInterval, Valid: controller.PWSWeather.UploadInterval != ""}
-		pwsPullFromDevice = sql.NullString{String: controller.PWSWeather.PullFromDevice, Valid: controller.PWSWeather.PullFromDevice != ""}
 		pwsAPIEndpoint = sql.NullString{String: controller.PWSWeather.APIEndpoint, Valid: controller.PWSWeather.APIEndpoint != ""}
 	}
 
 	if controller.WeatherUnderground != nil {
-		wuStationID = sql.NullString{String: controller.WeatherUnderground.StationID, Valid: controller.WeatherUnderground.StationID != ""}
-		wuAPIKey = sql.NullString{String: controller.WeatherUnderground.APIKey, Valid: controller.WeatherUnderground.APIKey != ""}
-		wuUploadInterval = sql.NullString{String: controller.WeatherUnderground.UploadInterval, Valid: controller.WeatherUnderground.UploadInterval != ""}
-		wuPullFromDevice = sql.NullString{String: controller.WeatherUnderground.PullFromDevice, Valid: controller.WeatherUnderground.PullFromDevice != ""}
 		wuAPIEndpoint = sql.NullString{String: controller.WeatherUnderground.APIEndpoint, Valid: controller.WeatherUnderground.APIEndpoint != ""}
 	}
 
 	if controller.AerisWeather != nil {
-		aerisClientID = sql.NullString{String: controller.AerisWeather.APIClientID, Valid: controller.AerisWeather.APIClientID != ""}
-		aerisClientSecret = sql.NullString{String: controller.AerisWeather.APIClientSecret, Valid: controller.AerisWeather.APIClientSecret != ""}
 		aerisAPIEndpoint = sql.NullString{String: controller.AerisWeather.APIEndpoint, Valid: controller.AerisWeather.APIEndpoint != ""}
-		aerisLatitude = sql.NullFloat64{Float64: controller.AerisWeather.Latitude, Valid: controller.AerisWeather.Latitude != 0}
-		aerisLongitude = sql.NullFloat64{Float64: controller.AerisWeather.Longitude, Valid: controller.AerisWeather.Longitude != 0}
 	}
 
 	if controller.RESTServer != nil {
@@ -975,9 +964,9 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	}
 
 	_, err := tx.Exec(query, configID, controller.Type,
-		pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint,
-		wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint,
-		aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLatitude, aerisLongitude,
+		pwsAPIEndpoint,
+		wuAPIEndpoint,
+		aerisAPIEndpoint,
 		restPort, restListenAddr,
 		grpcPort, grpcListenAddr, grpcCert, grpcKey,
 		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS, aprsServer,
