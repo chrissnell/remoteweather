@@ -60,7 +60,11 @@ const ManagementControllers = (function() {
       restHttpPort: document.getElementById('rest-http-port'),
       restHttpsPort: document.getElementById('rest-https-port'),
       restListenAddr: document.getElementById('rest-listen-addr'),
-      
+      restGrpcPort: document.getElementById('rest-grpc-port'),
+      restGrpcListenAddr: document.getElementById('rest-grpc-listen-addr'),
+      restGrpcCert: document.getElementById('rest-grpc-cert'),
+      restGrpcKey: document.getElementById('rest-grpc-key'),
+
       // Management API fields
       mgmtPort: document.getElementById('mgmt-port'),
       mgmtListenAddr: document.getElementById('mgmt-listen-addr'),
@@ -347,6 +351,10 @@ const ManagementControllers = (function() {
         if (config.http_port) formElements.restHttpPort.value = config.http_port;
         if (config.https_port) formElements.restHttpsPort.value = config.https_port;
         if (config.default_listen_addr) formElements.restListenAddr.value = config.default_listen_addr;
+        if (config.grpc_port) formElements.restGrpcPort.value = config.grpc_port;
+        if (config.grpc_listen_addr) formElements.restGrpcListenAddr.value = config.grpc_listen_addr;
+        if (config.grpc_cert_path) formElements.restGrpcCert.value = config.grpc_cert_path;
+        if (config.grpc_key_path) formElements.restGrpcKey.value = config.grpc_key_path;
         break;
       case 'management':
         if (config.port) formElements.mgmtPort.value = config.port;
@@ -435,6 +443,19 @@ const ManagementControllers = (function() {
         const httpsPort = parseInt(formElements.restHttpsPort.value);
         if (httpsPort) config.https_port = httpsPort;
         config.default_listen_addr = formElements.restListenAddr.value || '';
+
+        // gRPC configuration
+        const grpcPort = parseInt(formElements.restGrpcPort.value);
+        if (grpcPort) config.grpc_port = grpcPort;
+        if (formElements.restGrpcListenAddr.value) {
+          config.grpc_listen_addr = formElements.restGrpcListenAddr.value;
+        }
+        if (formElements.restGrpcCert.value) {
+          config.grpc_cert_path = formElements.restGrpcCert.value;
+        }
+        if (formElements.restGrpcKey.value) {
+          config.grpc_key_path = formElements.restGrpcKey.value;
+        }
         break;
       case 'management':
         config.port = parseInt(formElements.mgmtPort.value) || 0;

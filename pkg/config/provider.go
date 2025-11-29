@@ -344,9 +344,16 @@ type APRSData struct {
 // The REST server serves both REST API endpoints and weather websites
 // It uses a single listener that routes based on Host header/SNI
 type RESTServerData struct {
+	// HTTP/HTTPS configuration
 	HTTPPort          int    `json:"http_port,omitempty"`           // Single HTTP port for all websites
 	HTTPSPort         *int   `json:"https_port,omitempty"`          // Optional HTTPS port for all websites
 	DefaultListenAddr string `json:"default_listen_addr,omitempty"` // Listen address (default: 0.0.0.0)
+
+	// gRPC configuration
+	GRPCPort       int    `json:"grpc_port,omitempty"`        // gRPC listener port (default: 50051)
+	GRPCListenAddr string `json:"grpc_listen_addr,omitempty"` // gRPC listen address (default: 0.0.0.0)
+	GRPCCertPath   string `json:"grpc_cert_path,omitempty"`   // Optional gRPC TLS certificate path
+	GRPCKeyPath    string `json:"grpc_key_path,omitempty"`    // Optional gRPC TLS key path
 }
 
 // WeatherWebsiteData represents a weather website configuration
