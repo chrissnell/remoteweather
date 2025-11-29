@@ -156,11 +156,11 @@ func (h *Handlers) GetWeatherSpan(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		// Snow base distance already retrieved from website
-		baseDistance := h.getSnowBaseDistance(website)
+		// Get snow base distance for the specific station being queried
+		baseDistance := h.controller.getSnowBaseDistanceForStation(stationName)
 
 		// Use the shared database fetching logic
-		dbFetchedReadings, err = h.controller.fetchWeatherSpan(stationName, span, float64(baseDistance))
+		dbFetchedReadings, err = h.controller.fetchWeatherSpan(stationName, span, baseDistance)
 		if err != nil {
 			log.Errorf("Error fetching weather span: %v", err)
 			// Return 400 Bad Request if the span exceeds the maximum allowed duration
