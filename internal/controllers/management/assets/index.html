@@ -581,18 +581,44 @@
         
         <!-- REST Server fields -->
         <div id="rest-fields" class="controller-fields hidden">
-          <label>
-            HTTP Port
-            <input type="number" id="rest-http-port" value="80" />
-          </label>
-          <label>
-            HTTPS Port (optional)
-            <input type="number" id="rest-https-port" value="443" />
-          </label>
-          <label>
-            Listen Address (optional)
-            <input type="text" id="rest-listen-addr" value="0.0.0.0" />
-          </label>
+          <fieldset>
+            <legend>REST Server Configuration</legend>
+            <label>
+              HTTP Port
+              <input type="number" id="rest-http-port" value="80" />
+            </label>
+            <label>
+              HTTPS Port (optional)
+              <input type="number" id="rest-https-port" value="443" />
+            </label>
+            <label>
+              Listen Address (optional)
+              <input type="text" id="rest-listen-addr" value="0.0.0.0" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>gRPC Server Configuration</legend>
+            <label>
+              gRPC Port
+              <input type="number" id="rest-grpc-port" value="50051" />
+              <span class="help-text">Standard gRPC port is 50051</span>
+            </label>
+            <label>
+              gRPC Listen Address
+              <input type="text" id="rest-grpc-listen-addr" value="0.0.0.0" />
+            </label>
+            <label>
+              gRPC TLS Certificate (optional)
+              <input type="text" id="rest-grpc-cert" placeholder="/path/to/grpc-cert.pem" />
+              <span class="help-text">Leave empty for non-TLS gRPC</span>
+            </label>
+            <label>
+              gRPC TLS Key (optional)
+              <input type="text" id="rest-grpc-key" placeholder="/path/to/grpc-key.pem" />
+              <span class="help-text">Leave empty for non-TLS gRPC</span>
+            </label>
+          </fieldset>
         </div>
         
         <!-- Management API fields -->

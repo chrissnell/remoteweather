@@ -23,7 +23,6 @@ import (
 	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
@@ -272,123 +271,161 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	return ctrl, nil
 }
 
-// StartController starts the unified REST/gRPC server using cmux
+// StartController starts the REST and gRPC servers on separate ports
 func (c *Controller) StartController() error {
-	log.Info("Starting unified REST/gRPC server...")
-	
-	// Determine if we should use HTTPS based on TLS configurations
-	useHTTPS := len(c.tlsConfigs) > 0
-	
-	c.wg.Add(1)
-	go func() {
-		defer c.wg.Done()
+	log.Info("Starting REST and gRPC servers...")
 
-		// Create the main listener
-		listenAddr := fmt.Sprintf("%s:%d", c.restConfig.DefaultListenAddr, c.restConfig.HTTPPort)
-		l, err := net.Listen("tcp", listenAddr)
-		if err != nil {
-			log.Errorf("Failed to create listener: %v", err)
-			return
-		}
-		defer l.Close()
+	c.wg.Add(2) // One for REST, one for gRPC
 
-		if useHTTPS {
-			// HTTPS + gRPC mode
-			log.Infof("Starting unified server on %s (HTTPS and gRPC) with %d configured certificates", listenAddr, len(c.tlsConfigs))
+	// Start REST/HTTPS server
+	go c.startRESTServer()
 
-			// Create TLS config with SNI support
-			tlsConfig := &tls.Config{
-				GetCertificate: c.getCertificate,
-				// Advertise both h2 and http/1.1 for gRPC and HTTP support
-				// cmux will handle routing based on content-type after TLS handshake
-				NextProtos: []string{"h2", "http/1.1"},
-			}
-
-			// Wrap listener with TLS
-			tlsListener := tls.NewListener(l, tlsConfig)
-
-			// Create cmux multiplexer on TLS listener
-			m := cmux.New(tlsListener)
-
-			// Match connections:
-			// - gRPC (HTTP/2 with "application/grpc" content-type)
-			// - HTTPS (HTTP/1.1 and HTTP/2 without gRPC content-type)
-			grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-			httpsL := m.Match(cmux.Any())
-
-			// Configure HTTP/2 support for the HTTPS server
-			// This is essential because we advertise h2 in ALPN
-			if err := http2.ConfigureServer(&c.Server, &http2.Server{}); err != nil {
-				log.Errorf("Failed to configure HTTP/2: %v", err)
-				return
-			}
-
-			// Configure and start HTTPS server
-			c.Server.Handler = c.setupRouter()
-			go func() {
-				if err := c.Server.Serve(httpsL); err != http.ErrServerClosed {
-					log.Errorf("HTTPS server error: %v", err)
-				}
-			}()
-
-			// Start gRPC server
-			go func() {
-				if err := c.GRPCServer.Serve(grpcL); err != nil {
-					log.Errorf("gRPC server error: %v", err)
-				}
-			}()
-
-			// Start serving connections
-			if err := m.Serve(); err != nil && !strings.Contains(err.Error(), "closed") {
-				log.Errorf("cmux serve error: %v", err)
-			}
-		} else {
-			// HTTP + gRPC mode (original behavior when no TLS)
-			log.Infof("Starting unified server on %s (HTTP and gRPC)", listenAddr)
-			
-			// Create cmux multiplexer
-			m := cmux.New(l)
-			
-			// Match connections:
-			// - gRPC (HTTP/2 with "application/grpc" content-type)
-			// - HTTP/1.1 and HTTP/2 without gRPC content-type
-			grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
-			httpL := m.Match(cmux.Any())
-			
-			// Start HTTP server
-			go func() {
-				if err := c.Server.Serve(httpL); err != http.ErrServerClosed {
-					log.Errorf("HTTP server error: %v", err)
-				}
-			}()
-			
-			// Start gRPC server
-			go func() {
-				if err := c.GRPCServer.Serve(grpcL); err != nil {
-					log.Errorf("gRPC server error: %v", err)
-				}
-			}()
-			
-			// Start serving connections
-			if err := m.Serve(); err != nil && !strings.Contains(err.Error(), "closed") {
-				log.Errorf("cmux serve error: %v", err)
-			}
-		}
-	}()
+	// Start gRPC server
+	go c.startGRPCServer()
 
 	// Handle graceful shutdown
-	go func() {
-		<-c.ctx.Done()
-		log.Info("Shutting down servers...")
-		
-		// Shutdown HTTP/HTTPS server
-		c.Server.Shutdown(context.Background())
-		
-		// Stop gRPC server
-		c.GRPCServer.GracefulStop()
-	}()
+	go c.handleShutdown()
 
 	return nil
+}
+
+// startRESTServer starts the REST server (HTTP or HTTPS)
+func (c *Controller) startRESTServer() {
+	defer c.wg.Done()
+
+	listenAddr := fmt.Sprintf("%s:%d", c.restConfig.DefaultListenAddr, c.restConfig.HTTPPort)
+
+	if c.shouldUseHTTPS() {
+		c.startHTTPSServer(listenAddr)
+	} else {
+		c.startHTTPServer(listenAddr)
+	}
+}
+
+// startHTTPSServer starts the HTTPS server with HTTP/2 support
+func (c *Controller) startHTTPSServer(listenAddr string) {
+	tlsConfig := &tls.Config{
+		GetCertificate: c.getCertificate,
+		NextProtos:     []string{"h2", "http/1.1"}, // Enable HTTP/2
+	}
+
+	listener, err := tls.Listen("tcp", listenAddr, tlsConfig)
+	if err != nil {
+		log.Errorf("Failed to create HTTPS listener: %v", err)
+		return
+	}
+	defer listener.Close()
+
+	// Configure HTTP/2 support - native, no cmux interference
+	if err := http2.ConfigureServer(&c.Server, &http2.Server{}); err != nil {
+		log.Errorf("Failed to configure HTTP/2: %v", err)
+		return
+	}
+
+	c.Server.Handler = c.setupRouter()
+
+	log.Infof("HTTPS server listening on %s (HTTP/2 enabled)", listenAddr)
+	if err := c.Server.Serve(listener); err != http.ErrServerClosed {
+		log.Errorf("HTTPS server error: %v", err)
+	}
+}
+
+// startHTTPServer starts the HTTP server
+func (c *Controller) startHTTPServer(listenAddr string) {
+	listener, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		log.Errorf("Failed to create HTTP listener: %v", err)
+		return
+	}
+	defer listener.Close()
+
+	c.Server.Handler = c.setupRouter()
+
+	log.Infof("HTTP server listening on %s", listenAddr)
+	if err := c.Server.Serve(listener); err != http.ErrServerClosed {
+		log.Errorf("HTTP server error: %v", err)
+	}
+}
+
+// startGRPCServer starts the gRPC server on a separate port
+func (c *Controller) startGRPCServer() {
+	defer c.wg.Done()
+
+	grpcAddr := fmt.Sprintf("%s:%d",
+		c.restConfig.GRPCListenAddr,
+		c.restConfig.GRPCPort)
+
+	var listener net.Listener
+	var err error
+
+	if c.shouldUseGRPCTLS() {
+		listener, err = c.createGRPCTLSListener(grpcAddr)
+	} else {
+		listener, err = net.Listen("tcp", grpcAddr)
+	}
+
+	if err != nil {
+		log.Errorf("Failed to create gRPC listener: %v", err)
+		return
+	}
+	defer listener.Close()
+
+	tlsStatus := "without TLS"
+	if c.shouldUseGRPCTLS() {
+		tlsStatus = "with TLS"
+	}
+
+	log.Infof("gRPC server listening on %s (%s)", grpcAddr, tlsStatus)
+	if err := c.GRPCServer.Serve(listener); err != nil {
+		log.Errorf("gRPC server error: %v", err)
+	}
+}
+
+// shouldUseHTTPS returns true if HTTPS should be used for the REST server
+func (c *Controller) shouldUseHTTPS() bool {
+	return len(c.tlsConfigs) > 0
+}
+
+// shouldUseGRPCTLS returns true if TLS should be used for the gRPC server
+func (c *Controller) shouldUseGRPCTLS() bool {
+	return c.restConfig.GRPCCertPath != "" && c.restConfig.GRPCKeyPath != ""
+}
+
+// createGRPCTLSListener creates a TLS listener for gRPC
+func (c *Controller) createGRPCTLSListener(addr string) (net.Listener, error) {
+	cert, err := tls.LoadX509KeyPair(
+		c.restConfig.GRPCCertPath,
+		c.restConfig.GRPCKeyPath,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load gRPC TLS cert: %w", err)
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		NextProtos:   []string{"h2"}, // gRPC requires HTTP/2
+	}
+
+	return tls.Listen("tcp", addr, tlsConfig)
+}
+
+// handleShutdown handles graceful shutdown of both servers
+func (c *Controller) handleShutdown() {
+	<-c.ctx.Done()
+	log.Info("Shutting down servers...")
+
+	// Shutdown REST server gracefully
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := c.Server.Shutdown(shutdownCtx); err != nil {
+		log.Errorf("REST server shutdown error: %v", err)
+	}
+
+	// Stop gRPC server gracefully
+	c.GRPCServer.GracefulStop()
+
+	log.Info("Servers shutdown complete")
 }
 
 // setupRouter configures the HTTP router with all endpoints

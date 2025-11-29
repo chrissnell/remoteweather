@@ -474,6 +474,31 @@ func (h *Handlers) validateControllerConfig(controllerType string, controller *c
 			return fmt.Errorf("REST Server HTTP port must be between 1 and 65535")
 		}
 
+		// Validate gRPC port if provided
+		if controller.RESTServer.GRPCPort > 0 {
+			if controller.RESTServer.GRPCPort > 65535 {
+				return fmt.Errorf("gRPC port must be between 1 and 65535")
+			}
+
+			// Check for port conflict with REST HTTP port
+			if controller.RESTServer.GRPCPort == controller.RESTServer.HTTPPort {
+				return fmt.Errorf("gRPC port cannot be the same as HTTP port")
+			}
+
+			// Check for port conflict with REST HTTPS port
+			if controller.RESTServer.HTTPSPort != nil && controller.RESTServer.GRPCPort == *controller.RESTServer.HTTPSPort {
+				return fmt.Errorf("gRPC port cannot be the same as HTTPS port")
+			}
+		}
+
+		// Validate gRPC TLS config - both cert and key must be provided together
+		grpcCertProvided := controller.RESTServer.GRPCCertPath != ""
+		grpcKeyProvided := controller.RESTServer.GRPCKeyPath != ""
+
+		if grpcCertProvided != grpcKeyProvided {
+			return fmt.Errorf("gRPC cert and key must both be provided or both be empty")
+		}
+
 		// REST Server can now start without weather websites configured
 		// The server will return appropriate error messages for weather endpoints
 		// when no websites are configured

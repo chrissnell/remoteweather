@@ -215,7 +215,13 @@ CREATE TABLE controller_configs (
     -- REST Server fields
     rest_port INTEGER,
     rest_listen_addr TEXT,
-    
+
+    -- gRPC Server fields (added in migration 020)
+    grpc_port INTEGER DEFAULT 50051,
+    grpc_listen_addr TEXT DEFAULT '0.0.0.0',
+    grpc_cert TEXT,
+    grpc_key TEXT,
+
     -- Management API fields
     management_cert TEXT,
     management_key TEXT,
@@ -223,7 +229,7 @@ CREATE TABLE controller_configs (
     management_listen_addr TEXT,
     management_auth_token TEXT,
     management_enable_cors BOOLEAN DEFAULT FALSE,
-    
+
     -- APRS server field (added in migration 005)
     aprs_server TEXT,
     
@@ -629,6 +635,8 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       cc.aeris_api_endpoint,
 		       -- REST Server fields
 		       cc.rest_port, cc.rest_listen_addr,
+		       -- gRPC Server fields
+		       cc.grpc_port, cc.grpc_listen_addr, cc.grpc_cert, cc.grpc_key,
 		       -- Management API fields
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
@@ -653,6 +661,8 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
 		var restListenAddr sql.NullString
 		var restPort sql.NullInt64
+		var grpcListenAddr, grpcCert, grpcKey sql.NullString
+		var grpcPort sql.NullInt64
 		var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 		var mgmtPort sql.NullInt64
 		var mgmtEnableCORS sql.NullBool
@@ -664,6 +674,7 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&wuAPIEndpoint,
 			&aerisAPIEndpoint,
 			&restPort, &restListenAddr,
+			&grpcPort, &grpcListenAddr, &grpcCert, &grpcKey,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 			&aprsServer,
 		)
@@ -699,6 +710,10 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 				controller.RESTServer = &RESTServerData{
 					HTTPPort:          int(restPort.Int64),
 					DefaultListenAddr: restListenAddr.String,
+					GRPCPort:          int(grpcPort.Int64),
+					GRPCListenAddr:    grpcListenAddr.String,
+					GRPCCertPath:      grpcCert.String,
+					GRPCKeyPath:       grpcKey.String,
 				}
 			}
 		case "management":
@@ -894,9 +909,10 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 			wu_station_id, wu_api_key, wu_upload_interval, wu_pull_from_device, wu_api_endpoint,
 			aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint, aeris_latitude, aeris_longitude,
 			rest_port, rest_listen_addr,
+			grpc_port, grpc_listen_addr, grpc_cert, grpc_key,
 			management_cert, management_key, management_port, management_listen_addr,
 			management_auth_token, management_enable_cors, aprs_server
-		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var pwsStationID, pwsAPIKey, pwsUploadInterval, pwsPullFromDevice, pwsAPIEndpoint sql.NullString
@@ -905,6 +921,8 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	var aerisLatitude, aerisLongitude sql.NullFloat64
 	var restListenAddr sql.NullString
 	var restPort sql.NullInt64
+	var grpcListenAddr, grpcCert, grpcKey sql.NullString
+	var grpcPort sql.NullInt64
 	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 	var mgmtPort sql.NullInt64
 	var mgmtEnableCORS sql.NullBool
@@ -937,6 +955,10 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	if controller.RESTServer != nil {
 		restPort = sql.NullInt64{Int64: int64(controller.RESTServer.HTTPPort), Valid: controller.RESTServer.HTTPPort != 0}
 		restListenAddr = sql.NullString{String: controller.RESTServer.DefaultListenAddr, Valid: controller.RESTServer.DefaultListenAddr != ""}
+		grpcPort = sql.NullInt64{Int64: int64(controller.RESTServer.GRPCPort), Valid: controller.RESTServer.GRPCPort != 0}
+		grpcListenAddr = sql.NullString{String: controller.RESTServer.GRPCListenAddr, Valid: controller.RESTServer.GRPCListenAddr != ""}
+		grpcCert = sql.NullString{String: controller.RESTServer.GRPCCertPath, Valid: controller.RESTServer.GRPCCertPath != ""}
+		grpcKey = sql.NullString{String: controller.RESTServer.GRPCKeyPath, Valid: controller.RESTServer.GRPCKeyPath != ""}
 	}
 
 	if controller.ManagementAPI != nil {
@@ -957,6 +979,7 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 		wuStationID, wuAPIKey, wuUploadInterval, wuPullFromDevice, wuAPIEndpoint,
 		aerisClientID, aerisClientSecret, aerisAPIEndpoint, aerisLatitude, aerisLongitude,
 		restPort, restListenAddr,
+		grpcPort, grpcListenAddr, grpcCert, grpcKey,
 		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS, aprsServer,
 	)
 	if err != nil {
@@ -1408,6 +1431,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		       cc.wu_api_endpoint,
 		       cc.aeris_api_endpoint,
 		       cc.rest_port, cc.rest_listen_addr,
+		       cc.grpc_port, cc.grpc_listen_addr, cc.grpc_cert, cc.grpc_key,
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
 		       cc.aprs_server
@@ -1421,6 +1445,8 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 	var pwsAPIEndpoint, wuAPIEndpoint, aerisAPIEndpoint sql.NullString
 	var restListenAddr sql.NullString
 	var restPort sql.NullInt64
+	var grpcListenAddr, grpcCert, grpcKey sql.NullString
+	var grpcPort sql.NullInt64
 	var mgmtCert, mgmtKey, mgmtListenAddr, mgmtAuthToken sql.NullString
 	var mgmtPort sql.NullInt64
 	var mgmtEnableCORS sql.NullBool
@@ -1432,6 +1458,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		&wuAPIEndpoint,
 		&aerisAPIEndpoint,
 		&restPort, &restListenAddr,
+		&grpcPort, &grpcListenAddr, &grpcCert, &grpcKey,
 		&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 		&aprsServer,
 	)
@@ -1469,6 +1496,10 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		controller.RESTServer = &RESTServerData{
 			HTTPPort:          int(restPort.Int64),
 			DefaultListenAddr: restListenAddr.String,
+			GRPCPort:          int(grpcPort.Int64),
+			GRPCListenAddr:    grpcListenAddr.String,
+			GRPCCertPath:      grpcCert.String,
+			GRPCKeyPath:       grpcKey.String,
 		}
 	}
 

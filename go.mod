@@ -6,6 +6,7 @@ toolchain go1.24.0
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgtype v1.14.4
 	github.com/lib/pq v1.10.9
@@ -24,7 +25,6 @@ require (
 
 require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 )
 
@@ -34,7 +34,6 @@ require (
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/panjf2000/ants/v2 v2.11.3 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/soheilhy/cmux v0.1.5 // direct
 	github.com/soniakeys/unit v1.0.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
@@ -55,7 +54,7 @@ require (
 	github.com/soniakeys/meeus/v3 v3.0.1
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.38.0
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
