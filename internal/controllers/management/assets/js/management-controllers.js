@@ -502,11 +502,16 @@ const ManagementControllers = (function() {
   --------------------------------------------------- */
   
   function setupEventHandlers() {
+    // Add controller button
+    if (modalElements.addBtn) {
+      modalElements.addBtn.addEventListener('click', openControllerModal);
+    }
+
     // Modal controls
     if (modalElements.modalClose) {
       modalElements.modalClose.addEventListener('click', closeControllerModal);
     }
-    
+
     if (modalElements.cancelBtn) {
       modalElements.cancelBtn.addEventListener('click', closeControllerModal);
     }
