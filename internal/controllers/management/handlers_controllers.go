@@ -333,6 +333,12 @@ func (h *Handlers) sanitizeControllerConfig(controller *config.ControllerData) m
 			if controller.RESTServer.HTTPSPort != nil {
 				config["https_port"] = *controller.RESTServer.HTTPSPort
 			}
+			if controller.RESTServer.GRPCPort > 0 {
+				config["grpc_port"] = controller.RESTServer.GRPCPort
+			}
+			if controller.RESTServer.GRPCListenAddr != "" {
+				config["grpc_listen_addr"] = controller.RESTServer.GRPCListenAddr
+			}
 			sanitized["config"] = config
 		}
 	case "management":
