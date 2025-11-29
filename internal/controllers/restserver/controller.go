@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -294,7 +295,7 @@ func (c *Controller) StartController() error {
 		if useHTTPS {
 			// HTTPS + gRPC mode
 			log.Infof("Starting unified server on %s (HTTPS and gRPC) with %d configured certificates", listenAddr, len(c.tlsConfigs))
-			
+
 			// Create TLS config with SNI support
 			tlsConfig := &tls.Config{
 				GetCertificate: c.getCertificate,
@@ -302,19 +303,26 @@ func (c *Controller) StartController() error {
 				// cmux will handle routing based on content-type after TLS handshake
 				NextProtos: []string{"h2", "http/1.1"},
 			}
-			
+
 			// Wrap listener with TLS
 			tlsListener := tls.NewListener(l, tlsConfig)
-			
+
 			// Create cmux multiplexer on TLS listener
 			m := cmux.New(tlsListener)
-			
+
 			// Match connections:
 			// - gRPC (HTTP/2 with "application/grpc" content-type)
 			// - HTTPS (HTTP/1.1 and HTTP/2 without gRPC content-type)
 			grpcL := m.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 			httpsL := m.Match(cmux.Any())
-			
+
+			// Configure HTTP/2 support for the HTTPS server
+			// This is essential because we advertise h2 in ALPN
+			if err := http2.ConfigureServer(&c.Server, &http2.Server{}); err != nil {
+				log.Errorf("Failed to configure HTTP/2: %v", err)
+				return
+			}
+
 			// Configure and start HTTPS server
 			c.Server.Handler = c.setupRouter()
 			go func() {
@@ -322,14 +330,14 @@ func (c *Controller) StartController() error {
 					log.Errorf("HTTPS server error: %v", err)
 				}
 			}()
-			
+
 			// Start gRPC server
 			go func() {
 				if err := c.GRPCServer.Serve(grpcL); err != nil {
 					log.Errorf("gRPC server error: %v", err)
 				}
 			}()
-			
+
 			// Start serving connections
 			if err := m.Serve(); err != nil && !strings.Contains(err.Error(), "closed") {
 				log.Errorf("cmux serve error: %v", err)
