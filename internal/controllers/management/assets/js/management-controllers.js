@@ -22,8 +22,7 @@ const ManagementControllers = (function() {
       modal: document.getElementById('controller-modal'),
       modalClose: document.getElementById('controller-modal-close'),
       modalTitle: document.getElementById('controller-modal-title'),
-      cancelBtn: document.getElementById('cancel-controller-btn'),
-      addBtn: document.getElementById('add-controller-btn')
+      cancelBtn: document.getElementById('cancel-controller-btn')
     };
 
     // Form elements
@@ -202,11 +201,13 @@ const ManagementControllers = (function() {
     let html = '<div class="config-section">';
     html += '<h4>REST Server Configuration</h4>';
     html += '<div class="config-grid">';
-    
-    if (config.http_port) html += `<div><strong>HTTP Port:</strong> ${config.http_port}</div>`;
-    if (config.https_port) html += `<div><strong>HTTPS Port:</strong> ${config.https_port}</div>`;
-    if (config.default_listen_addr) html += `<div><strong>Listen Address:</strong> ${config.default_listen_addr}</div>`;
-    
+
+    if (config.http_port) html += `<div><strong>REST HTTP Port:</strong> ${config.http_port}</div>`;
+    if (config.https_port) html += `<div><strong>REST HTTPS Port:</strong> ${config.https_port}</div>`;
+    if (config.default_listen_addr) html += `<div><strong>REST Listen Address:</strong> ${config.default_listen_addr}</div>`;
+    if (config.grpc_port) html += `<div><strong>gRPC Port:</strong> ${config.grpc_port}</div>`;
+    if (config.grpc_listen_addr) html += `<div><strong>gRPC Listen Address:</strong> ${config.grpc_listen_addr}</div>`;
+
     html += '</div></div>';
     return html;
   }
@@ -502,11 +503,6 @@ const ManagementControllers = (function() {
   --------------------------------------------------- */
   
   function setupEventHandlers() {
-    // Add controller button
-    if (modalElements.addBtn) {
-      modalElements.addBtn.addEventListener('click', openControllerModal);
-    }
-
     // Modal controls
     if (modalElements.modalClose) {
       modalElements.modalClose.addEventListener('click', closeControllerModal);
