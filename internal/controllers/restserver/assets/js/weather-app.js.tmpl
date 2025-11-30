@@ -25,7 +25,8 @@ const WeatherApp = (function() {
         secondsSinceLastUpdate: 0,
         liveDataTimer: null,
         updateTimerInterval: null,
-        chartRefreshTimer: null
+        chartRefreshTimer: null,
+        snowDeviceId: null
     };
     
     // Constants
@@ -220,8 +221,24 @@ const WeatherApp = (function() {
         }
     };
 
+    // Load station info to get device IDs
+    const loadStationInfo = async () => {
+        try {
+            const stationInfo = await WeatherDataService.fetchStationInfo();
+            if (config.snowEnabled && stationInfo) {
+                state.snowDeviceId = WeatherDataService.getSnowDeviceId(stationInfo);
+                if (config.debug) console.log('Snow device ID:', state.snowDeviceId);
+            }
+        } catch (error) {
+            if (config.debug) console.error('Error loading station info:', error);
+        }
+    };
+
     // Load initial data
     const loadInitialData = async () => {
+        // First, load station info to get device IDs (needed for snow data)
+        await loadStationInfo();
+
         // Load all data in parallel for faster initial load
         const promises = [
             refreshLiveData(),
@@ -243,10 +260,11 @@ const WeatherApp = (function() {
     const refreshLiveData = async () => {
         try {
             const { weather, snow, airQuality } = await WeatherDataService.fetchLiveData(
-                config.snowEnabled, 
+                config.snowEnabled,
                 config.airQualityEnabled,
                 config.stationID,
-                config.airQualityDeviceID
+                config.airQualityDeviceID,
+                state.snowDeviceId
             );
             
             if (weather) {
