@@ -44,7 +44,8 @@ const WeatherDataService = (function() {
         const promises = [fetchLatestWeather(stationId)];
         
         if (snowEnabled) {
-            promises.push(fetchSnowData(stationId));
+            // Don't pass stationId to snow endpoint - the backend uses its configured snow device
+            promises.push(fetchSnowData());
         }
         
         // Fetch air quality data from the air quality device using its station_id
