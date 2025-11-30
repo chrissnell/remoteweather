@@ -8,6 +8,7 @@ const WeatherDataService = (function() {
     const endpoints = {
         latest: '/latest',
         snow: '/snow',
+        stationinfo: '/stationinfo',
         span: function(hours) { return '/span/' + hours + 'h'; },
         forecast: function(hours) { return '/forecast/' + hours; }
     };
@@ -38,13 +39,38 @@ const WeatherDataService = (function() {
         const url = stationId ? endpoints.forecast(hours) + '?station_id=' + stationId : endpoints.forecast(hours);
         return WeatherUtils.fetchWithTimeout(url);
     };
-    
+
+    // Fetch station info (includes snow device ID)
+    const fetchStationInfo = async () => {
+        return WeatherUtils.fetchWithTimeout(endpoints.stationinfo);
+    };
+
+    // Get snow device ID from station info
+    const getSnowDeviceId = (stationInfo) => {
+        if (!stationInfo || !stationInfo.snow_device || !stationInfo.stations) {
+            return null;
+        }
+        const snowDeviceName = stationInfo.snow_device;
+        const snowStation = stationInfo.stations.find(s => s.name === snowDeviceName);
+        return snowStation ? snowStation.id : null;
+    };
+
+    // Get air quality device ID from station info
+    const getAirQualityDeviceId = (stationInfo) => {
+        if (!stationInfo || !stationInfo.air_quality_device || !stationInfo.stations) {
+            return null;
+        }
+        const aqDeviceName = stationInfo.air_quality_device;
+        const aqStation = stationInfo.stations.find(s => s.name === aqDeviceName);
+        return aqStation ? aqStation.id : null;
+    };
+
     // Combined fetch for live data (weather + snow if enabled + air quality if enabled)
-    const fetchLiveData = async (snowEnabled = false, airQualityEnabled = false, stationId = null, airQualityStationId = null) => {
+    const fetchLiveData = async (snowEnabled = false, airQualityEnabled = false, stationId = null, airQualityStationId = null, snowDeviceId = null) => {
         const promises = [fetchLatestWeather(stationId)];
-        
+
         if (snowEnabled) {
-            promises.push(fetchSnowData(stationId));
+            promises.push(fetchSnowData(snowDeviceId));
         }
         
         // Fetch air quality data from the air quality device using its station_id
@@ -243,11 +269,16 @@ const WeatherDataService = (function() {
         fetchSnowData,
         fetchHistoricalData,
         fetchForecast,
-        
+        fetchStationInfo,
+
+        // Helper methods
+        getSnowDeviceId,
+        getAirQualityDeviceId,
+
         // Combined fetch methods
         fetchLiveData,
         fetchChartData,
-        
+
         // Data processing methods
         processLiveWeatherData,
         processSnowData,
