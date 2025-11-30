@@ -55,6 +55,16 @@ const WeatherDataService = (function() {
         return snowStation ? snowStation.id : null;
     };
 
+    // Get air quality device ID from station info
+    const getAirQualityDeviceId = (stationInfo) => {
+        if (!stationInfo || !stationInfo.air_quality_device || !stationInfo.stations) {
+            return null;
+        }
+        const aqDeviceName = stationInfo.air_quality_device;
+        const aqStation = stationInfo.stations.find(s => s.name === aqDeviceName);
+        return aqStation ? aqStation.id : null;
+    };
+
     // Combined fetch for live data (weather + snow if enabled + air quality if enabled)
     const fetchLiveData = async (snowEnabled = false, airQualityEnabled = false, stationId = null, airQualityStationId = null, snowDeviceId = null) => {
         const promises = [fetchLatestWeather(stationId)];
@@ -263,6 +273,7 @@ const WeatherDataService = (function() {
 
         // Helper methods
         getSnowDeviceId,
+        getAirQualityDeviceId,
 
         // Combined fetch methods
         fetchLiveData,
