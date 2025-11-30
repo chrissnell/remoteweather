@@ -26,7 +26,8 @@ const WeatherApp = (function() {
         liveDataTimer: null,
         updateTimerInterval: null,
         chartRefreshTimer: null,
-        snowDeviceId: null
+        snowDeviceId: null,
+        airQualityDeviceId: null
     };
     
     // Constants
@@ -225,9 +226,15 @@ const WeatherApp = (function() {
     const loadStationInfo = async () => {
         try {
             const stationInfo = await WeatherDataService.fetchStationInfo();
-            if (config.snowEnabled && stationInfo) {
-                state.snowDeviceId = WeatherDataService.getSnowDeviceId(stationInfo);
-                if (config.debug) console.log('Snow device ID:', state.snowDeviceId);
+            if (stationInfo) {
+                if (config.snowEnabled) {
+                    state.snowDeviceId = WeatherDataService.getSnowDeviceId(stationInfo);
+                    if (config.debug) console.log('Snow device ID:', state.snowDeviceId);
+                }
+                if (config.airQualityEnabled) {
+                    state.airQualityDeviceId = WeatherDataService.getAirQualityDeviceId(stationInfo);
+                    if (config.debug) console.log('Air quality device ID:', state.airQualityDeviceId);
+                }
             }
         } catch (error) {
             if (config.debug) console.error('Error loading station info:', error);
@@ -263,7 +270,7 @@ const WeatherApp = (function() {
                 config.snowEnabled,
                 config.airQualityEnabled,
                 config.stationID,
-                config.airQualityDeviceID,
+                state.airQualityDeviceId,
                 state.snowDeviceId
             );
             
@@ -293,9 +300,14 @@ const WeatherApp = (function() {
     // Load charts for a specific range
     const loadChartsForRange = async (range) => {
         const hours = CHART_RANGES[range];
-        
+
         try {
-            const { mainData, snowData, airQualityData } = await WeatherDataService.fetchChartData(hours, config);
+            // Merge config with state-based device IDs
+            const chartConfig = {
+                ...config,
+                airQualityDeviceID: state.airQualityDeviceId
+            };
+            const { mainData, snowData, airQualityData } = await WeatherDataService.fetchChartData(hours, chartConfig);
             
             if (!mainData) return;
             
