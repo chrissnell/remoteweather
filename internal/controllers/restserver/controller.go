@@ -459,6 +459,9 @@ func (c *Controller) setupRouter() *mux.Router {
 	// Portal endpoints
 	router.HandleFunc("/portal", c.handlers.ServePortal)
 
+	// Privacy policy endpoint
+	router.HandleFunc("/privacy", c.handlers.ServePrivacy)
+
 	// Station API endpoints
 	router.HandleFunc("/api/stations", c.handlers.GetStations)
 	router.HandleFunc("/api/remote-stations", c.handlers.GetRemoteStations)

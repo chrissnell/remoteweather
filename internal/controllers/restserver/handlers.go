@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	htmltemplate "html/template"
+	"io/fs"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -757,6 +758,19 @@ func (h *Handlers) ServePortal(w http.ResponseWriter, req *http.Request) {
 		log.Error("error executing portal template:", err)
 		return
 	}
+}
+
+// ServePrivacy serves the static privacy policy page
+func (h *Handlers) ServePrivacy(w http.ResponseWriter, req *http.Request) {
+	data, err := fs.ReadFile(*h.controller.FS, "privacy.html")
+	if err != nil {
+		log.Error("error reading privacy.html:", err)
+		http.Error(w, "Privacy policy not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
 }
 
 // ServeWeatherWebsiteTemplate serves the weather HTML template
