@@ -683,7 +683,15 @@
           About Station HTML
           <textarea id="website-about-html" rows="4" placeholder="<p>Welcome to my weather station...</p>"></textarea>
         </label>
-        
+
+        <label>
+          Apple App ID
+          <input type="text" id="website-apple-app-id" placeholder="6755874087" pattern="[0-9]{9,10}" />
+          <small style="color: #666; font-size: 0.875rem; display: block; margin-top: 0.25rem;">
+            Enter the numeric App Store ID for your iOS weather app. Leave blank or use default (6755874087) for the RemoteWeather app.
+          </small>
+        </label>
+
         <label>
           Weather Station Device
           <select id="website-device" required>

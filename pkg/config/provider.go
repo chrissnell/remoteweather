@@ -168,52 +168,52 @@ type ConfigData struct {
 
 // DeviceData holds configuration specific to data collection devices
 type DeviceData struct {
-	ID                int       `json:"id,omitempty"`
-	Name              string    `json:"name"`
-	Type              string    `json:"type,omitempty"`
-	Enabled           bool      `json:"enabled"`
-	Hostname          string    `json:"hostname,omitempty"`
-	Port              string    `json:"port,omitempty"`
-	SerialDevice      string    `json:"serial_device,omitempty"`
-	Baud              int       `json:"baud,omitempty"`
-	WindDirCorrection int16     `json:"wind_dir_correction,omitempty"`
-	BaseSnowDistance  int16     `json:"base_snow_distance,omitempty"`
-	WebsiteID         *int      `json:"website_id,omitempty"`
-	Latitude          float64   `json:"latitude,omitempty"`
-	Longitude         float64   `json:"longitude,omitempty"`
-	Altitude          float64   `json:"altitude,omitempty"`
-	APRSEnabled       bool      `json:"aprs_enabled,omitempty"`
-	APRSCallsign      string    `json:"aprs_callsign,omitempty"`
-	TLSCertPath       string    `json:"tls_cert_path,omitempty"`
-	TLSKeyPath        string    `json:"tls_key_path,omitempty"`
-	Path              string    `json:"path,omitempty"`
-	
+	ID                int     `json:"id,omitempty"`
+	Name              string  `json:"name"`
+	Type              string  `json:"type,omitempty"`
+	Enabled           bool    `json:"enabled"`
+	Hostname          string  `json:"hostname,omitempty"`
+	Port              string  `json:"port,omitempty"`
+	SerialDevice      string  `json:"serial_device,omitempty"`
+	Baud              int     `json:"baud,omitempty"`
+	WindDirCorrection int16   `json:"wind_dir_correction,omitempty"`
+	BaseSnowDistance  int16   `json:"base_snow_distance,omitempty"`
+	WebsiteID         *int    `json:"website_id,omitempty"`
+	Latitude          float64 `json:"latitude,omitempty"`
+	Longitude         float64 `json:"longitude,omitempty"`
+	Altitude          float64 `json:"altitude,omitempty"`
+	APRSEnabled       bool    `json:"aprs_enabled,omitempty"`
+	APRSCallsign      string  `json:"aprs_callsign,omitempty"`
+	TLSCertPath       string  `json:"tls_cert_path,omitempty"`
+	TLSKeyPath        string  `json:"tls_key_path,omitempty"`
+	Path              string  `json:"path,omitempty"`
+
 	// PWS Weather fields
-	PWSEnabled        bool      `json:"pws_enabled,omitempty"`
-	PWSStationID      string    `json:"pws_station_id,omitempty"`
-	PWSPassword       string    `json:"pws_password,omitempty"`
-	PWSUploadInterval int       `json:"pws_upload_interval,omitempty"`
-	PWSAPIEndpoint    string    `json:"pws_api_endpoint,omitempty"`
-	
+	PWSEnabled        bool   `json:"pws_enabled,omitempty"`
+	PWSStationID      string `json:"pws_station_id,omitempty"`
+	PWSPassword       string `json:"pws_password,omitempty"`
+	PWSUploadInterval int    `json:"pws_upload_interval,omitempty"`
+	PWSAPIEndpoint    string `json:"pws_api_endpoint,omitempty"`
+
 	// Weather Underground fields
-	WUEnabled         bool      `json:"wu_enabled,omitempty"`
-	WUStationID       string    `json:"wu_station_id,omitempty"`
-	WUPassword        string    `json:"wu_password,omitempty"`
-	WUUploadInterval  int       `json:"wu_upload_interval,omitempty"`
-	WUAPIEndpoint     string    `json:"wu_api_endpoint,omitempty"`
-	
+	WUEnabled        bool   `json:"wu_enabled,omitempty"`
+	WUStationID      string `json:"wu_station_id,omitempty"`
+	WUPassword       string `json:"wu_password,omitempty"`
+	WUUploadInterval int    `json:"wu_upload_interval,omitempty"`
+	WUAPIEndpoint    string `json:"wu_api_endpoint,omitempty"`
+
 	// APRS additional fields
-	APRSPasscode      string    `json:"aprs_passcode,omitempty"`
-	APRSSymbolTable   string    `json:"aprs_symbol_table,omitempty"`
-	APRSSymbolCode    string    `json:"aprs_symbol_code,omitempty"`
-	APRSComment       string    `json:"aprs_comment,omitempty"`
-	APRSServer        string    `json:"aprs_server,omitempty"`
-	
+	APRSPasscode    string `json:"aprs_passcode,omitempty"`
+	APRSSymbolTable string `json:"aprs_symbol_table,omitempty"`
+	APRSSymbolCode  string `json:"aprs_symbol_code,omitempty"`
+	APRSComment     string `json:"aprs_comment,omitempty"`
+	APRSServer      string `json:"aprs_server,omitempty"`
+
 	// Aeris Weather fields
-	AerisEnabled      bool      `json:"aeris_enabled,omitempty"`
-	AerisAPIClientID  string    `json:"aeris_api_client_id,omitempty"`
+	AerisEnabled         bool   `json:"aeris_enabled,omitempty"`
+	AerisAPIClientID     string `json:"aeris_api_client_id,omitempty"`
 	AerisAPIClientSecret string `json:"aeris_api_client_secret,omitempty"`
-	AerisAPIEndpoint  string    `json:"aeris_api_endpoint,omitempty"`
+	AerisAPIEndpoint     string `json:"aeris_api_endpoint,omitempty"`
 
 	// WeatherLink Live fields
 	WLLHost          string `json:"wll_host,omitempty"`
@@ -223,13 +223,11 @@ type DeviceData struct {
 	WLLPollInterval  int    `json:"wll_poll_interval,omitempty"`
 }
 
-
-
 // StorageData holds the configuration for various storage backends
 type StorageData struct {
-	TimescaleDB *TimescaleDBData  `json:"timescaledb,omitempty"`
-	GRPC        *GRPCData         `json:"grpc,omitempty"`
-	GRPCStream  *GRPCStreamData   `json:"grpcstream,omitempty"`
+	TimescaleDB *TimescaleDBData `json:"timescaledb,omitempty"`
+	GRPC        *GRPCData        `json:"grpc,omitempty"`
+	GRPCStream  *GRPCStreamData  `json:"grpcstream,omitempty"`
 }
 
 // ControllerData holds the configuration for various controller backends
@@ -373,6 +371,7 @@ type WeatherWebsiteData struct {
 	TLSCertPath          string `json:"tls_cert_path,omitempty"` // Optional per-site TLS cert (overrides server default)
 	TLSKeyPath           string `json:"tls_key_path,omitempty"`  // Optional per-site TLS key (overrides server default)
 	IsPortal             bool   `json:"is_portal,omitempty"`     // Whether this website is a weather management portal
+	AppleAppID           string `json:"apple_app_id,omitempty"`  // Numeric App Store ID for iOS Smart Banner
 }
 
 type ManagementAPIData struct {
@@ -433,7 +432,7 @@ func ValidateConfig(config *ConfigData) []ValidationError {
 				Message: "device must have either serial_device or both hostname and port configured",
 			})
 		}
-		
+
 		// Set default port for airgradient if not specified
 		if device.Type == "airgradient" && device.Hostname != "" && device.Port == "" {
 			device.Port = "80"
@@ -697,4 +696,3 @@ func (c *CachedConfigProvider) DeleteWeatherWebsite(id int) error {
 	}
 	return err
 }
-

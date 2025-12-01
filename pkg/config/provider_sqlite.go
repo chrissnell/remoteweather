@@ -50,11 +50,11 @@ func NewSQLiteProvider(dbPath string) (*SQLiteProvider, error) {
 
 	// Execute additional PRAGMA statements for better performance and reliability
 	pragmas := []string{
-		"PRAGMA temp_store = MEMORY",     // Use memory for temporary tables
-		"PRAGMA mmap_size = 268435456",   // Use memory-mapped I/O (256MB)
-		"PRAGMA cache_size = -64000",     // Use 64MB for cache
-		"PRAGMA foreign_keys = ON",       // Enable foreign key constraints
-		"PRAGMA optimize",                // Optimize database on open
+		"PRAGMA temp_store = MEMORY",   // Use memory for temporary tables
+		"PRAGMA mmap_size = 268435456", // Use memory-mapped I/O (256MB)
+		"PRAGMA cache_size = -64000",   // Use 64MB for cache
+		"PRAGMA foreign_keys = ON",     // Enable foreign key constraints
+		"PRAGMA optimize",              // Optimize database on open
 	}
 
 	for _, pragma := range pragmas {
@@ -478,7 +478,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		if path.Valid {
 			device.Path = path.String
 		}
-		
+
 		// Set PWS Weather fields
 		device.PWSEnabled = pwsEnabled.Bool
 		if pwsStationID.Valid {
@@ -493,7 +493,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		if pwsAPIEndpoint.Valid {
 			device.PWSAPIEndpoint = pwsAPIEndpoint.String
 		}
-		
+
 		// Set Weather Underground fields
 		device.WUEnabled = wuEnabled.Bool
 		if wuStationID.Valid {
@@ -508,7 +508,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		if wuAPIEndpoint.Valid {
 			device.WUAPIEndpoint = wuAPIEndpoint.String
 		}
-		
+
 		// Set APRS additional fields
 		if aprsPasscode.Valid {
 			device.APRSPasscode = aprsPasscode.String
@@ -525,7 +525,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		if aprsServer.Valid {
 			device.APRSServer = aprsServer.String
 		}
-		
+
 		// Set Aeris Weather fields
 		device.AerisEnabled = aerisEnabled.Bool
 		if aerisAPIClientID.Valid {
@@ -594,7 +594,6 @@ func (s *SQLiteProvider) GetStorageConfig() (*StorageData, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan storage config row: %w", err)
 		}
-
 
 		switch backendType {
 		case "timescaledb":
@@ -1003,20 +1002,20 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 	var latitude, longitude, altitude sql.NullFloat64
 	var aprsEnabled sql.NullBool
-	
+
 	// PWS Weather fields
 	var pwsEnabled sql.NullBool
 	var pwsStationID, pwsPassword sql.NullString
 	var pwsUploadInterval sql.NullInt64
-	
+
 	// Weather Underground fields
 	var wuEnabled sql.NullBool
 	var wuStationID, wuPassword sql.NullString
 	var wuUploadInterval sql.NullInt64
-	
+
 	// APRS additional fields
 	var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment sql.NullString
-	
+
 	// Aeris Weather fields
 	var aerisEnabled sql.NullBool
 	var aerisAPIClientID, aerisAPIClientSecret sql.NullString
@@ -1092,7 +1091,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	if path.Valid {
 		device.Path = path.String
 	}
-	
+
 	// Set PWS Weather fields
 	device.PWSEnabled = pwsEnabled.Bool
 	if pwsStationID.Valid {
@@ -1104,7 +1103,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	if pwsUploadInterval.Valid {
 		device.PWSUploadInterval = int(pwsUploadInterval.Int64)
 	}
-	
+
 	// Set Weather Underground fields
 	device.WUEnabled = wuEnabled.Bool
 	if wuStationID.Valid {
@@ -1116,7 +1115,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	if wuUploadInterval.Valid {
 		device.WUUploadInterval = int(wuUploadInterval.Int64)
 	}
-	
+
 	// Set APRS additional fields
 	if aprsPasscode.Valid {
 		device.APRSPasscode = aprsPasscode.String
@@ -1130,7 +1129,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	if aprsComment.Valid {
 		device.APRSComment = aprsComment.String
 	}
-	
+
 	// Set Aeris Weather fields
 	device.AerisEnabled = aerisEnabled.Bool
 	if aerisAPIClientID.Valid {
@@ -1461,7 +1460,7 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 
 	// Populate controller-specific data
 	// Note: enabled field is stored but not exposed in ControllerData struct
-	
+
 	// API endpoints
 	if pwsAPIEndpoint.Valid {
 		controller.PWSWeather = &PWSWeatherData{
@@ -1648,13 +1647,13 @@ func (s *SQLiteProvider) getOrCreateConfigID(tx *sql.Tx) (int64, error) {
 // GetWeatherWebsites retrieves all weather websites
 func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 	query := `
-		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title, 
-		       w.about_station_html, w.snow_enabled, w.snow_device_name, 
+		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title,
+		       w.about_station_html, w.snow_enabled, w.snow_device_name,
 		       w.air_quality_enabled, w.air_quality_device_name,
-		       w.tls_cert_path, w.tls_key_path, w.is_portal 
+		       w.tls_cert_path, w.tls_key_path, w.is_portal, w.apple_app_id
 		FROM weather_websites w
 		LEFT JOIN devices d ON w.device_id = d.id
-		WHERE w.config_id = (SELECT id FROM configs WHERE name = 'default') 
+		WHERE w.config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY w.name`
 
 	rows, err := s.db.Query(query)
@@ -1671,7 +1670,7 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		var snowEnabled sql.NullBool
 		var airQualityEnabled sql.NullBool
 		var airQualityDeviceName sql.NullString
-		var tlsCertPath, tlsKeyPath sql.NullString
+		var tlsCertPath, tlsKeyPath, appleAppID sql.NullString
 
 		err := rows.Scan(
 			&website.ID,
@@ -1688,6 +1687,7 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 			&tlsCertPath,
 			&tlsKeyPath,
 			&website.IsPortal,
+			&appleAppID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan website row: %w", err)
@@ -1712,6 +1712,7 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		website.AirQualityDeviceName = airQualityDeviceName.String
 		website.TLSCertPath = tlsCertPath.String
 		website.TLSKeyPath = tlsKeyPath.String
+		website.AppleAppID = appleAppID.String
 
 		websites = append(websites, website)
 	}
@@ -1722,10 +1723,10 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 // GetWeatherWebsite retrieves a specific weather website by ID
 func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) {
 	query := `
-		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title, 
-		       w.about_station_html, w.snow_enabled, w.snow_device_name, 
+		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title,
+		       w.about_station_html, w.snow_enabled, w.snow_device_name,
 		       w.air_quality_enabled, w.air_quality_device_name,
-		       w.tls_cert_path, w.tls_key_path, w.is_portal 
+		       w.tls_cert_path, w.tls_key_path, w.is_portal, w.apple_app_id
 		FROM weather_websites w
 		LEFT JOIN devices d ON w.device_id = d.id
 		WHERE w.id = ? AND w.config_id = (SELECT id FROM configs WHERE name = 'default')`
@@ -1736,7 +1737,7 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	var snowEnabled sql.NullBool
 	var airQualityEnabled sql.NullBool
 	var airQualityDeviceName sql.NullString
-	var tlsCertPath, tlsKeyPath sql.NullString
+	var tlsCertPath, tlsKeyPath, appleAppID sql.NullString
 
 	err := s.db.QueryRow(query, id).Scan(
 		&website.ID,
@@ -1753,6 +1754,7 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 		&tlsCertPath,
 		&tlsKeyPath,
 		&website.IsPortal,
+		&appleAppID,
 	)
 
 	if err != nil {
@@ -1781,6 +1783,7 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	website.AirQualityDeviceName = airQualityDeviceName.String
 	website.TLSCertPath = tlsCertPath.String
 	website.TLSKeyPath = tlsKeyPath.String
+	website.AppleAppID = appleAppID.String
 
 	return &website, nil
 }
@@ -1817,10 +1820,10 @@ func (s *SQLiteProvider) AddWeatherWebsite(website *WeatherWebsiteData) error {
 	// Insert website
 	insertQuery := `
 		INSERT INTO weather_websites (
-			config_id, name, device_id, hostname, page_title, about_station_html, 
+			config_id, name, device_id, hostname, page_title, about_station_html,
 			snow_enabled, snow_device_name, air_quality_enabled, air_quality_device_name,
-			tls_cert_path, tls_key_path, is_portal
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			tls_cert_path, tls_key_path, is_portal, apple_app_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var deviceID sql.NullInt64
@@ -1842,6 +1845,7 @@ func (s *SQLiteProvider) AddWeatherWebsite(website *WeatherWebsiteData) error {
 		nullString(website.TLSCertPath),
 		nullString(website.TLSKeyPath),
 		website.IsPortal,
+		nullString(website.AppleAppID),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert weather website: %w", err)
@@ -1875,7 +1879,7 @@ func (s *SQLiteProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteDat
 		UPDATE weather_websites SET
 			name = ?, device_id = ?, hostname = ?, page_title = ?, about_station_html = ?,
 			snow_enabled = ?, snow_device_name = ?, air_quality_enabled = ?, air_quality_device_name = ?,
-			tls_cert_path = ?, tls_key_path = ?, is_portal = ?
+			tls_cert_path = ?, tls_key_path = ?, is_portal = ?, apple_app_id = ?
 		WHERE id = ?
 	`
 
@@ -1897,6 +1901,7 @@ func (s *SQLiteProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteDat
 		nullString(website.TLSCertPath),
 		nullString(website.TLSKeyPath),
 		website.IsPortal,
+		nullString(website.AppleAppID),
 		id,
 	)
 
@@ -1959,4 +1964,3 @@ func nullString(s string) sql.NullString {
 	}
 	return sql.NullString{String: s, Valid: true}
 }
-

@@ -42,19 +42,20 @@ const ManagementWebsites = (function() {
       form: document.getElementById('website-form'),
       formMode: document.getElementById('website-form-mode'),
       editId: document.getElementById('website-edit-id'),
-      
+
       name: document.getElementById('website-name'),
       hostname: document.getElementById('website-hostname'),
       pageTitle: document.getElementById('website-page-title'),
       aboutHtml: document.getElementById('website-about-html'),
+      appleAppId: document.getElementById('website-apple-app-id'),
       tlsCert: document.getElementById('website-tls-cert'),
       tlsKey: document.getElementById('website-tls-key'),
-      
+
       device: document.getElementById('website-device'),
       snowEnabled: document.getElementById('website-snow-enabled'),
       snowDevice: document.getElementById('website-snow-device'),
       snowDeviceLabel: document.getElementById('snow-device-label'),
-      
+
       airQualityEnabled: document.getElementById('website-airquality-enabled'),
       airQualityDevice: document.getElementById('website-airquality-device'),
       airQualityDeviceLabel: document.getElementById('airquality-device-label')
@@ -247,6 +248,7 @@ const ManagementWebsites = (function() {
       websiteFormElements.hostname.value = website.hostname || '';
       websiteFormElements.pageTitle.value = website.page_title || '';
       websiteFormElements.aboutHtml.value = website.about_station_html || '';
+      websiteFormElements.appleAppId.value = website.apple_app_id || '';
       websiteFormElements.tlsCert.value = website.tls_cert_path || '';
       websiteFormElements.tlsKey.value = website.tls_key_path || '';
       
@@ -318,6 +320,7 @@ const ManagementWebsites = (function() {
         hostname: websiteFormElements.hostname.value,
         page_title: websiteFormElements.pageTitle.value,
         about_station_html: websiteFormElements.aboutHtml.value,
+        apple_app_id: websiteFormElements.appleAppId.value || "",
         snow_enabled: snowEnabled,
         snow_device_name: snowDevice || "",
         air_quality_enabled: airQualityEnabled,
