@@ -375,7 +375,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 	if website == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		h.formatter.WriteResponse(w, req, map[string]string{
-			"error": "No weather websites configured",
+			"error":   "No weather websites configured",
 			"message": "Snow data is not available until at least one weather website is configured",
 		}, nil)
 		return
@@ -449,61 +449,80 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 			log.Debugf("latest snow reading: stationname='%s', snowdistance=%.2f, calculated_depth=%.2f",
 				dbFetchedReadings[0].StationName,
 				dbFetchedReadings[0].SnowDistance,
-				mmToInches(snowBaseDistance - dbFetchedReadings[0].SnowDistance))
+				mmToInches(snowBaseDistance-dbFetchedReadings[0].SnowDistance))
 		}
 
-		var result SnowDeltaResult
+		// Try to get snow totals from cache first (migration 013 optimization)
+		var cache SnowCacheResult
+		var snowSinceMidnight, snowLast24, snowLast72, snowSeason float32
 
-		// Get the snowfall since midnight
-		query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
-		err := h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
-			return
-		}
-		log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
-		snowSinceMidnight := mmToInchesWithThreshold(result.Snowfall)
+		cacheQuery := "SELECT * FROM snow_totals_cache WHERE stationname = ? AND computed_at >= NOW() - INTERVAL '45 seconds'"
+		err := h.controller.DB.Raw(cacheQuery, website.SnowDeviceName).Scan(&cache).Error
 
-		// Get the snowfall in the last 24 hours
-		query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting 24-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
-			return
-		}
-		log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
-		snowLast24 := mmToInchesWithThreshold(result.Snowfall)
+		if err == nil && cache.StationName != "" {
+			// Cache hit - use cached values
+			log.Debugf("Snow cache hit for station '%s' (age: %v)", cache.StationName, time.Since(cache.ComputedAt))
+			snowSinceMidnight = mmToInchesWithThreshold(cache.SnowMidnight)
+			snowLast24 = mmToInchesWithThreshold(cache.Snow24h)
+			snowLast72 = mmToInchesWithThreshold(cache.Snow72h)
+			snowSeason = mmToInchesWithThreshold(cache.SnowSeason)
+		} else {
+			// Cache miss - fall back to direct function calls (slower)
+			log.Debugf("Snow cache miss for station '%s', using direct calculation", website.SnowDeviceName)
 
-		// Get the snowfall in the last 72 hours
-		query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting 72-hour snow delta from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
-			return
-		}
-		log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
-		snowLast72 := mmToInchesWithThreshold(result.Snowfall)
+			var result SnowDeltaResult
 
-		// Get the season total snowfall
-		query = "SELECT calculate_total_season_snowfall(?, ?) AS snowfall"
-		err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
-		if err != nil {
-			log.Errorf("error getting season total snowfall from DB: %v", err)
-			http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
-			return
+			// Get the snowfall since midnight
+			query := "SELECT get_new_snow_midnight(?, ?) AS snowfall"
+			err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
+			if err != nil {
+				log.Errorf("error getting snow-since-midnight snow delta from DB: %v", err)
+				http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+				return
+			}
+			log.Debugf("Snow since midnight: %.2f mm\n", result.Snowfall)
+			snowSinceMidnight = mmToInchesWithThreshold(result.Snowfall)
+
+			// Get the snowfall in the last 24 hours
+			query = "SELECT get_new_snow_24h(?, ?) AS snowfall"
+			err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
+			if err != nil {
+				log.Errorf("error getting 24-hour snow delta from DB: %v", err)
+				http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+				return
+			}
+			log.Debugf("Snow in last 24h: %.2f mm\n", result.Snowfall)
+			snowLast24 = mmToInchesWithThreshold(result.Snowfall)
+
+			// Get the snowfall in the last 72 hours
+			query = "SELECT get_new_snow_72h(?, ?) AS snowfall"
+			err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
+			if err != nil {
+				log.Errorf("error getting 72-hour snow delta from DB: %v", err)
+				http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+				return
+			}
+			log.Debugf("Snow in last 72h: %.2f mm\n", result.Snowfall)
+			snowLast72 = mmToInchesWithThreshold(result.Snowfall)
+
+			// Get the season total snowfall
+			query = "SELECT calculate_total_season_snowfall(?, ?) AS snowfall"
+			err = h.controller.DB.Raw(query, website.SnowDeviceName, snowBaseDistance).Scan(&result).Error
+			if err != nil {
+				log.Errorf("error getting season total snowfall from DB: %v", err)
+				http.Error(w, "error fetching readings from DB", http.StatusInternalServerError)
+				return
+			}
+			log.Debugf("Season total snowfall: %.2f mm\n", result.Snowfall)
+			snowSeason = mmToInchesWithThreshold(result.Snowfall)
 		}
-		log.Debugf("Season total snowfall: %.2f mm\n", result.Snowfall)
-		snowSeason := mmToInchesWithThreshold(result.Snowfall)
 
 		// Get the storm total snowfall
 		type StormResult struct {
 			TotalSnowfall float32 `gorm:"column:total_snowfall"`
 		}
 		var stormResult StormResult
-		query = "SELECT * FROM calculate_storm_snowfall(?) LIMIT 1"
+		query := "SELECT * FROM calculate_storm_snowfall(?) LIMIT 1"
 		err = h.controller.DB.Raw(query, website.SnowDeviceName).Scan(&stormResult).Error
 		if err != nil {
 			log.Errorf("error getting storm total snowfall from DB: %v", err)
@@ -514,6 +533,7 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 		snowStorm := mmToInchesWithThreshold(stormResult.TotalSnowfall)
 
 		// Get the current snowfall rate
+		var result SnowDeltaResult
 		query = "SELECT calculate_current_snowfall_rate(?) AS snowfall"
 		err = h.controller.DB.Raw(query, website.SnowDeviceName).Scan(&result).Error
 		if err != nil {
