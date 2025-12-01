@@ -8,7 +8,6 @@ scratch/
 # Compiled binaries
 config-convert
 config-test
-remoteweather
 
 # Test and temporary configurations
 test-config*.yaml
@@ -28,3 +27,4 @@ release-assets/
 .claude
 .playwright-mcp
 .context/
+scratch/remoteweather

@@ -161,7 +161,7 @@ BEGIN
         p_stationname,
         p_base_distance,
         time_window,
-        'weather_1h'  -- Use 1-hour aggregates for performance on long ranges
+        'weather_5m'  -- Use 5-minute aggregates for consistency with other metrics
     );
 END;
 $$ LANGUAGE plpgsql;
@@ -288,7 +288,7 @@ COMMENT ON FUNCTION get_new_snow_midnight(TEXT, FLOAT) IS
 Used by cache refresh job, not called directly by API handlers.';
 
 COMMENT ON FUNCTION calculate_total_season_snowfall(TEXT, FLOAT) IS
-'Calculates total seasonal snowfall using weather_1h (1-hour lag but 3x faster for long periods).
+'Calculates total seasonal snowfall using weather_5m for consistency with other metrics.
 Used by cache refresh job, not called directly by API handlers.';
 
 COMMENT ON FUNCTION refresh_snow_cache(INT, JSONB) IS
