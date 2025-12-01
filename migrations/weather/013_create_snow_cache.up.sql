@@ -148,7 +148,7 @@ DECLARE
     season_start DATE;
     time_window INTERVAL;
 BEGIN
-    -- Snow season starts September 1st, ends June 1st (following year)
+    -- Snow season starts September 1st
     IF EXTRACT(MONTH FROM now()) >= 9 THEN
         season_start := DATE_TRUNC('year', now())::DATE + INTERVAL '8 months';
     ELSE
@@ -192,8 +192,6 @@ ON snow_totals_cache(stationname, computed_at);
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION refresh_snow_cache(
-    p_stationname TEXT DEFAULT NULL,
-    p_base_distance FLOAT DEFAULT NULL,
     job_id INT DEFAULT NULL,
     config JSONB DEFAULT NULL
 ) RETURNS VOID AS $$
@@ -201,13 +199,13 @@ DECLARE
     station_name TEXT;
     base_distance FLOAT;
 BEGIN
-    -- Extract parameters from config if called by TimescaleDB job
-    IF p_stationname IS NULL AND config IS NOT NULL THEN
+    -- Extract parameters from config (always provided by TimescaleDB job)
+    IF config IS NOT NULL THEN
         station_name := config->>'stationname';
         base_distance := (config->>'base_distance')::FLOAT;
     ELSE
-        station_name := p_stationname;
-        base_distance := p_base_distance;
+        -- Should never happen when called by TimescaleDB job
+        RAISE EXCEPTION 'refresh_snow_cache requires config parameter';
     END IF;
 
     -- Refresh cache if we have both parameters
@@ -293,6 +291,6 @@ COMMENT ON FUNCTION calculate_total_season_snowfall(TEXT, FLOAT) IS
 'Calculates total seasonal snowfall using weather_1h (1-hour lag but 3x faster for long periods).
 Used by cache refresh job, not called directly by API handlers.';
 
-COMMENT ON FUNCTION refresh_snow_cache(TEXT, FLOAT, INT, JSONB) IS
+COMMENT ON FUNCTION refresh_snow_cache(INT, JSONB) IS
 'Refreshes snow totals cache for a specific station. Called by TimescaleDB job every 30 seconds.
 Application must provide stationname and base_distance from device configuration.';
