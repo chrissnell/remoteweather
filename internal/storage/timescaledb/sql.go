@@ -2131,10 +2131,12 @@ END;
 $$ LANGUAGE plpgsql;`
 
 const createSnowDualThresholdSQL = `DROP FUNCTION IF EXISTS get_new_snow_dual_threshold(TEXT, FLOAT, INTERVAL);
-CREATE OR REPLACE FUNCTION get_new_snow_dual_threshold(
+-- Create flexible function that accepts table parameter
+CREATE OR REPLACE FUNCTION get_new_snow_dual_threshold_from_table(
     p_stationname TEXT,
     p_base_distance FLOAT,
-    p_time_window INTERVAL
+    p_time_window INTERVAL,
+    p_source_table TEXT  -- 'weather_5m' or 'weather_1h'
 ) RETURNS FLOAT AS $$
 DECLARE
     quick_threshold FLOAT := 20.0;      -- 0.8" rapid accumulation
@@ -2147,16 +2149,25 @@ DECLARE
     current_depth FLOAT;
     current_distance FLOAT;
     hourly_delta FLOAT;
+    sql_query TEXT;
+    rec RECORD;
 BEGIN
-    FOR current_distance IN
-        SELECT snowdistance
-        FROM weather_1h
-        WHERE stationname = p_stationname
-          AND bucket >= now() - p_time_window
-          AND snowdistance IS NOT NULL
-          AND snowdistance < p_base_distance - 2  -- Filter readings within 2mm of base (no/minimal snow)
-        ORDER BY bucket ASC
+    -- Build dynamic query based on source table
+    sql_query := format(
+        'SELECT snowdistance
+         FROM %I
+         WHERE stationname = $1
+           AND bucket >= now() - $2
+           AND snowdistance IS NOT NULL
+           AND snowdistance < $3 - 2
+         ORDER BY bucket ASC',
+        p_source_table
+    );
+
+    -- Execute dynamic query and process results
+    FOR rec IN EXECUTE sql_query USING p_stationname, p_time_window, p_base_distance
     LOOP
+        current_distance := rec.snowdistance;
         current_depth := p_base_distance - current_distance;
 
         IF prev_depth IS NULL THEN
@@ -2167,7 +2178,7 @@ BEGIN
 
         hourly_delta := current_depth - prev_depth;
 
-        -- Quick accumulation: >20mm in one hour
+        -- Quick accumulation: >20mm in one period
         IF hourly_delta > quick_threshold THEN
             total_accumulation := total_accumulation + hourly_delta;
             baseline_depth := current_depth;
@@ -2195,7 +2206,12 @@ CREATE OR REPLACE FUNCTION get_new_snow_72h(
     p_base_distance FLOAT
 ) RETURNS FLOAT AS $$
 BEGIN
-    RETURN get_new_snow_dual_threshold(p_stationname, p_base_distance, interval '72 hours');
+    RETURN get_new_snow_dual_threshold_from_table(
+        p_stationname,
+        p_base_distance,
+        interval '72 hours',
+        'weather_5m'  -- Use 5-minute aggregates for freshness
+    );
 END;
 $$ LANGUAGE plpgsql;`
 
@@ -2205,7 +2221,12 @@ CREATE OR REPLACE FUNCTION get_new_snow_24h(
     p_base_distance FLOAT
 ) RETURNS FLOAT AS $$
 BEGIN
-    RETURN get_new_snow_dual_threshold(p_stationname, p_base_distance, interval '24 hours');
+    RETURN get_new_snow_dual_threshold_from_table(
+        p_stationname,
+        p_base_distance,
+        interval '24 hours',
+        'weather_5m'  -- Use 5-minute aggregates for freshness
+    );
 END;
 $$ LANGUAGE plpgsql;`
 
@@ -2215,10 +2236,11 @@ CREATE OR REPLACE FUNCTION get_new_snow_midnight(
     p_base_distance FLOAT
 ) RETURNS FLOAT AS $$
 BEGIN
-    RETURN get_new_snow_dual_threshold(
+    RETURN get_new_snow_dual_threshold_from_table(
         p_stationname,
         p_base_distance,
-        now() - date_trunc('day', now() AT TIME ZONE 'America/Denver') AT TIME ZONE 'America/Denver'
+        now() - date_trunc('day', now() AT TIME ZONE 'America/Denver') AT TIME ZONE 'America/Denver',
+        'weather_5m'  -- Use 5-minute aggregates for freshness
     );
 END;
 $$ LANGUAGE plpgsql;`
@@ -2231,6 +2253,7 @@ CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
 ) RETURNS FLOAT AS $$
 DECLARE
     season_start DATE;
+    time_window INTERVAL;
 BEGIN
     -- Snow season starts September 1st, ends June 1st (following year)
     IF EXTRACT(MONTH FROM now()) >= 9 THEN
@@ -2239,10 +2262,13 @@ BEGIN
         season_start := DATE_TRUNC('year', now() - INTERVAL '1 year')::DATE + INTERVAL '8 months';
     END IF;
 
-    RETURN get_new_snow_dual_threshold(
+    time_window := now() - season_start::TIMESTAMP;
+
+    RETURN get_new_snow_dual_threshold_from_table(
         p_stationname,
         p_base_distance,
-        now() - season_start::TIMESTAMP
+        time_window,
+        'weather_1h'  -- Use 1-hour aggregates for performance on long ranges
     );
 END;
 $$ LANGUAGE plpgsql;
@@ -2472,13 +2498,105 @@ const addRainfallSummaryJobSQL = `DO $$
 BEGIN
     -- Check if job already exists before creating
     IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.jobs 
+        SELECT 1 FROM timescaledb_information.jobs
         WHERE proc_name = 'update_rainfall_summary'
     ) THEN
         PERFORM add_job(
             'update_rainfall_summary',
             '1 minute',
             initial_start => NOW()
+        );
+    END IF;
+END $$;`
+
+// Snow cache table and refresh function
+const createSnowCacheTableSQL = `CREATE TABLE IF NOT EXISTS snow_totals_cache (
+    stationname TEXT PRIMARY KEY,
+    snow_midnight FLOAT NOT NULL DEFAULT 0,
+    snow_24h FLOAT NOT NULL DEFAULT 0,
+    snow_72h FLOAT NOT NULL DEFAULT 0,
+    snow_season FLOAT NOT NULL DEFAULT 0,
+    base_distance FLOAT NOT NULL,
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS snow_totals_cache_computed_at_idx
+ON snow_totals_cache(computed_at);
+
+CREATE INDEX IF NOT EXISTS snow_totals_cache_stationname_computed_idx
+ON snow_totals_cache(stationname, computed_at);
+
+COMMENT ON TABLE snow_totals_cache IS
+'Caches pre-computed snow totals to avoid expensive real-time calculations.
+Refreshed every 30 seconds by TimescaleDB job. Frontend queries this instead
+of calling snow calculation functions directly.';`
+
+const createSnowCacheRefreshFunctionSQL = `CREATE OR REPLACE FUNCTION refresh_snow_cache(
+    p_stationname TEXT DEFAULT NULL,
+    p_base_distance FLOAT DEFAULT NULL,
+    job_id INT DEFAULT NULL,
+    config JSONB DEFAULT NULL
+) RETURNS VOID AS $$
+DECLARE
+    station_name TEXT;
+    base_distance FLOAT;
+BEGIN
+    -- Extract parameters from config if called by TimescaleDB job
+    IF p_stationname IS NULL AND config IS NOT NULL THEN
+        station_name := config->>'stationname';
+        base_distance := (config->>'base_distance')::FLOAT;
+    ELSE
+        station_name := p_stationname;
+        base_distance := p_base_distance;
+    END IF;
+
+    -- Refresh cache if we have both parameters
+    IF station_name IS NOT NULL AND base_distance IS NOT NULL THEN
+        INSERT INTO snow_totals_cache (
+            stationname,
+            snow_midnight,
+            snow_24h,
+            snow_72h,
+            snow_season,
+            base_distance,
+            computed_at
+        ) VALUES (
+            station_name,
+            get_new_snow_midnight(station_name, base_distance),
+            get_new_snow_24h(station_name, base_distance),
+            get_new_snow_72h(station_name, base_distance),
+            calculate_total_season_snowfall(station_name, base_distance),
+            base_distance,
+            now()
+        )
+        ON CONFLICT (stationname) DO UPDATE SET
+            snow_midnight = EXCLUDED.snow_midnight,
+            snow_24h = EXCLUDED.snow_24h,
+            snow_72h = EXCLUDED.snow_72h,
+            snow_season = EXCLUDED.snow_season,
+            base_distance = EXCLUDED.base_distance,
+            computed_at = EXCLUDED.computed_at;
+    ELSE
+        RAISE WARNING 'refresh_snow_cache called without stationname or base_distance';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION refresh_snow_cache(TEXT, FLOAT, INT, JSONB) IS
+'Refreshes snow totals cache for a specific station. Called by TimescaleDB job every 30 seconds.
+Application configures job with stationname and base_distance from device configuration.';`
+
+const addSnowCacheJobSQL = `DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.jobs
+        WHERE proc_name = 'refresh_snow_cache'
+    ) THEN
+        PERFORM add_job(
+            'refresh_snow_cache',
+            '30 seconds',
+            initial_start => NOW(),
+            config => '{}'::jsonb
         );
     END IF;
 END $$;`

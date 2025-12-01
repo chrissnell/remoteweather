@@ -174,6 +174,43 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 				if device.Name == website.SnowDeviceName {
 					ctrl.SnowBaseDistanceCache[website.ID] = float32(device.BaseSnowDistance)
 					found = true
+
+					// Configure the snow cache refresh job with station-specific parameters
+					// (Migration 013 creates the job, we configure it here)
+					if ctrl.DBEnabled && ctrl.DB != nil {
+						configureSnowCacheJob := fmt.Sprintf(`
+							DO $$
+							DECLARE
+								job_record RECORD;
+							BEGIN
+								-- Find the snow cache refresh job
+								SELECT job_id INTO job_record
+								FROM timescaledb_information.jobs
+								WHERE proc_name = 'refresh_snow_cache'
+								LIMIT 1;
+
+								-- Configure it with station parameters if found
+								IF FOUND THEN
+									PERFORM alter_job(
+										job_record.job_id,
+										config => jsonb_build_object(
+											'stationname', '%s',
+											'base_distance', %f
+										)
+									);
+									RAISE NOTICE 'Configured snow cache refresh job for station %% with base_distance %%', '%s', %f;
+								END IF;
+							END $$;
+						`, website.SnowDeviceName, device.BaseSnowDistance, website.SnowDeviceName, device.BaseSnowDistance)
+
+						err := ctrl.DB.Exec(configureSnowCacheJob).Error
+						if err != nil {
+							logger.Warnf("Failed to configure snow cache refresh job for %s: %v", website.SnowDeviceName, err)
+						} else {
+							logger.Infof("Configured snow cache refresh job for station '%s' with base_distance=%.2f", website.SnowDeviceName, device.BaseSnowDistance)
+						}
+					}
+
 					break
 				}
 			}

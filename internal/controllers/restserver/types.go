@@ -2,6 +2,7 @@ package restserver
 
 import (
 	"math"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"gorm.io/gorm"
@@ -142,6 +143,17 @@ type SnowAllCalculationsResult struct {
 	SnowLast72        float32 `gorm:"column:snow_last_72h"`
 	SnowSeason        float32 `gorm:"column:snow_season"`
 	SnowStorm         float32 `gorm:"column:snow_storm"`
+}
+
+// SnowCacheResult represents cached snow totals from snow_totals_cache table
+type SnowCacheResult struct {
+	StationName   string    `gorm:"column:stationname"`
+	SnowMidnight  float32   `gorm:"column:snow_midnight"`
+	Snow24h       float32   `gorm:"column:snow_24h"`
+	Snow72h       float32   `gorm:"column:snow_72h"`
+	SnowSeason    float32   `gorm:"column:snow_season"`
+	BaseDistance  float32   `gorm:"column:base_distance"`
+	ComputedAt    time.Time `gorm:"column:computed_at"`
 }
 
 // Utility functions

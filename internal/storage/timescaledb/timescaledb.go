@@ -329,6 +329,28 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	// Snow cache table and refresh job
+	log.Info("Creating snow totals cache table...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowCacheTableSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create snow totals cache table")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding snow cache refresh function...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowCacheRefreshFunctionSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snow cache refresh function")
+		return &Storage{}, err
+	}
+
+	log.Info("Adding snow cache refresh job...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(addSnowCacheJobSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add snow cache refresh job")
+		return &Storage{}, err
+	}
+
 	log.Info("Adding storm rainfall total function...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createRainStormTotalSQL).Error
 	if err != nil {
