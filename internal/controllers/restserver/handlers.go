@@ -793,6 +793,19 @@ func (h *Handlers) ServePrivacy(w http.ResponseWriter, req *http.Request) {
 	w.Write(data)
 }
 
+// ServeSupport serves the static support page
+func (h *Handlers) ServeSupport(w http.ResponseWriter, req *http.Request) {
+	data, err := fs.ReadFile(*h.controller.FS, "support.html")
+	if err != nil {
+		log.Error("error reading support.html:", err)
+		http.Error(w, "Support page not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
+}
+
 // ServeWeatherWebsiteTemplate serves the weather HTML template
 func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.Request) {
 	// Get website from context
