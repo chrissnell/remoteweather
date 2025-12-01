@@ -2268,7 +2268,7 @@ BEGIN
         p_stationname,
         p_base_distance,
         time_window,
-        'weather_1h'  -- Use 1-hour aggregates for performance on long ranges
+        'weather_5m'  -- Use 5-minute aggregates for consistency with other metrics
     );
 END;
 $$ LANGUAGE plpgsql;
