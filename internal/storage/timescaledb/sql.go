@@ -2130,6 +2130,55 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`
 
+const createSnowSimplePositiveDeltaSQL = `-- Simple positive delta sum for daily aggregates (no threshold logic needed)
+CREATE OR REPLACE FUNCTION get_new_snow_simple_positive_delta(
+    p_stationname TEXT,
+    p_base_distance FLOAT,
+    p_time_window INTERVAL
+) RETURNS FLOAT AS $$
+DECLARE
+    total_accumulation FLOAT := 0.0;
+    prev_depth FLOAT := NULL;
+    current_depth FLOAT;
+    current_distance FLOAT;
+    daily_delta FLOAT;
+    rec RECORD;
+BEGIN
+    -- Query weather_1d and sum all positive day-to-day changes
+    FOR rec IN
+        SELECT snowdistance
+        FROM weather_1d
+        WHERE stationname = p_stationname
+          AND bucket >= now() - p_time_window
+          AND snowdistance IS NOT NULL
+          AND snowdistance < p_base_distance - 2
+        ORDER BY bucket ASC
+    LOOP
+        current_distance := rec.snowdistance;
+        current_depth := p_base_distance - current_distance;
+
+        -- Skip first reading (establish baseline)
+        IF prev_depth IS NULL THEN
+            prev_depth := current_depth;
+            CONTINUE;
+        END IF;
+
+        -- Calculate day-to-day change
+        daily_delta := current_depth - prev_depth;
+
+        -- Add all positive deltas (snow accumulation)
+        -- Daily smoothing already eliminated false positives from noise
+        IF daily_delta > 0 THEN
+            total_accumulation := total_accumulation + daily_delta;
+        END IF;
+
+        prev_depth := current_depth;
+    END LOOP;
+
+    RETURN total_accumulation;
+END;
+$$ LANGUAGE plpgsql;`
+
 const createSnowDualThresholdSQL = `DROP FUNCTION IF EXISTS get_new_snow_dual_threshold(TEXT, FLOAT, INTERVAL);
 -- Create flexible function that accepts table parameter
 CREATE OR REPLACE FUNCTION get_new_snow_dual_threshold_from_table(
@@ -2264,11 +2313,12 @@ BEGIN
 
     time_window := now() - season_start::TIMESTAMP;
 
-    RETURN get_new_snow_dual_threshold_from_table(
+    -- Use simple positive delta sum for daily aggregates
+    -- Daily smoothing already eliminated noise, so just sum all increases
+    RETURN get_new_snow_simple_positive_delta(
         p_stationname,
         p_base_distance,
-        time_window,
-        'weather_1d'  -- Daily aggregates filter intraday fluctuations
+        time_window
     );
 END;
 $$ LANGUAGE plpgsql;
