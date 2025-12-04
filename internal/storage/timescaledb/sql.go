@@ -2210,7 +2210,7 @@ BEGIN
         p_stationname,
         p_base_distance,
         interval '72 hours',
-        'weather_5m'  -- Use 5-minute aggregates for freshness
+        'weather_1h'  -- Hourly aggregates smooth sensor noise
     );
 END;
 $$ LANGUAGE plpgsql;`
@@ -2225,7 +2225,7 @@ BEGIN
         p_stationname,
         p_base_distance,
         interval '24 hours',
-        'weather_5m'  -- Use 5-minute aggregates for freshness
+        'weather_1h'  -- Hourly aggregates smooth sensor noise
     );
 END;
 $$ LANGUAGE plpgsql;`
@@ -2268,7 +2268,7 @@ BEGIN
         p_stationname,
         p_base_distance,
         time_window,
-        'weather_5m'  -- Use 5-minute aggregates for consistency with other metrics
+        'weather_1d'  -- Daily aggregates filter intraday fluctuations
     );
 END;
 $$ LANGUAGE plpgsql;
