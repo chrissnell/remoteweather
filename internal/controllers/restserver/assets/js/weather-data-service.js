@@ -29,17 +29,16 @@ const WeatherDataService = (function() {
     const fetchSnowEvents = async (hours) => {
         try {
             const url = '/snow-events?hours=' + hours;
-            if (config.debug) console.log('Fetching snow events for', hours, 'hours from:', url);
             const response = await WeatherUtils.fetchWithTimeout(url);
             if (!response.ok) {
-                if (config.debug) console.warn('Snow events fetch failed:', response.status, response.statusText);
+                console.warn('[SNOW DEBUG] Snow events fetch failed:', response.status, response.statusText);
                 return [];
             }
             const data = await response.json();
-            if (config.debug) console.log('Snow events received:', data.events?.length || 0, 'events');
+            console.log('[SNOW DEBUG] Snow events received from API:', data.events?.length || 0, 'events');
             return data.events || [];
         } catch (error) {
-            if (config.debug) console.error('Error fetching snow events:', error);
+            console.error('[SNOW DEBUG] Error in fetchSnowEvents:', error);
             return [];
         }
     };
