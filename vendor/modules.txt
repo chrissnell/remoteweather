@@ -343,3 +343,5 @@ modernc.org/memory
 ## explicit; go 1.23.0
 modernc.org/sqlite
 modernc.org/sqlite/lib
+# pgregory.net/changepoint v1.0.0
+## explicit; go 1.18
