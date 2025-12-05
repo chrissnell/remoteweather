@@ -42,6 +42,7 @@ func NewCalculator(db *sql.DB, logger *zap.SugaredLogger, station string, baseDi
 }
 
 // Calculate72h computes 72-hour snow accumulation using PELT change point detection
+// Uses 5-minute data for better resolution (864 data points vs 72 hourly)
 // Includes timeout protection and panic recovery for graceful degradation
 func (c *Calculator) Calculate72h(ctx context.Context) (float64, error) {
 	defer func() {
@@ -54,7 +55,8 @@ func (c *Calculator) Calculate72h(ctx context.Context) (float64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	result, err := c.calculateAccumulation(ctx, "weather_1h", 3) // 3 days
+	// Use 5-minute data for better PELT resolution (864 readings vs 72 hourly)
+	result, err := c.calculateAccumulation(ctx, "weather_5m", 3) // 3 days
 	if err != nil {
 		c.logger.Debugf("72h calculation error: %v", err)
 		return 0, err
@@ -64,7 +66,7 @@ func (c *Calculator) Calculate72h(ctx context.Context) (float64, error) {
 }
 
 // Calculate24h computes 24-hour snow accumulation using PELT change point detection
-// Replaces SQL dual-threshold to avoid overcounting sensor noise and redistribution events
+// Uses 5-minute data for better resolution (288 data points vs 24 hourly)
 // Includes timeout protection and panic recovery for graceful degradation
 func (c *Calculator) Calculate24h(ctx context.Context) (float64, error) {
 	defer func() {
@@ -77,7 +79,8 @@ func (c *Calculator) Calculate24h(ctx context.Context) (float64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	result, err := c.calculateAccumulation(ctx, "weather_1h", 1) // 1 day
+	// Use 5-minute data for better PELT resolution (288 readings vs 24 hourly)
+	result, err := c.calculateAccumulation(ctx, "weather_5m", 1) // 1 day
 	if err != nil {
 		c.logger.Debugf("24h calculation error: %v", err)
 		return 0, err
