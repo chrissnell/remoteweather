@@ -124,18 +124,20 @@ func (c *Calculator) updateCache(ctx context.Context, midnight, snow24h, snow72h
 			snow_24h,
 			snow_72h,
 			snow_season,
+			base_distance,
 			computed_at
-		) VALUES ($1, $2, $3, $4, $5, NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (stationname)
 		DO UPDATE SET
 			snow_midnight = EXCLUDED.snow_midnight,
 			snow_24h = EXCLUDED.snow_24h,
 			snow_72h = EXCLUDED.snow_72h,
 			snow_season = EXCLUDED.snow_season,
+			base_distance = EXCLUDED.base_distance,
 			computed_at = EXCLUDED.computed_at
 	`
 
-	_, err := c.db.ExecContext(ctx, query, c.stationName, midnight, snow24h, snow72h, seasonal)
+	_, err := c.db.ExecContext(ctx, query, c.stationName, midnight, snow24h, snow72h, seasonal, c.baseDistance)
 	if err != nil {
 		return fmt.Errorf("cache update failed: %w", err)
 	}
