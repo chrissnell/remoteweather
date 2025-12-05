@@ -316,14 +316,21 @@ const WeatherApp = (function() {
             
             for (const metric of chartMetrics) {
                 // Skip snow chart if not enabled
-                if (metric === 'snowdepth' && !config.snowEnabled) continue;
+                if (metric === 'snowdepth' && !config.snowEnabled) {
+                    if (config.debug) console.log('Skipping snowdepth chart - snow not enabled');
+                    continue;
+                }
                 
                 // Skip air quality charts if not enabled
                 if ((metric === 'pm25' || metric === 'pm10' || metric === 'co2' || metric === 'tvocindex' || metric === 'noxindex') && !config.airQualityEnabled) continue;
                 
                 const elementId = metric + 'Chart' + range;
                 const element = WeatherDOM.getCachedElement(elementId);
-                
+
+                if (config.debug && metric === 'snowdepth') {
+                    console.log(`Snow chart element check: elementId=${elementId}, exists=${!!element}, snowEnabled=${config.snowEnabled}`);
+                }
+
                 if (element) {
                     // Determine which data source to use
                     let dataSource = mainData;
@@ -353,11 +360,14 @@ const WeatherApp = (function() {
 
                     // For snowdepth charts, fetch and add accumulation event plotBands
                     if (metric === 'snowdepth' && config.snowEnabled) {
+                        if (config.debug) console.log(`Fetching snow events for ${metric} chart (${hours}h range)`);
                         try {
                             const snowEvents = await WeatherDataService.fetchSnowEvents(hours);
+                            if (config.debug) console.log(`Received ${snowEvents?.length || 0} snow events for ${hours}h`);
                             if (snowEvents && snowEvents.length > 0) {
                                 const plotBands = WeatherCharts.createSnowEventPlotBands(snowEvents);
                                 options.xAxisPlotBands = plotBands;
+                                if (config.debug) console.log(`Added ${plotBands.length} plotBands to snowdepth chart`);
                             }
                         } catch (error) {
                             if (config.debug) console.error('Error fetching snow events:', error);
