@@ -22,7 +22,8 @@ const ManagementControllers = (function() {
       modal: document.getElementById('controller-modal'),
       modalClose: document.getElementById('controller-modal-close'),
       modalTitle: document.getElementById('controller-modal-title'),
-      cancelBtn: document.getElementById('cancel-controller-btn')
+      cancelBtn: document.getElementById('cancel-controller-btn'),
+      addBtn: document.getElementById('add-controller-btn')
     };
 
     // Form elements
@@ -521,6 +522,11 @@ const ManagementControllers = (function() {
   --------------------------------------------------- */
   
   function setupEventHandlers() {
+    // Add controller button
+    if (modalElements.addBtn) {
+      modalElements.addBtn.addEventListener('click', openControllerModal);
+    }
+
     // Modal controls
     if (modalElements.modalClose) {
       modalElements.modalClose.addEventListener('click', closeControllerModal);
