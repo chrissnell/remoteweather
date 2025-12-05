@@ -333,24 +333,38 @@ const WeatherApp = (function() {
                         dataSource = airQualityData;
                         if (!dataSource) continue;
                     }
-                    
+
                     // Process data for this chart type
                     const chartData = WeatherCharts.processChartData(
-                        dataSource, 
-                        metric, 
+                        dataSource,
+                        metric,
                         { snowData: snowData, airQualityData: airQualityData }
                     );
-                    
+
                     // Get additional series if any
                     const additionalSeries = WeatherCharts.getAdditionalSeriesData(dataSource, metric);
-                    
+
                     // Create the chart
                     const chartConfig = WeatherCharts.getChartConfig(metric);
                     const options = {
                         ...chartConfig,
                         additionalSeries: additionalSeries
                     };
-                    
+
+                    // For snowdepth charts, fetch and add accumulation event plotBands
+                    if (metric === 'snowdepth' && config.snowEnabled) {
+                        try {
+                            const snowEvents = await WeatherDataService.fetchSnowEvents(hours);
+                            if (snowEvents && snowEvents.length > 0) {
+                                const plotBands = WeatherCharts.createSnowEventPlotBands(snowEvents);
+                                options.xAxisPlotBands = plotBands;
+                            }
+                        } catch (error) {
+                            if (config.debug) console.error('Error fetching snow events:', error);
+                            // Continue without plotBands if fetch fails
+                        }
+                    }
+
                     // Create chart with proper title
                     const title = metric.charAt(0).toUpperCase() + metric.slice(1).replace(/([A-Z])/g, ' $1');
                     WeatherCharts.createChart(metric, element, chartData, title, options);

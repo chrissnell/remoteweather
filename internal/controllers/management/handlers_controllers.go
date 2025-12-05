@@ -110,7 +110,7 @@ func (h *Handlers) CreateController(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate controller type
-	validTypes := []string{"rest", "management"}
+	validTypes := []string{"rest", "management", "snowcache"}
 	if !contains(validTypes, requestData.Type) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid controller type. Must be one of: %v", validTypes), nil)
 		return
@@ -184,7 +184,7 @@ func (h *Handlers) UpdateController(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate controller type
-	validTypes := []string{"rest", "management"}
+	validTypes := []string{"rest", "management", "snowcache"}
 	if !contains(validTypes, controllerType) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid controller type. Must be one of: %v", validTypes), nil)
 		return
@@ -253,7 +253,7 @@ func (h *Handlers) DeleteController(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate controller type
-	validTypes := []string{"rest", "management"}
+	validTypes := []string{"rest", "management", "snowcache"}
 	if !contains(validTypes, controllerType) {
 		h.sendError(w, http.StatusBadRequest, fmt.Sprintf("Invalid controller type. Must be one of: %v", validTypes), nil)
 		return
@@ -361,6 +361,17 @@ func (h *Handlers) sanitizeControllerConfig(controller *config.ControllerData) m
 			}
 			sanitized["config"] = config
 		}
+	case "snowcache":
+		if controller.SnowCache != nil {
+			sanitized["config"] = map[string]interface{}{
+				"station_name":     controller.SnowCache.StationName,
+				"base_distance":    controller.SnowCache.BaseDistance,
+				"smoothing_window": controller.SnowCache.SmoothingWindow,
+				"penalty":          controller.SnowCache.Penalty,
+				"min_accumulation": controller.SnowCache.MinAccumulation,
+				"min_segment_size": controller.SnowCache.MinSegmentSize,
+			}
+		}
 	}
 
 	return sanitized
@@ -428,6 +439,13 @@ func (h *Handlers) convertControllerConfig(controllerType string, configData int
 			return nil, fmt.Errorf("invalid APRS config: %w", err)
 		}
 		controller.APRS = &aprsConfig
+
+	case "snowcache":
+		var snowConfig config.SnowCacheData
+		if err := json.Unmarshal(jsonData, &snowConfig); err != nil {
+			return nil, fmt.Errorf("invalid Snow Cache config: %w", err)
+		}
+		controller.SnowCache = &snowConfig
 
 	default:
 		return nil, fmt.Errorf("unsupported controller type: %s", controllerType)
@@ -542,6 +560,34 @@ func (h *Handlers) validateControllerConfig(controllerType string, controller *c
 
 		if !validStation {
 			return fmt.Errorf("APRS controller requires at least one weather station to have APRS enabled with a callsign and location configured. Please enable APRS on a weather station first.")
+		}
+
+	case "snowcache":
+		if controller.SnowCache == nil {
+			return fmt.Errorf("Snow Cache configuration is required")
+		}
+		if controller.SnowCache.StationName == "" {
+			return fmt.Errorf("Snow Cache station_name is required")
+		}
+		// Verify the station exists
+		_, err := h.controller.ConfigProvider.GetDevice(controller.SnowCache.StationName)
+		if err != nil {
+			return fmt.Errorf("Snow Cache station not found: %w", err)
+		}
+		if controller.SnowCache.BaseDistance <= 0 {
+			return fmt.Errorf("Snow Cache base_distance must be greater than 0")
+		}
+		if controller.SnowCache.SmoothingWindow < 1 || controller.SnowCache.SmoothingWindow > 24 {
+			return fmt.Errorf("Snow Cache smoothing_window must be between 1 and 24")
+		}
+		if controller.SnowCache.Penalty <= 0 {
+			return fmt.Errorf("Snow Cache penalty must be greater than 0")
+		}
+		if controller.SnowCache.MinAccumulation < 0 {
+			return fmt.Errorf("Snow Cache min_accumulation cannot be negative")
+		}
+		if controller.SnowCache.MinSegmentSize < 1 {
+			return fmt.Errorf("Snow Cache min_segment_size must be at least 1")
 		}
 	}
 

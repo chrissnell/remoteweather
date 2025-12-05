@@ -210,11 +210,15 @@ const WeatherCharts = (function() {
                 type: chartType,
                 renderTo: targetDiv
             },
-            title: { 
+            title: {
                 text: null  // Remove duplicate title
             },
-            yAxis: chartType === 'vector' ? { visible: false } : { 
-                title: { 
+            xAxis: {
+                ...baseOptions.xAxis,
+                plotBands: customOptions.xAxisPlotBands || []  // Support custom plotBands
+            },
+            yAxis: chartType === 'vector' ? { visible: false } : {
+                title: {
                     text: yAxisLabel,
                     style: { color: WeatherUtils.getCSSVariable('--chart-text') }
                 },
@@ -439,7 +443,36 @@ const WeatherCharts = (function() {
     const getChartConfig = (chartName) => {
         return chartTypeConfigs[chartName] || null;
     };
-    
+
+    // Create plotBands for snow accumulation events
+    const createSnowEventPlotBands = (events) => {
+        if (!events || events.length === 0) return [];
+
+        // Style for accumulation events (light green bands)
+        const style = {
+            bg: 'rgba(76, 175, 80, 0.1)',    // Light green
+            text: '#4CAF50',
+            label: '📈 Accumulation'
+        };
+
+        return events.map(event => ({
+            from: new Date(event.start_time).getTime(),
+            to: new Date(event.end_time).getTime(),
+            color: style.bg,
+            label: {
+                text: style.label,
+                style: {
+                    color: style.text,
+                    fontSize: '10px',
+                    fontWeight: '500'
+                },
+                verticalAlign: 'top',
+                y: 15
+            },
+            zIndex: 0  // Behind data series
+        }));
+    };
+
     // Public API
     return {
         createChart,
@@ -448,7 +481,8 @@ const WeatherCharts = (function() {
         destroyAllCharts,
         destroyChart,
         getChartConfig,
-        chartTypeConfigs
+        chartTypeConfigs,
+        createSnowEventPlotBands
     };
 })();
 

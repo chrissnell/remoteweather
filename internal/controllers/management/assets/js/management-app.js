@@ -17,6 +17,7 @@ const ManagementApp = (function() {
     ManagementStorage.init();
     ManagementControllers.init();
     ManagementWebsites.init();
+    ManagementSnow.init();
     ManagementLogs.init();
     
     // Setup global event handlers
@@ -71,7 +72,14 @@ const ManagementApp = (function() {
         await ManagementWebsites.loadWeatherWebsites();
       });
     });
-    
+
+    // Snow Management tab
+    ManagementNavigation.onTabEnter('snow-pane', async () => {
+      await ManagementAuth.requireAuth(async () => {
+        await ManagementSnow.loadAndDisplay();
+      });
+    });
+
     // Logs tab
     ManagementNavigation.onTabEnter('logs-pane', async () => {
       await ManagementAuth.requireAuth(async () => {
@@ -98,6 +106,12 @@ const ManagementApp = (function() {
     ManagementNavigation.onTabLeave('http-logs-pane', () => {
       if (ManagementLogs.isHTTPLogsTailing()) {
         ManagementLogs.stopHTTPLogsTailing();
+      }
+    });
+
+    // Stop snow status updates when leaving snow tab
+    ManagementNavigation.onTabLeave('snow-pane', () => {
+      ManagementSnow.cleanup();
       }
     });
   }

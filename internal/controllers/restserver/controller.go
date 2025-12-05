@@ -201,7 +201,7 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 									RAISE NOTICE 'Configured snow cache refresh job for station %% with base_distance %%', '%s', %f;
 								END IF;
 							END $$;
-						`, website.SnowDeviceName, device.BaseSnowDistance, website.SnowDeviceName, device.BaseSnowDistance)
+						`, website.SnowDeviceName, float64(device.BaseSnowDistance), website.SnowDeviceName, float64(device.BaseSnowDistance))
 
 						err := ctrl.DB.Exec(configureSnowCacheJob).Error
 						if err != nil {
@@ -482,6 +482,7 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.HandleFunc("/span/{span}", c.handlers.GetWeatherSpan)
 	router.HandleFunc("/latest", c.handlers.GetWeatherLatest)
 	router.HandleFunc("/snow", c.handlers.GetSnowLatest) // Will check if snow is enabled per request
+	router.HandleFunc("/snow-events", c.handlers.GetSnowEvents) // Cached accumulation events for visualization
 	router.HandleFunc("/almanac", c.handlers.GetAlmanac)
 
 	// We only enable the /forecast endpoint if Aeris Weather has been configured.
