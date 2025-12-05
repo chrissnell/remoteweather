@@ -2130,6 +2130,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`
 
+const createSnowSimplePositiveDeltaSQL = `-- Simple positive delta sum for daily aggregates (seasonal calculation)
+-- Uses weather_1d to prevent accumulation of hourly settling/compaction noise
+CREATE OR REPLACE FUNCTION get_new_snow_simple_positive_delta(
+    p_stationname TEXT,
+    p_base_distance FLOAT,
+    p_time_window INTERVAL
+) RETURNS FLOAT AS $$
+DECLARE
+    total_accumulation FLOAT := 0.0;
+    prev_depth FLOAT := NULL;
+    current_depth FLOAT;
+    current_distance FLOAT;
+    daily_delta FLOAT;
+    rec RECORD;
+BEGIN
+    -- Query weather_1d and sum all positive day-to-day changes
+    -- Daily averaging filters hourly noise (settling, wind, sensor variance)
+    FOR rec IN
+        SELECT snowdistance
+        FROM weather_1d
+        WHERE stationname = p_stationname
+          AND bucket >= now() - p_time_window
+          AND snowdistance IS NOT NULL
+          AND snowdistance < p_base_distance - 2
+        ORDER BY bucket ASC
+    LOOP
+        current_distance := rec.snowdistance;
+        current_depth := p_base_distance - current_distance;
+
+        -- Skip first reading (establish baseline)
+        IF prev_depth IS NULL THEN
+            prev_depth := current_depth;
+            CONTINUE;
+        END IF;
+
+        -- Calculate day-to-day change
+        daily_delta := current_depth - prev_depth;
+
+        -- Add all positive deltas (snow accumulation)
+        -- Daily smoothing already eliminated false positives from hourly noise
+        IF daily_delta > 0 THEN
+            total_accumulation := total_accumulation + daily_delta;
+        END IF;
+
+        prev_depth := current_depth;
+    END LOOP;
+
+    RETURN total_accumulation;
+END;
+$$ LANGUAGE plpgsql;`
+
 const createSnowDualThresholdSQL = `DROP FUNCTION IF EXISTS get_new_snow_dual_threshold(TEXT, FLOAT, INTERVAL);
 -- Create flexible function that accepts table parameter
 CREATE OR REPLACE FUNCTION get_new_snow_dual_threshold_from_table(
@@ -2247,7 +2298,6 @@ $$ LANGUAGE plpgsql;`
 
 const createSnowSeasonTotalSQL = `DROP FUNCTION IF EXISTS calculate_total_season_snowfall(TEXT, FLOAT, TIMESTAMPTZ);
 DROP FUNCTION IF EXISTS calculate_total_season_snowfall(TEXT, FLOAT);
-DROP FUNCTION IF EXISTS get_new_snow_simple_positive_delta(TEXT, FLOAT, INTERVAL);
 CREATE OR REPLACE FUNCTION calculate_total_season_snowfall(
     p_stationname TEXT,
     p_base_distance FLOAT
@@ -2265,13 +2315,12 @@ BEGIN
 
     time_window := now() - season_start::TIMESTAMP;
 
-    -- Use dual-threshold algorithm on weather_1h for consistency
-    -- Same algorithm as 24h/72h ensures comparable, consistent results
-    RETURN get_new_snow_dual_threshold_from_table(
+    -- Use simple positive delta on daily aggregates
+    -- Daily averaging prevents accumulation of hourly settling/compaction noise
+    RETURN get_new_snow_simple_positive_delta(
         p_stationname,
         p_base_distance,
-        time_window,
-        'weather_1h'
+        time_window
     );
 END;
 $$ LANGUAGE plpgsql;
