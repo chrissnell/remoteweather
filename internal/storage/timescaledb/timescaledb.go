@@ -287,6 +287,13 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	log.Info("Adding simple positive delta function for seasonal calculations...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowSimplePositiveDeltaSQL).Error
+	if err != nil {
+		log.Warn("warning: could not add simple positive delta function")
+		return &Storage{}, err
+	}
+
 	log.Info("Adding 72h snow delta function...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDelta72hSQL).Error
 	if err != nil {
@@ -305,13 +312,6 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowDeltaSinceMidnightSQL).Error
 	if err != nil {
 		log.Warn("warning: could not add midnight snow delta function")
-		return &Storage{}, err
-	}
-
-	log.Info("Adding simple positive delta function for seasonal calculations...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowSimplePositiveDeltaSQL).Error
-	if err != nil {
-		log.Warn("warning: could not add simple positive delta function")
 		return &Storage{}, err
 	}
 

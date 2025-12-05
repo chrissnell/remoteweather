@@ -2257,11 +2257,11 @@ CREATE OR REPLACE FUNCTION get_new_snow_72h(
     p_base_distance FLOAT
 ) RETURNS FLOAT AS $$
 BEGIN
-    RETURN get_new_snow_dual_threshold_from_table(
+    RETURN get_new_snow_simple_positive_delta(
         p_stationname,
         p_base_distance,
-        interval '72 hours',
-        'weather_1h'  -- Hourly aggregates smooth sensor noise
+        interval '72 hours'
+        -- Uses weather_1d: daily averaging filters hourly settling/compaction noise
     );
 END;
 $$ LANGUAGE plpgsql;`
