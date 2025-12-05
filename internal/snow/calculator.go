@@ -124,7 +124,7 @@ func (c *Calculator) calculateAccumulation(ctx context.Context, tableName string
 		return 0, fmt.Errorf("no data available for station %s", c.stationName)
 	}
 
-	c.logger.Infof("PELT calculation starting: table=%s, days=%d, fetched %d readings", tableName, days, len(readings))
+	c.logger.Debugf("PELT calculation starting: table=%s, days=%d, fetched %d readings", tableName, days, len(readings))
 
 	// Extract depths
 	depths := make([]float64, len(readings))
@@ -148,7 +148,7 @@ func (c *Calculator) calculateAccumulation(ctx context.Context, tableName string
 	accumulationEvents := 0
 	for _, seg := range segments {
 		if seg.SnowMM > 0 {
-			c.logger.Infof("  %s segment: %.1fmm snow (%s to %s)",
+			c.logger.Debugf("  %s segment: %.1fmm snow (%s to %s)",
 				seg.Type, seg.SnowMM,
 				seg.StartTime.Format("01/02 15:04"),
 				seg.EndTime.Format("01/02 15:04"))
@@ -157,7 +157,7 @@ func (c *Calculator) calculateAccumulation(ctx context.Context, tableName string
 		totalMM += seg.SnowMM
 	}
 
-	c.logger.Infof("PELT(%d days) found %d accumulation events, total: %.1fmm (%.1f\") from %d segments over %d readings",
+	c.logger.Debugf("PELT(%d days) found %d accumulation events, total: %.1fmm (%.1f\") from %d segments over %d readings",
 		days, accumulationEvents, totalMM, totalMM/25.4, len(segments), len(readings))
 
 	return totalMM, nil
