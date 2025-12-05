@@ -15,22 +15,20 @@ import (
 	"go.uber.org/zap"
 )
 
-// Controller manages the snow cache refresh lifecycle
+// Controller manages the snow cache refresh lifecycle for all snow stations
 type Controller struct {
 	ctx            context.Context
 	wg             *sync.WaitGroup
 	db             *sql.DB
 	configProvider config.ConfigProvider
 	logger         *zap.SugaredLogger
-	calculator     *snow.Calculator
-	stationName    string
-	baseDistance   float64
+	calculators    map[string]*snow.Calculator // station name -> calculator
 	ticker         *time.Ticker
 	stopChan       chan struct{}
 }
 
-// NewController creates a new snow cache controller
-// Returns nil if snow is not enabled in the configuration
+// NewController creates a new snow cache controller for all snowgauge devices
+// Returns nil if no snow stations are configured
 func NewController(
 	ctx context.Context,
 	wg *sync.WaitGroup,
@@ -42,48 +40,29 @@ func NewController(
 		return nil, fmt.Errorf("database connection required for snow cache controller")
 	}
 
-	// Load configuration to find snow-enabled website
+	// Load configuration to find all snowgauge devices
 	cfgData, err := configProvider.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Load weather websites to check for snow configuration
-	websites, err := configProvider.GetWeatherWebsites()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load weather websites: %w", err)
-	}
+	// Find all snowgauge devices and create calculators
+	calculators := make(map[string]*snow.Calculator)
 
-	// Find snow-enabled website and device
-	var stationName string
-	var baseDistance float64
-	var found bool
-
-	for _, website := range websites {
-		if website.SnowEnabled {
-			stationName = website.SnowDeviceName
-			// Find the device to get base distance
-			for _, device := range cfgData.Devices {
-				if device.Name == stationName {
-					baseDistance = float64(device.BaseSnowDistance)
-					found = true
-					break
-				}
-			}
-			if found {
-				break
-			}
+	for _, device := range cfgData.Devices {
+		if device.Type == "snowgauge" && device.Enabled {
+			baseDistance := float64(device.BaseSnowDistance)
+			calc := snow.NewCalculator(db, logger, device.Name, baseDistance)
+			calculators[device.Name] = calc
+			logger.Infof("Added snow cache calculator for station '%s' (base_distance=%.2fmm)", device.Name, baseDistance)
 		}
 	}
 
-	// If no snow-enabled website found, return nil (not an error, just disabled)
-	if !found {
-		logger.Debug("No snow-enabled website found, snow cache controller will not be created")
+	// If no snowgauge devices found, return nil (not an error, just disabled)
+	if len(calculators) == 0 {
+		logger.Debug("No snowgauge devices found, snow cache controller will not be created")
 		return nil, nil
 	}
-
-	// Create calculator with logger
-	calc := snow.NewCalculator(db, logger, stationName, baseDistance)
 
 	ctrl := &Controller{
 		ctx:            ctx,
@@ -91,20 +70,19 @@ func NewController(
 		db:             db,
 		configProvider: configProvider,
 		logger:         logger,
-		calculator:     calc,
-		stationName:    stationName,
-		baseDistance:   baseDistance,
+		calculators:    calculators,
 		stopChan:       make(chan struct{}),
 	}
 
+	logger.Infof("Snow cache controller initialized with %d station(s)", len(calculators))
 	return ctrl, nil
 }
 
-// Start begins the snow cache refresh loop
+// Start begins the snow cache refresh loop for all snow stations
 // This method blocks until the context is cancelled or Stop is called
 func (c *Controller) Start() error {
-	// Wait for snow device to start recording data
-	c.logger.Infof("Snow cache refresh job waiting for data from station '%s'", c.stationName)
+	// Wait for snow devices to start recording data
+	c.logger.Info("Snow cache refresh job waiting for data from snow stations...")
 	dataAvailable := false
 	for !dataAvailable {
 		select {
@@ -115,10 +93,10 @@ func (c *Controller) Start() error {
 			c.logger.Info("Snow cache refresh job stopped before data became available")
 			return nil
 		case <-time.After(30 * time.Second):
-			// Check if we have recent snow data (within last 24 hours)
+			// Check if we have recent snow data from any station
 			if c.hasRecentSnowData() {
 				dataAvailable = true
-				c.logger.Infof("Snow data available - starting cache refresh job for station '%s' (base_distance=%.2f)", c.stationName, c.baseDistance)
+				c.logger.Infof("Snow data available - starting cache refresh job for %d station(s)", len(c.calculators))
 			}
 		}
 	}
@@ -131,11 +109,13 @@ func (c *Controller) Start() error {
 	eventTicker := time.NewTicker(15 * time.Minute)
 	defer eventTicker.Stop()
 
-	// Do initial event caching immediately
-	c.logger.Info("Running initial snow event caching...")
-	if err := c.calculator.CacheEventsForTimeRanges(c.ctx); err != nil {
-		c.logger.Errorf("Initial snow event caching failed: %v", err)
-		// Continue despite error
+	// Do initial event caching immediately for all stations
+	c.logger.Info("Running initial snow event caching for all stations...")
+	for stationName, calc := range c.calculators {
+		if err := calc.CacheEventsForTimeRanges(c.ctx); err != nil {
+			c.logger.Errorf("Initial snow event caching failed for station '%s': %v", stationName, err)
+			// Continue despite error
+		}
 	}
 
 	for {
@@ -147,27 +127,21 @@ func (c *Controller) Start() error {
 			c.logger.Info("Snow cache refresh job stopped (stop requested)")
 			return nil
 		case <-c.ticker.C:
-			// Check if snow is still enabled (configuration may have been reloaded)
-			if !c.isSnowEnabled() {
-				c.logger.Infof("Snow disabled for station '%s' - stopping cache refresh job", c.stationName)
-				return nil
-			}
-
-			if err := c.calculator.RefreshCache(c.ctx); err != nil {
-				c.logger.Errorf("Snow cache refresh failed: %v", err)
-				// Continue running despite errors
+			// Refresh cache for all stations
+			for stationName, calc := range c.calculators {
+				if err := calc.RefreshCache(c.ctx); err != nil {
+					c.logger.Errorf("Snow cache refresh failed for station '%s': %v", stationName, err)
+					// Continue running despite errors
+				}
 			}
 		case <-eventTicker.C:
-			// Cache snow events every 15 minutes
-			if !c.isSnowEnabled() {
-				c.logger.Infof("Snow disabled for station '%s' - stopping cache refresh job", c.stationName)
-				return nil
-			}
-
-			c.logger.Debug("Caching snow accumulation events...")
-			if err := c.calculator.CacheEventsForTimeRanges(c.ctx); err != nil {
-				c.logger.Errorf("Snow event caching failed: %v", err)
-				// Continue running despite errors
+			// Cache snow events every 15 minutes for all stations
+			c.logger.Debug("Caching snow accumulation events for all stations...")
+			for stationName, calc := range c.calculators {
+				if err := calc.CacheEventsForTimeRanges(c.ctx); err != nil {
+					c.logger.Errorf("Snow event caching failed for station '%s': %v", stationName, err)
+					// Continue running despite errors
+				}
 			}
 		}
 	}
@@ -183,39 +157,27 @@ func (c *Controller) Stop() error {
 	return nil
 }
 
-// hasRecentSnowData checks if the snow device has recorded data within the last 24 hours
+// hasRecentSnowData checks if any snow device has recorded data within the last 24 hours
 func (c *Controller) hasRecentSnowData() bool {
-	var count int
-	query := `
-		SELECT COUNT(*)
-		FROM weather_5m
-		WHERE stationname = $1
-		  AND snowdistance IS NOT NULL
-		  AND bucket >= NOW() - INTERVAL '24 hours'
-		LIMIT 1
-	`
-	err := c.db.QueryRow(query, c.stationName).Scan(&count)
-	if err != nil {
-		c.logger.Debugf("Error checking for snow data: %v", err)
-		return false
-	}
-	return count > 0
-}
-
-// isSnowEnabled checks if snow is currently enabled for the given station
-// This handles configuration reloads by re-checking the configuration
-func (c *Controller) isSnowEnabled() bool {
-	websites, err := c.configProvider.GetWeatherWebsites()
-	if err != nil {
-		c.logger.Debugf("Error checking snow enabled status: %v", err)
-		return false
-	}
-
-	for _, website := range websites {
-		if website.SnowEnabled && website.SnowDeviceName == c.stationName {
-			return true
+	// Check if ANY of our snow stations have recent data
+	for stationName := range c.calculators {
+		var count int
+		query := `
+			SELECT COUNT(*)
+			FROM weather_5m
+			WHERE stationname = $1
+			  AND snowdistance IS NOT NULL
+			  AND bucket >= NOW() - INTERVAL '24 hours'
+			LIMIT 1
+		`
+		err := c.db.QueryRow(query, stationName).Scan(&count)
+		if err != nil {
+			c.logger.Debugf("Error checking for snow data from station '%s': %v", stationName, err)
+			continue
+		}
+		if count > 0 {
+			return true // At least one station has data
 		}
 	}
-
 	return false
 }

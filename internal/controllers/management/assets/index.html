@@ -735,41 +735,17 @@
         <div id="snowcache-fields" class="controller-fields hidden">
           <fieldset>
             <legend>Snow Cache Configuration</legend>
-            <label>
-              Station Name
-              <select id="snow-station-select">
-                <option value="">Select a station...</option>
-              </select>
-              <span class="help-text">Weather station with snow depth sensor</span>
-            </label>
-            <label>
-              Base Distance (mm)
-              <input type="number" id="snow-base-distance" step="0.1" min="0" />
-              <span class="help-text">Calibration value for snow depth sensor</span>
-            </label>
-            <details>
-              <summary>Advanced Algorithm Parameters</summary>
-              <label>
-                Smoothing Window (hours)
-                <input type="number" id="snow-smoothing" value="5" min="1" max="24" />
-                <span class="help-text">Hours of data for median filtering</span>
-              </label>
-              <label>
-                PELT Penalty
-                <input type="number" id="snow-penalty" value="3.0" step="0.1" min="0.1" />
-                <span class="help-text">Change point detection sensitivity</span>
-              </label>
-              <label>
-                Minimum Accumulation (mm)
-                <input type="number" id="snow-min-accum" value="5.0" step="0.1" min="0" />
-                <span class="help-text">Minimum snow depth change threshold</span>
-              </label>
-              <label>
-                Minimum Segment Size
-                <input type="number" id="snow-min-segment" value="2" min="1" />
-                <span class="help-text">Minimum data points per segment</span>
-              </label>
-            </details>
+            <div class="info-box">
+              <p><strong>Automatic Station Detection</strong></p>
+              <p>This controller automatically detects and processes all enabled snowgauge devices in your configuration. It will:</p>
+              <ul>
+                <li>Find all weather stations with type "snowgauge"</li>
+                <li>Use the base distance configured for each station</li>
+                <li>Refresh snow depth calculations every 30 seconds</li>
+                <li>Cache accumulation events every 15 minutes using PELT algorithm</li>
+              </ul>
+              <p class="help-text">No additional configuration required. Simply enable this controller to start automatic snow data processing.</p>
+            </div>
           </fieldset>
         </div>
 

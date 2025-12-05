@@ -1874,11 +1874,11 @@
   
   async function loadDeviceSelectsForController() {
     if (!isAuthenticated) return; // Don't make API calls without authentication
-    
+
     try {
       const data = await apiGet('/config/weather-stations');
       const devices = data.devices || [];
-      
+
       // Update device selects for controllers that need them
       const selects = ['pws-device-select', 'wu-device-select'];
       selects.forEach(selectId => {
@@ -1958,8 +1958,12 @@
       case 'aprs':
         config.server = document.getElementById('aprs-server').value || '';
         break;
+      case 'snowcache':
+        // Snow cache controller auto-detects all snowgauge devices
+        // No configuration needed - just enable it
+        break;
     }
-    
+
     return config;
   }
   
