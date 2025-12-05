@@ -1958,10 +1958,6 @@
       case 'aprs':
         config.server = document.getElementById('aprs-server').value || '';
         break;
-      case 'snowcache':
-        // Snow cache controller auto-detects all snowgauge devices
-        // No configuration needed - just enable it
-        break;
     }
 
     return config;

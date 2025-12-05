@@ -147,8 +147,6 @@ const ManagementControllers = (function() {
         return formatManagementAPIConfig(config);
       case 'aprs':
         return formatAPRSControllerConfig(config);
-      case 'snowcache':
-        return formatSnowCacheConfig(config);
       default:
         // Fallback to JSON
         return `<pre class="config-raw">${JSON.stringify(config, null, 2)}</pre>`;
@@ -250,19 +248,6 @@ const ManagementControllers = (function() {
     }
     
     html += '</div>';
-    return html;
-  }
-
-  function formatSnowCacheConfig(config) {
-    let html = '<div class="config-section">';
-    html += '<h4>Snow Cache Configuration</h4>';
-    html += '<div class="config-grid">';
-
-    html += '<div><strong>Mode:</strong> Automatic station detection</div>';
-    html += '<div><strong>Refresh Interval:</strong> 30 seconds (totals), 15 minutes (events)</div>';
-    html += '<div><strong>Algorithm:</strong> PELT change point detection with median filtering</div>';
-
-    html += '</div></div>';
     return html;
   }
 
@@ -382,10 +367,6 @@ const ManagementControllers = (function() {
       case 'aprs':
         if (config.server) formElements.aprsServer.value = config.server;
         break;
-      case 'snowcache':
-        // Snow cache controller auto-detects all snowgauge devices
-        // No configuration to populate
-        break;
     }
   }
 
@@ -487,10 +468,6 @@ const ManagementControllers = (function() {
         break;
       case 'aprs':
         config.server = formElements.aprsServer.value || '';
-        break;
-      case 'snowcache':
-        // Snow cache controller auto-detects all snowgauge devices
-        // No configuration needed - just enable it
         break;
     }
 

@@ -583,10 +583,9 @@
           <select id="controller-type">
             <option value="rest">REST Server</option>
             <option value="management">Management API</option>
-            <option value="snowcache">Snow Cache</option>
           </select>
         </label>
-        
+
         <!-- PWS Weather fields -->
         <div id="pwsweather-fields" class="controller-fields hidden">
           <label>
@@ -729,24 +728,6 @@
             APRS-IS Server
             <input type="text" id="aprs-server" value="noam.aprs2.net:14580" />
           </label>
-        </div>
-
-        <!-- Snow Cache fields -->
-        <div id="snowcache-fields" class="controller-fields hidden">
-          <fieldset>
-            <legend>Snow Cache Configuration</legend>
-            <div class="info-box">
-              <p><strong>Automatic Station Detection</strong></p>
-              <p>This controller automatically detects and processes all enabled snowgauge devices in your configuration. It will:</p>
-              <ul>
-                <li>Find all weather stations with type "snowgauge"</li>
-                <li>Use the base distance configured for each station</li>
-                <li>Refresh snow depth calculations every 30 seconds</li>
-                <li>Cache accumulation events every 15 minutes using PELT algorithm</li>
-              </ul>
-              <p class="help-text">No additional configuration required. Simply enable this controller to start automatic snow data processing.</p>
-            </div>
-          </fieldset>
         </div>
 
         <div class="modal-footer">
