@@ -2583,6 +2583,29 @@ COMMENT ON TABLE snow_totals_cache IS
 Refreshed every 30 seconds by TimescaleDB job. Frontend queries this instead
 of calling snow calculation functions directly.';`
 
+const createSnowEventsCacheTableSQL = `CREATE TABLE IF NOT EXISTS snow_events_cache (
+    stationname TEXT NOT NULL,
+    hours INTEGER NOT NULL,
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
+    event_type TEXT NOT NULL,
+    start_depth_mm REAL NOT NULL,
+    end_depth_mm REAL NOT NULL,
+    accumulation_mm REAL,
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (stationname, hours, start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_snow_events_station_hours
+    ON snow_events_cache(stationname, hours);
+
+CREATE INDEX IF NOT EXISTS idx_snow_events_computed
+    ON snow_events_cache(stationname, hours, computed_at DESC);
+
+COMMENT ON TABLE snow_events_cache IS
+'Cached snow events for visualization. Updated every 15 minutes by snow cache controller.
+Events are detected using PELT change point detection algorithm.';`
+
 const createSnowCacheRefreshFunctionSQL = `CREATE OR REPLACE FUNCTION refresh_snow_cache(
     job_id INT DEFAULT NULL,
     config JSONB DEFAULT NULL

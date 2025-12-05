@@ -344,6 +344,13 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
+	log.Info("Creating snow events cache table...")
+	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowEventsCacheTableSQL).Error
+	if err != nil {
+		log.Warn("warning: could not create snow events cache table")
+		return &Storage{}, err
+	}
+
 	log.Info("Adding snow cache refresh function...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowCacheRefreshFunctionSQL).Error
 	if err != nil {
