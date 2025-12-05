@@ -112,7 +112,6 @@ const ManagementApp = (function() {
     // Stop snow status updates when leaving snow tab
     ManagementNavigation.onTabLeave('snow-pane', () => {
       ManagementSnow.cleanup();
-      }
     });
   }
 
