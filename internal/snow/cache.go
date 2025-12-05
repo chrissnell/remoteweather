@@ -60,9 +60,9 @@ func (c *Calculator) RefreshCache(ctx context.Context) error {
 		return err
 	}
 
-	// Log successful refresh with all values (debug level)
-	c.logger.Debugf("Snow cache refreshed: midnight=%.1fmm, 24h=%.1fmm, 72h=%.1fmm (PELT), season=%.1fmm (PELT)",
-		midnight, snow24h, snow72h, seasonal)
+	// Log successful refresh with all values
+	c.logger.Infof("Snow cache refreshed for '%s': midnight=%.1fmm (%.1f\"), 24h=%.1fmm (%.1f\"), 72h=%.1fmm (%.1f\"), season=%.1fmm (%.1f\")",
+		c.stationName, midnight, midnight/25.4, snow24h, snow24h/25.4, snow72h, snow72h/25.4, seasonal, seasonal/25.4)
 
 	return nil
 }

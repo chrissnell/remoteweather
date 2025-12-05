@@ -76,7 +76,11 @@ func (c *Calculator) CalculateSeasonal(ctx context.Context) (float64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	result, err := c.calculateAccumulation(ctx, "weather_1d", 180) // ~6 months
+	// Use hourly data for recent season (30 days) to capture all snow including today
+	// Daily aggregates (weather_1d) don't include today's snow until the day completes
+	// For longer historical analysis, a hybrid approach with daily data could be added
+	// but 30 days of hourly data gives good seasonal context while staying performant
+	result, err := c.calculateAccumulation(ctx, "weather_1h", 30)
 	if err != nil {
 		c.logger.Debugf("Seasonal calculation error: %v", err)
 		return 0, err
@@ -114,11 +118,22 @@ func (c *Calculator) calculateAccumulation(ctx context.Context, tableName string
 	// Classify segments
 	segments := c.classifySegments(readings, smoothed, breakpoints)
 
-	// Sum accumulation
+	// Sum accumulation and log segments
 	totalMM := 0.0
+	accumulationEvents := 0
 	for _, seg := range segments {
+		if seg.SnowMM > 0 {
+			c.logger.Debugf("  %s segment: %.1fmm snow (%s to %s)",
+				seg.Type, seg.SnowMM,
+				seg.StartTime.Format("01/02 15:04"),
+				seg.EndTime.Format("01/02 15:04"))
+			accumulationEvents++
+		}
 		totalMM += seg.SnowMM
 	}
+
+	c.logger.Debugf("PELT found %d accumulation events, total: %.1fmm (%.1f\") from %d segments over %d readings",
+		accumulationEvents, totalMM, totalMM/25.4, len(segments), len(readings))
 
 	return totalMM, nil
 }
