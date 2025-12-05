@@ -34,8 +34,8 @@ type CachedSnowEvent struct {
 // Called every 15 minutes by the snow cache controller
 // Only caches accumulation events (not plateau, redistribution, or spike_then_settle)
 func (c *Calculator) CacheEventsForTimeRanges(ctx context.Context) error {
-	// Standard time ranges to cache (in hours)
-	timeRanges := []int{24, 72, 168, 720} // 1d, 3d, 7d, 30d
+	// Standard time ranges to cache (in hours) - matches frontend CHART_RANGES
+	timeRanges := []int{24, 72, 168, 744} // 24h, 72h, 7d, 30d
 
 	for _, hours := range timeRanges {
 		if err := c.cacheEventsForHours(ctx, hours); err != nil {
