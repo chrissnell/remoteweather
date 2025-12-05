@@ -452,23 +452,24 @@ func (h *Handlers) GetSnowLatest(w http.ResponseWriter, req *http.Request) {
 				mmToInches(snowBaseDistance-dbFetchedReadings[0].SnowDistance))
 		}
 
-		// Try to get snow totals from cache first (migration 013 optimization)
+		// Try to get snow totals from cache first (populated by snow cache controller every 15 minutes)
 		var cache SnowCacheResult
 		var snowSinceMidnight, snowLast24, snowLast72, snowSeason float32
 
-		cacheQuery := "SELECT * FROM snow_totals_cache WHERE stationname = ? AND computed_at >= NOW() - INTERVAL '45 seconds'"
+		// Accept cache up to 20 minutes old (gives 5 min grace period beyond 15 min refresh interval)
+		cacheQuery := "SELECT * FROM snow_totals_cache WHERE stationname = ? AND computed_at >= NOW() - INTERVAL '20 minutes'"
 		err := h.controller.DB.Raw(cacheQuery, website.SnowDeviceName).Scan(&cache).Error
 
 		if err == nil && cache.StationName != "" {
-			// Cache hit - use cached values
+			// Cache hit - use PELT-calculated values from cache
 			log.Debugf("Snow cache hit for station '%s' (age: %v)", cache.StationName, time.Since(cache.ComputedAt))
 			snowSinceMidnight = mmToInchesWithThreshold(cache.SnowMidnight)
 			snowLast24 = mmToInchesWithThreshold(cache.Snow24h)
 			snowLast72 = mmToInchesWithThreshold(cache.Snow72h)
 			snowSeason = mmToInchesWithThreshold(cache.SnowSeason)
 		} else {
-			// Cache miss - fall back to direct function calls (slower)
-			log.Debugf("Snow cache miss for station '%s', using direct calculation", website.SnowDeviceName)
+			// Cache miss - fall back to legacy SQL functions (should rarely happen)
+			log.Warnf("Snow cache miss for station '%s' (err: %v), falling back to legacy SQL functions", website.SnowDeviceName, err)
 
 			var result SnowDeltaResult
 
