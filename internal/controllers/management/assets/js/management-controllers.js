@@ -146,6 +146,8 @@ const ManagementControllers = (function() {
         return formatManagementAPIConfig(config);
       case 'aprs':
         return formatAPRSControllerConfig(config);
+      case 'snowcache':
+        return formatSnowCacheConfig(config);
       default:
         // Fallback to JSON
         return `<pre class="config-raw">${JSON.stringify(config, null, 2)}</pre>`;
@@ -247,6 +249,22 @@ const ManagementControllers = (function() {
     }
     
     html += '</div>';
+    return html;
+  }
+
+  function formatSnowCacheConfig(config) {
+    let html = '<div class="config-section">';
+    html += '<h4>Snow Cache Configuration</h4>';
+    html += '<div class="config-grid">';
+
+    if (config.station_name) html += `<div><strong>Station:</strong> ${config.station_name}</div>`;
+    if (config.base_distance) html += `<div><strong>Base Distance:</strong> ${config.base_distance} mm</div>`;
+    if (config.smoothing_window) html += `<div><strong>Smoothing Window:</strong> ${config.smoothing_window} hours</div>`;
+    if (config.penalty) html += `<div><strong>PELT Penalty:</strong> ${config.penalty}</div>`;
+    if (config.min_accumulation) html += `<div><strong>Min Accumulation:</strong> ${config.min_accumulation} mm</div>`;
+    if (config.min_segment_size) html += `<div><strong>Min Segment Size:</strong> ${config.min_segment_size}</div>`;
+
+    html += '</div></div>';
     return html;
   }
 

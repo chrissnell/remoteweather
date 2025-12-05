@@ -103,7 +103,8 @@ const ManagementUtils = (function() {
       'aerisweather': 'Aeris Weather',
       'rest': 'REST Server',
       'management': 'Management API',
-      'aprs': 'APRS'
+      'aprs': 'APRS',
+      'snowcache': 'Snow Cache Controller'
     };
     return names[type] || type;
   }

@@ -232,7 +232,15 @@ CREATE TABLE controller_configs (
 
     -- APRS server field (added in migration 005)
     aprs_server TEXT,
-    
+
+    -- Snow cache controller fields (added in migration 022)
+    snow_station_name TEXT,
+    snow_base_distance REAL DEFAULT 0.0,
+    snow_smoothing_window INTEGER DEFAULT 5,
+    snow_penalty REAL DEFAULT 3.0,
+    snow_min_accumulation REAL DEFAULT 5.0,
+    snow_min_segment_size INTEGER DEFAULT 2,
+
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
     UNIQUE(config_id, controller_type)
 );
@@ -318,6 +326,12 @@ END;
 
 -- Insert default configuration
 INSERT INTO configs (name) VALUES ('default');
+
+-- Insert default snow cache controller (disabled by default)
+INSERT INTO controller_configs (config_id, controller_type, enabled,
+    snow_station_name, snow_base_distance, snow_smoothing_window,
+    snow_penalty, snow_min_accumulation, snow_min_segment_size)
+VALUES (1, 'snowcache', 0, '', 0.0, 5, 3.0, 5.0, 2);
 `
 
 	// Execute the schema creation
@@ -640,7 +654,10 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
 		       -- APRS fields
-		       cc.aprs_server
+		       cc.aprs_server,
+		       -- Snow Cache fields
+		       cc.snow_station_name, cc.snow_base_distance, cc.snow_smoothing_window,
+		       cc.snow_penalty, cc.snow_min_accumulation, cc.snow_min_segment_size
 		FROM controller_configs cc
 		WHERE cc.config_id = (SELECT id FROM configs WHERE name = 'default') AND cc.enabled = 1
 		ORDER BY cc.controller_type
@@ -666,6 +683,10 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 		var mgmtPort sql.NullInt64
 		var mgmtEnableCORS sql.NullBool
 		var aprsServer sql.NullString
+		var snowStationName sql.NullString
+		var snowBaseDistance sql.NullFloat64
+		var snowSmoothingWindow, snowMinSegmentSize sql.NullInt64
+		var snowPenalty, snowMinAccumulation sql.NullFloat64
 
 		err := rows.Scan(
 			&controllerType, &enabled,
@@ -676,6 +697,8 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			&grpcPort, &grpcListenAddr, &grpcCert, &grpcKey,
 			&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 			&aprsServer,
+			&snowStationName, &snowBaseDistance, &snowSmoothingWindow,
+			&snowPenalty, &snowMinAccumulation, &snowMinSegmentSize,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan controller config row: %w", err)
@@ -729,6 +752,17 @@ func (s *SQLiteProvider) GetControllers() ([]ControllerData, error) {
 			if aprsServer.Valid {
 				controller.APRS = &APRSData{
 					Server: aprsServer.String,
+				}
+			}
+		case "snowcache":
+			if snowStationName.Valid {
+				controller.SnowCache = &SnowCacheData{
+					StationName:     snowStationName.String,
+					BaseDistance:    snowBaseDistance.Float64,
+					SmoothingWindow: int(snowSmoothingWindow.Int64),
+					Penalty:         snowPenalty.Float64,
+					MinAccumulation: snowMinAccumulation.Float64,
+					MinSegmentSize:  int(snowMinSegmentSize.Int64),
 				}
 			}
 		}
@@ -912,8 +946,10 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 			rest_port, rest_listen_addr,
 			grpc_port, grpc_listen_addr, grpc_cert, grpc_key,
 			management_cert, management_key, management_port, management_listen_addr,
-			management_auth_token, management_enable_cors, aprs_server
-		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			management_auth_token, management_enable_cors, aprs_server,
+			snow_station_name, snow_base_distance, snow_smoothing_window,
+			snow_penalty, snow_min_accumulation, snow_min_segment_size
+		) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var pwsAPIEndpoint sql.NullString
@@ -927,6 +963,10 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 	var mgmtPort sql.NullInt64
 	var mgmtEnableCORS sql.NullBool
 	var aprsServer sql.NullString
+	var snowStationName sql.NullString
+	var snowBaseDistance sql.NullFloat64
+	var snowSmoothingWindow, snowMinSegmentSize sql.NullInt64
+	var snowPenalty, snowMinAccumulation sql.NullFloat64
 
 	if controller.PWSWeather != nil {
 		pwsAPIEndpoint = sql.NullString{String: controller.PWSWeather.APIEndpoint, Valid: controller.PWSWeather.APIEndpoint != ""}
@@ -962,6 +1002,15 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 		aprsServer = sql.NullString{String: controller.APRS.Server, Valid: controller.APRS.Server != ""}
 	}
 
+	if controller.SnowCache != nil {
+		snowStationName = sql.NullString{String: controller.SnowCache.StationName, Valid: controller.SnowCache.StationName != ""}
+		snowBaseDistance = sql.NullFloat64{Float64: controller.SnowCache.BaseDistance, Valid: true}
+		snowSmoothingWindow = sql.NullInt64{Int64: int64(controller.SnowCache.SmoothingWindow), Valid: true}
+		snowPenalty = sql.NullFloat64{Float64: controller.SnowCache.Penalty, Valid: true}
+		snowMinAccumulation = sql.NullFloat64{Float64: controller.SnowCache.MinAccumulation, Valid: true}
+		snowMinSegmentSize = sql.NullInt64{Int64: int64(controller.SnowCache.MinSegmentSize), Valid: true}
+	}
+
 	_, err := tx.Exec(query, configID, controller.Type,
 		pwsAPIEndpoint,
 		wuAPIEndpoint,
@@ -969,6 +1018,8 @@ func (s *SQLiteProvider) insertController(tx *sql.Tx, configID int64, controller
 		restPort, restListenAddr,
 		grpcPort, grpcListenAddr, grpcCert, grpcKey,
 		mgmtCert, mgmtKey, mgmtPort, mgmtListenAddr, mgmtAuthToken, mgmtEnableCORS, aprsServer,
+		snowStationName, snowBaseDistance, snowSmoothingWindow,
+		snowPenalty, snowMinAccumulation, snowMinSegmentSize,
 	)
 	if err != nil {
 		return err
@@ -1422,7 +1473,9 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		       cc.grpc_port, cc.grpc_listen_addr, cc.grpc_cert, cc.grpc_key,
 		       cc.management_cert, cc.management_key, cc.management_port, cc.management_listen_addr,
 		       cc.management_auth_token, cc.management_enable_cors,
-		       cc.aprs_server
+		       cc.aprs_server,
+		       cc.snow_station_name, cc.snow_base_distance, cc.snow_smoothing_window,
+		       cc.snow_penalty, cc.snow_min_accumulation, cc.snow_min_segment_size
 		FROM controller_configs cc
 		JOIN configs c ON cc.config_id = c.id
 		WHERE cc.controller_type = ?
@@ -1439,6 +1492,10 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 	var mgmtPort sql.NullInt64
 	var mgmtEnableCORS sql.NullBool
 	var aprsServer sql.NullString
+	var snowStationName sql.NullString
+	var snowBaseDistance sql.NullFloat64
+	var snowSmoothingWindow, snowMinSegmentSize sql.NullInt64
+	var snowPenalty, snowMinAccumulation sql.NullFloat64
 
 	err := s.db.QueryRow(query, controllerType).Scan(
 		&controller.Type, &enabled,
@@ -1449,6 +1506,8 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		&grpcPort, &grpcListenAddr, &grpcCert, &grpcKey,
 		&mgmtCert, &mgmtKey, &mgmtPort, &mgmtListenAddr, &mgmtAuthToken, &mgmtEnableCORS,
 		&aprsServer,
+		&snowStationName, &snowBaseDistance, &snowSmoothingWindow,
+		&snowPenalty, &snowMinAccumulation, &snowMinSegmentSize,
 	)
 
 	if err != nil {
@@ -1509,6 +1568,17 @@ func (s *SQLiteProvider) GetController(controllerType string) (*ControllerData, 
 		}
 		controller.APRS = &APRSData{
 			Server: server,
+		}
+	}
+
+	if snowStationName.Valid || controllerType == "snowcache" {
+		controller.SnowCache = &SnowCacheData{
+			StationName:     snowStationName.String,
+			BaseDistance:    snowBaseDistance.Float64,
+			SmoothingWindow: int(snowSmoothingWindow.Int64),
+			Penalty:         snowPenalty.Float64,
+			MinAccumulation: snowMinAccumulation.Float64,
+			MinSegmentSize:  int(snowMinSegmentSize.Int64),
 		}
 	}
 

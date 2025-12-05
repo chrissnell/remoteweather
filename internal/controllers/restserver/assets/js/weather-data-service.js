@@ -24,7 +24,21 @@ const WeatherDataService = (function() {
         const url = stationId ? endpoints.snow + '?station_id=' + stationId : endpoints.snow;
         return WeatherUtils.fetchWithTimeout(url);
     };
-    
+
+    // Fetch snow accumulation events for visualization
+    const fetchSnowEvents = async (hours) => {
+        try {
+            const url = '/snow-events?hours=' + hours;
+            const response = await WeatherUtils.fetchWithTimeout(url);
+            if (!response.ok) return [];
+            const data = await response.json();
+            return data.events || [];
+        } catch (error) {
+            if (config.debug) console.error('Error fetching snow events:', error);
+            return [];
+        }
+    };
+
     // Fetch historical data for charts
     const fetchHistoricalData = async (hours, station, stationId) => {
         let url = endpoints.span(hours) + '?station=' + station;
@@ -267,6 +281,7 @@ const WeatherDataService = (function() {
         // Raw fetch methods
         fetchLatestWeather,
         fetchSnowData,
+        fetchSnowEvents,
         fetchHistoricalData,
         fetchForecast,
         fetchStationInfo,

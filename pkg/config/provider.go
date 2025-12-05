@@ -239,6 +239,7 @@ type ControllerData struct {
 	RESTServer         *RESTServerData         `json:"rest,omitempty"`
 	ManagementAPI      *ManagementAPIData      `json:"management,omitempty"`
 	APRS               *APRSData               `json:"aprs,omitempty"`
+	SnowCache          *SnowCacheData          `json:"snowcache,omitempty"`
 }
 
 // StorageHealthData holds health status information for storage backends
@@ -336,6 +337,18 @@ type AerisWeatherData struct {
 type APRSData struct {
 	Server string             `json:"server,omitempty"`
 	Health *StorageHealthData `json:"health,omitempty"`
+}
+
+// SnowCacheData holds configuration for the snow cache controller
+// The snow cache controller runs background calculations for snow accumulation
+// using PELT change point detection for 72h and seasonal totals
+type SnowCacheData struct {
+	StationName     string  `json:"station_name,omitempty"`      // Name of the weather station with snow depth sensor
+	BaseDistance    float64 `json:"base_distance,omitempty"`     // Base snow distance calibration value (mm)
+	SmoothingWindow int     `json:"smoothing_window,omitempty"`  // Hours of data for median filtering (default: 5)
+	Penalty         float64 `json:"penalty,omitempty"`           // PELT penalty parameter (default: 3.0)
+	MinAccumulation float64 `json:"min_accumulation,omitempty"`  // Minimum accumulation threshold in mm (default: 5.0)
+	MinSegmentSize  int     `json:"min_segment_size,omitempty"`  // Minimum segment size for PELT (default: 2)
 }
 
 // RESTServerData holds configuration for the REST server

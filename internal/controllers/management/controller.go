@@ -239,6 +239,10 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/weatherlink/template/validate", c.handlers.ValidateWeatherLinkTemplate).Methods("GET")
 	api.HandleFunc("/weatherlink/suggest", c.handlers.SuggestWeatherLinkTemplate).Methods("GET")
 
+	// Snow controller status endpoints (config now managed via /config/controllers)
+	api.HandleFunc("/snow/status", c.handlers.GetSnowStatus).Methods("GET")
+	api.HandleFunc("/snow/recalculate", c.handlers.RecalculateSnow).Methods("POST")
+
 	return router
 }
 

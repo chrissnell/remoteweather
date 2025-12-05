@@ -10,6 +10,8 @@ import (
 	"syscall"
 
 	"github.com/chrissnell/remoteweather/internal/controllers/management"
+	"github.com/chrissnell/remoteweather/internal/controllers/snowcache"
+	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/interfaces"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/managers"
@@ -72,11 +74,41 @@ func (a *App) Run(ctx context.Context, enableManagementAPI bool) error {
 		return err
 	}
 
-	// Create and start management controller
+	// Load configuration for snow cache and management controllers
 	cfgData, err := a.configProvider.LoadConfig()
 	if err != nil {
 		return err
 	}
+
+	// Start snow cache controller if TimescaleDB is configured
+	if cfgData.Storage.TimescaleDB != nil && cfgData.Storage.TimescaleDB.GetConnectionString() != "" {
+		gormDB, err := database.CreateConnection(cfgData.Storage.TimescaleDB.GetConnectionString())
+		if err != nil {
+			a.logger.Warnf("Failed to create database connection for snow cache controller: %v", err)
+		} else {
+			sqlDB, err := gormDB.DB()
+			if err != nil {
+				a.logger.Warnf("Failed to get sql.DB from gorm.DB for snow cache controller: %v", err)
+			} else {
+				snowCtrl, err := snowcache.NewController(ctx, &wg, sqlDB, a.configProvider, a.logger)
+				if err != nil {
+					a.logger.Warnf("Snow cache controller initialization failed: %v", err)
+				} else if snowCtrl != nil {
+					// Only start if controller was created (snow is enabled)
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						if err := snowCtrl.Start(); err != nil {
+							a.logger.Errorf("Snow cache controller error: %v", err)
+						}
+					}()
+					a.logger.Info("Snow cache controller started successfully")
+				}
+			}
+		}
+	}
+
+	// Create and start management controller
 
 	// Find management controller configuration
 	managementFound := false

@@ -1,0 +1,3 @@
+-- Remove snow cache controller fields from controller_configs table
+-- SQLite doesn't support DROP COLUMN, so we need to recreate the table
+-- For rollback purposes, we'll just leave the columns (they'll be NULL/default)
