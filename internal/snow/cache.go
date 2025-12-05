@@ -70,7 +70,7 @@ func (c *Calculator) RefreshCache(ctx context.Context) error {
 // getMidnight calls the existing SQL function for midnight snow calculation
 func (c *Calculator) getMidnight(ctx context.Context) (float64, error) {
 	var snowMM sql.NullFloat64
-	query := `SELECT get_new_snow_since_midnight($1, $2)`
+	query := `SELECT get_new_snow_midnight($1, $2)`
 	err := c.db.QueryRowContext(ctx, query, c.stationName, c.baseDistance).Scan(&snowMM)
 	if err != nil {
 		return 0, err
