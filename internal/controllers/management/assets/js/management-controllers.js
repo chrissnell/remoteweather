@@ -258,12 +258,9 @@ const ManagementControllers = (function() {
     html += '<h4>Snow Cache Configuration</h4>';
     html += '<div class="config-grid">';
 
-    if (config.station_name) html += `<div><strong>Station:</strong> ${config.station_name}</div>`;
-    if (config.base_distance) html += `<div><strong>Base Distance:</strong> ${config.base_distance} mm</div>`;
-    if (config.smoothing_window) html += `<div><strong>Smoothing Window:</strong> ${config.smoothing_window} hours</div>`;
-    if (config.penalty) html += `<div><strong>PELT Penalty:</strong> ${config.penalty}</div>`;
-    if (config.min_accumulation) html += `<div><strong>Min Accumulation:</strong> ${config.min_accumulation} mm</div>`;
-    if (config.min_segment_size) html += `<div><strong>Min Segment Size:</strong> ${config.min_segment_size}</div>`;
+    html += '<div><strong>Mode:</strong> Automatic station detection</div>';
+    html += '<div><strong>Refresh Interval:</strong> 30 seconds (totals), 15 minutes (events)</div>';
+    html += '<div><strong>Algorithm:</strong> PELT change point detection with median filtering</div>';
 
     html += '</div></div>';
     return html;
@@ -385,15 +382,20 @@ const ManagementControllers = (function() {
       case 'aprs':
         if (config.server) formElements.aprsServer.value = config.server;
         break;
+      case 'snowcache':
+        // Snow cache controller auto-detects all snowgauge devices
+        // No configuration to populate
+        break;
     }
   }
 
   async function loadDeviceSelectsForController() {
     if (!ManagementAuth.getIsAuthenticated()) return;
-    
+
     try {
       const devices = await ManagementAPIService.getWeatherStations();
-      
+
+      // Populate standard device dropdowns (PWS, WU)
       const selects = ['pws-device-select', 'wu-device-select'];
       selects.forEach(selectId => {
         const select = document.getElementById(selectId);
@@ -486,8 +488,12 @@ const ManagementControllers = (function() {
       case 'aprs':
         config.server = formElements.aprsServer.value || '';
         break;
+      case 'snowcache':
+        // Snow cache controller auto-detects all snowgauge devices
+        // No configuration needed - just enable it
+        break;
     }
-    
+
     return config;
   }
 
