@@ -67,7 +67,7 @@ func (c *Calculator) RefreshCache(ctx context.Context) error {
 	}
 
 	// Log successful refresh with all values
-	c.logger.Infof("Snow cache refreshed for '%s': midnight=%.1fmm (%.1f\"), 24h=%.1fmm (%.1f\"), 72h=%.1fmm (%.1f\"), season=%.1fmm (%.1f\")",
+	c.logger.Debugf("Snow cache refreshed for '%s': midnight=%.1fmm (%.1f\"), 24h=%.1fmm (%.1f\"), 72h=%.1fmm (%.1f\"), season=%.1fmm (%.1f\")",
 		c.stationName, midnight, midnight/25.4, snow24h, snow24h/25.4, snow72h, snow72h/25.4, seasonal, seasonal/25.4)
 
 	return nil
