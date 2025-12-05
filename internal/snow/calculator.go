@@ -63,6 +63,29 @@ func (c *Calculator) Calculate72h(ctx context.Context) (float64, error) {
 	return result, nil
 }
 
+// Calculate24h computes 24-hour snow accumulation using PELT change point detection
+// Replaces SQL dual-threshold to avoid overcounting sensor noise and redistribution events
+// Includes timeout protection and panic recovery for graceful degradation
+func (c *Calculator) Calculate24h(ctx context.Context) (float64, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			c.logger.Errorf("PELT calculator panic recovered (24h): %v", r)
+		}
+	}()
+
+	// Add timeout for PELT calculation
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	result, err := c.calculateAccumulation(ctx, "weather_1h", 1) // 1 day
+	if err != nil {
+		c.logger.Debugf("24h calculation error: %v", err)
+		return 0, err
+	}
+
+	return result, nil
+}
+
 // CalculateSeasonal computes seasonal snow accumulation using PELT change point detection
 // Includes timeout protection and panic recovery for graceful degradation
 func (c *Calculator) CalculateSeasonal(ctx context.Context) (float64, error) {

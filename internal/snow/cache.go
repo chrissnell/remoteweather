@@ -8,6 +8,7 @@ import (
 
 // SnowCache represents the current cached snow values
 type SnowCache struct {
+	Snow24h    float64
 	Snow72h    float64
 	SnowSeason float64
 }
@@ -16,15 +17,10 @@ type SnowCache struct {
 // This method implements the hybrid approach: SQL for midnight/24h, PELT for 72h/seasonal
 // If PELT calculations fail, previous cached values are retained for 72h/seasonal
 func (c *Calculator) RefreshCache(ctx context.Context) error {
-	// SQL functions for fast calculations (midnight and 24h)
+	// SQL function for midnight (fast calculation)
 	midnight, err := c.getMidnight(ctx)
 	if err != nil {
 		return fmt.Errorf("midnight calculation failed: %w", err)
-	}
-
-	snow24h, err := c.get24h(ctx)
-	if err != nil {
-		return fmt.Errorf("24h calculation failed: %w", err)
 	}
 
 	// Get current cached values for graceful degradation
@@ -33,8 +29,18 @@ func (c *Calculator) RefreshCache(ctx context.Context) error {
 		c.logger.Debugf("Unable to get current cache (may be first run): %v", err)
 	}
 
-	// PELT calculator for accurate multi-day calculations
+	// PELT calculator for accurate multi-day calculations (24h, 72h, seasonal)
 	// On failure, keep previous values
+	snow24h, err := c.Calculate24h(ctx)
+	if err != nil {
+		c.logger.Warnf("24h PELT calculation failed, keeping previous value: %v", err)
+		if currentCache != nil {
+			snow24h = currentCache.Snow24h
+		} else {
+			return fmt.Errorf("24h PELT calculation failed and no cached value available: %w", err)
+		}
+	}
+
 	snow72h, err := c.Calculate72h(ctx)
 	if err != nil {
 		c.logger.Warnf("72h PELT calculation failed, keeping previous value: %v", err)
@@ -98,13 +104,13 @@ func (c *Calculator) get24h(ctx context.Context) (float64, error) {
 // getCurrentCache retrieves the current cached values for graceful degradation
 func (c *Calculator) getCurrentCache(ctx context.Context) (*SnowCache, error) {
 	query := `
-		SELECT snow_72h, snow_season
+		SELECT snow_24h, snow_72h, snow_season
 		FROM snow_totals_cache
 		WHERE stationname = $1
 	`
 
 	var cache SnowCache
-	err := c.db.QueryRowContext(ctx, query, c.stationName).Scan(&cache.Snow72h, &cache.SnowSeason)
+	err := c.db.QueryRowContext(ctx, query, c.stationName).Scan(&cache.Snow24h, &cache.Snow72h, &cache.SnowSeason)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // No cache exists yet, not an error
