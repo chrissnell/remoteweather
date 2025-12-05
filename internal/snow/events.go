@@ -30,9 +30,9 @@ type CachedSnowEvent struct {
 	ComputedAt     time.Time
 }
 
-// CacheEventsForTimeRanges calculates and caches accumulation events for standard time ranges
+// CacheEventsForTimeRanges calculates and caches snow events for standard time ranges
 // Called every 15 minutes by the snow cache controller
-// Only caches accumulation events (not plateau, redistribution, or spike_then_settle)
+// Caches all events that contribute to snow totals (accumulation and spike_then_settle)
 func (c *Calculator) CacheEventsForTimeRanges(ctx context.Context) error {
 	// Standard time ranges to cache (in hours) - matches frontend CHART_RANGES
 	timeRanges := []int{24, 72, 168, 744} // 24h, 72h, 7d, 30d
@@ -100,11 +100,12 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 	// Classify segments
 	segments := c.classifySegments(readings, smoothed, breakpoints)
 
-	// Filter for accumulation events only
-	var accumulationEvents []Segment
+	// Filter for events that contribute snow (accumulation and spike_then_settle)
+	// These are the events with snowMM > 0 that should appear on charts
+	var snowEvents []Segment
 	for _, seg := range segments {
-		if seg.Type == "accumulation" {
-			accumulationEvents = append(accumulationEvents, seg)
+		if seg.SnowMM > 0 {
+			snowEvents = append(snowEvents, seg)
 		}
 	}
 
@@ -115,14 +116,14 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 	}
 
 	// Insert new events into cache
-	if len(accumulationEvents) > 0 {
+	if len(snowEvents) > 0 {
 		insertQuery := `
 			INSERT INTO snow_events_cache
 			(stationname, hours, start_time, end_time, event_type, start_depth_mm, end_depth_mm, accumulation_mm, computed_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
 		`
 
-		for _, event := range accumulationEvents {
+		for _, event := range snowEvents {
 			_, err := c.db.ExecContext(ctx, insertQuery,
 				c.stationName,
 				hours,
@@ -140,13 +141,14 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 			}
 		}
 
-		c.logger.Debugf("Cached %d accumulation events for %dh window", len(accumulationEvents), hours)
+		c.logger.Debugf("Cached %d snow events for %dh window (types: accumulation, spike_then_settle)", len(snowEvents), hours)
 	}
 
 	return nil
 }
 
-// GetSnowEvents returns cached accumulation events for a time window
+// GetSnowEvents returns cached snow events for a time window
+// Includes both accumulation and spike_then_settle events (all events with snowMM > 0)
 // Reads from snow_events_cache table populated every 15 minutes
 func (c *Calculator) GetSnowEvents(ctx context.Context, hours int) ([]SnowEvent, error) {
 	// Query cache for events
