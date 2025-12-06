@@ -83,6 +83,7 @@ const WeatherCharts = (function() {
             unit: "%"
         },
         snowdepth: {
+            displayName: "Measured Depth (Raw)",
             yAxisLabel: "inches",
             chartType: "spline",
             tooltipDecimals: 2,
@@ -378,10 +379,10 @@ const WeatherCharts = (function() {
     };
     
     // Get additional series data (for charts like solar that have multiple series)
-    const getAdditionalSeriesData = (rawData, chartType) => {
+    const getAdditionalSeriesData = (rawData, chartType, snowData) => {
         if (chartType === 'temperature' && rawData) {
             const series = [];
-            
+
             // Add feels like temperature (heat index or wind chill)
             const feelsLikeData = rawData.map(item => {
                 const feelsLike = item.heatidx || item.windch || item.otemp;
@@ -393,7 +394,7 @@ const WeatherCharts = (function() {
                 color: 'rgb(255, 127, 80)',  // Coral color
                 dashStyle: 'ShortDash'
             });
-            
+
             // Add dewpoint
             const dewpointData = rawData.map(item => {
                 const dewpoint = WeatherUtils.calculateDewPoint(item.otemp, item.outhumidity);
@@ -405,16 +406,27 @@ const WeatherCharts = (function() {
                 color: 'rgb(135, 206, 250)',  // Light sky blue
                 dashStyle: 'ShortDot'
             });
-            
+
             return series;
         }
-        
+
         if (chartType === 'solarwatts' && rawData) {
             return [{
                 name: "Maximum Potential Solar Radiation",
                 data: rawData.map(item => [item.ts, item.potentialsolarwatts])
             }];
         }
+
+        if (chartType === 'snowdepth' && snowData) {
+            return [{
+                name: "Estimated Depth (Smoothed)",
+                data: snowData.map(item => [item.ts, item.snowdepthest]).filter(item => item[1] > 0),
+                color: 'rgb(255, 127, 80)',  // Coral/orange color for smoothed
+                dashStyle: 'Solid',
+                lineWidth: 2
+            }];
+        }
+
         return [];
     };
     

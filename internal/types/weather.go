@@ -220,6 +220,7 @@ type Reading struct {
 	Sunset                time.Time `gorm:"column:sunset"`
 	SnowDistance          float32   `gorm:"column:snowdistance"`
 	SnowDepth             float32   `gorm:"column:snowdepth"`
+	SnowDepthEst          float32   `gorm:"-"` // Estimated/smoothed depth (not a DB column)
 	ExtraFloat1           float32   `gorm:"column:extrafloat1"`
 	ExtraFloat2           float32   `gorm:"column:extrafloat2"`
 	ExtraFloat3           float32   `gorm:"column:extrafloat3"`
