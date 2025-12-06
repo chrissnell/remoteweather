@@ -1398,7 +1398,7 @@ func (h *Handlers) GetSnowEvents(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Create calculator (reads from cache, doesn't recalculate)
-	calc := snow.NewCalculator(sqlDB, h.controller.logger, website.SnowDeviceName, float64(snowBaseDistance))
+	calc := snow.NewCalculator(sqlDB, h.controller.logger, website.SnowDeviceName, float64(snowBaseDistance), snow.ComputerTypePELT)
 
 	// Get cached snow events
 	events, err := calc.GetSnowEvents(req.Context(), hours)

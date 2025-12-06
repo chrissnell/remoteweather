@@ -52,7 +52,7 @@ func NewController(
 	for _, device := range cfgData.Devices {
 		if device.Type == "snowgauge" && device.Enabled {
 			baseDistance := float64(device.BaseSnowDistance)
-			calc := snow.NewCalculator(db, logger, device.Name, baseDistance)
+			calc := snow.NewCalculator(db, logger, device.Name, baseDistance, snow.ComputerTypePELT)
 			calculators[device.Name] = calc
 			logger.Infof("Added snow cache calculator for station '%s' (base_distance=%.2fmm)", device.Name, baseDistance)
 		}

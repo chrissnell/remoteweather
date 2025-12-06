@@ -60,6 +60,10 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	// Event caching always uses PELT for detection
+	// Create a PELT computer for this operation
+	peltComputer := NewPELTComputer(c.db, c.logger, c.stationName, c.baseDistance)
+
 	// Determine table based on time range
 	var tableName string
 	var days int
@@ -72,8 +76,8 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 		days = (hours / 24) + 1
 	}
 
-	// Fetch data
-	readings, err := c.fetchData(ctx, tableName, days)
+	// Fetch data using PELT computer
+	readings, err := peltComputer.FetchData(ctx, tableName, days)
 	if err != nil {
 		return fmt.Errorf("fetch data failed: %w", err)
 	}
@@ -89,31 +93,20 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 		depths[i] = r.DepthMM
 	}
 
-	// Calculate smoothing window based on data resolution
-	// Target: ~5-hour smoothing window (must be odd for median filter)
-	var smoothingWindow int
-	switch tableName {
-	case "weather_5m":
-		smoothingWindow = 61 // 61 * 5min = 305min ~5 hours (must be odd)
-	case "weather_1h":
-		smoothingWindow = 5 // 5 * 1hour = 5 hours
-	case "weather_1d":
-		smoothingWindow = 1 // Daily data doesn't need smoothing
-	default:
-		smoothingWindow = 5 // Default fallback
-	}
+	// Get smoothing window from PELT computer
+	smoothingWindow := peltComputer.GetSmoothingWindow(tableName)
 
 	// Apply median smoothing
 	smoothed := MedFilt(depths, smoothingWindow)
 	c.logger.Debugf("Event caching for %dh: table=%s, readings=%d, smoothing=%d", hours, tableName, len(readings), smoothingWindow)
 
 	// Detect changepoints using PELT
-	detector := NewPeltDetector(c.minSize, c.jump)
+	detector := NewPeltDetector(peltComputer.GetMinSize(), peltComputer.GetJump())
 	detector.Fit(smoothed)
-	breakpoints := detector.Predict(c.penalty)
+	breakpoints := detector.Predict(peltComputer.GetPenalty())
 
-	// Classify segments
-	segments := c.classifySegments(readings, smoothed, breakpoints)
+	// Classify segments using PELT computer
+	segments := peltComputer.ClassifySegments(readings, smoothed, breakpoints)
 
 	// Filter for events that contribute snow (accumulation and spike_then_settle)
 	// These are the events with snowMM > 0 that should appear on charts

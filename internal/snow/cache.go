@@ -13,11 +13,12 @@ type SnowCache struct {
 	SnowSeason float64
 }
 
-// RefreshCache updates all snow calculations and writes to cache
-// This method implements the hybrid approach: SQL for midnight/24h, PELT for 72h/seasonal
-// If PELT calculations fail, previous cached values are retained for 72h/seasonal
+// RefreshCache updates all snow calculations and writes to cache.
+// Uses the configured computation strategy (PELT, SQL, etc.) for 24h/72h/seasonal.
+// SQL is always used for midnight calculation.
+// On calculation failure, previous cached values are retained.
 func (c *Calculator) RefreshCache(ctx context.Context) error {
-	// SQL function for midnight (fast calculation)
+	// SQL function for midnight (fast calculation, always SQL-based)
 	midnight, err := c.getMidnight(ctx)
 	if err != nil {
 		return fmt.Errorf("midnight calculation failed: %w", err)
@@ -29,39 +30,39 @@ func (c *Calculator) RefreshCache(ctx context.Context) error {
 		c.logger.Debugf("Unable to get current cache (may be first run): %v", err)
 	}
 
-	// PELT calculator for accurate multi-day calculations (24h, 72h, seasonal)
+	// Calculate using configured strategy (PELT, SQL, etc.)
 	// On failure, keep previous values
 	snow24h, err := c.Calculate24h(ctx)
 	if err != nil {
-		c.logger.Warnf("24h PELT calculation failed, keeping previous value: %v", err)
+		c.logger.Warnf("24h calculation failed, keeping previous value: %v", err)
 		if currentCache != nil {
 			snow24h = currentCache.Snow24h
 		} else {
-			return fmt.Errorf("24h PELT calculation failed and no cached value available: %w", err)
+			return fmt.Errorf("24h calculation failed and no cached value available: %w", err)
 		}
 	}
 
 	snow72h, err := c.Calculate72h(ctx)
 	if err != nil {
-		c.logger.Warnf("72h PELT calculation failed, keeping previous value: %v", err)
+		c.logger.Warnf("72h calculation failed, keeping previous value: %v", err)
 		if currentCache != nil {
 			snow72h = currentCache.Snow72h
 		} else {
-			return fmt.Errorf("72h PELT calculation failed and no cached value available: %w", err)
+			return fmt.Errorf("72h calculation failed and no cached value available: %w", err)
 		}
 	}
 
 	seasonal, err := c.CalculateSeasonal(ctx)
 	if err != nil {
-		c.logger.Warnf("Seasonal PELT calculation failed, keeping previous value: %v", err)
+		c.logger.Warnf("Seasonal calculation failed, keeping previous value: %v", err)
 		if currentCache != nil {
 			seasonal = currentCache.SnowSeason
 		} else {
-			return fmt.Errorf("seasonal PELT calculation failed and no cached value available: %w", err)
+			return fmt.Errorf("seasonal calculation failed and no cached value available: %w", err)
 		}
 	}
 
-	// Update cache with all four values
+	// Update cache with all values
 	if err := c.updateCache(ctx, midnight, snow24h, snow72h, seasonal); err != nil {
 		return err
 	}
@@ -87,19 +88,6 @@ func (c *Calculator) getMidnight(ctx context.Context) (float64, error) {
 	return snowMM.Float64, nil
 }
 
-// get24h calls the existing SQL function for 24-hour snow calculation
-func (c *Calculator) get24h(ctx context.Context) (float64, error) {
-	var snowMM sql.NullFloat64
-	query := `SELECT get_new_snow_24h($1, $2)`
-	err := c.db.QueryRowContext(ctx, query, c.stationName, c.baseDistance).Scan(&snowMM)
-	if err != nil {
-		return 0, err
-	}
-	if !snowMM.Valid {
-		return 0, nil
-	}
-	return snowMM.Float64, nil
-}
 
 // getCurrentCache retrieves the current cached values for graceful degradation
 func (c *Calculator) getCurrentCache(ctx context.Context) (*SnowCache, error) {
