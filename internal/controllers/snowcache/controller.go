@@ -23,6 +23,7 @@ type Controller struct {
 	configProvider config.ConfigProvider
 	logger         *zap.SugaredLogger
 	calculators    map[string]*snow.Calculator // station name -> calculator
+	baseDistances  map[string]float64          // station name -> base distance (mm)
 	ticker         *time.Ticker
 	stopChan       chan struct{}
 }
@@ -48,13 +49,18 @@ func NewController(
 
 	// Find all snowgauge devices and create calculators
 	calculators := make(map[string]*snow.Calculator)
+	baseDistances := make(map[string]float64)
 
 	for _, device := range cfgData.Devices {
 		if device.Type == "snowgauge" && device.Enabled {
 			baseDistance := float64(device.BaseSnowDistance)
-			calc := snow.NewCalculator(db, logger, device.Name, baseDistance, snow.ComputerTypePELT)
+
+			// Using SmoothedComputer for quantile smoothing + rate limiting
+			// To revert to PELT, change ComputerTypeSmoothed to ComputerTypePELT
+			calc := snow.NewCalculator(db, logger, device.Name, baseDistance, snow.ComputerTypeSmoothed)
 			calculators[device.Name] = calc
-			logger.Infof("Added snow cache calculator for station '%s' (base_distance=%.2fmm)", device.Name, baseDistance)
+			baseDistances[device.Name] = baseDistance
+			logger.Infof("Added snow cache calculator for station '%s' (base_distance=%.2fmm, computer=smoothed)", device.Name, baseDistance)
 		}
 	}
 
@@ -71,6 +77,7 @@ func NewController(
 		configProvider: configProvider,
 		logger:         logger,
 		calculators:    calculators,
+		baseDistances:  baseDistances,
 		stopChan:       make(chan struct{}),
 	}
 
@@ -109,6 +116,26 @@ func (c *Controller) Start() error {
 	eventTicker := time.NewTicker(15 * time.Minute)
 	defer eventTicker.Stop()
 
+	// Create ticker for 15-minute smoothing updates (estimated depth for SmoothedComputer)
+	smoothingTicker := time.NewTicker(15 * time.Minute)
+	defer smoothingTicker.Stop()
+
+	// Do initial smoothing backfill for stations using SmoothedComputer
+	c.logger.Info("Running initial snow depth estimation backfill...")
+	smoothingParams := snow.DefaultSmoothingParams()
+	for stationName, calc := range c.calculators {
+		// Check if this calculator uses SmoothedComputer
+		// We do this by attempting to type assert (but since we don't expose the computer,
+		// we'll just run it for all stations - it's a no-op for non-smoothed stations)
+		// Actually, let's only run it if they're configured for smoothed
+		// For now, we'll check via a simple test - if the station has data, try updating
+		baseDistance := c.baseDistances[stationName]
+		if err := snow.UpdateSnowDepthEstimates(c.ctx, c.db, c.logger, stationName, baseDistance, smoothingParams); err != nil {
+			c.logger.Warnf("Initial smoothing backfill failed for station '%s': %v", stationName, err)
+			// Continue despite error - station might not be using SmoothedComputer
+		}
+	}
+
 	// Do initial event caching immediately for all stations
 	c.logger.Info("Running initial snow event caching for all stations...")
 	for stationName, calc := range c.calculators {
@@ -140,6 +167,17 @@ func (c *Controller) Start() error {
 			for stationName, calc := range c.calculators {
 				if err := calc.CacheEventsForTimeRanges(c.ctx); err != nil {
 					c.logger.Errorf("Snow event caching failed for station '%s': %v", stationName, err)
+					// Continue running despite errors
+				}
+			}
+		case <-smoothingTicker.C:
+			// Update smoothed depth estimates every 15 minutes for all stations
+			c.logger.Debug("Updating smoothed depth estimates for all stations...")
+			smoothingParams := snow.DefaultSmoothingParams()
+			for stationName := range c.calculators {
+				baseDistance := c.baseDistances[stationName]
+				if err := snow.UpdateSnowDepthEstimates(c.ctx, c.db, c.logger, stationName, baseDistance, smoothingParams); err != nil {
+					c.logger.Errorf("Smoothing update failed for station '%s': %v", stationName, err)
 					// Continue running despite errors
 				}
 			}

@@ -17,7 +17,6 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/grpcutil"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/snow"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
@@ -483,7 +482,6 @@ func (c *Controller) setupRouter() *mux.Router {
 	router.HandleFunc("/span/{span}", c.handlers.GetWeatherSpan)
 	router.HandleFunc("/latest", c.handlers.GetWeatherLatest)
 	router.HandleFunc("/snow", c.handlers.GetSnowLatest) // Will check if snow is enabled per request
-	router.HandleFunc("/snow-events", c.handlers.GetSnowEvents) // Cached accumulation events for visualization
 	router.HandleFunc("/almanac", c.handlers.GetAlmanac)
 
 	// We only enable the /forecast endpoint if Aeris Weather has been configured.
@@ -871,55 +869,46 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		return nil, fmt.Errorf("database query failed: %w", err)
 	}
 
-	// Apply median smoothing to snow distance values to filter sensor glitches
-	// (voltage drops, interference, etc. cause false depth collapses in charts)
+	// Fetch smoothed snow depth estimates from snow_depth_est_5m table
+	// These estimates use local quantile smoothing + rate limiting for physically plausible depth curves
 	if len(dbFetchedReadings) > 0 && baseDistance > 0 {
-		// Extract raw snow distances
-		rawDistances := make([]float64, len(dbFetchedReadings))
-		hasSnowData := false
-		for i, reading := range dbFetchedReadings {
-			if reading.SnowDistance > 0 {
-				rawDistances[i] = float64(reading.SnowDistance)
-				hasSnowData = true
-			}
+		// Query smoothed estimates for the same time range
+		var smoothedEstimates []struct {
+			Time    time.Time `gorm:"column:time"`
+			DepthIn float64   `gorm:"column:snow_depth_est_in"`
 		}
 
-		if hasSnowData {
-			// Apply median filter with appropriate window size based on data resolution
-			var windowSize int
-			switch tableName {
-			case "weather_1m":
-				windowSize = 61 // 61 minutes ~1 hour smoothing
-			case "weather_5m":
-				windowSize = 13 // 13 * 5min = 65min ~1 hour smoothing (must be odd)
-			case "weather_1h":
-				windowSize = 5 // 5 hours smoothing
-			case "weather_1d":
-				windowSize = 3 // 3 days smoothing
-			default:
-				windowSize = 5
+		estimateQuery := `
+			SELECT time, snow_depth_est_in
+			FROM snow_depth_est_5m
+			WHERE stationname = ? AND time >= ? AND time <= ?
+			ORDER BY time
+		`
+		err := c.DB.Raw(estimateQuery, stationName, spanStart, time.Now()).Scan(&smoothedEstimates).Error
+		if err == nil && len(smoothedEstimates) > 0 {
+			// Create a map of timestamp to smoothed depth for fast lookup
+			smoothedMap := make(map[int64]float32)
+			for _, est := range smoothedEstimates {
+				// Convert inches to mm to match existing data expectations
+				depthMM := float32(est.DepthIn * 25.4)
+				smoothedMap[est.Time.Unix()] = depthMM
 			}
 
-			// Only smooth if we have enough data points
-			if len(rawDistances) >= windowSize {
-				smoothedDistances := snow.MedFilt(rawDistances, windowSize)
-
-				// Recalculate snow depth from smoothed distances
-				for i := range dbFetchedReadings {
-					if dbFetchedReadings[i].SnowDistance > 0 {
-						smoothedDistance := float32(smoothedDistances[i])
-						smoothedDepth := float32(baseDistance) - smoothedDistance
-						dbFetchedReadings[i].SnowDistance = smoothedDistance
-						dbFetchedReadings[i].SnowDepth = smoothedDepth
-					}
+			// Populate snow depth from smoothed estimates
+			for i := range dbFetchedReadings {
+				timestamp := dbFetchedReadings[i].Bucket.Unix()
+				if smoothedDepth, found := smoothedMap[timestamp]; found {
+					dbFetchedReadings[i].SnowDepth = smoothedDepth
+					// Keep raw snowdistance for reference if needed
 				}
-			} else {
-				// Not enough points for smoothing, just calculate depth from raw values
-				for i := range dbFetchedReadings {
-					if dbFetchedReadings[i].SnowDistance > 0 {
-						depth := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
-						dbFetchedReadings[i].SnowDepth = depth
-					}
+			}
+		} else {
+			// Fallback to raw depth calculation if no smoothed estimates available
+			// (e.g., station not using SmoothedComputer or backfill not yet run)
+			for i := range dbFetchedReadings {
+				if dbFetchedReadings[i].SnowDistance > 0 {
+					depth := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
+					dbFetchedReadings[i].SnowDepth = depth
 				}
 			}
 		}

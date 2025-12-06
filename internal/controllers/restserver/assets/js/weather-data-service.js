@@ -25,24 +25,6 @@ const WeatherDataService = (function() {
         return WeatherUtils.fetchWithTimeout(url);
     };
 
-    // Fetch snow accumulation events for visualization
-    const fetchSnowEvents = async (hours) => {
-        try {
-            const url = '/snow-events?hours=' + hours;
-            // fetchWithTimeout returns parsed JSON directly (or null on error)
-            const data = await WeatherUtils.fetchWithTimeout(url);
-            if (!data) {
-                console.warn('[SNOW DEBUG] Snow events fetch failed: no data returned');
-                return [];
-            }
-            console.log('[SNOW DEBUG] Snow events received from API:', data.events?.length || 0, 'events');
-            return data.events || [];
-        } catch (error) {
-            console.error('[SNOW DEBUG] Error in fetchSnowEvents:', error);
-            return [];
-        }
-    };
-
     // Fetch historical data for charts
     const fetchHistoricalData = async (hours, station, stationId) => {
         let url = endpoints.span(hours) + '?station=' + station;
@@ -285,7 +267,6 @@ const WeatherDataService = (function() {
         // Raw fetch methods
         fetchLatestWeather,
         fetchSnowData,
-        fetchSnowEvents,
         fetchHistoricalData,
         fetchForecast,
         fetchStationInfo,
