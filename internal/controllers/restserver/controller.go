@@ -879,7 +879,7 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 			}
 		}
 
-		// Second, fetch and populate smoothed estimates (estimated depth)
+		// Second, fetch and populate smoothed estimates in ExtraFloat1 field
 		var smoothedEstimates []struct {
 			Time    time.Time `gorm:"column:time"`
 			DepthIn float64   `gorm:"column:snow_depth_est_in"`
@@ -901,11 +901,11 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 				smoothedMap[est.Time.Unix()] = depthMM
 			}
 
-			// Populate smoothed depth estimates
+			// Populate smoothed depth estimates in ExtraFloat1
 			for i := range dbFetchedReadings {
 				timestamp := dbFetchedReadings[i].Bucket.Unix()
 				if smoothedDepth, found := smoothedMap[timestamp]; found {
-					dbFetchedReadings[i].SnowDepthEst = smoothedDepth
+					dbFetchedReadings[i].ExtraFloat1 = smoothedDepth
 				}
 			}
 		}

@@ -420,7 +420,7 @@ const WeatherCharts = (function() {
         if (chartType === 'snowdepth' && snowData) {
             return [{
                 name: "Estimated Depth (Smoothed)",
-                data: snowData.map(item => [item.ts, item.snowdepthest]).filter(item => item[1] > 0),
+                data: snowData.map(item => [item.ts, item.extrafloat1]).filter(item => item[1] > 0),
                 color: 'rgb(255, 127, 80)',  // Coral/orange color for smoothed
                 dashStyle: 'Solid',
                 lineWidth: 2
