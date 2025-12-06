@@ -135,8 +135,23 @@ func (c *Calculator) calculateAccumulation(ctx context.Context, tableName string
 		depths[i] = r.DepthMM
 	}
 
+	// Calculate smoothing window based on data resolution
+	// Target: 5-hour smoothing window
+	var smoothingWindow int
+	switch tableName {
+	case "weather_5m":
+		smoothingWindow = 60 // 60 * 5min = 5 hours
+	case "weather_1h":
+		smoothingWindow = 5 // 5 * 1hour = 5 hours
+	case "weather_1d":
+		smoothingWindow = 1 // Daily data doesn't need smoothing
+	default:
+		smoothingWindow = 5 // Default fallback
+	}
+
 	// Apply median smoothing
-	smoothed := MedFilt(depths, c.smoothingWindow)
+	smoothed := MedFilt(depths, smoothingWindow)
+	c.logger.Debugf("Applied median filter: window=%d readings (table=%s)", smoothingWindow, tableName)
 
 	// Detect changepoints using PELT
 	detector := NewPeltDetector(c.minSize, c.jump)
