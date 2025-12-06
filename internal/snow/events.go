@@ -65,10 +65,10 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 	var days int
 
 	if hours <= 168 { // 7 days or less
-		tableName = "weather_1h"
+		tableName = "weather_5m" // Use 5-minute data for better resolution
 		days = (hours / 24) + 1
 	} else {
-		tableName = "weather_1d"
+		tableName = "weather_1h" // Use hourly data for longer periods
 		days = (hours / 24) + 1
 	}
 
@@ -89,8 +89,23 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 		depths[i] = r.DepthMM
 	}
 
+	// Calculate smoothing window based on data resolution
+	// Target: 5-hour smoothing window
+	var smoothingWindow int
+	switch tableName {
+	case "weather_5m":
+		smoothingWindow = 60 // 60 * 5min = 5 hours
+	case "weather_1h":
+		smoothingWindow = 5 // 5 * 1hour = 5 hours
+	case "weather_1d":
+		smoothingWindow = 1 // Daily data doesn't need smoothing
+	default:
+		smoothingWindow = 5 // Default fallback
+	}
+
 	// Apply median smoothing
-	smoothed := MedFilt(depths, c.smoothingWindow)
+	smoothed := MedFilt(depths, smoothingWindow)
+	c.logger.Debugf("Event caching for %dh: table=%s, readings=%d, smoothing=%d", hours, tableName, len(readings), smoothingWindow)
 
 	// Detect changepoints using PELT
 	detector := NewPeltDetector(c.minSize, c.jump)
