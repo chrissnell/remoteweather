@@ -33,9 +33,9 @@ func NewCalculator(db *sql.DB, logger *zap.SugaredLogger, station string, baseDi
 		logger:          logger,
 		stationName:     station,
 		baseDistance:    baseDistance,
-		smoothingWindow: 5,    // 5-hour median filter
-		penalty:         3.0,  // PELT penalty parameter
-		minAccumulation: 5.0,  // 5mm minimum to count as accumulation
+		smoothingWindow: 5,    // 5-hour median filter (dynamically adjusted based on table)
+		penalty:         8.0,  // PELT penalty parameter (higher = fewer breakpoints)
+		minAccumulation: 10.0, // 10mm minimum to count as accumulation
 		minSize:         2,    // Minimum 2-hour segments
 		jump:            1,    // No subsampling
 	}
