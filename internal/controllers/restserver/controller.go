@@ -869,9 +869,9 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		return nil, fmt.Errorf("database query failed: %w", err)
 	}
 
-	// Populate both raw and smoothed snow depth for snow stations (both in mm for chart)
+	// Populate both raw and smoothed snow depth for snow stations
 	if len(dbFetchedReadings) > 0 && baseDistance > 0 {
-		// Calculate raw measured depth from sensor readings (in mm)
+		// Calculate raw measured depth from sensor readings (in mm - chart converts to inches)
 		for i := range dbFetchedReadings {
 			if dbFetchedReadings[i].SnowDistance > 0 {
 				depth := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
@@ -879,7 +879,7 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 			}
 		}
 
-		// Fetch and populate smoothed estimates in ExtraFloat1 (convert from inches to mm)
+		// Fetch and populate smoothed estimates in ExtraFloat1 (keep in inches - chart displays as-is)
 		var smoothedEstimates []struct {
 			Time    time.Time `gorm:"column:time"`
 			DepthIn float64   `gorm:"column:snow_depth_est_in"`
@@ -893,15 +893,15 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		`
 		err := c.DB.Raw(estimateQuery, stationName, spanStart, time.Now()).Scan(&smoothedEstimates).Error
 		if err == nil && len(smoothedEstimates) > 0 {
-			// Create a map of timestamp to smoothed depth (mm)
+			// Create a map of timestamp to smoothed depth (inches)
 			smoothedMap := make(map[int64]float32)
 			for _, est := range smoothedEstimates {
-				// Convert inches to mm for chart display
-				depthMM := float32(est.DepthIn * 25.4)
-				smoothedMap[est.Time.Unix()] = depthMM
+				// Keep in inches - chart displays ExtraFloat1 as-is
+				depthIn := float32(est.DepthIn)
+				smoothedMap[est.Time.Unix()] = depthIn
 			}
 
-			// Populate smoothed depth estimates in ExtraFloat1 (mm)
+			// Populate smoothed depth estimates in ExtraFloat1 (inches)
 			for i := range dbFetchedReadings {
 				timestamp := dbFetchedReadings[i].Bucket.Unix()
 				if smoothedDepth, found := smoothedMap[timestamp]; found {
