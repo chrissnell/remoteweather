@@ -422,7 +422,7 @@ const WeatherCharts = (function() {
                 name: "Estimated Depth (Smoothed)",
                 data: snowData.map(item => [item.ts, item.extrafloat1]).filter(item => item[1] > 0),
                 color: 'rgb(255, 127, 80)',  // Coral/orange color for smoothed
-                dashStyle: 'Solid',
+                dashStyle: 'Dot',
                 lineWidth: 2
             }];
         }
