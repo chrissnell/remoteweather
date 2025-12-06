@@ -163,16 +163,19 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 }
 
 // GetSnowEvents returns cached snow events for a time window
-// Includes both accumulation and spike_then_settle events (all events with snowMM > 0)
+// Only returns "accumulation" type events for visualization (not spike_then_settle)
+// Spike_then_settle events contribute to totals but shouldn't show as accumulation bands
 // Reads from snow_events_cache table populated every 15 minutes
 func (c *Calculator) GetSnowEvents(ctx context.Context, hours int) ([]SnowEvent, error) {
 	// Query cache for events
 	// Accept cache entries up to 20 minutes old (gives 5 min grace period beyond 15 min refresh)
+	// Only return "accumulation" type events for chart visualization
 	query := `
 		SELECT start_time, end_time, event_type, start_depth_mm, end_depth_mm, accumulation_mm
 		FROM snow_events_cache
 		WHERE stationname = $1
 		  AND hours = $2
+		  AND event_type = 'accumulation'
 		  AND computed_at >= NOW() - INTERVAL '20 minutes'
 		ORDER BY start_time
 	`
