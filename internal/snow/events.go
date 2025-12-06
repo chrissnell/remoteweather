@@ -90,11 +90,11 @@ func (c *Calculator) cacheEventsForHours(ctx context.Context, hours int) error {
 	}
 
 	// Calculate smoothing window based on data resolution
-	// Target: 5-hour smoothing window
+	// Target: ~5-hour smoothing window (must be odd for median filter)
 	var smoothingWindow int
 	switch tableName {
 	case "weather_5m":
-		smoothingWindow = 60 // 60 * 5min = 5 hours
+		smoothingWindow = 61 // 61 * 5min = 305min ~5 hours (must be odd)
 	case "weather_1h":
 		smoothingWindow = 5 // 5 * 1hour = 5 hours
 	case "weather_1d":
