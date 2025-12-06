@@ -207,16 +207,19 @@ func UpdateSnowDepthEstimates(
 		// Incremental update: overlap by 6 hours for smoothing boundary
 		startTime = lastEstTime.Time.Add(-6 * time.Hour)
 
-		// Get the previous estimate value for rate limiting continuity
+		// Get the previous estimate value from BEFORE startTime for rate limiting continuity
 		var prevDepth float64
+		var prevTime time.Time
 		err = db.QueryRowContext(ctx,
-			`SELECT snow_depth_est_in FROM snow_depth_est_5m
-			 WHERE stationname = $1 AND time = $2`,
-			station, lastEstTime.Time,
-		).Scan(&prevDepth)
+			`SELECT time, snow_depth_est_in FROM snow_depth_est_5m
+			 WHERE stationname = $1 AND time < $2
+			 ORDER BY time DESC
+			 LIMIT 1`,
+			station, startTime,
+		).Scan(&prevTime, &prevDepth)
 		if err == nil {
 			prevEstimate = &Sample{
-				Time:    lastEstTime.Time,
+				Time:    prevTime,
 				DepthIn: prevDepth,
 			}
 		}
