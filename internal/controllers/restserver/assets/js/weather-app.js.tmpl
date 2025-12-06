@@ -376,25 +376,6 @@ const WeatherApp = (function() {
                         additionalSeries: additionalSeries
                     };
 
-                    // For snowdepth charts, fetch and add accumulation event plotBands
-                    if (metric === 'snowdepth' && config.snowEnabled) {
-                        console.log(`[SNOW DEBUG] Fetching snow events for ${metric} chart (${hours}h range)`);
-                        try {
-                            const snowEvents = await WeatherDataService.fetchSnowEvents(hours);
-                            console.log(`[SNOW DEBUG] Received ${snowEvents?.length || 0} snow events for ${hours}h`);
-                            if (snowEvents && snowEvents.length > 0) {
-                                const plotBands = WeatherCharts.createSnowEventPlotBands(snowEvents);
-                                options.xAxisPlotBands = plotBands;
-                                console.log(`[SNOW DEBUG] Added ${plotBands.length} plotBands to snowdepth chart`);
-                            } else {
-                                console.log('[SNOW DEBUG] No snow events to display');
-                            }
-                        } catch (error) {
-                            console.error('[SNOW DEBUG] Error fetching snow events:', error);
-                            // Continue without plotBands if fetch fails
-                        }
-                    }
-
                     // Create chart with proper title
                     const title = metric.charAt(0).toUpperCase() + metric.slice(1).replace(/([A-Z])/g, ' $1');
                     WeatherCharts.createChart(metric, element, chartData, title, options);

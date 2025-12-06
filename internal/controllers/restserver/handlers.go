@@ -16,7 +16,6 @@ import (
 	"github.com/chrissnell/remoteweather/internal/controllers"
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
-	"github.com/chrissnell/remoteweather/internal/snow"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/chrissnell/remoteweather/pkg/responseformat"
@@ -1349,76 +1348,3 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetSnowEvents returns cached accumulation events for visualization
-// Query parameter: hours (default: 72, options: 24, 72, 168, 720)
-// Events are pre-computed every 15 minutes and served from cache
-func (h *Handlers) GetSnowEvents(w http.ResponseWriter, req *http.Request) {
-	// Get website from context and check if snow is enabled
-	website := h.getWebsiteFromContext(req)
-	if website == nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		h.formatter.WriteResponse(w, req, map[string]string{
-			"error":   "No weather websites configured",
-			"message": "Snow data is not available until at least one weather website is configured",
-		}, nil)
-		return
-	}
-	if !website.SnowEnabled {
-		http.Error(w, "snow data not enabled for this website", http.StatusNotFound)
-		return
-	}
-
-	if !h.controller.DBEnabled {
-		http.Error(w, "database not enabled", http.StatusServiceUnavailable)
-		return
-	}
-
-	// Parse hours parameter (default: 72)
-	// Valid options: 24, 72, 168 (7d), 720 (30d)
-	hoursStr := req.URL.Query().Get("hours")
-	hours := 72
-	if hoursStr != "" {
-		var err error
-		hours, err = strconv.Atoi(hoursStr)
-		if err != nil || hours <= 0 {
-			http.Error(w, "invalid hours parameter", http.StatusBadRequest)
-			return
-		}
-	}
-
-	// Get snow base distance from the snow device
-	snowBaseDistance := h.getSnowBaseDistance(website)
-
-	// Get the underlying sql.DB from GORM
-	sqlDB, err := h.controller.DB.DB()
-	if err != nil {
-		log.Errorf("error getting sql.DB: %v", err)
-		http.Error(w, "database connection error", http.StatusInternalServerError)
-		return
-	}
-
-	// Create calculator (reads from cache, doesn't recalculate)
-	calc := snow.NewCalculator(sqlDB, h.controller.logger, website.SnowDeviceName, float64(snowBaseDistance), snow.ComputerTypePELT)
-
-	// Get cached snow events
-	events, err := calc.GetSnowEvents(req.Context(), hours)
-	if err != nil {
-		log.Errorf("error getting snow events: %v", err)
-		http.Error(w, "error fetching snow events", http.StatusInternalServerError)
-		return
-	}
-
-	// Set response headers
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Cache-Control", "max-age=900") // Cache for 15 minutes (matches calculation interval)
-
-	// Return events
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"events": events,
-	}); err != nil {
-		log.Errorf("error encoding snow events: %v", err)
-		http.Error(w, "error encoding snow events", http.StatusInternalServerError)
-		return
-	}
-}

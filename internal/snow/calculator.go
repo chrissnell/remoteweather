@@ -1,5 +1,5 @@
 // Package snow provides snowfall calculation and caching using pluggable computation strategies.
-// Supports multiple algorithms (PELT, SQL) for 24h/72h/seasonal snowfall calculations.
+// Supports multiple algorithms (PELT, SQL, Smoothed) for 24h/72h/seasonal snowfall calculations.
 package snow
 
 import (
@@ -29,6 +29,8 @@ func NewCalculator(db *sql.DB, logger *zap.SugaredLogger, station string, baseDi
 		computer = NewPELTComputer(db, logger, station, baseDistance)
 	case ComputerTypeSQL:
 		computer = NewSQLComputer(db, logger, station, baseDistance)
+	case ComputerTypeSmoothed:
+		computer = NewSmoothedComputer(db, logger, station, baseDistance)
 	default:
 		// Default to PELT
 		computer = NewPELTComputer(db, logger, station, baseDistance)

@@ -27,4 +27,7 @@ const (
 
 	// ComputerTypeSQL uses PostgreSQL functions for computation
 	ComputerTypeSQL ComputerType = "sql"
+
+	// ComputerTypeSmoothed uses quantile smoothing + rate limiting on pre-computed estimates
+	ComputerTypeSmoothed ComputerType = "smoothed"
 )
