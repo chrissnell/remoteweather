@@ -869,17 +869,18 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		return nil, fmt.Errorf("database query failed: %w", err)
 	}
 
-	// Populate both raw and smoothed snow depth for snow stations
+	// Populate both raw and smoothed snow depth for snow stations (all values in inches)
 	if len(dbFetchedReadings) > 0 && baseDistance > 0 {
-		// First, calculate raw depth for all readings (measured depth)
+		// First, calculate raw depth for all readings (measured depth in inches)
 		for i := range dbFetchedReadings {
 			if dbFetchedReadings[i].SnowDistance > 0 {
-				depth := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
-				dbFetchedReadings[i].SnowDepth = depth
+				depthMM := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
+				depthIn := depthMM / 25.4 // Convert mm to inches
+				dbFetchedReadings[i].SnowDepth = depthIn
 			}
 		}
 
-		// Second, fetch and populate smoothed estimates in ExtraFloat1 field
+		// Second, fetch and populate smoothed estimates in ExtraFloat1 field (already in inches)
 		var smoothedEstimates []struct {
 			Time    time.Time `gorm:"column:time"`
 			DepthIn float64   `gorm:"column:snow_depth_est_in"`
@@ -893,15 +894,15 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		`
 		err := c.DB.Raw(estimateQuery, stationName, spanStart, time.Now()).Scan(&smoothedEstimates).Error
 		if err == nil && len(smoothedEstimates) > 0 {
-			// Create a map of timestamp to smoothed depth for fast lookup
+			// Create a map of timestamp to smoothed depth (inches)
 			smoothedMap := make(map[int64]float32)
 			for _, est := range smoothedEstimates {
-				// Convert inches to mm to match existing data expectations
-				depthMM := float32(est.DepthIn * 25.4)
-				smoothedMap[est.Time.Unix()] = depthMM
+				// Store inches directly - no conversion needed
+				depthIn := float32(est.DepthIn)
+				smoothedMap[est.Time.Unix()] = depthIn
 			}
 
-			// Populate smoothed depth estimates in ExtraFloat1
+			// Populate smoothed depth estimates in ExtraFloat1 (inches)
 			for i := range dbFetchedReadings {
 				timestamp := dbFetchedReadings[i].Bucket.Unix()
 				if smoothedDepth, found := smoothedMap[timestamp]; found {
