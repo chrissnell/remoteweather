@@ -367,7 +367,7 @@ const WeatherApp = (function() {
                     );
 
                     // Get additional series if any
-                    const additionalSeries = WeatherCharts.getAdditionalSeriesData(dataSource, metric);
+                    const additionalSeries = WeatherCharts.getAdditionalSeriesData(dataSource, metric, snowData);
 
                     // Create the chart
                     const chartConfig = WeatherCharts.getChartConfig(metric);
