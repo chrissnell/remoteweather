@@ -123,7 +123,7 @@ func (c *Controller) Start() error {
 	// Do initial smoothing backfill for stations using SmoothedComputer
 	c.logger.Info("Running initial snow depth estimation backfill...")
 	smoothingParams := snow.DefaultSmoothingParams()
-	for stationName, calc := range c.calculators {
+	for stationName := range c.calculators {
 		// Check if this calculator uses SmoothedComputer
 		// We do this by attempting to type assert (but since we don't expose the computer,
 		// we'll just run it for all stations - it's a no-op for non-smoothed stations)
