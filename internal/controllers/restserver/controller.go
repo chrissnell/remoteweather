@@ -17,6 +17,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/grpcutil"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/internal/snow"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
@@ -863,11 +864,65 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 
 	// Use raw SQL to avoid GORM query builder planning overhead (~45ms per query)
 	// GORM's Table().Where() generates complex query plans that TimescaleDB re-plans every time
-	query := fmt.Sprintf(`SELECT *, (? - snowdistance) AS snowdepth FROM %s WHERE bucket > ? AND stationname = ? ORDER BY bucket`, tableName)
-	err := c.DB.Raw(query, baseDistance, spanStart, stationName).Scan(&dbFetchedReadings).Error
+	query := fmt.Sprintf(`SELECT *, snowdistance FROM %s WHERE bucket > ? AND stationname = ? ORDER BY bucket`, tableName)
+	err := c.DB.Raw(query, spanStart, stationName).Scan(&dbFetchedReadings).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("database query failed: %w", err)
+	}
+
+	// Apply median smoothing to snow distance values to filter sensor glitches
+	// (voltage drops, interference, etc. cause false depth collapses in charts)
+	if len(dbFetchedReadings) > 0 && baseDistance > 0 {
+		// Extract raw snow distances
+		rawDistances := make([]float64, len(dbFetchedReadings))
+		hasSnowData := false
+		for i, reading := range dbFetchedReadings {
+			if reading.SnowDistance > 0 {
+				rawDistances[i] = float64(reading.SnowDistance)
+				hasSnowData = true
+			}
+		}
+
+		if hasSnowData {
+			// Apply median filter with appropriate window size based on data resolution
+			var windowSize int
+			switch tableName {
+			case "weather_1m":
+				windowSize = 61 // 61 minutes ~1 hour smoothing
+			case "weather_5m":
+				windowSize = 13 // 13 * 5min = 65min ~1 hour smoothing (must be odd)
+			case "weather_1h":
+				windowSize = 5 // 5 hours smoothing
+			case "weather_1d":
+				windowSize = 3 // 3 days smoothing
+			default:
+				windowSize = 5
+			}
+
+			// Only smooth if we have enough data points
+			if len(rawDistances) >= windowSize {
+				smoothedDistances := snow.MedFilt(rawDistances, windowSize)
+
+				// Recalculate snow depth from smoothed distances
+				for i := range dbFetchedReadings {
+					if dbFetchedReadings[i].SnowDistance > 0 {
+						smoothedDistance := float32(smoothedDistances[i])
+						smoothedDepth := float32(baseDistance) - smoothedDistance
+						dbFetchedReadings[i].SnowDistance = smoothedDistance
+						dbFetchedReadings[i].SnowDepth = smoothedDepth
+					}
+				}
+			} else {
+				// Not enough points for smoothing, just calculate depth from raw values
+				for i := range dbFetchedReadings {
+					if dbFetchedReadings[i].SnowDistance > 0 {
+						depth := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
+						dbFetchedReadings[i].SnowDepth = depth
+					}
+				}
+			}
+		}
 	}
 
 	c.logger.Debugf("fetchWeatherSpan returned %d rows for station %s, span %v, table=%s",
