@@ -869,18 +869,9 @@ func (c *Controller) fetchWeatherSpan(stationName string, span time.Duration, ba
 		return nil, fmt.Errorf("database query failed: %w", err)
 	}
 
-	// Populate both raw and smoothed snow depth for snow stations (all values in inches)
+	// Populate smoothed snow depth estimates for snow stations (ExtraFloat1 in inches)
+	// Note: SnowDepth is already calculated in the materialized views, don't overwrite it
 	if len(dbFetchedReadings) > 0 && baseDistance > 0 {
-		// First, calculate raw depth for all readings (measured depth in inches)
-		for i := range dbFetchedReadings {
-			if dbFetchedReadings[i].SnowDistance > 0 {
-				depthMM := float32(baseDistance) - dbFetchedReadings[i].SnowDistance
-				depthIn := depthMM / 25.4 // Convert mm to inches
-				dbFetchedReadings[i].SnowDepth = depthIn
-			}
-		}
-
-		// Second, fetch and populate smoothed estimates in ExtraFloat1 field (already in inches)
 		var smoothedEstimates []struct {
 			Time    time.Time `gorm:"column:time"`
 			DepthIn float64   `gorm:"column:snow_depth_est_in"`
