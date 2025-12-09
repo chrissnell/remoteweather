@@ -64,6 +64,83 @@ type AerisWeatherForecastPeriod struct {
 	CompactWeather        string    `json:"compactWeather"`
 }
 
+type AerisAlertsResponse struct {
+	Success          bool              `json:"success"`
+	Error            string            `json:"error"`
+	AerisAlertsData  []AerisAlertData  `json:"response"`
+}
+
+type AerisAlertData struct {
+	ID             string                 `json:"id"`
+	Loc            AlertLocation          `json:"loc"`
+	DataSource     string                 `json:"dataSource"`
+	Details        AlertDetails           `json:"details"`
+	Timestamps     AlertTimestamps        `json:"timestamps"`
+	Poly           string                 `json:"poly"`
+	GeoPoly        interface{}            `json:"geoPoly"`
+	Includes       AlertIncludes          `json:"includes"`
+	Place          AlertPlace             `json:"place"`
+	Profile        AlertProfile           `json:"profile"`
+	Active         bool                   `json:"active"`
+	LocalLanguages []AlertLocalLanguage   `json:"localLanguages"`
+}
+
+type AlertLocation struct {
+	Long float64 `json:"long"`
+	Lat  float64 `json:"lat"`
+}
+
+type AlertDetails struct {
+	Type      string  `json:"type"`
+	Name      string  `json:"name"`
+	Loc       string  `json:"loc"`
+	Emergency bool    `json:"emergency"`
+	Priority  float64 `json:"priority"`
+	Color     string  `json:"color"`
+	Cat       string  `json:"cat"`
+	Body      string  `json:"body"`
+	BodyFull  string  `json:"bodyFull"`
+}
+
+type AlertTimestamps struct {
+	Issued     int64  `json:"issued"`
+	IssuedISO  string `json:"issuedISO"`
+	Begins     int64  `json:"begins"`
+	BeginsISO  string `json:"beginsISO"`
+	Expires    int64  `json:"expires"`
+	ExpiresISO string `json:"expiresISO"`
+	Updated    int64  `json:"updated"`
+	UpdatedISO string `json:"updateISO"`
+	Added      int64  `json:"added"`
+	AddedISO   string `json:"addedISO"`
+	Created    int64  `json:"created"`
+	CreatedISO string `json:"createdISO"`
+}
+
+type AlertIncludes struct {
+	FIPS     []string `json:"fips"`
+	Counties []string `json:"counties"`
+	WXZones  []string `json:"wxzones"`
+	Zipcodes []string `json:"zipcodes"`
+}
+
+type AlertPlace struct {
+	Name    string `json:"name"`
+	State   string `json:"state"`
+	Country string `json:"country"`
+}
+
+type AlertProfile struct {
+	TZ           string `json:"tz"`
+	IsSmallPoly  bool   `json:"isSmallPoly"`
+}
+
+type AlertLocalLanguage struct {
+	Language string `json:"language"`
+	Name     string `json:"name"`
+	Body     string `json:"body"`
+}
+
 type AerisWeatherForecastRecord struct {
 	gorm.Model
 
@@ -75,6 +152,26 @@ type AerisWeatherForecastRecord struct {
 
 func (AerisWeatherForecastRecord) TableName() string {
 	return "aeris_weather_forecasts"
+}
+
+type AerisWeatherAlertRecord struct {
+	gorm.Model
+
+	StationID int          `gorm:"index:idx_station_alerts,not null"`
+	AlertID   string       `gorm:"uniqueIndex,not null"`
+	Location  string       `gorm:"not null"`
+	IssuedAt  *time.Time   `gorm:"index"`
+	BeginsAt  *time.Time   `gorm:"index"`
+	ExpiresAt *time.Time   `gorm:"index"`
+	Name      string       `gorm:"type:text"`
+	Color     string       `gorm:"type:text"`
+	Body      string       `gorm:"type:text"`
+	BodyFull  string       `gorm:"type:text"`
+	Data      pgtype.JSONB `gorm:"type:jsonb;not null"`
+}
+
+func (AerisWeatherAlertRecord) TableName() string {
+	return "aeris_weather_alerts"
 }
 
 func NewAerisWeatherController(ctx context.Context, wg *sync.WaitGroup, configProvider config.ConfigProvider, logger *zap.SugaredLogger) (*AerisWeatherController, error) {
@@ -157,19 +254,37 @@ func (a *AerisWeatherController) StartController() error {
 	for _, device := range devices {
 		if device.AerisEnabled && device.AerisAPIClientID != "" && device.AerisAPIClientSecret != "" &&
 			device.Latitude != 0 && device.Longitude != 0 {
-			log.Infof("Starting Aeris Weather forecast fetching for device: %s (Location: %.6f,%.6f)", 
+			log.Infof("Starting Aeris Weather forecast fetching for device: %s (Location: %.6f,%.6f)",
 				device.Name, device.Latitude, device.Longitude)
-			
+
 			// Create a copy for the closure
 			deviceCopy := device
-			
+
 			// Start a refresh of the weekly forecast
 			go a.refreshForecastPeriodically(deviceCopy, 10, 24)
 			// Start a refresh of the hourly forecast
 			go a.refreshForecastPeriodically(deviceCopy, 24, 1)
 		}
 	}
-	
+
+	// Start alerts fetching for each Aeris-enabled device
+	for _, device := range devices {
+		if device.AerisEnabled && device.AerisAPIClientID != "" && device.AerisAPIClientSecret != "" &&
+			device.Latitude != 0 && device.Longitude != 0 {
+			log.Infof("Starting Xweather alerts fetching for device: %s (Location: %.6f,%.6f)",
+				device.Name, device.Latitude, device.Longitude)
+
+			// Create a copy for the closure
+			deviceCopy := device
+
+			// Start alerts refresh (every 15 minutes)
+			go a.refreshAlertsPeriodically(deviceCopy)
+		}
+	}
+
+	// Start cleanup task for expired alerts (runs once daily for all devices)
+	go a.cleanupExpiredAlerts()
+
 	return nil
 }
 
@@ -456,5 +571,222 @@ func (a *AerisWeatherController) CreateTables() error {
 		return fmt.Errorf("error creating or migrating Aeris forecast record database table: %v", err)
 	}
 
+	err = a.DB.DB.AutoMigrate(AerisWeatherAlertRecord{})
+	if err != nil {
+		return fmt.Errorf("error creating or migrating Aeris alerts database table: %v", err)
+	}
+
 	return nil
+}
+
+// fetchAndStoreAlerts fetches current alerts from Xweather API and stores them in the database
+func (a *AerisWeatherController) fetchAndStoreAlerts(device config.DeviceData) error {
+	v := url.Values{}
+
+	// Add authentication from device
+	v.Set("client_id", device.AerisAPIClientID)
+	v.Set("client_secret", device.AerisAPIClientSecret)
+
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	// Format coordinates as "latitude,longitude" for Xweather API
+	location := fmt.Sprintf("%.6f,%.6f", device.Latitude, device.Longitude)
+	locationStr := location
+
+	// Use device's API endpoint or default
+	apiEndpoint := device.AerisAPIEndpoint
+	if apiEndpoint == "" {
+		apiEndpoint = "https://data.api.xweather.com"
+	}
+
+	alertsURL := fmt.Sprintf("%s/alerts/%s?%s", apiEndpoint, location, v.Encode())
+	req, err := http.NewRequest("GET", alertsURL, nil)
+	if err != nil {
+		return fmt.Errorf("error creating Xweather alerts API HTTP request: %v", err)
+	}
+
+	log.Debugf("Making request to Xweather alerts API: %v", alertsURL)
+	req = req.WithContext(a.ctx)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Debugf("HTTP request failed: %v", err)
+		return fmt.Errorf("error making request to Xweather alerts API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	log.Debugf("Xweather alerts API responded with status: %s", resp.Status)
+
+	// Read the response body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Debugf("Failed to read response body: %v", err)
+		return fmt.Errorf("error reading response body: %v", err)
+	}
+
+	log.Debugf("Xweather alerts API response body: %s", string(bodyBytes))
+
+	response := &AerisAlertsResponse{}
+	decoder := json.NewDecoder(bytes.NewReader(bodyBytes))
+
+	err = decoder.Decode(response)
+	if err != nil {
+		return fmt.Errorf("unable to decode Xweather alerts API response: %v", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("bad response from Xweather alerts server: %+v", response)
+	}
+
+	// Process each alert from the response
+	for _, alertData := range response.AerisAlertsData {
+		// Parse timestamps
+		var issuedAt, beginsAt, expiresAt *time.Time
+
+		if alertData.Timestamps.Issued > 0 {
+			t := time.Unix(alertData.Timestamps.Issued, 0)
+			issuedAt = &t
+		}
+		if alertData.Timestamps.Begins > 0 {
+			t := time.Unix(alertData.Timestamps.Begins, 0)
+			beginsAt = &t
+		}
+		if alertData.Timestamps.Expires > 0 {
+			t := time.Unix(alertData.Timestamps.Expires, 0)
+			expiresAt = &t
+		}
+
+		// Marshal complete alert data to JSON for storage
+		alertJSON, err := json.Marshal(alertData)
+		if err != nil {
+			log.Errorf("error marshaling alert data to JSON for alert %s: %v", alertData.ID, err)
+			continue
+		}
+
+		// Check if this alert already exists
+		var existingRecord AerisWeatherAlertRecord
+		err = a.DB.DB.Where("alert_id = ?", alertData.ID).First(&existingRecord).Error
+
+		if err == gorm.ErrRecordNotFound {
+			// Create new alert record
+			newRecord := AerisWeatherAlertRecord{
+				StationID: device.ID,
+				AlertID:   alertData.ID,
+				Location:  locationStr,
+				IssuedAt:  issuedAt,
+				BeginsAt:  beginsAt,
+				ExpiresAt: expiresAt,
+				Name:      alertData.Details.Name,
+				Color:     alertData.Details.Color,
+				Body:      alertData.Details.Body,
+				BodyFull:  alertData.Details.BodyFull,
+			}
+			newRecord.Data.Set(alertJSON)
+
+			err = a.DB.DB.Create(&newRecord).Error
+			if err != nil {
+				log.Errorf("error creating alert record for %s: %v", alertData.ID, err)
+			} else {
+				log.Debugf("Created new alert record: %s for device %s", alertData.ID, device.Name)
+			}
+		} else if err == nil {
+			// Update existing alert record
+			existingRecord.IssuedAt = issuedAt
+			existingRecord.BeginsAt = beginsAt
+			existingRecord.ExpiresAt = expiresAt
+			existingRecord.Name = alertData.Details.Name
+			existingRecord.Color = alertData.Details.Color
+			existingRecord.Body = alertData.Details.Body
+			existingRecord.BodyFull = alertData.Details.BodyFull
+			existingRecord.Location = locationStr
+			existingRecord.Data.Set(alertJSON)
+
+			err = a.DB.DB.Save(&existingRecord).Error
+			if err != nil {
+				log.Errorf("error updating alert record for %s: %v", alertData.ID, err)
+			} else {
+				log.Debugf("Updated alert record: %s for device %s", alertData.ID, device.Name)
+			}
+		} else {
+			log.Errorf("error checking for existing alert %s: %v", alertData.ID, err)
+		}
+	}
+
+	log.Debugf("Successfully processed %d alerts for device %s", len(response.AerisAlertsData), device.Name)
+	return nil
+}
+
+// refreshAlertsPeriodically fetches and stores alerts on a 15-minute interval
+func (a *AerisWeatherController) refreshAlertsPeriodically(device config.DeviceData) {
+	a.wg.Add(1)
+	defer a.wg.Done()
+
+	// Fetch immediately on startup
+	log.Infof("Fetching initial alerts for device %s...", device.Name)
+	err := a.fetchAndStoreAlerts(device)
+	if err != nil {
+		log.Errorf("error fetching alerts from Xweather for device %s: %v", device.Name, err)
+	}
+
+	// Refresh every 15 minutes
+	refreshInterval := 15 * time.Minute
+	log.Infof("Starting Xweather alerts fetcher for device %s: every %v minutes", device.Name, refreshInterval.Minutes())
+
+	ticker := time.NewTicker(refreshInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			log.Infof("Updating alerts from Xweather for device %s...", device.Name)
+			err := a.fetchAndStoreAlerts(device)
+			if err != nil {
+				log.Errorf("error fetching alerts from Xweather for device %s: %v", device.Name, err)
+			}
+
+		case <-a.ctx.Done():
+			return
+		}
+	}
+}
+
+// cleanupExpiredAlerts removes alerts that expired more than 24 hours ago
+func (a *AerisWeatherController) cleanupExpiredAlerts() {
+	a.wg.Add(1)
+	defer a.wg.Done()
+
+	// Run cleanup immediately on startup
+	log.Info("Running initial expired alerts cleanup...")
+	cutoffTime := time.Now().Add(-24 * time.Hour)
+	result := a.DB.DB.Where("expires_at < ?", cutoffTime).Delete(&AerisWeatherAlertRecord{})
+	if result.Error != nil {
+		log.Errorf("error cleaning up expired alerts: %v", result.Error)
+	} else if result.RowsAffected > 0 {
+		log.Infof("Cleaned up %d expired alerts", result.RowsAffected)
+	}
+
+	// Run cleanup once per day
+	cleanupInterval := 24 * time.Hour
+	log.Infof("Starting expired alerts cleanup task: every %v hours", cleanupInterval.Hours())
+
+	ticker := time.NewTicker(cleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			log.Info("Running expired alerts cleanup...")
+			cutoffTime := time.Now().Add(-24 * time.Hour)
+			result := a.DB.DB.Where("expires_at < ?", cutoffTime).Delete(&AerisWeatherAlertRecord{})
+			if result.Error != nil {
+				log.Errorf("error cleaning up expired alerts: %v", result.Error)
+			} else if result.RowsAffected > 0 {
+				log.Infof("Cleaned up %d expired alerts", result.RowsAffected)
+			}
+
+		case <-a.ctx.Done():
+			return
+		}
+	}
 }

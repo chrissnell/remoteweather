@@ -24,6 +24,28 @@ func (AerisWeatherForecastRecord) TableName() string {
 	return "aeris_weather_forecasts"
 }
 
+// AerisWeatherAlertRecord represents alert data from Xweather
+type AerisWeatherAlertRecord struct {
+	gorm.Model
+
+	StationID int          `gorm:"index:idx_station_alerts,not null"`
+	AlertID   string       `gorm:"uniqueIndex,not null"`
+	Location  string       `gorm:"not null"`
+	IssuedAt  *time.Time   `gorm:"index"`
+	BeginsAt  *time.Time   `gorm:"index"`
+	ExpiresAt *time.Time   `gorm:"index"`
+	Name      string       `gorm:"type:text"`
+	Color     string       `gorm:"type:text"`
+	Body      string       `gorm:"type:text"`
+	BodyFull  string       `gorm:"type:text"`
+	Data      pgtype.JSONB `gorm:"type:jsonb;not null"`
+}
+
+// TableName implements the GORM Tabler interface to specify the correct table name
+func (AerisWeatherAlertRecord) TableName() string {
+	return "aeris_weather_alerts"
+}
+
 // WeatherReading represents a weather reading for JSON output
 type WeatherReading struct {
 	StationName      string `json:"stationname"`
@@ -226,4 +248,18 @@ type StationInfoResponse struct {
 	WeatherDevice      *int              `json:"weather_device,omitempty"`
 	SnowDevice         *string           `json:"snow_device,omitempty"`
 	AirQualityDevice   *string           `json:"air_quality_device,omitempty"`
+}
+
+// Alert represents a weather alert for JSON output
+type Alert struct {
+	AlertID   string     `json:"alert_id"`
+	StationID int        `json:"station_id"`
+	Location  string     `json:"location"`
+	Name      string     `json:"name"`
+	Color     string     `json:"color"`
+	Body      string     `json:"body"`
+	BodyFull  string     `json:"body_full"`
+	IssuedAt  *time.Time `json:"issued_at,omitempty"`
+	BeginsAt  *time.Time `json:"begins_at,omitempty"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
