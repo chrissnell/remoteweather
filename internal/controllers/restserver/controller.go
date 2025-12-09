@@ -489,6 +489,11 @@ func (c *Controller) setupRouter() *mux.Router {
 		router.HandleFunc("/forecast/{span}", c.handlers.GetForecast)
 	}
 
+	// We only enable the /alerts endpoint if Aeris Weather has been configured.
+	if c.AerisWeatherEnabled {
+		router.HandleFunc("/alerts", c.handlers.GetAlerts)
+	}
+
 	// Template endpoints
 	router.HandleFunc("/", c.handlers.ServeWeatherWebsiteTemplate)
 	router.HandleFunc("/js/weather-app.js", c.handlers.ServeWeatherAppJS)

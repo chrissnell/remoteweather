@@ -1348,3 +1348,79 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// GetAlerts returns active weather alerts for a specific station
+func (h *Handlers) GetAlerts(w http.ResponseWriter, req *http.Request) {
+	// Get website context
+	website := h.getWebsiteFromContext(req)
+	if website == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		errorMap := map[string]string{"error": "service unavailable"}
+		h.formatter.WriteResponse(w, req, errorMap, nil)
+		return
+	}
+
+	// Check if database is enabled
+	if !h.controller.DBEnabled {
+		http.Error(w, "database not enabled", http.StatusInternalServerError)
+		return
+	}
+
+	// station_id parameter is required
+	stationIDStr := req.URL.Query().Get("station_id")
+	if stationIDStr == "" {
+		http.Error(w, "station_id parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	stationID, err := strconv.Atoi(stationIDStr)
+	if err != nil {
+		http.Error(w, "invalid station_id parameter", http.StatusBadRequest)
+		return
+	}
+
+	// Query for active alerts (begins_at <= now AND expires_at > now)
+	var records []AerisWeatherAlertRecord
+	now := time.Now()
+
+	result := h.controller.DB.Where("station_id = ? AND begins_at <= ? AND expires_at > ?",
+		stationID, now, now).
+		Order("begins_at DESC").
+		Find(&records)
+
+	if result.Error != nil {
+		log.Errorf("error querying alerts for station %d: %v", stationID, result.Error)
+		http.Error(w, "error querying alerts", http.StatusInternalServerError)
+		return
+	}
+
+	// Transform records to Alert response type
+	alerts := make([]Alert, 0, len(records))
+	for _, record := range records {
+		alert := Alert{
+			AlertID:   record.AlertID,
+			StationID: record.StationID,
+			Location:  record.Location,
+			Name:      record.Name,
+			Color:     record.Color,
+			Body:      record.Body,
+			BodyFull:  record.BodyFull,
+			IssuedAt:  record.IssuedAt,
+			BeginsAt:  record.BeginsAt,
+			ExpiresAt: record.ExpiresAt,
+		}
+		alerts = append(alerts, alert)
+	}
+
+	// Set headers
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "max-age=300") // Cache for 5 minutes
+
+	// Encode and return
+	if err := json.NewEncoder(w).Encode(alerts); err != nil {
+		log.Errorf("error encoding alerts to JSON: %v", err)
+		http.Error(w, "error encoding alerts", http.StatusInternalServerError)
+		return
+	}
+}
+
