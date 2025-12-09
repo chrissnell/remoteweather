@@ -158,7 +158,7 @@ type AerisWeatherAlertRecord struct {
 	gorm.Model
 
 	StationID int          `gorm:"index:idx_station_alerts,not null"`
-	AlertID   string       `gorm:"not null"`
+	AlertID   string       `gorm:"uniqueIndex,not null"`
 	Location  string       `gorm:"not null"`
 	IssuedAt  *time.Time   `gorm:"index"`
 	BeginsAt  *time.Time   `gorm:"index"`

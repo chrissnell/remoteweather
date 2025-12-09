@@ -351,12 +351,7 @@ func New(ctx context.Context, configProvider config.ConfigProvider) (*Storage, e
 		return &Storage{}, err
 	}
 
-	log.Info("Creating Aeris weather alerts table...")
-	err = t.TimescaleDBConn.WithContext(ctx).Exec(createAerisWeatherAlertsTableSQL).Error
-	if err != nil {
-		log.Warn("warning: could not create Aeris weather alerts table")
-		return &Storage{}, err
-	}
+	// Note: Aeris weather alerts table is managed by GORM AutoMigrate in aerisweather controller
 
 	log.Info("Adding snow cache refresh function...")
 	err = t.TimescaleDBConn.WithContext(ctx).Exec(createSnowCacheRefreshFunctionSQL).Error
