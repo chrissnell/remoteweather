@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS aeris_weather_alerts (
     color TEXT,
     body TEXT,
     body_full TEXT,
-    data JSONB NOT NULL,
-    CONSTRAINT fk_station FOREIGN KEY (station_id) REFERENCES devices(id) ON DELETE CASCADE
+    data JSONB NOT NULL
 );
 
 -- Create indexes for efficient queries
