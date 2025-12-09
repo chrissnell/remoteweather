@@ -66,7 +66,7 @@ type AerisWeatherForecastPeriod struct {
 
 type AerisAlertsResponse struct {
 	Success          bool              `json:"success"`
-	Error            string            `json:"error"`
+	Error            interface{}       `json:"error"`
 	AerisAlertsData  []AerisAlertData  `json:"response"`
 }
 
