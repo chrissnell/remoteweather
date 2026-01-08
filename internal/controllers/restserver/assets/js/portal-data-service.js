@@ -15,9 +15,11 @@ const PortalDataService = {
             if (!response.ok) {
                 throw new Error('Failed to fetch station data');
             }
-            
+
             const stationData = await response.json();
-            return stationData;
+            // Filter out snowgauge stations - they use a different endpoint (/snow)
+            // and are configured per-website, not for the portal
+            return stationData.filter(station => station.type !== 'snowgauge');
         } catch (error) {
             console.error('Error fetching station data:', error);
             throw error;
