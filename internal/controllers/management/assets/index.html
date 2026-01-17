@@ -572,9 +572,8 @@
   <!-- Controller Modal -->
   <div id="controller-modal" class="modal hidden">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header controller-modal-header">
         <h3 id="controller-modal-title">Add Controller</h3>
-        <button class="close-btn" id="controller-modal-close">×</button>
       </div>
       <form id="controller-form" class="station-form">
         <input type="hidden" id="controller-form-mode" value="add" />
@@ -676,9 +675,10 @@
               Listen Address (optional)
               <input type="text" id="rest-listen-addr" value="0.0.0.0" />
             </label>
+            <p class="fieldset-note">TLS certificates for HTTPS are configured per-website in the Weather Websites tab.</p>
           </fieldset>
 
-          <fieldset>
+          <fieldset class="grpc-fieldset">
             <legend>gRPC Server Configuration</legend>
             <label>
               gRPC Port
