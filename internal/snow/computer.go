@@ -4,17 +4,10 @@ import (
 	"context"
 )
 
-// SnowfallComputer defines the interface for different snowfall computation strategies.
-// Implementations can use PELT algorithms, SQL queries, or other methods.
-// All implementations should compute snowfall accumulation for standard time periods.
+// SnowfallComputer defines the interface for snowfall computation strategies.
 type SnowfallComputer interface {
-	// Compute24h calculates 24-hour snowfall accumulation in millimeters
 	Compute24h(ctx context.Context) (float64, error)
-
-	// Compute72h calculates 72-hour snowfall accumulation in millimeters
 	Compute72h(ctx context.Context) (float64, error)
-
-	// ComputeSeasonal calculates seasonal snowfall accumulation in millimeters
 	ComputeSeasonal(ctx context.Context) (float64, error)
 }
 
@@ -22,12 +15,9 @@ type SnowfallComputer interface {
 type ComputerType string
 
 const (
-	// ComputerTypePELT uses PELT changepoint detection with median filtering
+	// ComputerTypePELT uses PELT changepoint detection (used for event caching)
 	ComputerTypePELT ComputerType = "pelt"
 
-	// ComputerTypeSQL uses PostgreSQL functions for computation
-	ComputerTypeSQL ComputerType = "sql"
-
-	// ComputerTypeSmoothed uses quantile smoothing + rate limiting on pre-computed estimates
+	// ComputerTypeSmoothed uses quantile smoothing + rate limiting (default for totals)
 	ComputerTypeSmoothed ComputerType = "smoothed"
 )

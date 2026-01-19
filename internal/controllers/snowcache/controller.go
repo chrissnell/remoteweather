@@ -1,6 +1,4 @@
-// Package snowcache provides a dedicated controller for snow cache refresh operations.
-// This controller runs independently of the REST server and handles periodic snow
-// accumulation calculations using the PELT-based statistical algorithm.
+// Package snowcache provides periodic snow accumulation calculations and caching.
 package snowcache
 
 import (
@@ -54,9 +52,6 @@ func NewController(
 	for _, device := range cfgData.Devices {
 		if device.Type == "snowgauge" && device.Enabled {
 			baseDistance := float64(device.BaseSnowDistance)
-
-			// Using SmoothedComputer for quantile smoothing + rate limiting
-			// To revert to PELT, change ComputerTypeSmoothed to ComputerTypePELT
 			calc := snow.NewCalculator(db, logger, device.Name, baseDistance, snow.ComputerTypeSmoothed)
 			calculators[device.Name] = calc
 			baseDistances[device.Name] = baseDistance

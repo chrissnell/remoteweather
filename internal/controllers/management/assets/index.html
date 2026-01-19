@@ -27,7 +27,6 @@
       <button class="nav-tab" id="remote-stations-tab" data-tab="remote-stations">Remote Stations</button>
       <button class="nav-tab" id="storage-tab" data-tab="storage">Storage</button>
       <button class="nav-tab" id="websites-tab" data-tab="websites">Weather Websites</button>
-      <button class="nav-tab" id="snow-tab" data-tab="snow">Snow Management</button>
       <button class="nav-tab" id="logs-tab" data-tab="logs">Logs</button>
       <button class="nav-tab" id="http-logs-tab" data-tab="http-logs">HTTP Logs</button>
       <button class="nav-tab" id="utilities-tab" data-tab="utilities">Utilities</button>
@@ -352,85 +351,6 @@
           </div>
         </div>
         <div id="website-list" class="list-container">Loading…</div>
-      </div>
-
-      <!-- Snow Management Pane -->
-      <div class="pane hidden" id="snow-pane">
-        <div class="pane-header">
-          <h2>Snow Accumulation Management</h2>
-        </div>
-
-        <div class="card">
-          <h3>Configuration</h3>
-          <form id="snow-config-form" class="station-form">
-            <label>
-              <input type="checkbox" id="snow-enabled" /> Enable Snow Calculations
-            </label>
-
-            <label>
-              Station:
-              <select id="snow-station">
-                <option value="">Select a station...</option>
-              </select>
-              <span class="help-text">Select the weather station with snow depth sensor</span>
-            </label>
-
-            <label>
-              Base Distance (mm):
-              <input type="number" id="snow-base-distance" step="0.1" min="0" />
-              <span class="help-text">Calibration value for snow depth sensor</span>
-            </label>
-
-            <details class="advanced-settings">
-              <summary>Advanced Algorithm Parameters</summary>
-              <label>
-                Smoothing Window (hours):
-                <input type="number" id="snow-smoothing" value="5" min="1" max="24" />
-                <span class="help-text">Hours of data for median filtering (1-24)</span>
-              </label>
-              <label>
-                PELT Penalty:
-                <input type="number" id="snow-penalty" value="3.0" step="0.1" min="0.1" />
-                <span class="help-text">Change point detection sensitivity (higher = fewer segments)</span>
-              </label>
-              <label>
-                Minimum Accumulation (mm):
-                <input type="number" id="snow-min-accum" value="5.0" step="0.1" min="0" />
-                <span class="help-text">Minimum snow depth change to consider as accumulation</span>
-              </label>
-              <label>
-                Minimum Segment Size:
-                <input type="number" id="snow-min-segment" value="2" min="1" />
-                <span class="help-text">Minimum data points per segment</span>
-              </label>
-            </details>
-
-            <button type="submit" class="primary-btn">Save Configuration</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <h3>Status</h3>
-          <div id="snow-status">
-            <p>Controller Status: <span id="controller-status">-</span></p>
-            <p>Last Calculation: <span id="last-calc">-</span></p>
-            <p><strong>Cached Values:</strong></p>
-            <ul style="list-style: none; padding-left: 20px;">
-              <li>Midnight: <span id="cache-midnight">-</span> mm</li>
-              <li>24h: <span id="cache-24h">-</span> mm</li>
-              <li>72h: <span id="cache-72h">-</span> mm (PELT)</li>
-              <li>Season: <span id="cache-season">-</span> mm (PELT)</li>
-            </ul>
-            <p id="cache-updated-at" class="help-text"></p>
-            <p>Data Available: <span id="data-status">-</span></p>
-            <button type="button" id="recalculate-btn" class="secondary-btn">Recalculate Now</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>Recent Errors</h3>
-          <div id="snow-errors">Loading...</div>
-        </div>
       </div>
 
       <!-- Logs Pane -->
@@ -914,7 +834,6 @@
   <script src="js/management-controllers.js"></script>
   <script src="js/management-remote-stations.js"></script>
   <script src="js/management-websites.js"></script>
-  <script src="js/management-snow.js"></script>
   <script src="js/management-logs.js"></script>
   <script src="js/management-app.js"></script>
 </body>

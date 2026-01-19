@@ -11,7 +11,6 @@ const ManagementNavigation = (function() {
     '/remote-stations': 'remote-stations-pane',
     '/storage': 'storage-pane',
     '/websites': 'websites-pane',
-    '/snow': 'snow-pane',
     '/logs': 'logs-pane',
     '/http-logs': 'http-logs-pane',
     '/utilities': 'utilities-pane'
@@ -24,7 +23,6 @@ const ManagementNavigation = (function() {
     'remote-stations-pane': '/remote-stations',
     'storage-pane': '/storage',
     'websites-pane': '/websites',
-    'snow-pane': '/snow',
     'logs-pane': '/logs',
     'http-logs-pane': '/http-logs',
     'utilities-pane': '/utilities'
@@ -37,7 +35,6 @@ const ManagementNavigation = (function() {
     'remote-stations': 'remote-stations-pane',
     'storage': 'storage-pane',
     'websites': 'websites-pane',
-    'snow': 'snow-pane',
     'logs': 'logs-pane',
     'http-logs': 'http-logs-pane',
     'utilities': 'utilities-pane'
@@ -45,7 +42,7 @@ const ManagementNavigation = (function() {
 
   // Current active tab
   let currentTab = null;
-  
+
   // Tab change callbacks
   const tabChangeCallbacks = {
     'weather-stations-pane': [],
@@ -53,7 +50,6 @@ const ManagementNavigation = (function() {
     'remote-stations-pane': [],
     'storage-pane': [],
     'websites-pane': [],
-    'snow-pane': [],
     'logs-pane': [],
     'http-logs-pane': [],
     'utilities-pane': []
