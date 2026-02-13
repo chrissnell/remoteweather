@@ -19,6 +19,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
+	"github.com/chrissnell/remoteweather/pkg/solar"
 	weather "github.com/chrissnell/remoteweather/protocols/remoteweather"
 	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
 	"github.com/gorilla/handlers"
@@ -100,6 +101,25 @@ func NewController(ctx context.Context, wg *sync.WaitGroup, configProvider confi
 	ctrl.DeviceNames = make(map[string]bool)
 	for _, device := range ctrl.Devices {
 		ctrl.DeviceNames[device.Name] = true
+	}
+
+	// Initialize sun times for stations with location data
+	for _, device := range ctrl.Devices {
+		if device.Latitude == 0 && device.Longitude == 0 {
+			continue // Skip stations without location
+		}
+		hasTimes, err := configProvider.HasSunTimes(device.Name)
+		if err != nil {
+			logger.Warnf("Error checking sun times for %s: %v", device.Name, err)
+			continue
+		}
+		if !hasTimes {
+			logger.Infof("Building sunrise/sunset table for station %s", device.Name)
+			err := configProvider.PopulateSunTimes(device.Name, device.Latitude, device.Longitude, solar.CalculateSunriseSunset)
+			if err != nil {
+				logger.Errorf("Failed to populate sun times for %s: %v", device.Name, err)
+			}
+		}
 	}
 
 	// Create device manager for gRPC

@@ -316,6 +316,15 @@ CREATE TABLE IF NOT EXISTS remote_stations (
 
 CREATE INDEX idx_remote_stations_last_seen ON remote_stations(last_seen);
 
+-- Sun times table for pre-calculated sunrise/sunset times
+CREATE TABLE IF NOT EXISTS sun_times (
+    station_name TEXT NOT NULL,
+    day_of_year INTEGER NOT NULL CHECK (day_of_year >= 1 AND day_of_year <= 366),
+    sunrise_minutes INTEGER NOT NULL,
+    sunset_minutes INTEGER NOT NULL,
+    PRIMARY KEY (station_name, day_of_year)
+);
+
 -- Trigger to update updated_at timestamp
 CREATE TRIGGER update_configs_timestamp 
     AFTER UPDATE ON configs
@@ -2033,4 +2042,84 @@ func nullString(s string) sql.NullString {
 		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: s, Valid: true}
+}
+
+// Sun times methods
+
+// GetSunTimes returns the sunrise and sunset times (in minutes from midnight UTC)
+// for a station on a given day of year. Returns (-1, -1, nil) if not found.
+func (s *SQLiteProvider) GetSunTimes(stationName string, dayOfYear int) (sunrise, sunset int, err error) {
+	query := `SELECT sunrise_minutes, sunset_minutes FROM sun_times
+              WHERE station_name = ? AND day_of_year = ?`
+
+	err = s.db.QueryRow(query, stationName, dayOfYear).Scan(&sunrise, &sunset)
+	if err == sql.ErrNoRows {
+		return -1, -1, nil
+	}
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to get sun times: %w", err)
+	}
+
+	return sunrise, sunset, nil
+}
+
+// HasSunTimes checks if sun times have been populated for a station
+func (s *SQLiteProvider) HasSunTimes(stationName string) (bool, error) {
+	query := `SELECT COUNT(*) FROM sun_times WHERE station_name = ?`
+
+	var count int
+	err := s.db.QueryRow(query, stationName).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to check sun times: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+// PopulateSunTimes calculates and stores sunrise/sunset times for all 366 days
+// for a station at the given latitude and longitude.
+func (s *SQLiteProvider) PopulateSunTimes(stationName string, latitude, longitude float64, calculator func(dayOfYear int, lat, lon float64) (sunrise, sunset int, err error)) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Delete any existing entries for this station
+	_, err = tx.Exec("DELETE FROM sun_times WHERE station_name = ?", stationName)
+	if err != nil {
+		return fmt.Errorf("failed to clear existing sun times: %w", err)
+	}
+
+	// Prepare insert statement
+	stmt, err := tx.Prepare(`INSERT INTO sun_times (station_name, day_of_year, sunrise_minutes, sunset_minutes)
+                            VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare insert statement: %w", err)
+	}
+	defer stmt.Close()
+
+	// Calculate and insert for all 366 days
+	for day := 1; day <= 366; day++ {
+		sunrise, sunset, err := calculator(day, latitude, longitude)
+		if err != nil {
+			return fmt.Errorf("failed to calculate sun times for day %d: %w", day, err)
+		}
+
+		_, err = stmt.Exec(stationName, day, sunrise, sunset)
+		if err != nil {
+			return fmt.Errorf("failed to insert sun times for day %d: %w", day, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+// DeleteSunTimes removes all sun times for a station
+func (s *SQLiteProvider) DeleteSunTimes(stationName string) error {
+	_, err := s.db.Exec("DELETE FROM sun_times WHERE station_name = ?", stationName)
+	if err != nil {
+		return fmt.Errorf("failed to delete sun times: %w", err)
+	}
+	return nil
 }

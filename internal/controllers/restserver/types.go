@@ -133,6 +133,9 @@ type WeatherReading struct {
 	ExtraText8            string      `json:"extratext8,omitempty"`
 	ExtraText9            string      `json:"extratext9,omitempty"`
 	ExtraText10           string      `json:"extratext10,omitempty"`
+	// Sun times (formatted for display, e.g., "6:42 AM")
+	Sunrise               string      `json:"sunrise,omitempty"`
+	Sunset                string      `json:"sunset,omitempty"`
 }
 
 // SnowReading represents snow data for JSON output

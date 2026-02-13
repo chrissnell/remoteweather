@@ -9,6 +9,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/grpcutil"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/pkg/solar"
 	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -93,6 +94,9 @@ func (c *Controller) GetCurrentReading(ctx context.Context, request *weatherapps
 		// Continue anyway - we have the base reading
 	}
 
+	// Add sunrise/sunset times from pre-calculated table
+	c.addSunTimes(reading, request.StationName)
+
 	return reading, nil
 }
 
@@ -136,6 +140,7 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 		if err := c.addCalculatedRainRate(reading, req.StationName); err != nil {
 			log.Warnf("Failed to add rain rate to initial reading: %v", err)
 		}
+		c.addSunTimes(reading, req.StationName)
 
 		if err := stream.Send(reading); err != nil {
 			return err
@@ -172,6 +177,7 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 				if err := c.addCalculatedRainRate(reading, req.StationName); err != nil {
 					log.Warnf("Failed to add rain rate: %v", err)
 				}
+				c.addSunTimes(reading, req.StationName)
 
 				if err := stream.Send(reading); err != nil {
 					log.Errorf("Error sending weatherapps reading to client [%v]: %v", p.Addr, err)
@@ -261,4 +267,18 @@ func (c *Controller) addCalculatedRainRate(reading *weatherapps.WeatherReading, 
 	rainRate := controllers.CalculateRainRate(dbClient, stationName)
 	reading.RainRate = rainRate
 	return nil
+}
+
+// addSunTimes adds sunrise/sunset times from the pre-calculated table
+func (c *Controller) addSunTimes(reading *weatherapps.WeatherReading, stationName string) {
+	dayOfYear := time.Now().YearDay()
+	sunrise, sunset, err := c.configProvider.GetSunTimes(stationName, dayOfYear)
+	if err != nil {
+		log.Warnf("error getting sun times for %s: %v", stationName, err)
+		return
+	}
+	if sunrise >= 0 && sunset >= 0 {
+		reading.Sunrise = solar.FormatSunTime(sunrise, time.Local)
+		reading.Sunset = solar.FormatSunTime(sunset, time.Local)
+	}
 }

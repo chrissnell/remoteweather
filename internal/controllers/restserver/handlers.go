@@ -19,6 +19,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/chrissnell/remoteweather/pkg/responseformat"
+	"github.com/chrissnell/remoteweather/pkg/solar"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -351,6 +352,19 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 				log.Errorf("error getting wind gust from DB: %v", err)
 			} else {
 				latestReading.WindGust = windGustResult.WindGust
+			}
+		}
+
+		// Add sunrise/sunset times from pre-calculated table
+		if len(dbFetchedReadings) > 0 {
+			stationName := dbFetchedReadings[0].StationName
+			dayOfYear := time.Now().YearDay()
+			sunrise, sunset, err := h.controller.configProvider.GetSunTimes(stationName, dayOfYear)
+			if err != nil {
+				log.Warnf("error getting sun times for %s: %v", stationName, err)
+			} else if sunrise >= 0 && sunset >= 0 {
+				latestReading.Sunrise = solar.FormatSunTime(sunrise, time.Local)
+				latestReading.Sunset = solar.FormatSunTime(sunset, time.Local)
 			}
 		}
 

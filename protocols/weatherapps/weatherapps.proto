@@ -177,6 +177,10 @@ message WeatherReading {
     string extraText8 = 76;
     string extraText9 = 77;
     string extraText10 = 78;
+
+    // Sun times (formatted for display, e.g., "6:42 AM")
+    string sunrise = 86;
+    string sunset = 87;
 }
 
 message Empty {}

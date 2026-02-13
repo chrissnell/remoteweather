@@ -50,7 +50,10 @@ const WeatherDOM = (function() {
             'dew-point': weatherData.dewPoint,
             'barometer': weatherData.barometer,
             'solar': weatherData.solar,
-            'sky-conditions': weatherData.skyConditions
+            'sky-conditions': weatherData.skyConditions,
+            'sun-times': (weatherData.sunrise && weatherData.sunset)
+                ? `${weatherData.sunrise} / ${weatherData.sunset}`
+                : '--'
         });
         
         // Wind
