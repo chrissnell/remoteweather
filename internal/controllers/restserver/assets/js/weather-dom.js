@@ -52,7 +52,7 @@ const WeatherDOM = (function() {
             'solar': weatherData.solar,
             'sky-conditions': weatherData.skyConditions,
             'sun-times': (weatherData.sunrise && weatherData.sunset)
-                ? `${weatherData.sunrise} / ${weatherData.sunset}`
+                ? `<span class="wi wi-sunrise"></span>${weatherData.sunrise} / <span class="wi wi-sunset"></span>${weatherData.sunset}`
                 : '--'
         });
         

@@ -10,6 +10,35 @@
   font-style: normal;
 }
 
+/* Weather Icon Classes */
+.wi {
+  font-family: 'Weathericons Webfont';
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  display: inline-block;
+}
+
+.wi-sunrise:before {
+  content: "\f051";
+}
+
+.wi-sunset:before {
+  content: "\f052";
+}
+
+/* Sun times display - smaller text with icons */
+#sun-times {
+  font-size: 1.1rem !important;
+}
+
+#sun-times .wi {
+  font-size: 1.0rem;
+  margin-right: 2px;
+  vertical-align: middle;
+  color: var(--text-accent);
+}
+
 /* CSS Variables for Theme Colors */
 :root {
   /* Dark theme (default) */
