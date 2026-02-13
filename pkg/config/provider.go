@@ -42,6 +42,12 @@ type ConfigProvider interface {
 	UpdateWeatherWebsite(id int, website *WeatherWebsiteData) error
 	DeleteWeatherWebsite(id int) error
 
+	// Sun times management (pre-calculated sunrise/sunset)
+	GetSunTimes(stationName string, dayOfYear int) (sunrise, sunset int, err error)
+	HasSunTimes(stationName string) (bool, error)
+	PopulateSunTimes(stationName string, latitude, longitude float64, calculator func(dayOfYear int, lat, lon float64) (sunrise, sunset int, err error)) error
+	DeleteSunTimes(stationName string) error
+
 	// Configuration management (for future SQLite-specific operations)
 	IsReadOnly() bool
 	Close() error
@@ -708,4 +714,26 @@ func (c *CachedConfigProvider) DeleteWeatherWebsite(id int) error {
 		c.InvalidateCache()
 	}
 	return err
+}
+
+// Sun times management methods (delegate to underlying provider, no caching needed)
+
+// GetSunTimes retrieves sunrise/sunset times for a station on a given day
+func (c *CachedConfigProvider) GetSunTimes(stationName string, dayOfYear int) (sunrise, sunset int, err error) {
+	return c.provider.GetSunTimes(stationName, dayOfYear)
+}
+
+// HasSunTimes checks if sun times have been populated for a station
+func (c *CachedConfigProvider) HasSunTimes(stationName string) (bool, error) {
+	return c.provider.HasSunTimes(stationName)
+}
+
+// PopulateSunTimes calculates and stores sunrise/sunset times for a station
+func (c *CachedConfigProvider) PopulateSunTimes(stationName string, latitude, longitude float64, calculator func(dayOfYear int, lat, lon float64) (sunrise, sunset int, err error)) error {
+	return c.provider.PopulateSunTimes(stationName, latitude, longitude, calculator)
+}
+
+// DeleteSunTimes removes all sun times for a station
+func (c *CachedConfigProvider) DeleteSunTimes(stationName string) error {
+	return c.provider.DeleteSunTimes(stationName)
 }
