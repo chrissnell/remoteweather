@@ -169,7 +169,11 @@ const WeatherDataService = (function() {
             
             // Battery
             batteryVoltage: data.stationbatteryvoltage,
-            
+
+            // Sun times
+            sunrise: data.sunrise || null,
+            sunset: data.sunset || null,
+
             // Raw data for other uses
             raw: data
         };
