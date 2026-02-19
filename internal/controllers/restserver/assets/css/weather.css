@@ -47,6 +47,7 @@
     font-size: 2.4rem;
     line-height: 1;
     color: var(--text-accent);
+    display: inline-block;
 }
 
 /* CSS Variables for Theme Colors */

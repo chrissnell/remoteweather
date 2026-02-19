@@ -140,6 +140,7 @@ type WeatherReading struct {
 	MoonPhaseName         string      `json:"moonPhaseName,omitempty"`
 	MoonIllumination      float32     `json:"moonIllumination,omitempty"`
 	MoonAge               float32     `json:"moonAge,omitempty"`
+	MoonCrescentAngle     float32     `json:"moonCrescentAngle,omitempty"`
 }
 
 // SnowReading represents snow data for JSON output

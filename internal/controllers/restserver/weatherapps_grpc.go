@@ -99,7 +99,7 @@ func (c *Controller) GetCurrentReading(ctx context.Context, request *weatherapps
 	c.addSunTimes(reading, request.StationName)
 
 	// Add moon phase data
-	c.addMoonPhase(reading)
+	c.addMoonPhase(reading, request.StationName)
 
 	return reading, nil
 }
@@ -145,7 +145,7 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 			log.Warnf("Failed to add rain rate to initial reading: %v", err)
 		}
 		c.addSunTimes(reading, req.StationName)
-		c.addMoonPhase(reading)
+		c.addMoonPhase(reading, req.StationName)
 
 		if err := stream.Send(reading); err != nil {
 			return err
@@ -183,7 +183,7 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 					log.Warnf("Failed to add rain rate: %v", err)
 				}
 				c.addSunTimes(reading, req.StationName)
-				c.addMoonPhase(reading)
+				c.addMoonPhase(reading, req.StationName)
 
 				if err := stream.Send(reading); err != nil {
 					log.Errorf("Error sending weatherapps reading to client [%v]: %v", p.Addr, err)
@@ -275,12 +275,20 @@ func (c *Controller) addCalculatedRainRate(reading *weatherapps.WeatherReading, 
 	return nil
 }
 
-// addMoonPhase adds moon phase data to the reading
-func (c *Controller) addMoonPhase(reading *weatherapps.WeatherReading) {
+// addMoonPhase adds moon phase data to the reading, including crescent angle
+// computed from the station's geographic coordinates
+func (c *Controller) addMoonPhase(reading *weatherapps.WeatherReading, stationName string) {
 	mp := lunar.Calculate(time.Now().UTC())
 	reading.MoonPhaseName = mp.PhaseName
 	reading.MoonIllumination = float32(mp.Illumination)
 	reading.MoonAge = float32(mp.AgeDays)
+	for _, d := range c.Devices {
+		if d.Name == stationName {
+			crescent := lunar.CalculateCrescentAngle(time.Now().UTC(), d.Latitude, d.Longitude)
+			reading.MoonCrescentAngle = float32(crescent.Rotation)
+			break
+		}
+	}
 }
 
 // addSunTimes adds sunrise/sunset times from the pre-calculated table
