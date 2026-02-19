@@ -113,9 +113,16 @@
               <div class="metric-label">Barometer</div>
               <div class="metric-value" id="barometer">--</div><span class="metric-unit">inHg</span>
             </div>
-            <div class="metric-item">
-              <div class="metric-label">Solar Radiation</div>
-              <div class="metric-value" id="solar">--</div><span class="metric-unit">W/m²</span>
+            <div id="solar-moon-container">
+              <div class="metric-item" id="solar-card">
+                <div class="metric-label">Solar Radiation</div>
+                <div class="metric-value" id="solar">--</div><span class="metric-unit">W/m²</span>
+              </div>
+              <div class="metric-item" id="moon-card" style="display:none">
+                <div class="metric-label">Moon Phase</div>
+                <div class="metric-value" id="moon-phase">--</div>
+                <div class="metric-sub" id="moon-illumination">--</div>
+              </div>
             </div>
             <div class="metric-item">
               <div class="metric-label">Sky Conditions</div>

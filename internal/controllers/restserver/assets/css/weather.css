@@ -39,6 +39,10 @@
   color: var(--text-accent);
 }
 
+#solar-moon-container {
+    display: contents;
+}
+
 /* CSS Variables for Theme Colors */
 :root {
   /* Dark theme (default) */

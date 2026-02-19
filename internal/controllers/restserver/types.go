@@ -136,6 +136,10 @@ type WeatherReading struct {
 	// Sun times (formatted for display, e.g., "6:42 AM")
 	Sunrise               string      `json:"sunrise,omitempty"`
 	Sunset                string      `json:"sunset,omitempty"`
+	// Moon phase (calculated, not from sensor)
+	MoonPhaseName         string      `json:"moonPhaseName,omitempty"`
+	MoonIllumination      float32     `json:"moonIllumination,omitempty"`
+	MoonAge               float32     `json:"moonAge,omitempty"`
 }
 
 // SnowReading represents snow data for JSON output

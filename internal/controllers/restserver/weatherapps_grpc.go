@@ -9,6 +9,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/grpcutil"
 	"github.com/chrissnell/remoteweather/internal/log"
+	"github.com/chrissnell/remoteweather/pkg/lunar"
 	"github.com/chrissnell/remoteweather/pkg/solar"
 	weatherapps "github.com/chrissnell/remoteweather/protocols/weatherapps"
 	"google.golang.org/grpc/codes"
@@ -97,6 +98,9 @@ func (c *Controller) GetCurrentReading(ctx context.Context, request *weatherapps
 	// Add sunrise/sunset times from pre-calculated table
 	c.addSunTimes(reading, request.StationName)
 
+	// Add moon phase data
+	c.addMoonPhase(reading)
+
 	return reading, nil
 }
 
@@ -141,6 +145,7 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 			log.Warnf("Failed to add rain rate to initial reading: %v", err)
 		}
 		c.addSunTimes(reading, req.StationName)
+		c.addMoonPhase(reading)
 
 		if err := stream.Send(reading); err != nil {
 			return err
@@ -178,6 +183,7 @@ func (c *Controller) StreamLiveWeather(req *weatherapps.LiveWeatherRequest, stre
 					log.Warnf("Failed to add rain rate: %v", err)
 				}
 				c.addSunTimes(reading, req.StationName)
+				c.addMoonPhase(reading)
 
 				if err := stream.Send(reading); err != nil {
 					log.Errorf("Error sending weatherapps reading to client [%v]: %v", p.Addr, err)
@@ -267,6 +273,14 @@ func (c *Controller) addCalculatedRainRate(reading *weatherapps.WeatherReading, 
 	rainRate := controllers.CalculateRainRate(dbClient, stationName)
 	reading.RainRate = rainRate
 	return nil
+}
+
+// addMoonPhase adds moon phase data to the reading
+func (c *Controller) addMoonPhase(reading *weatherapps.WeatherReading) {
+	mp := lunar.Calculate(time.Now().UTC())
+	reading.MoonPhaseName = mp.PhaseName
+	reading.MoonIllumination = float32(mp.Illumination)
+	reading.MoonAge = float32(mp.AgeDays)
 }
 
 // addSunTimes adds sunrise/sunset times from the pre-calculated table
