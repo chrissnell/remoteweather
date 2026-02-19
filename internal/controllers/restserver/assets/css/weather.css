@@ -43,6 +43,12 @@
     display: contents;
 }
 
+.moon-icon {
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--text-accent);
+}
+
 /* CSS Variables for Theme Colors */
 :root {
   /* Dark theme (default) */

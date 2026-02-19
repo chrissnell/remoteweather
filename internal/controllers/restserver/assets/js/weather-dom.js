@@ -65,10 +65,16 @@ const WeatherDOM = (function() {
             moonCard.style.display = isNight ? '' : 'none';
         }
         if (isNight && weatherData.moonPhaseName) {
-            updateElement('moon-phase', weatherData.moonPhaseName);
+            // Map moon age to WeatherIcons moon icon (28 icons, \f095-\f0b0)
+            const age = weatherData.moonAge || 0;
+            const idx = Math.round(age / 29.530588853 * 28) % 28;
+            const icon = String.fromCodePoint(0xf095 + idx);
+            updateElement('moon-phase',
+                `<span class="wi moon-icon">${icon}</span>`);
             updateElement('moon-illumination',
-                weatherData.moonIllumination != null
-                    ? weatherData.moonIllumination + '% illuminated' : '');
+                weatherData.moonPhaseName +
+                (weatherData.moonIllumination != null
+                    ? ' · ' + weatherData.moonIllumination + '%' : ''));
         }
         
         // Wind
