@@ -174,6 +174,12 @@ const WeatherDataService = (function() {
             sunrise: data.sunrise || null,
             sunset: data.sunset || null,
 
+            // Moon phase
+            moonPhaseName: data.moonPhaseName || null,
+            moonIllumination: data.moonIllumination != null
+                ? Math.round(data.moonIllumination * 100) : null,
+            moonAge: data.moonAge || null,
+
             // Raw data for other uses
             raw: data
         };

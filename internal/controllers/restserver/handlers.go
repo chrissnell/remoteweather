@@ -19,6 +19,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/chrissnell/remoteweather/pkg/responseformat"
+	"github.com/chrissnell/remoteweather/pkg/lunar"
 	"github.com/chrissnell/remoteweather/pkg/solar"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -367,6 +368,12 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 				latestReading.Sunset = solar.FormatSunTime(sunset, time.Local)
 			}
 		}
+
+		// Add moon phase data
+		moonPhase := lunar.Calculate(time.Now().UTC())
+		latestReading.MoonPhaseName = moonPhase.PhaseName
+		latestReading.MoonIllumination = float32(moonPhase.Illumination)
+		latestReading.MoonAge = float32(moonPhase.AgeDays)
 
 		headers := map[string]string{
 			"Cache-Control": "no-cache, no-store, must-revalidate",

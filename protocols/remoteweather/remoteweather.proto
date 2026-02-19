@@ -341,6 +341,11 @@ message WeatherReading {
     
     // Remote station identification
     string station_id = 221;                // UUID for remote stations
+
+    // Moon phase (calculated, not from sensor)
+    string moonPhaseName = 222;             // e.g., "Waxing Gibbous"
+    float moonIllumination = 223;           // Illuminated fraction 0.0-1.0
+    float moonAge = 224;                    // Days since new moon (0-29.53)
 }
 
 // Remote station registration configuration

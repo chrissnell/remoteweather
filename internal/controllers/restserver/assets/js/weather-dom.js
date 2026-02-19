@@ -55,6 +55,21 @@ const WeatherDOM = (function() {
                 ? `<span class="wi wi-sunrise"></span>${weatherData.sunrise}<br><span class="wi wi-sunset"></span>${weatherData.sunset}`
                 : '--'
         });
+
+        // Swap solar/moon cards based on sky conditions
+        const isNight = weatherData.skyConditions === 'Night';
+        const solarCard = getCachedElement('solar-card');
+        const moonCard = getCachedElement('moon-card');
+        if (solarCard && moonCard) {
+            solarCard.style.display = isNight ? 'none' : '';
+            moonCard.style.display = isNight ? '' : 'none';
+        }
+        if (isNight && weatherData.moonPhaseName) {
+            updateElement('moon-phase', weatherData.moonPhaseName);
+            updateElement('moon-illumination',
+                weatherData.moonIllumination != null
+                    ? weatherData.moonIllumination + '% illuminated' : '');
+        }
         
         // Wind
         updateElements({
