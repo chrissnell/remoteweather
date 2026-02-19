@@ -292,3 +292,19 @@ func TestWaxingWaning(t *testing.T) {
 		t.Error("Expected waning phase 7 days after full moon")
 	}
 }
+
+func BenchmarkCalculate(b *testing.B) {
+	ts := time.Date(2023, 1, 28, 15, 19, 0, 0, time.UTC)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Calculate(ts)
+	}
+}
+
+func BenchmarkCalculateCrescentAngle(b *testing.B) {
+	ts := time.Date(2023, 1, 28, 15, 19, 0, 0, time.UTC)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		CalculateCrescentAngle(ts, 40.7, -74.0)
+	}
+}
