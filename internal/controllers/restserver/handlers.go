@@ -374,6 +374,10 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 		latestReading.MoonPhaseName = moonPhase.PhaseName
 		latestReading.MoonIllumination = float32(moonPhase.Illumination)
 		latestReading.MoonAge = float32(moonPhase.AgeDays)
+		if device := h.getPrimaryDeviceConfigForWebsite(website); device != nil {
+			crescent := lunar.CalculateCrescentAngle(time.Now().UTC(), device.Latitude, device.Longitude)
+			latestReading.MoonCrescentAngle = float32(crescent.Rotation)
+		}
 
 		headers := map[string]string{
 			"Cache-Control": "no-cache, no-store, must-revalidate",

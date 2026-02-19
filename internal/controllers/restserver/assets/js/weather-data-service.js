@@ -179,6 +179,7 @@ const WeatherDataService = (function() {
             moonIllumination: data.moonIllumination != null
                 ? Math.round(data.moonIllumination * 100) : null,
             moonAge: data.moonAge || null,
+            moonCrescentAngle: data.moonCrescentAngle != null ? data.moonCrescentAngle : 0,
 
             // Raw data for other uses
             raw: data

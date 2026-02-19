@@ -186,6 +186,7 @@ message WeatherReading {
     string moonPhaseName = 88;      // e.g., "Waxing Gibbous"
     float moonIllumination = 89;    // Illuminated fraction 0.0-1.0
     float moonAge = 90;             // Days since new moon (0-29.53)
+    float moonCrescentAngle = 91;   // Icon rotation angle in degrees for observed crescent orientation
 }
 
 message Empty {}
