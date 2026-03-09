@@ -68,6 +68,9 @@ func CalculateSunriseSunset(dayOfYear int, latitude, longitude float64) (sunrise
 
 // FormatSunTime converts UTC minutes from midnight to a formatted time string
 // in the given timezone location, using the provided date to account for DST.
+// The UTC minutes may fall on a different UTC calendar date than the local date
+// (e.g., sunset in California at 7 PM PDT = 2 AM UTC the next day), so we
+// search adjacent UTC dates to find the one that maps to the expected local date.
 func FormatSunTime(utcMinutes int, date time.Time, loc *time.Location) string {
 	if utcMinutes < 0 {
 		return ""
@@ -76,10 +79,18 @@ func FormatSunTime(utcMinutes int, date time.Time, loc *time.Location) string {
 	hours := utcMinutes / 60
 	minutes := utcMinutes % 60
 
-	// Use the actual date so the timezone conversion applies the correct DST offset
-	y, m, d := date.Date()
-	t := time.Date(y, m, d, hours, minutes, 0, 0, time.UTC)
-	local := t.In(loc)
+	// The local date this event should appear on
+	y, m, d := date.In(loc).Date()
 
-	return local.Format("3:04 PM")
+	// Try the local date and adjacent UTC days to find the correct one
+	for _, dayOffset := range []int{0, 1, -1} {
+		utcTime := time.Date(y, m, d+dayOffset, hours, minutes, 0, 0, time.UTC)
+		local := utcTime.In(loc)
+		if ly, lm, ld := local.Date(); ly == y && lm == m && ld == d {
+			return local.Format("3:04 PM")
+		}
+	}
+
+	// Fallback (shouldn't happen for valid inputs)
+	return time.Date(y, m, d, hours, minutes, 0, 0, time.UTC).In(loc).Format("3:04 PM")
 }

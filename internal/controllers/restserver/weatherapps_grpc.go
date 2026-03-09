@@ -300,7 +300,16 @@ func (c *Controller) addSunTimes(reading *weatherapps.WeatherReading, stationNam
 		return
 	}
 	if sunrise >= 0 && sunset >= 0 {
-		reading.Sunrise = solar.FormatSunTime(sunrise, time.Now(), time.Local)
-		reading.Sunset = solar.FormatSunTime(sunset, time.Now(), time.Local)
+		loc := time.Local
+		for _, d := range c.Devices {
+			if d.Name == stationName && d.Timezone != "" {
+				if tzLoc, err := time.LoadLocation(d.Timezone); err == nil {
+					loc = tzLoc
+				}
+				break
+			}
+		}
+		reading.Sunrise = solar.FormatSunTime(sunrise, time.Now(), loc)
+		reading.Sunset = solar.FormatSunTime(sunset, time.Now(), loc)
 	}
 }
