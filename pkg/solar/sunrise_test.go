@@ -105,34 +105,48 @@ func TestCalculateSunriseSunset(t *testing.T) {
 
 func TestFormatSunTime(t *testing.T) {
 	loc, _ := time.LoadLocation("America/Los_Angeles")
+	winterDate := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC) // PST (UTC-8)
+	summerDate := time.Date(2025, 7, 15, 0, 0, 0, 0, time.UTC) // PDT (UTC-7)
 
 	tests := []struct {
 		name       string
 		utcMinutes int
+		date       time.Time
 		loc        *time.Location
 		expected   string
 	}{
 		{
 			name:       "Morning UTC to Pacific (winter/PST)",
 			utcMinutes: 840, // 2:00 PM UTC
+			date:       winterDate,
 			loc:        loc,
-			expected:   "6:00 AM", // FormatSunTime uses Jan 1 (PST, UTC-8)
+			expected:   "6:00 AM", // PST, UTC-8
+		},
+		{
+			name:       "Morning UTC to Pacific (summer/PDT)",
+			utcMinutes: 840, // 2:00 PM UTC
+			date:       summerDate,
+			loc:        loc,
+			expected:   "7:00 AM", // PDT, UTC-7
 		},
 		{
 			name:       "Negative minutes returns empty",
 			utcMinutes: -1,
+			date:       winterDate,
 			loc:        loc,
 			expected:   "",
 		},
 		{
 			name:       "Noon UTC",
 			utcMinutes: 720, // 12:00 PM UTC
+			date:       winterDate,
 			loc:        time.UTC,
 			expected:   "12:00 PM",
 		},
 		{
 			name:       "Midnight UTC",
 			utcMinutes: 0,
+			date:       winterDate,
 			loc:        time.UTC,
 			expected:   "12:00 AM",
 		},
@@ -140,7 +154,7 @@ func TestFormatSunTime(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatSunTime(tt.utcMinutes, tt.loc)
+			result := FormatSunTime(tt.utcMinutes, tt.date, tt.loc)
 			if result != tt.expected {
 				t.Errorf("FormatSunTime(%d) = %q, expected %q", tt.utcMinutes, result, tt.expected)
 			}
