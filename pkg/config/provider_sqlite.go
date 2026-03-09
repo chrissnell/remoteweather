@@ -112,6 +112,7 @@ CREATE TABLE devices (
     latitude REAL,
     longitude REAL,
     altitude REAL,
+    timezone TEXT DEFAULT '',
     aprs_enabled BOOLEAN DEFAULT FALSE,
     aprs_callsign TEXT,
     tls_cert_file TEXT,
@@ -383,15 +384,15 @@ func (s *SQLiteProvider) LoadConfig() (*ConfigData, error) {
 // GetDevices returns device configurations from the database
 func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 	query := `
-		SELECT id, name, type, enabled, hostname, port, serial_device, baud, 
+		SELECT id, name, type, enabled, hostname, port, serial_device, baud,
 		       wind_dir_correction, base_snow_distance, website_id,
-		       latitude, longitude, altitude, aprs_enabled, aprs_callsign,
+		       latitude, longitude, altitude, timezone, aprs_enabled, aprs_callsign,
 		       tls_cert_file, tls_key_file, path,
 		       pws_enabled, pws_station_id, pws_password, pws_upload_interval, pws_api_endpoint,
 		       wu_enabled, wu_station_id, wu_password, wu_upload_interval, wu_api_endpoint,
 		       aprs_passcode, aprs_symbol_table, aprs_symbol_code, aprs_comment, aprs_server,
 		       aeris_enabled, aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint
-		FROM devices 
+		FROM devices
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
 		ORDER BY name
 	`
@@ -409,6 +410,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		var tlsCertFile, tlsKeyFile, path sql.NullString
 		var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 		var latitude, longitude, altitude sql.NullFloat64
+		var timezone sql.NullString
 		var enabled sql.NullBool
 		var aprsEnabled sql.NullBool
 
@@ -432,7 +434,7 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.Type, &enabled, &hostname, &port,
 			&serialDevice, &baud, &windDirCorrection,
-			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
+			&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude, &timezone,
 			&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
 			&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval, &pwsAPIEndpoint,
 			&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval, &wuAPIEndpoint,
@@ -480,6 +482,9 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if altitude.Valid {
 			device.Altitude = altitude.Float64
+		}
+		if timezone.Valid {
+			device.Timezone = timezone.String
 		}
 
 		// Set device enabled
@@ -875,9 +880,9 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 		INSERT INTO devices (
 			config_id, name, type, enabled, hostname, port, serial_device,
 			baud, wind_dir_correction, base_snow_distance, website_id,
-			latitude, longitude, altitude, aprs_enabled, aprs_callsign,
+			latitude, longitude, altitude, timezone, aprs_enabled, aprs_callsign,
 			tls_cert_file, tls_key_file, path
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var websiteID sql.NullInt64
@@ -888,7 +893,7 @@ func (s *SQLiteProvider) insertDevice(tx *sql.Tx, configID int64, device *Device
 	_, err := tx.Exec(query,
 		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		websiteID, device.Latitude, device.Longitude, device.Altitude,
+		websiteID, device.Latitude, device.Longitude, device.Altitude, nullString(device.Timezone),
 		device.APRSEnabled, device.APRSCallsign,
 		nullString(device.TLSCertPath), nullString(device.TLSKeyPath), nullString(device.Path),
 	)
@@ -1045,7 +1050,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	query := `
 		SELECT d.id, d.name, d.type, d.enabled, d.hostname, d.port, d.serial_device, d.baud,
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
-		       d.latitude, d.longitude, d.altitude, d.aprs_enabled, d.aprs_callsign,
+		       d.latitude, d.longitude, d.altitude, d.timezone, d.aprs_enabled, d.aprs_callsign,
 		       d.tls_cert_file, d.tls_key_file, d.path,
 		       d.pws_enabled, d.pws_station_id, d.pws_password, d.pws_upload_interval,
 		       d.wu_enabled, d.wu_station_id, d.wu_password, d.wu_upload_interval,
@@ -1061,6 +1066,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var tlsCertFile, tlsKeyFile, path sql.NullString
 	var baud, windDirCorrection, baseSnowDistance, websiteID sql.NullInt64
 	var latitude, longitude, altitude sql.NullFloat64
+	var timezone sql.NullString
 	var aprsEnabled sql.NullBool
 
 	// PWS Weather fields
@@ -1083,7 +1089,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	err := s.db.QueryRow(query, name).Scan(
 		&device.ID, &device.Name, &device.Type, &device.Enabled, &hostname, &port,
 		&serialDevice, &baud, &windDirCorrection,
-		&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude,
+		&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude, &timezone,
 		&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
 		&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
 		&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
@@ -1135,6 +1141,9 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	}
 	if altitude.Valid {
 		device.Altitude = altitude.Float64
+	}
+	if timezone.Valid {
+		device.Timezone = timezone.String
 	}
 
 	// Set APRS data
@@ -1226,9 +1235,9 @@ func (s *SQLiteProvider) AddDevice(device *DeviceData) error {
 		INSERT INTO devices (
 			config_id, name, type, enabled, hostname, port, serial_device,
 			baud, wind_dir_correction, base_snow_distance, website_id,
-			latitude, longitude, altitude, aprs_enabled, aprs_callsign,
+			latitude, longitude, altitude, timezone, aprs_enabled, aprs_callsign,
 			tls_cert_file, tls_key_file, path
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var websiteID sql.NullInt64
@@ -1239,7 +1248,7 @@ func (s *SQLiteProvider) AddDevice(device *DeviceData) error {
 	result, err := tx.Exec(query,
 		configID, device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		websiteID, device.Latitude, device.Longitude, device.Altitude,
+		websiteID, device.Latitude, device.Longitude, device.Altitude, nullString(device.Timezone),
 		device.APRSEnabled, device.APRSCallsign,
 		nullString(device.TLSCertPath), nullString(device.TLSKeyPath), nullString(device.Path),
 	)
@@ -1275,7 +1284,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 		UPDATE devices SET
 			name = ?, type = ?, enabled = ?, hostname = ?, port = ?, serial_device = ?,
 			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
-			latitude = ?, longitude = ?, altitude = ?, aprs_enabled = ?, aprs_callsign = ?,
+			latitude = ?, longitude = ?, altitude = ?, timezone = ?, aprs_enabled = ?, aprs_callsign = ?,
 			tls_cert_file = ?, tls_key_file = ?, path = ?
 		WHERE name = ?
 	`
@@ -1288,7 +1297,7 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 	_, err = tx.Exec(query,
 		device.Name, device.Type, device.Enabled, device.Hostname, device.Port,
 		device.SerialDevice, device.Baud, device.WindDirCorrection, device.BaseSnowDistance,
-		websiteID, device.Latitude, device.Longitude, device.Altitude,
+		websiteID, device.Latitude, device.Longitude, device.Altitude, nullString(device.Timezone),
 		device.APRSEnabled, device.APRSCallsign,
 		nullString(device.TLSCertPath), nullString(device.TLSKeyPath), nullString(device.Path),
 		name,

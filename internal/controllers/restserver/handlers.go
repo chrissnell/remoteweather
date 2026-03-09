@@ -364,8 +364,14 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				log.Warnf("error getting sun times for %s: %v", stationName, err)
 			} else if sunrise >= 0 && sunset >= 0 {
-				latestReading.Sunrise = solar.FormatSunTime(sunrise, time.Now(), time.Local)
-				latestReading.Sunset = solar.FormatSunTime(sunset, time.Now(), time.Local)
+				loc := time.Local
+				if device := h.getPrimaryDeviceConfigForWebsite(website); device != nil && device.Timezone != "" {
+					if tzLoc, err := time.LoadLocation(device.Timezone); err == nil {
+						loc = tzLoc
+					}
+				}
+				latestReading.Sunrise = solar.FormatSunTime(sunrise, time.Now(), loc)
+				latestReading.Sunset = solar.FormatSunTime(sunset, time.Now(), loc)
 			}
 		}
 

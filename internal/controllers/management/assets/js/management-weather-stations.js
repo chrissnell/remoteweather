@@ -59,6 +59,7 @@ const ManagementWeatherStations = (function() {
       solarLatitude: document.getElementById('solar-latitude'),
       solarLongitude: document.getElementById('solar-longitude'),
       solarAltitude: document.getElementById('solar-altitude'),
+      stationTimezone: document.getElementById('station-timezone'),
       
       // Service fields
       // Aeris
@@ -213,6 +214,7 @@ const ManagementWeatherStations = (function() {
       html += `<div><strong>Latitude:</strong> ${dev.latitude || 'Not set'}</div>`;
       html += `<div><strong>Longitude:</strong> ${dev.longitude || 'Not set'}</div>`;
       html += `<div><strong>Altitude:</strong> ${dev.altitude || 'Not set'}</div>`;
+      html += `<div><strong>Timezone:</strong> ${dev.timezone || 'Not set'}</div>`;
     }
     
     // APRS configuration
@@ -331,6 +333,7 @@ const ManagementWeatherStations = (function() {
     formElements.solarLatitude.value = dev.latitude || '';
     formElements.solarLongitude.value = dev.longitude || '';
     formElements.solarAltitude.value = dev.altitude || '';
+    formElements.stationTimezone.value = dev.timezone || '';
 
     // Populate service fields
     populateServiceFields(dev);
@@ -401,6 +404,7 @@ const ManagementWeatherStations = (function() {
     const latitude = formElements.solarLatitude.value.trim();
     const longitude = formElements.solarLongitude.value.trim();
     const altitude = formElements.solarAltitude.value.trim();
+    const timezone = formElements.stationTimezone.value.trim();
 
     if (!name) {
       alert('Name is required');
@@ -445,6 +449,7 @@ const ManagementWeatherStations = (function() {
       if (longitude) device.longitude = parseFloat(longitude);
       if (altitude) device.altitude = parseFloat(altitude);
     }
+    if (timezone) device.timezone = timezone;
 
     // Service configurations
     // Aeris Weather

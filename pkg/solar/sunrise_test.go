@@ -150,6 +150,20 @@ func TestFormatSunTime(t *testing.T) {
 			loc:        time.UTC,
 			expected:   "12:00 AM",
 		},
+		{
+			name:       "Sunset wraps to next UTC day (winter/PST)",
+			utcMinutes: 140, // 2:20 AM UTC (next day) = 6:20 PM PST
+			date:       winterDate,
+			loc:        loc,
+			expected:   "6:20 PM",
+		},
+		{
+			name:       "Sunset wraps to next UTC day (summer/PDT)",
+			utcMinutes: 140, // 2:20 AM UTC (next day) = 7:20 PM PDT
+			date:       summerDate,
+			loc:        loc,
+			expected:   "7:20 PM",
+		},
 	}
 
 	for _, tt := range tests {
