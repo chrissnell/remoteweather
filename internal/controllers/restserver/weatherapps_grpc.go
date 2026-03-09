@@ -300,7 +300,7 @@ func (c *Controller) addSunTimes(reading *weatherapps.WeatherReading, stationNam
 		return
 	}
 	if sunrise >= 0 && sunset >= 0 {
-		reading.Sunrise = solar.FormatSunTime(sunrise, time.Local)
-		reading.Sunset = solar.FormatSunTime(sunset, time.Local)
+		reading.Sunrise = solar.FormatSunTime(sunrise, time.Now(), time.Local)
+		reading.Sunset = solar.FormatSunTime(sunset, time.Now(), time.Local)
 	}
 }

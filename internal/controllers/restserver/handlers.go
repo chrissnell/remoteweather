@@ -364,8 +364,8 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				log.Warnf("error getting sun times for %s: %v", stationName, err)
 			} else if sunrise >= 0 && sunset >= 0 {
-				latestReading.Sunrise = solar.FormatSunTime(sunrise, time.Local)
-				latestReading.Sunset = solar.FormatSunTime(sunset, time.Local)
+				latestReading.Sunrise = solar.FormatSunTime(sunrise, time.Now(), time.Local)
+				latestReading.Sunset = solar.FormatSunTime(sunset, time.Now(), time.Local)
 			}
 		}
 
