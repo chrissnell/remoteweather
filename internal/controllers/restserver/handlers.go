@@ -278,13 +278,17 @@ func (h *Handlers) GetWeatherLatest(w http.ResponseWriter, req *http.Request) {
 
 		latestReading := h.transformLatestReadings(&dbFetchedReadings)
 
-		// Add total rainfall for the day using the shared optimized calculation
+		// Calculate rainfall accumulations from incremental measurements
+		// This ensures correct values for all station types, including Campbell
+		// stations which don't report hardware accumulation fields.
 		if len(dbFetchedReadings) > 0 {
 			stationName := dbFetchedReadings[0].StationName
-			// Create a temporary database.Client wrapper for the CalculateDailyRainfall function
 			dbClient := &database.Client{DB: h.controller.DB}
 			calculatedDayRain := controllers.CalculateDailyRainfall(dbClient, stationName)
 			latestReading.RainfallDay = calculatedDayRain
+			latestReading.DayRain = calculatedDayRain
+			latestReading.MonthRain = controllers.CalculateMonthlyRainfall(dbClient, stationName)
+			latestReading.YearRain = controllers.CalculateYearlyRainfall(dbClient, stationName)
 		}
 
 		// Calculate rainfall totals using summary table with recent data

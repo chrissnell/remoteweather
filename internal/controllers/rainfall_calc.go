@@ -52,6 +52,98 @@ func CalculateDailyRainfall(db *database.Client, stationName string) float32 {
 	return totalRainfall
 }
 
+// CalculateMonthlyRainfall calculates total rainfall since the first of the current month
+func CalculateMonthlyRainfall(db *database.Client, stationName string) float32 {
+	var aggregatedRain float32
+	var lastBucket *time.Time
+
+	var result struct {
+		Total      float32    `gorm:"column:total"`
+		LastBucket *time.Time `gorm:"column:last_bucket"`
+	}
+	db.DB.Raw(`
+		SELECT
+			COALESCE(SUM(period_rain), 0) as total,
+			MAX(bucket) as last_bucket
+		FROM weather_5m
+		WHERE stationname = ?
+		AND bucket >= date_trunc('month', NOW())
+	`, stationName).Scan(&result)
+	aggregatedRain = result.Total
+	lastBucket = result.LastBucket
+
+	var incrementalRain float32
+	if lastBucket != nil {
+		db.DB.Raw(`
+			SELECT COALESCE(SUM(rainincremental), 0) as total
+			FROM weather
+			WHERE stationname = ?
+			AND time > ?
+			AND time >= NOW() - INTERVAL '1 hour'
+		`, stationName, lastBucket).Scan(&incrementalRain)
+	}
+
+	totalRainfall := aggregatedRain + incrementalRain
+
+	log.Debugf("Monthly rainfall for %s: %.2f (aggregated: %.2f, incremental: %.2f)",
+		stationName, totalRainfall, aggregatedRain, incrementalRain)
+
+	return totalRainfall
+}
+
+// CalculateYearlyRainfall calculates total rainfall since January 1 of the current year
+func CalculateYearlyRainfall(db *database.Client, stationName string) float32 {
+	var aggregatedRain float32
+	var lastBucket *time.Time
+
+	var result struct {
+		Total      float32    `gorm:"column:total"`
+		LastBucket *time.Time `gorm:"column:last_bucket"`
+	}
+	// Use 1h aggregates for yearly queries - much less data to scan
+	db.DB.Raw(`
+		SELECT
+			COALESCE(SUM(period_rain), 0) as total,
+			MAX(bucket) as last_bucket
+		FROM weather_1h
+		WHERE stationname = ?
+		AND bucket >= date_trunc('year', NOW())
+	`, stationName).Scan(&result)
+	aggregatedRain = result.Total
+	lastBucket = result.LastBucket
+
+	// Pick up anything since the last hourly bucket from the 5m table
+	var recentRain float32
+	if lastBucket != nil {
+		db.DB.Raw(`
+			SELECT COALESCE(SUM(period_rain), 0) as total
+			FROM weather_5m
+			WHERE stationname = ?
+			AND bucket > ?
+		`, stationName, lastBucket).Scan(&recentRain)
+	}
+
+	// And any raw incremental rain not yet in the 5m table
+	var incrementalRain float32
+	db.DB.Raw(`
+		SELECT COALESCE(SUM(rainincremental), 0) as total
+		FROM weather
+		WHERE stationname = ?
+		AND time >= NOW() - INTERVAL '10 minutes'
+		AND time > COALESCE(
+			(SELECT MAX(bucket) FROM weather_5m WHERE stationname = ?),
+			NOW() - INTERVAL '10 minutes'
+		)
+	`, stationName, stationName).Scan(&incrementalRain)
+
+	totalRainfall := aggregatedRain + recentRain + incrementalRain
+
+	log.Debugf("Yearly rainfall for %s: %.2f (aggregated_1h: %.2f, recent_5m: %.2f, incremental: %.2f)",
+		stationName, totalRainfall, aggregatedRain, recentRain, incrementalRain)
+
+	return totalRainfall
+}
+
 // CalculateRainRate calculates the current rain rate in inches per hour
 // by looking at rain incremental values over the last 10 minutes and extrapolating to an hourly rate.
 func CalculateRainRate(db *database.Client, stationName string) float32 {
