@@ -1,0 +1,147 @@
+' Purpose: collects measurements from instruments and then outputs them in
+' JSON format over serial line (ComRF), to be received on remote RF407 unit
+' and custom homegrown software.
+'
+' For CR310 datalogger with the following:
+'  - HygroVUE 5
+'  - BaroVUE 10
+'  - CS301
+'  - TE525
+'  - Type T thermocouple
+
+'Declare Constants
+Const CRLF = CHR(13) & CHR(10) 'Character Codes: CHR(13) means carriage return and CHR(10) means new feed
+Const Elevation_m = 1898 'Elevation of my rooftop
+
+'Declare Public Variables
+Public PTemp, Batt_volt
+
+'Type T thermocouple (testing)
+Public ThermocoupleTemp
+
+'HygroVUE 5 temperature + humidity sensor
+Public TRHData(2)
+Alias TRHData(1)=AirTemp_C
+Alias TRHData(2)=RH
+Public AirTemp_F
+
+'BaroVUE 10 Barometer sensor
+Public BaroData(3)
+Alias BaroData(1)=Pressure_HPa
+Alias BaroData(2)=BaroTemp_C
+Alias BaroData(3)=Quality
+Public Pressure_InHG
+Public BaroTemp_F
+Units Pressure_HPa=HPa
+Units BaroTemp_C=Deg C
+Units Pressure_InHG=In Hg
+Units BaroTemp_F=Deg F
+
+'CS301 Pyranometer
+Public SlrW
+Public SlrMJ
+Units SlrW=W/m^2
+Units SlrMJ=MJ/m^2
+
+'TE525 Rain gauge
+Public Rain_in
+Units Rain_in=inch
+
+'03002-L Wind Sentry
+Public WS_mph
+Public WindDir
+Units WS_mph=miles/hour
+Units WindDir=degrees
+
+Dim SerBuf As String * 512 'Serial out string
+
+Units Batt_volt=Volts
+Units ThermocoupleTemp=Deg F
+Units RH=%
+Units AirTemp_C=Deg C
+Units AirTemp_F=Deg F
+
+
+'Define Data Tables.
+DataTable (TenSeconds,True,-1) 'Set table size to # of records, or -1 to autoallocate.
+  DataInterval (0,10,Sec,10)
+  Minimum (1,Batt_volt,FP2,False,False)
+  Minimum(1,ThermocoupleTemp,FP2,False,False)
+  Sample(1,ThermocoupleTemp,FP2)
+  Sample(1,PTemp,FP2)
+  Average(1,AirTemp_C,FP2,False)
+  Average(1,AirTemp_F,FP2,False)
+  Sample(1,RH,FP2)
+EndTable
+
+'Main Program
+BeginProg
+  'Open the RF port at 115200 baud
+  SerialOpen(ComRF,115200,0,0,50)
+  
+  'Turn on switched +12V power and leave it on
+  SW12(1)
+  
+  Scan (5,Sec,0,0)
+    'Gather some measurements from the CR310's onboard sensors
+    PanelTemp (PTemp,60)
+    Battery (Batt_volt)
+
+    'HygroVUE 5 Temperature + Humidity Sensor
+    SDI12Recorder(TRHData(),C1,"0","M!",1,0)
+    AirTemp_F = (AirTemp_C * 1.8) + 32
+
+    'BaroVUE 10 Barometer + Temperature Sensor
+    SDI12Recorder(BaroData(),C2,"0","M!",1,0)
+    Pressure_HPa = Pressure_HPa+1013.25*(1-(1-Elevation_m/44307.69231)^5.25328)
+    Pressure_InHG = Pressure_HPa * 0.029529988
+    BaroTemp_F = (BaroTemp_C * 1.8) + 32
+
+    'CS301 Pyranometer measurements 'SlrMJ' and 'SlrW'
+    VoltSe(SlrW,1,mV2500,5,True,0,60,1,0)
+    If SlrW<0 Then SlrW=0
+    'Calculate total flux
+    'The multiplier to calculate total flux was calculated by Short Cut
+    'and based on a program execution rate (scan rate) of 10 Seconds.
+    'If you change the program execution rate outside of Short Cut with the CRBasic Editor
+    'you will need to recalculate this multiplier. See the sensor manual for more details.
+    SlrMJ=SlrW*5E-05
+    'Calculate flux density
+    SlrW=SlrW*5
+
+    'TE525 Rain gauge
+    PulseCount(Rain_in,1,P_SW,2,0,0.01,0)
+
+    '03002-L Wind Sentry
+    PulseCount(WS_mph,1,P_LL,1,1,1.677,0.4)
+    If WS_mph<0.41 Then WS_mph=0
+    BrHalf(WindDir,1,mV2500,3,VX1,1,2500,False,20000,60,352,0)
+    If WindDir>=352 OR WindDir<0 Then WindDir=0
+
+    'Type T Thermocouple measurements 'Temp_C'
+    ' TCDiff(ThermocoupleTemp,1,mv34,1,TypeT,BaroTemp_C,True,0,60,1.8,32)
+
+    'Build a JSON string with our outputs
+    SerBuf = CHR(123) 'Open JSON dictionary
+    SerBuf = SerBuf & CHR(34) & "batt_volt" & CHR(34) & CHR(58) & FormatFloat(Batt_volt,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "airtemp_f" & CHR(34) & CHR(58) & FormatFloat(AirTemp_F,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "rh" & CHR(34) & CHR(58) & FormatFloat(RH,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "baro" & CHR(34) & CHR(58) & FormatFloat(Pressure_InHG,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "baro_temp_f" & CHR(34) & CHR(58) & FormatFloat(BaroTemp_F,"%f")& CHR(44)
+    SerBuf = SerBuf & CHR(34) & "slr_mj" & CHR(34) & CHR(58) & FormatFloat(SlrMJ,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "slr_w" & CHR(34) & CHR(58) & FormatFloat(SlrW,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "rain_in" & CHR(34) & CHR(58) & FormatFloat(Rain_in,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "wind_s" & CHR(34) & CHR(58) & FormatFloat(WS_mph,"%f") & CHR(44)
+    SerBuf = SerBuf & CHR(34) & "wind_d" & CHR(34) & CHR(58) & FormatLong(WindDir,"%u")
+    SerBuf = SerBuf & CHR(125) & CRLF 'Close JSON dictionary
+
+    'Write readings (JSON) to ComRF.  Flush the port before and after sending.
+    SerialFlush(ComRF)
+    SerialOut(ComRF,SerBuf,"",0,0)
+    SerialFlush(ComRF)
+
+    'Call Output Tables
+    CallTable TenSeconds
+  NextScan
+EndProg
+
