@@ -352,12 +352,12 @@ type APRSData struct {
 // The snow cache controller runs background calculations for snow accumulation
 // using PELT change point detection for 72h and seasonal totals
 type SnowCacheData struct {
-	StationName     string  `json:"station_name,omitempty"`      // Name of the weather station with snow depth sensor
-	BaseDistance    float64 `json:"base_distance,omitempty"`     // Base snow distance calibration value (mm)
-	SmoothingWindow int     `json:"smoothing_window,omitempty"`  // Hours of data for median filtering (default: 5)
-	Penalty         float64 `json:"penalty,omitempty"`           // PELT penalty parameter (default: 3.0)
-	MinAccumulation float64 `json:"min_accumulation,omitempty"`  // Minimum accumulation threshold in mm (default: 5.0)
-	MinSegmentSize  int     `json:"min_segment_size,omitempty"`  // Minimum segment size for PELT (default: 2)
+	StationName     string  `json:"station_name,omitempty"`     // Name of the weather station with snow depth sensor
+	BaseDistance    float64 `json:"base_distance,omitempty"`    // Base snow distance calibration value (mm)
+	SmoothingWindow int     `json:"smoothing_window,omitempty"` // Hours of data for median filtering (default: 5)
+	Penalty         float64 `json:"penalty,omitempty"`          // PELT penalty parameter (default: 3.0)
+	MinAccumulation float64 `json:"min_accumulation,omitempty"` // Minimum accumulation threshold in mm (default: 5.0)
+	MinSegmentSize  int     `json:"min_segment_size,omitempty"` // Minimum segment size for PELT (default: 2)
 }
 
 // RESTServerData holds configuration for the REST server
@@ -395,8 +395,8 @@ type WeatherWebsiteData struct {
 	IsPortal             bool   `json:"is_portal,omitempty"`     // Whether this website is a weather management portal
 	AppleAppID           string `json:"apple_app_id,omitempty"`  // Numeric App Store ID for iOS Smart Banner
 	RadarEnabled         bool   `json:"radar_enabled,omitempty"`
-	RadarToken           string `json:"radar_token,omitempty"`          // set only by registration
-	RadarRegisteredAt    *int64 `json:"radar_registered_at,omitempty"`  // unix; nil until registered
+	RadarToken           string `json:"radar_token,omitempty"`         // set only by registration
+	RadarRegisteredAt    *int64 `json:"radar_registered_at,omitempty"` // unix; nil until registered
 }
 
 type ManagementAPIData struct {

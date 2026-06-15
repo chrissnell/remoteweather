@@ -18,8 +18,8 @@ import (
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
 	"github.com/chrissnell/remoteweather/pkg/config"
-	"github.com/chrissnell/remoteweather/pkg/responseformat"
 	"github.com/chrissnell/remoteweather/pkg/lunar"
+	"github.com/chrissnell/remoteweather/pkg/responseformat"
 	"github.com/chrissnell/remoteweather/pkg/solar"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -1466,4 +1466,3 @@ func (h *Handlers) GetAlerts(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 }
-
