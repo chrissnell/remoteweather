@@ -95,6 +95,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     });
 
     map.on('load', () => {
+      mapEl.classList.remove('is-loading');
       new maplibregl.Marker().setLngLat([cfg.lon, cfg.lat]).addTo(map);
       startRadar(map, tokenParam, maxFrames, !isTouch);
     });
@@ -191,7 +192,10 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     if (slider) slider.addEventListener('input', (e) => seek(Number(e.target.value)));
 
     function updateUI() {
-      if (btnPlay) btnPlay.textContent = playing ? 'Pause' : 'Play';
+      if (btnPlay) {
+        btnPlay.textContent = playing ? 'Pause' : 'Play';
+        btnPlay.setAttribute('aria-pressed', String(playing));
+      }
       if (slider) { slider.max = String(Math.max(0, frames.length - 1)); slider.value = String(index); }
       if (tsLabel && frames[index]) {
         tsLabel.textContent = new Date(frames[index].ts * 1000)

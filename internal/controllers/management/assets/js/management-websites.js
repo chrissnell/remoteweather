@@ -60,6 +60,7 @@ const ManagementWebsites = (function() {
       airQualityDevice: document.getElementById('website-airquality-device'),
       airQualityDeviceLabel: document.getElementById('airquality-device-label'),
       radarStatus: document.getElementById('radar-status'),
+      radarStatusBadge: document.getElementById('radar-status-badge'),
       radarRegisterBlock: document.getElementById('radar-register-block'),
       radarRegisteredBlock: document.getElementById('radar-registered-block'),
       radarAgree: document.getElementById('radar-agree'),
@@ -243,7 +244,15 @@ const ManagementWebsites = (function() {
     el.radarAgree.checked = false;
     el.radarRegisterBtn.disabled = true;
 
+    const setBadge = (text, online) => {
+      if (!el.radarStatusBadge) return;
+      el.radarStatusBadge.textContent = text;
+      el.radarStatusBadge.classList.toggle('status-online', online);
+      el.radarStatusBadge.classList.toggle('status-offline', !online);
+    };
+
     if (!id) {
+      setBadge('Not enabled', false);
       el.radarStatus.textContent = 'Save the website first, then register for radar.';
       el.radarRegisterBlock.style.display = 'none';
       el.radarRegisteredBlock.style.display = 'none';
@@ -253,11 +262,13 @@ const ManagementWebsites = (function() {
       const when = website.radar_registered_at
         ? new Date(website.radar_registered_at * 1000).toLocaleString()
         : 'unknown date';
-      el.radarStatus.textContent = `Radar enabled (registered ${when}).`;
+      setBadge('Enabled', true);
+      el.radarStatus.textContent = `Registered ${when}.`;
       el.radarRegisterBlock.style.display = 'none';
       el.radarRegisteredBlock.style.display = 'block';
     } else {
-      el.radarStatus.textContent = 'Radar is not enabled for this site.';
+      setBadge('Not enabled', false);
+      el.radarStatus.textContent = '';
       el.radarRegisterBlock.style.display = 'block';
       el.radarRegisteredBlock.style.display = 'none';
     }
