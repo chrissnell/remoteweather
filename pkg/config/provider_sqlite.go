@@ -263,6 +263,10 @@ CREATE TABLE weather_websites (
     tls_cert_path TEXT,
     tls_key_path TEXT,
     is_portal BOOLEAN DEFAULT FALSE,
+    apple_app_id TEXT DEFAULT '6755874087',
+    radar_enabled BOOLEAN DEFAULT FALSE,
+    radar_token TEXT DEFAULT '',
+    radar_registered_at INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (config_id) REFERENCES configs(id) ON DELETE CASCADE,
@@ -1738,7 +1742,8 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title,
 		       w.about_station_html, w.snow_enabled, w.snow_device_name,
 		       w.air_quality_enabled, w.air_quality_device_name,
-		       w.tls_cert_path, w.tls_key_path, w.is_portal, w.apple_app_id
+		       w.tls_cert_path, w.tls_key_path, w.is_portal, w.apple_app_id,
+		       w.radar_enabled, w.radar_token, w.radar_registered_at
 		FROM weather_websites w
 		LEFT JOIN devices d ON w.device_id = d.id
 		WHERE w.config_id = (SELECT id FROM configs WHERE name = 'default')
@@ -1759,6 +1764,9 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		var airQualityEnabled sql.NullBool
 		var airQualityDeviceName sql.NullString
 		var tlsCertPath, tlsKeyPath, appleAppID sql.NullString
+		var radarEnabled sql.NullBool
+		var radarToken sql.NullString
+		var radarRegisteredAt sql.NullInt64
 
 		err := rows.Scan(
 			&website.ID,
@@ -1776,6 +1784,9 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 			&tlsKeyPath,
 			&website.IsPortal,
 			&appleAppID,
+			&radarEnabled,
+			&radarToken,
+			&radarRegisteredAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan website row: %w", err)
@@ -1801,6 +1812,14 @@ func (s *SQLiteProvider) GetWeatherWebsites() ([]WeatherWebsiteData, error) {
 		website.TLSCertPath = tlsCertPath.String
 		website.TLSKeyPath = tlsKeyPath.String
 		website.AppleAppID = appleAppID.String
+		if radarEnabled.Valid {
+			website.RadarEnabled = radarEnabled.Bool
+		}
+		website.RadarToken = radarToken.String
+		if radarRegisteredAt.Valid {
+			v := radarRegisteredAt.Int64
+			website.RadarRegisteredAt = &v
+		}
 
 		websites = append(websites, website)
 	}
@@ -1814,7 +1833,8 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 		SELECT w.id, w.name, w.device_id, d.name as device_name, w.hostname, w.page_title,
 		       w.about_station_html, w.snow_enabled, w.snow_device_name,
 		       w.air_quality_enabled, w.air_quality_device_name,
-		       w.tls_cert_path, w.tls_key_path, w.is_portal, w.apple_app_id
+		       w.tls_cert_path, w.tls_key_path, w.is_portal, w.apple_app_id,
+		       w.radar_enabled, w.radar_token, w.radar_registered_at
 		FROM weather_websites w
 		LEFT JOIN devices d ON w.device_id = d.id
 		WHERE w.id = ? AND w.config_id = (SELECT id FROM configs WHERE name = 'default')`
@@ -1826,6 +1846,9 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	var airQualityEnabled sql.NullBool
 	var airQualityDeviceName sql.NullString
 	var tlsCertPath, tlsKeyPath, appleAppID sql.NullString
+	var radarEnabled sql.NullBool
+	var radarToken sql.NullString
+	var radarRegisteredAt sql.NullInt64
 
 	err := s.db.QueryRow(query, id).Scan(
 		&website.ID,
@@ -1843,6 +1866,9 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 		&tlsKeyPath,
 		&website.IsPortal,
 		&appleAppID,
+		&radarEnabled,
+		&radarToken,
+		&radarRegisteredAt,
 	)
 
 	if err != nil {
@@ -1872,6 +1898,14 @@ func (s *SQLiteProvider) GetWeatherWebsite(id int) (*WeatherWebsiteData, error) 
 	website.TLSCertPath = tlsCertPath.String
 	website.TLSKeyPath = tlsKeyPath.String
 	website.AppleAppID = appleAppID.String
+	if radarEnabled.Valid {
+		website.RadarEnabled = radarEnabled.Bool
+	}
+	website.RadarToken = radarToken.String
+	if radarRegisteredAt.Valid {
+		v := radarRegisteredAt.Int64
+		website.RadarRegisteredAt = &v
+	}
 
 	return &website, nil
 }
@@ -1999,6 +2033,40 @@ func (s *SQLiteProvider) UpdateWeatherWebsite(id int, website *WeatherWebsiteDat
 
 	website.ID = id
 	return tx.Commit()
+}
+
+// SetWebsiteRadarRegistration enables radar for a website and stores its token.
+// Radar columns are written ONLY here (and ClearWebsiteRadarRegistration) so the
+// generic website UPDATE can never clobber the token.
+func (s *SQLiteProvider) SetWebsiteRadarRegistration(id int, token string, registeredAt int64) error {
+	res, err := s.db.Exec(
+		`UPDATE weather_websites SET radar_enabled = 1, radar_token = ?, radar_registered_at = ? WHERE id = ?`,
+		token, registeredAt, id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set radar registration: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("weather website %d not found", id)
+	}
+	return nil
+}
+
+// ClearWebsiteRadarRegistration disables radar and removes the stored token.
+func (s *SQLiteProvider) ClearWebsiteRadarRegistration(id int) error {
+	res, err := s.db.Exec(
+		`UPDATE weather_websites SET radar_enabled = 0, radar_token = '', radar_registered_at = NULL WHERE id = ?`,
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to clear radar registration: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("weather website %d not found", id)
+	}
+	return nil
 }
 
 // DeleteWeatherWebsite removes a weather website from the configuration
