@@ -58,7 +58,13 @@ const ManagementWebsites = (function() {
 
       airQualityEnabled: document.getElementById('website-airquality-enabled'),
       airQualityDevice: document.getElementById('website-airquality-device'),
-      airQualityDeviceLabel: document.getElementById('airquality-device-label')
+      airQualityDeviceLabel: document.getElementById('airquality-device-label'),
+      radarStatus: document.getElementById('radar-status'),
+      radarRegisterBlock: document.getElementById('radar-register-block'),
+      radarRegisteredBlock: document.getElementById('radar-registered-block'),
+      radarAgree: document.getElementById('radar-agree'),
+      radarRegisterBtn: document.getElementById('radar-register-btn'),
+      radarDisableBtn: document.getElementById('radar-disable-btn')
     };
 
     // Portal form elements
@@ -219,9 +225,42 @@ const ManagementWebsites = (function() {
     resetWebsiteForm();
     websiteModalElements.modalTitle.textContent = 'Add Weather Website';
     websiteFormElements.formMode.value = 'add';
+    renderRadarPanel(null);
     websiteModalElements.modal.classList.remove('hidden');
     loadDeviceSelectsForWebsite();
     setupSnowToggle();
+  }
+
+  // renderRadarPanel reflects a website's radar registration state in the modal.
+  // Passing null (the add path) shows the "save first" hint.
+  function renderRadarPanel(website) {
+    const el = websiteFormElements;
+    if (!el.radarStatus) {
+      return;
+    }
+    const enabled = !!(website && website.radar_enabled);
+    const id = website && website.id;
+    el.radarAgree.checked = false;
+    el.radarRegisterBtn.disabled = true;
+
+    if (!id) {
+      el.radarStatus.textContent = 'Save the website first, then register for radar.';
+      el.radarRegisterBlock.style.display = 'none';
+      el.radarRegisteredBlock.style.display = 'none';
+      return;
+    }
+    if (enabled) {
+      const when = website.radar_registered_at
+        ? new Date(website.radar_registered_at * 1000).toLocaleString()
+        : 'unknown date';
+      el.radarStatus.textContent = `Radar enabled (registered ${when}).`;
+      el.radarRegisterBlock.style.display = 'none';
+      el.radarRegisteredBlock.style.display = 'block';
+    } else {
+      el.radarStatus.textContent = 'Radar is not enabled for this site.';
+      el.radarRegisterBlock.style.display = 'block';
+      el.radarRegisteredBlock.style.display = 'none';
+    }
   }
 
   function closeWebsiteModal() {
@@ -282,7 +321,9 @@ const ManagementWebsites = (function() {
       } else {
         websiteFormElements.airQualityDevice.style.opacity = '0.6';
       }
-      
+
+      renderRadarPanel(website);
+
       websiteModalElements.modal.classList.remove('hidden');
     } catch (err) {
       alert('Failed to load website: ' + err.message);
@@ -519,6 +560,44 @@ const ManagementWebsites = (function() {
       portalFormElements.form.addEventListener('submit', (e) => {
         e.preventDefault();
         savePortal();
+      });
+    }
+
+    // Radar registration panel
+    if (websiteFormElements.radarAgree) {
+      websiteFormElements.radarAgree.addEventListener('change', () => {
+        websiteFormElements.radarRegisterBtn.disabled = !websiteFormElements.radarAgree.checked;
+      });
+    }
+    if (websiteFormElements.radarRegisterBtn) {
+      websiteFormElements.radarRegisterBtn.addEventListener('click', async () => {
+        const id = websiteFormElements.editId.value;
+        if (!id) {
+          alert('Save the website first.');
+          return;
+        }
+        websiteFormElements.radarRegisterBtn.disabled = true;
+        try {
+          await ManagementAPIService.registerRadar(id);
+          renderRadarPanel(await ManagementAPIService.getWebsite(id));
+        } catch (err) {
+          alert('Radar registration failed: ' + err.message);
+          websiteFormElements.radarRegisterBtn.disabled = false;
+        }
+      });
+    }
+    if (websiteFormElements.radarDisableBtn) {
+      websiteFormElements.radarDisableBtn.addEventListener('click', async () => {
+        const id = websiteFormElements.editId.value;
+        if (!id) {
+          return;
+        }
+        try {
+          await ManagementAPIService.unregisterRadar(id);
+          renderRadarPanel(await ManagementAPIService.getWebsite(id));
+        } catch (err) {
+          alert('Failed to disable radar: ' + err.message);
+        }
       });
     }
   }
