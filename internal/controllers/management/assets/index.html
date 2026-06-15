@@ -751,7 +751,11 @@
 
         <fieldset>
           <legend>Weather Radar</legend>
-          <p class="help-text" id="radar-status">Radar is not enabled for this site.</p>
+          <p class="help-text">
+            Radar status:
+            <span class="status-badge status-offline" id="radar-status-badge">Not enabled</span>
+            <span id="radar-status"></span>
+          </p>
           <div id="radar-register-block">
             <p class="help-text">
               <b>Non-commercial use only.</b> These maps and weather radar are provided for personal,
@@ -762,7 +766,7 @@
               <input type="checkbox" id="radar-agree" />
               I agree to the non-commercial use terms
             </label>
-            <button type="button" id="radar-register-btn" disabled>Register for radar access</button>
+            <button type="button" id="radar-register-btn" class="primary-btn" disabled>Register for radar access</button>
           </div>
           <div id="radar-registered-block" style="display:none;">
             <button type="button" id="radar-disable-btn" class="btn-danger">Disable radar</button>
