@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/gorilla/mux"
@@ -291,4 +292,92 @@ func (h *Handlers) DeleteWeatherWebsite(w http.ResponseWriter, r *http.Request) 
 	h.sendJSON(w, map[string]interface{}{
 		"message": "Weather website deleted successfully",
 	})
+}
+
+// RegisterWebsiteRadar registers the website's hostname with the Graywolf maps
+// service (recording the non-commercial agreement) and enables radar on success.
+func (h *Handlers) RegisterWebsiteRadar(w http.ResponseWriter, r *http.Request) {
+	if h.controller.ConfigProvider.IsReadOnly() {
+		h.sendError(w, http.StatusBadRequest, "Configuration is read-only", nil)
+		return
+	}
+
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, "Invalid website ID", err)
+		return
+	}
+
+	var body struct {
+		AgreeNoncommercial bool `json:"agree_noncommercial"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		h.sendError(w, http.StatusBadRequest, "Invalid JSON", err)
+		return
+	}
+	if !body.AgreeNoncommercial {
+		h.sendError(w, http.StatusBadRequest, "Non-commercial agreement is required", nil)
+		return
+	}
+
+	website, err := h.controller.ConfigProvider.GetWeatherWebsite(id)
+	if err != nil {
+		h.sendError(w, http.StatusNotFound, "Weather website not found", err)
+		return
+	}
+	if website.Hostname == "" {
+		h.sendError(w, http.StatusBadRequest, "Website must have a hostname before enabling radar", nil)
+		return
+	}
+
+	token, err := registerRadarToken(website.Hostname)
+	if err != nil {
+		h.sendError(w, http.StatusBadGateway, "Radar registration failed", err)
+		return
+	}
+
+	now := time.Now().Unix()
+	if err := h.controller.ConfigProvider.SetWebsiteRadarRegistration(id, token, now); err != nil {
+		h.sendError(w, http.StatusInternalServerError, "Failed to save radar registration", err)
+		return
+	}
+
+	h.reloadWebsiteConfig()
+	h.sendJSON(w, map[string]interface{}{
+		"registered":          true,
+		"radar_registered_at": now,
+	})
+}
+
+// UnregisterWebsiteRadar disables radar and clears the stored token.
+func (h *Handlers) UnregisterWebsiteRadar(w http.ResponseWriter, r *http.Request) {
+	if h.controller.ConfigProvider.IsReadOnly() {
+		h.sendError(w, http.StatusBadRequest, "Configuration is read-only", nil)
+		return
+	}
+	id, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		h.sendError(w, http.StatusBadRequest, "Invalid website ID", err)
+		return
+	}
+	if err := h.controller.ConfigProvider.ClearWebsiteRadarRegistration(id); err != nil {
+		h.sendError(w, http.StatusInternalServerError, "Failed to disable radar", err)
+		return
+	}
+	h.reloadWebsiteConfig()
+	h.sendJSON(w, map[string]interface{}{"registered": false})
+}
+
+// reloadWebsiteConfig triggers the REST controller to pick up config changes,
+// matching the pattern used by Create/UpdateWeatherWebsite.
+func (h *Handlers) reloadWebsiteConfig() {
+	if h.controller.app == nil {
+		return
+	}
+	type WebsiteReloader interface{ ReloadWebsiteConfiguration() error }
+	if reloader, ok := h.controller.app.(WebsiteReloader); ok {
+		if err := reloader.ReloadWebsiteConfiguration(); err != nil {
+			h.controller.logger.Errorf("Failed to reload website configuration: %v", err)
+		}
+	}
 }

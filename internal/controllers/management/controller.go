@@ -211,6 +211,8 @@ func (c *Controller) setupRouter() *mux.Router {
 	api.HandleFunc("/config/websites/{id}", c.handlers.GetWeatherWebsite).Methods("GET")
 	api.HandleFunc("/config/websites/{id}", c.handlers.UpdateWeatherWebsite).Methods("PUT")
 	api.HandleFunc("/config/websites/{id}", c.handlers.DeleteWeatherWebsite).Methods("DELETE")
+	api.HandleFunc("/config/websites/{id}/radar/register", c.handlers.RegisterWebsiteRadar).Methods("POST")
+	api.HandleFunc("/config/websites/{id}/radar/register", c.handlers.UnregisterWebsiteRadar).Methods("DELETE")
 
 	// Testing/connectivity endpoints
 	api.HandleFunc("/test/device", c.handlers.TestDeviceConnectivity).Methods("POST")
