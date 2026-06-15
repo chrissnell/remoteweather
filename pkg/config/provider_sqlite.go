@@ -288,6 +288,7 @@ CREATE INDEX idx_storage_configs_health_last_check ON storage_configs(health_las
 CREATE INDEX idx_controller_configs_config_id ON controller_configs(config_id);
 CREATE INDEX idx_controller_configs_type ON controller_configs(config_id, controller_type);
 CREATE INDEX idx_weather_websites_config_id ON weather_websites(config_id);
+CREATE INDEX idx_weather_websites_device_id ON weather_websites(device_id);
 
 -- Remote stations table for gRPC remote station registrations
 CREATE TABLE IF NOT EXISTS remote_stations (
