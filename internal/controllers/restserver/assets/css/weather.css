@@ -1962,3 +1962,69 @@ html[data-theme="light"] .theme-toggle::before {
     grid-template-columns: 1fr;
   }
 }
+/* ---- Live radar + Air Quality row ---- */
+.radar-aq-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 16px auto 0;
+  align-items: stretch;
+}
+/* Air Quality: narrow 1x6 column on the left when paired. */
+.radar-aq-row .aq-block {
+  flex: 1 1 260px;
+  max-width: 320px;
+  margin-top: 0;
+}
+.radar-aq-row .aq-block .air-quality-metrics {
+  display: grid !important;
+  grid-template-columns: 1fr !important;   /* 1x6 */
+  gap: 8px;
+}
+/* Radar fills the rest on the right. */
+.radar-block {
+  flex: 3 1 480px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 16px;
+}
+#radar-map {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 360px;
+  aspect-ratio: 16 / 10;
+  border-radius: 6px;
+  overflow: hidden;
+}
+#radar-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+#radar-controls button {
+  min-height: 36px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+#radar-scrubber { flex: 1 1 auto; }
+#radar-timestamp { font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: right; }
+
+/* Tablet/phone: stack; radar full width, AQ back to a 2-col grid. */
+@media (max-width: 900px) {
+  .radar-aq-row { flex-direction: column; }
+  .radar-aq-row .aq-block { max-width: none; flex-basis: auto; }
+  .radar-aq-row .aq-block .air-quality-metrics {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #radar-map { min-height: 280px; aspect-ratio: 4 / 3; max-height: 70vh; }
+}
+@media (max-width: 480px) {
+  #radar-controls { flex-wrap: wrap; }
+  #radar-controls button { min-height: 44px; }   /* touch target */
+  #radar-scrubber { flex-basis: 100%; height: 28px; }
+}
