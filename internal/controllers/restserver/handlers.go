@@ -888,6 +888,10 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		Version             string
 		AerisWeatherEnabled bool
 		AppleAppID          string
+		Latitude            float64
+		Longitude           float64
+		RadarEnabled        bool
+		RadarToken          string
 	}{
 		StationName:         website.Name,
 		StationID:           primaryDevice.ID,
@@ -903,6 +907,10 @@ func (h *Handlers) ServeWeatherWebsiteTemplate(w http.ResponseWriter, req *http.
 		Version:             constants.Version,
 		AerisWeatherEnabled: primaryDevice.AerisEnabled,
 		AppleAppID:          website.AppleAppID,
+		Latitude:            primaryDevice.Latitude,
+		Longitude:           primaryDevice.Longitude,
+		RadarEnabled:        website.RadarEnabled,
+		RadarToken:          website.RadarToken,
 	}
 
 	w.Header().Set("Content-Type", "text/html")
