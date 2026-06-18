@@ -135,6 +135,16 @@ h2 {
   background: #14768c;
 }
 
+.primary-btn:disabled,
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary-btn:disabled:hover {
+  background: var(--accent);
+}
+
 .secondary-btn {
   background: #ccc;
   color: #000;

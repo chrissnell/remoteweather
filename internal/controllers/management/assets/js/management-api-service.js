@@ -281,6 +281,14 @@ const ManagementAPIService = (function() {
     }
   }
 
+  async function registerRadar(id) {
+    return await apiPost(`/config/websites/${id}/radar/register`, { agree_noncommercial: true });
+  }
+
+  async function unregisterRadar(id) {
+    return await apiDelete(`/config/websites/${id}/radar/register`);
+  }
+
   /* ---------------------------------------------------
      Logs API
   --------------------------------------------------- */
@@ -377,6 +385,8 @@ const ManagementAPIService = (function() {
     saveWebsite,
     deleteWebsite,
     savePortal,
+    registerRadar,
+    unregisterRadar,
     
     // Logs
     getLogs,

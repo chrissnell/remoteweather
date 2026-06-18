@@ -1962,3 +1962,165 @@ html[data-theme="light"] .theme-toggle::before {
     grid-template-columns: 1fr;
   }
 }
+/* ---- Live radar + Air Quality row ---- */
+.radar-aq-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 16px auto 0;
+  align-items: stretch;
+}
+/* Air Quality: narrow 1x6 column on the left when paired. */
+.radar-aq-row .aq-block {
+  flex: 1 1 260px;
+  max-width: 320px;
+  margin-top: 0;
+}
+.radar-aq-row .aq-block .air-quality-metrics {
+  display: grid !important;
+  grid-template-columns: 1fr !important;   /* 1x6 */
+  gap: 8px;
+}
+/* Radar fills the rest on the right. */
+.radar-block {
+  flex: 3 1 480px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.radar-block .group-title {
+  margin-bottom: 12px;
+}
+#radar-map {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 360px;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+}
+/* Graceful framing before the first tiles paint (JS removes .is-loading on map load). */
+#radar-map.is-loading::after {
+  content: "Loading radar\2026";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  background: var(--bg-primary);
+}
+/* Controls sit on their own surface so the bar reads as one polished unit. */
+#radar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+#radar-controls button {
+  min-height: 36px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: var(--bg-secondary);
+  color: var(--text-accent);
+  border: 1px solid var(--text-accent);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+#radar-controls button:hover {
+  background: var(--text-accent);
+  color: var(--bg-primary);
+}
+#radar-controls button:active {
+  transform: translateY(1px);
+}
+#radar-controls button:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+}
+#radar-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Custom dark-theme range slider (track + thumb), accent-colored. */
+#radar-scrubber {
+  flex: 1 1 auto;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-primary);
+  cursor: pointer;
+  outline: none;
+}
+#radar-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  border: 2px solid var(--bg-secondary);
+  box-shadow: 0 1px 3px var(--shadow);
+  transition: transform 0.15s ease;
+}
+#radar-scrubber::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+#radar-scrubber::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-primary);
+}
+#radar-scrubber::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--bg-secondary);
+  border-radius: 50%;
+  background: var(--text-accent);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+#radar-scrubber:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 4px;
+}
+#radar-timestamp {
+  font-variant-numeric: tabular-nums;
+  min-width: 4.5em;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-accent);
+}
+
+/* Tablet/phone: stack; radar full width, AQ back to a 2-col grid. */
+@media (max-width: 900px) {
+  .radar-aq-row { flex-direction: column; }
+  .radar-aq-row .aq-block { max-width: none; flex-basis: auto; }
+  .radar-aq-row .aq-block .air-quality-metrics {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #radar-map { min-height: 280px; aspect-ratio: 4 / 3; max-height: 70vh; }
+}
+@media (max-width: 480px) {
+  #radar-controls { flex-wrap: wrap; }
+  #radar-controls button { min-height: 44px; }   /* touch target */
+  #radar-scrubber { flex-basis: 100%; }
+}

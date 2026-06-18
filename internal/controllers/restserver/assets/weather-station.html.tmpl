@@ -15,7 +15,14 @@
   <link href="css/normalize.css" rel="stylesheet" type="text/css">
   <link href="css/fonts.css" rel="stylesheet" type="text/css">
   <link href="css/weather.css" rel="stylesheet" type="text/css">
-  
+
+  {{ if .RadarEnabled }}
+  <!-- Live radar: MapLibre GL JS (CDN) + the radar module -->
+  <link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet" crossorigin="anonymous">
+  <script defer src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js" crossorigin="anonymous"></script>
+  <script defer src="js/weather-radar.js"></script>
+  {{ end }}
+
   <!-- Preconnect to Highcharts CDN for faster loading -->
   <link rel="preconnect" href="https://code.highcharts.com">
   
@@ -244,10 +251,11 @@
       </div>
       {{ end }}
       
-      <!-- Air Quality Section -->
-      {{ if .AirQualityEnabled }}
-      <div class="metric-groups">
-        <div class="metric-group span-full">
+      <!-- Radar + Air Quality row (each renders independently; paired side-by-side on desktop) -->
+      {{ if or .RadarEnabled .AirQualityEnabled }}
+      <div class="radar-aq-row">
+        {{ if .AirQualityEnabled }}
+        <div class="metric-group span-full aq-block">
           <div class="group-title">AIR QUALITY</div>
           <div class="group-metrics air-quality-metrics">
             <div class="metric-item">
@@ -300,6 +308,22 @@
             </div>
           </div>
         </div>
+        {{ end }}
+        {{ if .RadarEnabled }}
+        <section id="radar-section" class="radar-block">
+          <div class="group-title">LIVE RADAR</div>
+          <div id="radar-map" class="is-loading"></div>
+          <div id="radar-controls">
+            <button type="button" id="radar-play">Play</button>
+            <button type="button" id="radar-reset">Reset</button>
+            <input type="range" id="radar-scrubber" min="0" max="0" value="0" aria-label="Radar frame">
+            <span id="radar-timestamp">--</span>
+          </div>
+          <script id="radar-config" type="application/json">
+            {"lat": {{ .Latitude }}, "lon": {{ .Longitude }}, "token": "{{ .RadarToken }}", "widthMiles": 200}
+          </script>
+        </section>
+        {{ end }}
       </div>
       {{ end }}
       
