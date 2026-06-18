@@ -748,7 +748,31 @@
             <input type="text" id="website-tls-key" placeholder="/path/to/key.pem" />
           </label>
         </fieldset>
-        
+
+        <fieldset>
+          <legend>Weather Radar</legend>
+          <p class="help-text">
+            Radar status:
+            <span class="status-badge status-offline" id="radar-status-badge">Not enabled</span>
+            <span id="radar-status"></span>
+          </p>
+          <div id="radar-register-block">
+            <p class="help-text">
+              <b>Non-commercial use only.</b> These maps and weather radar are provided for personal,
+              non-commercial use only. By enabling radar on this site you agree not to use the map or
+              radar imagery for any commercial purpose.
+            </p>
+            <label class="checkbox-label">
+              <input type="checkbox" id="radar-agree" />
+              I agree to the non-commercial use terms
+            </label>
+            <button type="button" id="radar-register-btn" class="primary-btn" disabled>Register for radar access</button>
+          </div>
+          <div id="radar-registered-block" style="display:none;">
+            <button type="button" id="radar-disable-btn" class="btn-danger">Disable radar</button>
+          </div>
+        </fieldset>
+
         <div class="modal-footer">
           <button type="button" class="secondary-btn" id="cancel-website-btn">Cancel</button>
           <button type="submit" class="primary-btn" id="save-website-btn">Save</button>
