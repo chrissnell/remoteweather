@@ -1273,11 +1273,13 @@ type AlmanacData struct {
 	DeepestSnow   *AlmanacRecord `json:"deepest_snow,omitempty"`
 	MaxSnowHour   *AlmanacRecord `json:"max_snow_hour,omitempty"`
 	MaxSnowDay    *AlmanacRecord `json:"max_snow_day,omitempty"`
+	HighSolar     *AlmanacRecord `json:"high_solar,omitempty"`
 	HighPM25      *AlmanacRecord `json:"high_pm25,omitempty"`
 	HighPM10In    *AlmanacRecord `json:"high_pm10_in,omitempty"`
 	HighCO2       *AlmanacRecord `json:"high_co2,omitempty"`
 	HighAQIPM25   *AlmanacRecord `json:"high_aqi_pm25,omitempty"`
-	// Note: HighSolar and HighAQIPM10 removed (too slow to query)
+	HighAQIPM10   *AlmanacRecord `json:"high_aqi_pm10,omitempty"`
+	HighAQIPM25In *AlmanacRecord `json:"high_aqi_pm25_in,omitempty"`
 }
 
 // AlmanacCacheRow represents a row from the almanac_cache table
@@ -1358,6 +1360,8 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 			almanac.LowBarometer = record
 		case "low_humidity":
 			almanac.LowHumidity = record
+		case "high_solar":
+			almanac.HighSolar = record
 		case "high_pm25":
 			almanac.HighPM25 = record
 		case "high_pm10_in":
@@ -1366,8 +1370,11 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 			almanac.HighCO2 = record
 		case "high_aqi_pm25":
 			almanac.HighAQIPM25 = record
+		case "high_aqi_pm10":
+			almanac.HighAQIPM10 = record
+		case "high_aqi_pm25_in":
+			almanac.HighAQIPM25In = record
 		}
-		// Note: high_solar and high_aqi_pm10 removed (too slow to compute)
 	}
 
 	// Snow metrics temporarily disabled due to performance issues
