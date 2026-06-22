@@ -2024,6 +2024,8 @@ CREATE INDEX IF NOT EXISTS weather_1d_bucket_stationname_idx ON weather_1d (stat
 CREATE INDEX IF NOT EXISTS weather_stationname_time_idx ON weather (stationname, time DESC);
 CREATE INDEX IF NOT EXISTS weather_time_stationname_idx ON weather (time DESC, stationname);
 CREATE INDEX IF NOT EXISTS weather_stationname_snowdistance_time_idx ON weather (stationname, time DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;
+-- Solar peak index for the almanac high_solar query (the only almanac metric read from the raw weather table)
+CREATE INDEX IF NOT EXISTS weather_stationname_solarwatts_idx ON weather (stationname, solarwatts DESC) WHERE solarwatts IS NOT NULL AND solarwatts > 0;
 -- Snow indexes for aggregation tables (for almanac queries)
 CREATE INDEX IF NOT EXISTS weather_1h_stationname_snowdistance_bucket_idx ON weather_1h (stationname, bucket DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;
 CREATE INDEX IF NOT EXISTS weather_1d_stationname_snowdistance_bucket_idx ON weather_1d (stationname, bucket DESC) WHERE snowdistance IS NOT NULL AND snowdistance > 0;`
