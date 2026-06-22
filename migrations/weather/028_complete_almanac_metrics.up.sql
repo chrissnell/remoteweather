@@ -7,6 +7,16 @@
 -- replaces the function so all extremes are pre-computed by the hourly job and
 -- read from almanac_cache on page load (no per-request queries against the
 -- weather table).
+
+-- Partial index so the high_solar lookup is an indexed top-1 scan instead of a
+-- full table scan. Mirrors the existing weather_stationname_snowdistance_time_idx
+-- pattern used for the snow almanac queries. The solar peak is the only metric
+-- sourced from the raw weather table (the continuous aggregates keep only a
+-- daily average of solarwatts), so this keeps the hourly refresh job cheap.
+CREATE INDEX IF NOT EXISTS weather_stationname_solarwatts_idx
+    ON weather (stationname, solarwatts DESC)
+    WHERE solarwatts IS NOT NULL AND solarwatts > 0;
+
 CREATE OR REPLACE FUNCTION refresh_almanac_cache_single(p_stationname TEXT)
 RETURNS void AS $$
 BEGIN

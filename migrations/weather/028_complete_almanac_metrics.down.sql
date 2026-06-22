@@ -100,3 +100,6 @@ $$ LANGUAGE plpgsql;
 
 -- Repopulate the cache with the reverted metric set.
 SELECT refresh_almanac_cache();
+
+-- Drop the solar lookup index (no longer needed once high_solar is gone).
+DROP INDEX IF EXISTS weather_stationname_solarwatts_idx;
