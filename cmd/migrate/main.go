@@ -144,6 +144,7 @@ func main() {
 		if err := showStatus(migrator); err != nil {
 			log.Fatalf("Status command failed: %v", err)
 		}
+		return
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", *command)
 		showHelp()
