@@ -17,6 +17,7 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
+	"github.com/chrissnell/remoteweather/pkg/aqi"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/chrissnell/remoteweather/pkg/lunar"
 	"github.com/chrissnell/remoteweather/pkg/responseformat"
@@ -1337,7 +1338,9 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Map cache rows to almanac structure
+	// Map cache rows to almanac structure. The cache stores measured extremes
+	// (including the indoor PM2.5 max); the AQI cards are derived below.
+	var highPM25In *AlmanacRecord
 	for _, row := range cacheRows {
 		record := &AlmanacRecord{
 			Value:     row.Value,
@@ -1368,12 +1371,33 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 			almanac.HighPM10In = record
 		case "high_co2":
 			almanac.HighCO2 = record
-		case "high_aqi_pm25":
-			almanac.HighAQIPM25 = record
-		case "high_aqi_pm10":
-			almanac.HighAQIPM10 = record
-		case "high_aqi_pm25_in":
-			almanac.HighAQIPM25In = record
+		case "high_pm25_in":
+			highPM25In = record
+		}
+	}
+
+	// Derive the AQI extremes from the PM extremes using the same functions the
+	// live dashboard uses, so AQI is computed in exactly one place (pkg/aqi).
+	// AQI is monotonic in PM concentration, so the peak AQI is the AQI of the
+	// peak PM, carried at that reading's timestamp.
+	if almanac.HighPM25 != nil {
+		almanac.HighAQIPM25 = &AlmanacRecord{
+			Value:     float32(getOrCalculateAQIPM25(types.Reading{PM25: almanac.HighPM25.Value})),
+			Timestamp: almanac.HighPM25.Timestamp,
+		}
+	}
+	if almanac.HighPM10In != nil {
+		almanac.HighAQIPM10 = &AlmanacRecord{
+			Value:     float32(getOrCalculateAQIPM10(types.Reading{PM10InAQIN: almanac.HighPM10In.Value})),
+			Timestamp: almanac.HighPM10In.Timestamp,
+		}
+	}
+	// The live view has no indoor-AQI path, so reuse the shared pkg/aqi formula
+	// (the same one getOrCalculateAQIPM25 calls) on the indoor PM2.5 max.
+	if highPM25In != nil {
+		almanac.HighAQIPM25In = &AlmanacRecord{
+			Value:     float32(aqi.CalculatePM25(highPM25In.Value)),
+			Timestamp: highPM25In.Timestamp,
 		}
 	}
 
@@ -1383,8 +1407,8 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	// See: https://github.com/your-repo/issues/XXX
 	_ = h.getSnowBaseDistance(website) // Keep for future use
 
-	// Note: Air quality metrics are now loaded from almanac_cache table above
-	// No need for additional queries - cache is refreshed hourly by PostgreSQL job
+	// PM/CO2 extremes come from almanac_cache (refreshed hourly); the AQI cards
+	// are derived from the PM extremes above. No per-request DB queries here.
 
 	// Set caching headers - almanac data changes infrequently
 	w.Header().Set("Content-Type", "application/json")
