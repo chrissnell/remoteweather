@@ -99,6 +99,14 @@ BEGIN
     ORDER BY max_co2 DESC NULLS LAST
     LIMIT 1;
 
+    -- Highest TVOC index - AirGradient only (stored in extrafloat3)
+    INSERT INTO almanac_cache (stationname, metric_name, value, timestamp)
+    SELECT p_stationname, 'high_tvoc', max_extrafloat3, bucket
+    FROM weather_1d
+    WHERE stationname = p_stationname AND stationtype = 'airgradient' AND max_extrafloat3 > 0
+    ORDER BY max_extrafloat3 DESC NULLS LAST
+    LIMIT 1;
+
     -- Note: AQI extremes (high_aqi_pm25 / high_aqi_pm10) are derived in
     -- GetAlmanac from the PM extremes above via pkg/aqi.
     -- Note: Snow metrics are calculated separately as they require base_distance parameter
