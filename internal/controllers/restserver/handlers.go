@@ -1291,6 +1291,28 @@ type AlmanacCacheRow struct {
 	WindDir    *float32
 }
 
+// loadAlmanacRecords returns the cached almanac extremes for a station,
+// keyed by metric name.
+func (h *Handlers) loadAlmanacRecords(stationName string) (map[string]*AlmanacRecord, error) {
+	var cacheRows []AlmanacCacheRow
+	if err := h.controller.DB.Table("almanac_cache").
+		Select("metric_name, value, timestamp, wind_dir").
+		Where("stationname = ?", stationName).
+		Scan(&cacheRows).Error; err != nil {
+		return nil, err
+	}
+
+	records := make(map[string]*AlmanacRecord, len(cacheRows))
+	for _, row := range cacheRows {
+		records[row.MetricName] = &AlmanacRecord{
+			Value:     row.Value,
+			Timestamp: row.Timestamp,
+			WindDir:   row.WindDir,
+		}
+	}
+	return records, nil
+}
+
 // GetAlmanac handles requests for almanac (all-time extreme) weather data
 // Uses pre-computed almanac_cache table for fast response times
 func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
@@ -1325,56 +1347,37 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 
 	almanac := &AlmanacData{}
 
-	// Query all almanac records from cache table in one query
-	var cacheRows []AlmanacCacheRow
-	err := h.controller.DB.Table("almanac_cache").
-		Select("metric_name, value, timestamp, wind_dir").
-		Where("stationname = ?", stationName).
-		Scan(&cacheRows).Error
-
+	// Weather extremes come from the station being viewed.
+	records, err := h.loadAlmanacRecords(stationName)
 	if err != nil {
 		log.Error("error querying almanac cache:", err)
 		http.Error(w, "error querying almanac data", http.StatusInternalServerError)
 		return
 	}
 
-	// Map cache rows to almanac structure. The cache stores measured extremes
-	// (including the indoor PM2.5 max); the AQI cards are derived below.
-	var highPM25In *AlmanacRecord
-	for _, row := range cacheRows {
-		record := &AlmanacRecord{
-			Value:     row.Value,
-			Timestamp: row.Timestamp,
-			WindDir:   row.WindDir,
-		}
+	almanac.HighTemp = records["high_temp"]
+	almanac.LowTemp = records["low_temp"]
+	almanac.HighWindSpeed = records["high_wind_speed"]
+	almanac.MaxRainHour = records["max_rain_hour"]
+	almanac.MaxRainDay = records["max_rain_day"]
+	almanac.LowBarometer = records["low_barometer"]
+	almanac.LowHumidity = records["low_humidity"]
+	almanac.HighSolar = records["high_solar"]
 
-		switch row.MetricName {
-		case "high_temp":
-			almanac.HighTemp = record
-		case "low_temp":
-			almanac.LowTemp = record
-		case "high_wind_speed":
-			almanac.HighWindSpeed = record
-		case "max_rain_hour":
-			almanac.MaxRainHour = record
-		case "max_rain_day":
-			almanac.MaxRainDay = record
-		case "low_barometer":
-			almanac.LowBarometer = record
-		case "low_humidity":
-			almanac.LowHumidity = record
-		case "high_solar":
-			almanac.HighSolar = record
-		case "high_pm25":
-			almanac.HighPM25 = record
-		case "high_pm10_in":
-			almanac.HighPM10In = record
-		case "high_co2":
-			almanac.HighCO2 = record
-		case "high_pm25_in":
-			highPM25In = record
+	// Air quality is often a separate device from the main weather station, so
+	// pull the AQ extremes from the website's configured air quality device.
+	aqRecords := records
+	if website.AirQualityDeviceName != "" && website.AirQualityDeviceName != stationName {
+		if r, aqErr := h.loadAlmanacRecords(website.AirQualityDeviceName); aqErr == nil {
+			aqRecords = r
+		} else {
+			log.Error("error querying air quality almanac cache:", aqErr)
 		}
 	}
+	almanac.HighPM25 = aqRecords["high_pm25"]
+	almanac.HighPM10In = aqRecords["high_pm10_in"]
+	almanac.HighCO2 = aqRecords["high_co2"]
+	highPM25In := aqRecords["high_pm25_in"]
 
 	// Derive the AQI extremes from the PM extremes using the same functions the
 	// live dashboard uses, so AQI is computed in exactly one place (pkg/aqi).
