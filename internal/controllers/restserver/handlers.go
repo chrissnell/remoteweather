@@ -1277,6 +1277,7 @@ type AlmanacData struct {
 	HighPM25      *AlmanacRecord `json:"high_pm25,omitempty"`
 	HighPM10In    *AlmanacRecord `json:"high_pm10_in,omitempty"`
 	HighCO2       *AlmanacRecord `json:"high_co2,omitempty"`
+	HighTVOC      *AlmanacRecord `json:"high_tvoc,omitempty"`
 	HighAQIPM25   *AlmanacRecord `json:"high_aqi_pm25,omitempty"`
 	HighAQIPM10   *AlmanacRecord `json:"high_aqi_pm10,omitempty"`
 }
@@ -1379,6 +1380,7 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	almanac.HighPM25 = aqRecords["high_pm25"]
 	almanac.HighPM10In = aqRecords["high_pm10_in"]
 	almanac.HighCO2 = aqRecords["high_co2"]
+	almanac.HighTVOC = aqRecords["high_tvoc"]
 
 	// Derive the AQI extremes from the PM extremes using the same functions the
 	// live dashboard uses, so AQI is computed in exactly one place (pkg/aqi).
