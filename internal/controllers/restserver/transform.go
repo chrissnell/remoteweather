@@ -225,7 +225,9 @@ func getOrCalculateAQIPM10(r types.Reading) int32 {
 	if r.AQIPM10AQIN > 0 {
 		return r.AQIPM10AQIN
 	}
-	// PM10 isn't currently in the Reading struct, so return 0
-	// TODO: Add PM10 field to Reading struct if PM10 sensors are added
+	// Otherwise calculate from PM10 if available
+	if r.PM10InAQIN > 0 {
+		return aqi.CalculatePM10(r.PM10InAQIN)
+	}
 	return 0
 }
