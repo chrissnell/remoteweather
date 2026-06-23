@@ -1370,6 +1370,10 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	if website.AirQualityDeviceName != "" && website.AirQualityDeviceName != stationName {
 		if r, aqErr := h.loadAlmanacRecords(website.AirQualityDeviceName); aqErr == nil {
 			aqRecords = r
+			if len(r) == 0 {
+				log.Infof("almanac: air quality device %q (website %q) has no cached extremes",
+					website.AirQualityDeviceName, website.Name)
+			}
 		} else {
 			log.Error("error querying air quality almanac cache:", aqErr)
 		}
