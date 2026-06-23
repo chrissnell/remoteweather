@@ -17,7 +17,6 @@ import (
 	"github.com/chrissnell/remoteweather/internal/database"
 	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/internal/types"
-	"github.com/chrissnell/remoteweather/pkg/aqi"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"github.com/chrissnell/remoteweather/pkg/lunar"
 	"github.com/chrissnell/remoteweather/pkg/responseformat"
@@ -1278,9 +1277,9 @@ type AlmanacData struct {
 	HighPM25      *AlmanacRecord `json:"high_pm25,omitempty"`
 	HighPM10In    *AlmanacRecord `json:"high_pm10_in,omitempty"`
 	HighCO2       *AlmanacRecord `json:"high_co2,omitempty"`
+	HighTVOC      *AlmanacRecord `json:"high_tvoc,omitempty"`
 	HighAQIPM25   *AlmanacRecord `json:"high_aqi_pm25,omitempty"`
 	HighAQIPM10   *AlmanacRecord `json:"high_aqi_pm10,omitempty"`
-	HighAQIPM25In *AlmanacRecord `json:"high_aqi_pm25_in,omitempty"`
 }
 
 // AlmanacCacheRow represents a row from the almanac_cache table
@@ -1381,7 +1380,7 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 	almanac.HighPM25 = aqRecords["high_pm25"]
 	almanac.HighPM10In = aqRecords["high_pm10_in"]
 	almanac.HighCO2 = aqRecords["high_co2"]
-	highPM25In := aqRecords["high_pm25_in"]
+	almanac.HighTVOC = aqRecords["high_tvoc"]
 
 	// Derive the AQI extremes from the PM extremes using the same functions the
 	// live dashboard uses, so AQI is computed in exactly one place (pkg/aqi).
@@ -1397,14 +1396,6 @@ func (h *Handlers) GetAlmanac(w http.ResponseWriter, req *http.Request) {
 		almanac.HighAQIPM10 = &AlmanacRecord{
 			Value:     float32(getOrCalculateAQIPM10(types.Reading{PM10InAQIN: almanac.HighPM10In.Value})),
 			Timestamp: almanac.HighPM10In.Timestamp,
-		}
-	}
-	// The live view has no indoor-AQI path, so reuse the shared pkg/aqi formula
-	// (the same one getOrCalculateAQIPM25 calls) on the indoor PM2.5 max.
-	if highPM25In != nil {
-		almanac.HighAQIPM25In = &AlmanacRecord{
-			Value:     float32(aqi.CalculatePM25(highPM25In.Value)),
-			Timestamp: highPM25In.Timestamp,
 		}
 	}
 
