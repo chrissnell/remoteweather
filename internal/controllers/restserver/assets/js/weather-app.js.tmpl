@@ -169,15 +169,28 @@ const WeatherApp = (function() {
             return `${directions[index]} (${Math.round(degrees)}°)`;
         };
 
-        // Helper function to update metric
+        // Helper function to show/hide a metric card based on data availability
+        const setCardVisible = (valueEl, visible) => {
+            const card = valueEl ? valueEl.closest('.metric-item') : null;
+            if (card) card.style.display = visible ? '' : 'none';
+        };
+
+        // Helper function to update metric; hides the card when the station has
+        // no record for it (no sensor) instead of showing a placeholder.
         const updateMetric = (valueId, timeId, record, precision = 1) => {
             const valueEl = document.getElementById(valueId);
             const timeEl = document.getElementById(timeId);
 
-            if (valueEl && record) {
+            if (!record) {
+                setCardVisible(valueEl, false);
+                return;
+            }
+            setCardVisible(valueEl, true);
+
+            if (valueEl) {
                 valueEl.textContent = record.value.toFixed(precision);
             }
-            if (timeEl && record) {
+            if (timeEl) {
                 timeEl.textContent = formatTimestamp(record.timestamp);
             }
         };
@@ -191,9 +204,10 @@ const WeatherApp = (function() {
         updateMetric('almanac-high-solar', 'almanac-high-solar-time', almanac.high_solar, 0);
         updateMetric('almanac-low-humidity', 'almanac-low-humidity-time', almanac.low_humidity, 0);
 
-        // Update wind with direction
+        // Update wind with direction (own block due to the extra direction field)
+        const windValueEl = document.getElementById('almanac-high-wind');
         if (almanac.high_wind_speed) {
-            const windValueEl = document.getElementById('almanac-high-wind');
+            setCardVisible(windValueEl, true);
             const windDirEl = document.getElementById('almanac-high-wind-dir');
             const windTimeEl = document.getElementById('almanac-high-wind-time');
 
@@ -202,6 +216,8 @@ const WeatherApp = (function() {
                 windDirEl.textContent = `from ${getWindDirection(almanac.high_wind_speed.wind_dir)}`;
             }
             if (windTimeEl) windTimeEl.textContent = formatTimestamp(almanac.high_wind_speed.timestamp);
+        } else {
+            setCardVisible(windValueEl, false);
         }
 
         // Update snow metrics if enabled
