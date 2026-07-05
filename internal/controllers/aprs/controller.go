@@ -28,15 +28,15 @@ import (
 
 // Controller holds general configuration related to our APRS/CWOP transmissions
 type Controller struct {
-	ctx              context.Context
-	cancel           context.CancelFunc
-	configProvider   config.ConfigProvider
-	DB               *database.Client
-	stationManager   interfaces.WeatherStationManager
-	wg               *sync.WaitGroup
-	logger           *zap.SugaredLogger
-	running          bool
-	runningMutex     sync.RWMutex
+	ctx            context.Context
+	cancel         context.CancelFunc
+	configProvider config.ConfigProvider
+	DB             *database.Client
+	stationManager interfaces.WeatherStationManager
+	wg             *sync.WaitGroup
+	logger         *zap.SugaredLogger
+	running        bool
+	runningMutex   sync.RWMutex
 }
 
 // New creates a new APRS controller
@@ -94,7 +94,7 @@ func (a *Controller) StartController() error {
 
 	log.Info("Starting APRS controller...")
 	a.ctx, a.cancel = context.WithCancel(context.Background())
-	
+
 	// Start sending reports for all APRS-enabled devices
 	go a.sendReports(a.ctx, a.wg)
 
@@ -118,7 +118,7 @@ func (a *Controller) Start(ctx context.Context) error {
 
 	log.Info("Starting APRS controller...")
 	a.ctx, a.cancel = context.WithCancel(ctx)
-	
+
 	// Start sending reports for all APRS-enabled devices
 	go a.sendReports(a.ctx, a.wg)
 
@@ -177,7 +177,6 @@ func (a *Controller) GetHealth() map[string]interface{} {
 	return health
 }
 
-
 func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
@@ -192,7 +191,7 @@ func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 	// Count APRS-enabled devices
 	enabledCount := 0
 	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" && 
+		if device.APRSEnabled && device.APRSCallsign != "" &&
 			device.Latitude != 0 && device.Longitude != 0 {
 			enabledCount++
 		}
@@ -207,14 +206,14 @@ func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
 
 	// Start a goroutine for each APRS-enabled device
 	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" && 
+		if device.APRSEnabled && device.APRSCallsign != "" &&
 			device.Latitude != 0 && device.Longitude != 0 {
 			// Create a copy for the closure
 			deviceCopy := device
-			
-			log.Infof("Starting APRS reporting for device: %s (Callsign: %s)", 
+
+			log.Infof("Starting APRS reporting for device: %s (Callsign: %s)",
 				device.Name, device.APRSCallsign)
-			
+
 			// Start monitoring in separate goroutine
 			go a.sendDeviceReports(ctx, wg, deviceCopy)
 		}
@@ -233,7 +232,7 @@ func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, 
 	select {
 	case <-initialTimer.C:
 		log.Debugf("Sending initial APRS report for %s", device.Name)
-		a.sendStationReadingToAPRSIS(ctx, wg, device)
+		a.sendStationReading(ctx, wg, device)
 	case <-ctx.Done():
 		initialTimer.Stop()
 		return
@@ -244,7 +243,7 @@ func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, 
 		select {
 		case <-ticker.C:
 			log.Debugf("Sending APRS report for %s", device.Name)
-			a.sendStationReadingToAPRSIS(ctx, wg, device)
+			a.sendStationReading(ctx, wg, device)
 		case <-ctx.Done():
 			log.Infof("Stopping APRS reports for %s", device.Name)
 			return
@@ -252,12 +251,14 @@ func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, 
 	}
 }
 
-func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.WaitGroup, device config.DeviceData) {
+// sendStationReading fetches the latest reading for a device and transmits an
+// APRS weather report over the device's configured transport (APRS-IS or KISS).
+func (a *Controller) sendStationReading(ctx context.Context, wg *sync.WaitGroup, device config.DeviceData) {
 	wg.Add(1)
 	defer wg.Done()
 
-	// Check if station has Weather capability
-	// APRS-IS is for weather data only, not snow or air quality
+	// Check if station has Weather capability.
+	// APRS is for weather data only, not snow or air quality.
 	station := a.stationManager.GetStation(device.Name)
 	if station == nil {
 		log.Debugf("Station %s not found in station manager, skipping APRS report", device.Name)
@@ -290,9 +291,19 @@ func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.Wa
 		windGustResult.WindGust = 0
 	}
 
+	// Dispatch on the configured transport.
+	if strings.ToLower(device.APRSTransport) == transportKISS {
+		a.sendReadingViaKISS(ctx, device, reading, windGustResult.WindGust)
+		return
+	}
+	a.sendReadingToAPRSIS(ctx, device, reading, windGustResult.WindGust)
+}
+
+// sendReadingToAPRSIS transmits a weather report to APRS-IS over TCP.
+func (a *Controller) sendReadingToAPRSIS(ctx context.Context, device config.DeviceData, reading database.FetchedBucketReading, windGust float32) {
 	connectionTimeout := 3 * time.Second
 
-	pkt := a.CreateCompleteWeatherReport(device, reading, windGustResult.WindGust, '/', '_')
+	pkt := a.CreateCompleteWeatherReport(device, reading, windGust, '/', '_')
 	log.Debugf("sending reading to APRS-IS for station %s: %+v", device.Name, pkt)
 
 	// Use device's APRS server or default
@@ -371,14 +382,20 @@ func (a *Controller) sendStationReadingToAPRSIS(ctx context.Context, wg *sync.Wa
 	conn.Write([]byte(pkt + "\r\n"))
 }
 
-
-// CreateCompleteWeatherReport creates an APRS weather report with compressed position
-// report included.
+// CreateCompleteWeatherReport creates an APRS weather report in TNC2 format,
+// suitable for transmission to APRS-IS.
 func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, reading database.FetchedBucketReading, windGust float32, symTable, symCode rune) string {
-	var buffer bytes.Buffer
-
-	// Build callsign and position
 	callsign := strings.ToUpper(device.APRSCallsign)
+	info := a.buildWeatherReportInfo(device, reading, windGust, symTable, symCode)
+	// Callsign, then the APRS-IS path, then the info payload.
+	return callsign + ">APRS,TCPIP:" + info
+}
+
+// buildWeatherReportInfo builds the APRS information field for a weather report
+// (the payload following the TNC2 header). It is transport-agnostic and reused
+// by both the APRS-IS and KISS paths so both carry identical weather data.
+func (a *Controller) buildWeatherReportInfo(device config.DeviceData, reading database.FetchedBucketReading, windGust float32, symTable, symCode rune) string {
+	var buffer bytes.Buffer
 
 	// Use device-specific symbol table/code if available
 	if device.APRSSymbolTable != "" && len(device.APRSSymbolTable) > 0 {
@@ -390,12 +407,6 @@ func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, readi
 
 	latAPRS := convertLatitudeToAPRSFormat(device.Latitude)
 	lonAPRS := convertLongitudeToAPRSFormat(device.Longitude)
-
-	// Our callsign comes first.
-	buffer.WriteString(callsign)
-
-	// Then we add our APRS path
-	buffer.WriteString(">APRS,TCPIP:")
 
 	// Next byte in our compressed weather report is the data type indicator.
 	// The rune '!' indicates a real-time compressed position report
@@ -435,7 +446,7 @@ func (a *Controller) CreateCompleteWeatherReport(device config.DeviceData, readi
 	buffer.WriteString((fmt.Sprintf("b%05d", int64(reading.Barometer*33.8638866666667*10))))
 
 	buffer.WriteString("." + "remoteweather-" + constants.Version)
-	
+
 	// Add device-specific comment if configured
 	if device.APRSComment != "" {
 		buffer.WriteString(" " + device.APRSComment)
@@ -621,31 +632,48 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 		health.Message = "Failed to load device configurations"
 		health.Error = err.Error()
 	} else {
-		// Count enabled devices and test first one
+		// Count enabled devices, split by transport. The APRS-IS login test only
+		// applies to APRS-IS devices; KISS devices talk to a local/remote TNC.
 		enabledCount := 0
-		var firstDevice *config.DeviceData
+		aprsISCount := 0
+		kissCount := 0
+		var kissConfigErr error
 		for _, device := range devices {
 			if device.APRSEnabled && device.APRSCallsign != "" {
 				enabledCount++
-				if firstDevice == nil {
-					firstDevice = &device
+				if strings.ToLower(device.APRSTransport) == transportKISS {
+					kissCount++
+					if err := validateKISSConfig(device); err != nil && kissConfigErr == nil {
+						kissConfigErr = err
+					}
+				} else {
+					aprsISCount++
 				}
 			}
 		}
-		
-		if enabledCount == 0 {
+
+		switch {
+		case enabledCount == 0:
 			health.Status = "unhealthy"
 			health.Message = "No APRS-enabled devices found"
-		} else {
-			// Test login with first device
+		case kissConfigErr != nil:
+			health.Status = "unhealthy"
+			health.Message = fmt.Sprintf("KISS device misconfigured (%d KISS device(s))", kissCount)
+			health.Error = kissConfigErr.Error()
+		case aprsISCount == 0:
+			// Only KISS devices, all validly configured; no APRS-IS server to test.
+			health.Status = "healthy"
+			health.Message = fmt.Sprintf("KISS transport configured (%d device(s))", kissCount)
+		default:
+			// Test login with the first APRS-IS device.
 			err := a.testAPRSISLogin(configProvider)
 			if err != nil {
 				health.Status = "unhealthy"
-				health.Message = fmt.Sprintf("APRS-IS login test failed for %d enabled device(s)", enabledCount)
+				health.Message = fmt.Sprintf("APRS-IS login test failed for %d device(s)", aprsISCount)
 				health.Error = err.Error()
 			} else {
 				health.Status = "healthy"
-				health.Message = fmt.Sprintf("APRS-IS login test successful (%d enabled device(s))", enabledCount)
+				health.Message = fmt.Sprintf("APRS-IS login test successful (%d device(s), %d KISS device(s))", aprsISCount, kissCount)
 			}
 		}
 	}
@@ -668,7 +696,8 @@ func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error
 	var aprsCallsign string
 	var aprsServer string
 	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" {
+		if device.APRSEnabled && device.APRSCallsign != "" &&
+			strings.ToLower(device.APRSTransport) != transportKISS {
 			aprsCallsign = device.APRSCallsign
 			aprsServer = device.APRSServer
 			if aprsServer == "" {
@@ -679,7 +708,7 @@ func (a *Controller) testAPRSISLogin(configProvider config.ConfigProvider) error
 	}
 
 	if aprsCallsign == "" {
-		return fmt.Errorf("no enabled APRS device found")
+		return fmt.Errorf("no enabled APRS-IS device found")
 	}
 
 	// Test connection to APRS-IS server

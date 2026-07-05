@@ -269,17 +269,59 @@
                       <input type="text" id="aprs-callsign" placeholder="N0CALL" />
                     </label>
                     <label>
-                      Server
-                      <select id="aprs-server">
-                        <option value="noam.aprs2.net:14580">noam.aprs2.net (North America)</option>
-                        <option value="soam.aprs2.net:14580">soam.aprs2.net (South America)</option>
-                        <option value="euro.aprs2.net:14580">euro.aprs2.net (Europe & Africa)</option>
-                        <option value="asia.aprs2.net:14580">asia.aprs2.net (Asia)</option>
-                        <option value="aunz.aprs2.net:14580">aunz.aprs2.net (Oceania)</option>
-                        <option value="cwop.aprs.net:14580">cwop.aprs.net (CWOP)</option>
+                      Transport
+                      <select id="aprs-transport">
+                        <option value="aprs-is">APRS-IS (Internet)</option>
+                        <option value="kiss">KISS TNC (RF)</option>
                       </select>
                     </label>
-                    <p class="help-text">APRS will use the latitude and longitude from Station Location. The passcode will be calculated automatically from your callsign.</p>
+                    <div id="aprs-is-fields">
+                      <label>
+                        Server
+                        <select id="aprs-server">
+                          <option value="noam.aprs2.net:14580">noam.aprs2.net (North America)</option>
+                          <option value="soam.aprs2.net:14580">soam.aprs2.net (South America)</option>
+                          <option value="euro.aprs2.net:14580">euro.aprs2.net (Europe & Africa)</option>
+                          <option value="asia.aprs2.net:14580">asia.aprs2.net (Asia)</option>
+                          <option value="aunz.aprs2.net:14580">aunz.aprs2.net (Oceania)</option>
+                          <option value="cwop.aprs.net:14580">cwop.aprs.net (CWOP)</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div id="aprs-kiss-fields" class="hidden">
+                      <label>
+                        Connection
+                        <select id="aprs-kiss-connection">
+                          <option value="serial">Serial</option>
+                          <option value="tcp">Network (TCP)</option>
+                        </select>
+                      </label>
+                      <div id="aprs-kiss-serial-fields">
+                        <label>
+                          Serial Device
+                          <input type="text" id="aprs-kiss-serial-device" placeholder="/dev/ttyUSB0" />
+                        </label>
+                        <label>
+                          Baud Rate
+                          <input type="number" id="aprs-kiss-serial-baud" placeholder="9600" />
+                        </label>
+                      </div>
+                      <div id="aprs-kiss-tcp-fields" class="hidden">
+                        <label>
+                          TNC Address
+                          <input type="text" id="aprs-kiss-tcp-address" placeholder="127.0.0.1:8001" />
+                        </label>
+                      </div>
+                      <label>
+                        Digipeater Path
+                        <input type="text" id="aprs-kiss-path" placeholder="WIDE1-1,WIDE2-1" />
+                      </label>
+                      <label>
+                        Destination
+                        <input type="text" id="aprs-kiss-destination" placeholder="APRS" />
+                      </label>
+                    </div>
+                    <p class="help-text">APRS will use the latitude and longitude from Station Location. For APRS-IS, the passcode is calculated automatically from your callsign. For KISS, a licensed callsign (with optional SSID, e.g. N0CALL-13) is transmitted over RF via your TNC.</p>
                   </div>
                 </div>
               </div>
