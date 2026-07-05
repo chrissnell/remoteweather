@@ -26,6 +26,24 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// aprsInitialDelay is how long a per-device worker waits before sending its
+	// first report after starting.
+	aprsInitialDelay = 15 * time.Second
+	// aprsSendInterval is how often each device transmits a weather report.
+	aprsSendInterval = 5 * time.Minute
+	// aprsReconcileInterval is how often the supervisor re-reads the device list
+	// to start/stop workers as devices are enabled or disabled in the UI.
+	aprsReconcileInterval = 1 * time.Minute
+)
+
+// aprsDeviceReady reports whether a device is fully configured for APRS
+// reporting (enabled, has a callsign, and has a valid position).
+func aprsDeviceReady(device config.DeviceData) bool {
+	return device.APRSEnabled && device.APRSCallsign != "" &&
+		device.Latitude != 0 && device.Longitude != 0
+}
+
 // Controller holds general configuration related to our APRS/CWOP transmissions
 type Controller struct {
 	ctx            context.Context
@@ -68,8 +86,7 @@ func New(configProvider config.ConfigProvider, stationManager interfaces.Weather
 	// Check if any device has APRS enabled
 	hasAPRSDevice := false
 	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" &&
-			device.Latitude != 0 && device.Longitude != 0 {
+		if aprsDeviceReady(device) {
 			hasAPRSDevice = true
 			break
 		}
@@ -96,6 +113,7 @@ func (a *Controller) StartController() error {
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 
 	// Start sending reports for all APRS-enabled devices
+	a.wg.Add(1)
 	go a.sendReports(a.ctx, a.wg)
 
 	// Start health monitoring
@@ -120,6 +138,7 @@ func (a *Controller) Start(ctx context.Context) error {
 	a.ctx, a.cancel = context.WithCancel(ctx)
 
 	// Start sending reports for all APRS-enabled devices
+	a.wg.Add(1)
 	go a.sendReports(a.ctx, a.wg)
 
 	// Start health monitoring
@@ -177,78 +196,114 @@ func (a *Controller) GetHealth() map[string]interface{} {
 	return health
 }
 
+// sendReports supervises per-device reporting workers. It reconciles the set of
+// running workers against the current device configuration on a fixed interval,
+// so devices that are enabled or disabled in the management UI are picked up
+// without a full service restart. Per-cycle config re-reads (see
+// sendReportForDevice) handle edits to an already-running device's settings.
 func (a *Controller) sendReports(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
 	defer wg.Done()
 
-	// Get all APRS-enabled devices
+	// workers maps device name to the cancel func for its reporting goroutine.
+	workers := make(map[string]context.CancelFunc)
+
+	a.reconcileWorkers(ctx, wg, workers)
+
+	ticker := time.NewTicker(aprsReconcileInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			a.reconcileWorkers(ctx, wg, workers)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// reconcileWorkers starts a worker for each newly APRS-ready device and stops
+// workers for devices that are no longer APRS-ready or have been removed.
+func (a *Controller) reconcileWorkers(ctx context.Context, wg *sync.WaitGroup, workers map[string]context.CancelFunc) {
 	devices, err := a.configProvider.GetDevices()
 	if err != nil {
 		log.Errorf("Error getting devices: %v", err)
 		return
 	}
 
-	// Count APRS-enabled devices
-	enabledCount := 0
+	enabled := make(map[string]struct{})
 	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" &&
-			device.Latitude != 0 && device.Longitude != 0 {
-			enabledCount++
+		if !aprsDeviceReady(device) {
+			continue
 		}
+		enabled[device.Name] = struct{}{}
+		if _, running := workers[device.Name]; running {
+			continue
+		}
+		deviceCtx, cancel := context.WithCancel(ctx)
+		workers[device.Name] = cancel
+		log.Infof("Starting APRS reporting for device: %s (Callsign: %s)",
+			device.Name, device.APRSCallsign)
+		// Add to the WaitGroup before spawning so it can never race with Stop's Wait.
+		wg.Add(1)
+		go a.sendDeviceReports(deviceCtx, wg, device.Name)
 	}
 
-	if enabledCount == 0 {
-		log.Info("No APRS enabled devices found")
-		return
-	}
-
-	log.Infof("Found %d APRS enabled device(s)", enabledCount)
-
-	// Start a goroutine for each APRS-enabled device
-	for _, device := range devices {
-		if device.APRSEnabled && device.APRSCallsign != "" &&
-			device.Latitude != 0 && device.Longitude != 0 {
-			// Create a copy for the closure
-			deviceCopy := device
-
-			log.Infof("Starting APRS reporting for device: %s (Callsign: %s)",
-				device.Name, device.APRSCallsign)
-
-			// Start monitoring in separate goroutine
-			go a.sendDeviceReports(ctx, wg, deviceCopy)
+	for name, cancel := range workers {
+		if _, ok := enabled[name]; ok {
+			continue
 		}
+		log.Infof("Stopping APRS reporting for device: %s (no longer APRS-enabled)", name)
+		cancel()
+		delete(workers, name)
 	}
 }
 
-func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, device config.DeviceData) {
-	wg.Add(1)
+func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, name string) {
 	defer wg.Done()
 
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(aprsSendInterval)
 	defer ticker.Stop()
 
-	// Send initial report after 15 seconds
-	initialTimer := time.NewTimer(15 * time.Second)
+	// Send initial report after a short delay.
+	initialTimer := time.NewTimer(aprsInitialDelay)
 	select {
 	case <-initialTimer.C:
-		log.Debugf("Sending initial APRS report for %s", device.Name)
-		a.sendStationReading(ctx, wg, device)
+		a.sendReportForDevice(ctx, wg, name)
 	case <-ctx.Done():
 		initialTimer.Stop()
 		return
 	}
 
-	// Continue with regular reports
+	// Continue with regular reports.
 	for {
 		select {
 		case <-ticker.C:
-			log.Debugf("Sending APRS report for %s", device.Name)
-			a.sendStationReading(ctx, wg, device)
+			a.sendReportForDevice(ctx, wg, name)
 		case <-ctx.Done():
-			log.Infof("Stopping APRS reports for %s", device.Name)
+			log.Infof("Stopping APRS reports for %s", name)
 			return
 		}
 	}
+}
+
+// sendReportForDevice re-reads the device's current configuration and, if it is
+// still APRS-ready, transmits a report. Re-reading each cycle means UI edits to
+// transport/callsign/server/KISS settings take effect on the next cycle without
+// a service restart. GetDevice bypasses the config cache, so the read is always
+// current.
+func (a *Controller) sendReportForDevice(ctx context.Context, wg *sync.WaitGroup, name string) {
+	device, err := a.configProvider.GetDevice(name)
+	if err != nil || device == nil {
+		log.Debugf("Skipping APRS report for %s: device unavailable: %v", name, err)
+		return
+	}
+	if !aprsDeviceReady(*device) {
+		log.Debugf("Skipping APRS report for %s: device no longer APRS-ready", name)
+		return
+	}
+	log.Debugf("Sending APRS report for %s", name)
+	a.sendStationReading(ctx, wg, *device)
 }
 
 // sendStationReading fetches the latest reading for a device and transmits an
