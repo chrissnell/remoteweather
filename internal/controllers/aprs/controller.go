@@ -637,11 +637,15 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 		enabledCount := 0
 		aprsISCount := 0
 		kissCount := 0
+		var kissConfigErr error
 		for _, device := range devices {
 			if device.APRSEnabled && device.APRSCallsign != "" {
 				enabledCount++
 				if strings.ToLower(device.APRSTransport) == transportKISS {
 					kissCount++
+					if err := validateKISSConfig(device); err != nil && kissConfigErr == nil {
+						kissConfigErr = err
+					}
 				} else {
 					aprsISCount++
 				}
@@ -652,8 +656,12 @@ func (a *Controller) updateHealthStatus(configProvider config.ConfigProvider) {
 		case enabledCount == 0:
 			health.Status = "unhealthy"
 			health.Message = "No APRS-enabled devices found"
+		case kissConfigErr != nil:
+			health.Status = "unhealthy"
+			health.Message = fmt.Sprintf("KISS device misconfigured (%d KISS device(s))", kissCount)
+			health.Error = kissConfigErr.Error()
 		case aprsISCount == 0:
-			// Only KISS devices; no APRS-IS server to test.
+			// Only KISS devices, all validly configured; no APRS-IS server to test.
 			health.Status = "healthy"
 			health.Message = fmt.Sprintf("KISS transport configured (%d device(s))", kissCount)
 		default:

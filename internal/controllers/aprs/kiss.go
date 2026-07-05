@@ -71,13 +71,34 @@ func (a *Controller) sendKISSFrame(ctx context.Context, device config.DeviceData
 	return nil
 }
 
-// openKISSConnection dials the TNC over serial or TCP based on device config.
-func openKISSConnection(ctx context.Context, device config.DeviceData) (io.ReadWriteCloser, error) {
+// validateKISSConfig reports whether a device's KISS connection settings are
+// complete enough to open a connection, without performing any I/O. It is used
+// both by the health monitor and as a precondition in openKISSConnection.
+func validateKISSConfig(device config.DeviceData) error {
 	switch strings.ToLower(device.APRSKISSConnection) {
 	case kissConnectionSerial:
 		if device.APRSKISSSerialDevice == "" {
-			return nil, fmt.Errorf("KISS serial connection requires aprs_kiss_serial_device")
+			return fmt.Errorf("KISS serial connection requires aprs_kiss_serial_device")
 		}
+	case kissConnectionTCP:
+		if device.APRSKISSTCPAddress == "" {
+			return fmt.Errorf("KISS tcp connection requires aprs_kiss_tcp_address")
+		}
+	default:
+		return fmt.Errorf("invalid KISS connection type %q (must be %q or %q)",
+			device.APRSKISSConnection, kissConnectionSerial, kissConnectionTCP)
+	}
+	return nil
+}
+
+// openKISSConnection dials the TNC over serial or TCP based on device config.
+func openKISSConnection(ctx context.Context, device config.DeviceData) (io.ReadWriteCloser, error) {
+	if err := validateKISSConfig(device); err != nil {
+		return nil, err
+	}
+
+	switch strings.ToLower(device.APRSKISSConnection) {
+	case kissConnectionSerial:
 		baud := device.APRSKISSSerialBaud
 		if baud <= 0 {
 			baud = defaultKISSBaud
@@ -89,20 +110,13 @@ func openKISSConnection(ctx context.Context, device config.DeviceData) (io.ReadW
 		}
 		return port, nil
 
-	case kissConnectionTCP:
-		if device.APRSKISSTCPAddress == "" {
-			return nil, fmt.Errorf("KISS tcp connection requires aprs_kiss_tcp_address")
-		}
+	default: // kissConnectionTCP (validated above)
 		dialer := net.Dialer{Timeout: 3 * time.Second}
 		conn, err := dialer.DialContext(ctx, "tcp", device.APRSKISSTCPAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to TNC %s: %w", device.APRSKISSTCPAddress, err)
 		}
 		return conn, nil
-
-	default:
-		return nil, fmt.Errorf("invalid KISS connection type %q (must be %q or %q)",
-			device.APRSKISSConnection, kissConnectionSerial, kissConnectionTCP)
 	}
 }
 

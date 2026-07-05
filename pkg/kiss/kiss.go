@@ -46,7 +46,10 @@ func EncodeAX25UI(source, dest string, path []string, info []byte) ([]byte, erro
 	var frame []byte
 	for i, a := range addrs {
 		last := i == len(addrs)-1
-		enc, err := encodeAddress(a, last)
+		// The command/response C bit (bit 7 of the SSID octet) marks a UI command
+		// frame: set on the destination address, clear on source and digipeaters.
+		command := i == 0
+		enc, err := encodeAddress(a, last, command)
 		if err != nil {
 			return nil, err
 		}
@@ -61,8 +64,9 @@ func EncodeAX25UI(source, dest string, path []string, info []byte) ([]byte, erro
 // encodeAddress encodes a single AX.25 address field: 6 space-padded callsign
 // bytes left-shifted one bit, followed by the SSID byte. When last is true the
 // SSID byte's low bit (the HDLC address-extension bit) is set to mark the end of
-// the address field list.
-func encodeAddress(callsign string, last bool) ([]byte, error) {
+// the address field list. When command is true the C bit (bit 7) is set, which
+// APRS uses on the destination address to denote a command frame.
+func encodeAddress(callsign string, last, command bool) ([]byte, error) {
 	call, ssid, err := parseCallSSID(callsign)
 	if err != nil {
 		return nil, err
@@ -77,9 +81,12 @@ func encodeAddress(callsign string, last bool) ([]byte, error) {
 		out[i] = c << 1
 	}
 
-	// SSID byte: bits 5-6 reserved (set to 1 per convention), bits 1-4 the SSID,
-	// bit 0 the extension bit (1 on the final address field).
+	// SSID byte: bit 7 the C/H bit, bits 5-6 reserved (set to 1 per convention),
+	// bits 1-4 the SSID, bit 0 the extension bit (1 on the final address field).
 	ssidByte := byte(0x60) | (byte(ssid) << 1)
+	if command {
+		ssidByte |= 0x80
+	}
 	if last {
 		ssidByte |= 0x01
 	}
