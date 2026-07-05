@@ -66,23 +66,27 @@ const ManagementWeatherStations = (function() {
       aerisEnabled: document.getElementById('aeris-enabled'),
       aerisApiClientId: document.getElementById('aeris-api-client-id'),
       aerisApiClientSecret: document.getElementById('aeris-api-client-secret'),
+      aerisRefreshInterval: document.getElementById('aeris-refresh-interval'),
       aerisFields: document.getElementById('aeris-fields'),
-      
+
       // Weather Underground
       wuEnabled: document.getElementById('wu-enabled'),
       wuStationId: document.getElementById('wu-station-id'),
       wuApiKey: document.getElementById('wu-api-key'),
+      wuUploadInterval: document.getElementById('wu-upload-interval'),
       wuFields: document.getElementById('wu-fields'),
-      
+
       // PWS Weather
       pwsEnabled: document.getElementById('pws-enabled'),
       pwsStationId: document.getElementById('pws-station-id'),
       pwsApiKey: document.getElementById('pws-api-key'),
+      pwsUploadInterval: document.getElementById('pws-upload-interval'),
       pwsFields: document.getElementById('pws-fields'),
-      
+
       // APRS fields
       aprsEnabled: document.getElementById('aprs-enabled'),
       aprsCallsign: document.getElementById('aprs-callsign'),
+      aprsUploadInterval: document.getElementById('aprs-upload-interval'),
       aprsServer: document.getElementById('aprs-server'),
       aprsConfigFields: document.getElementById('aprs-config-fields'),
       aprsTransport: document.getElementById('aprs-transport'),
@@ -480,6 +484,10 @@ const ManagementWeatherStations = (function() {
       device.aeris_enabled = true;
       device.aeris_api_client_id = aerisApiClientId;
       device.aeris_api_client_secret = aerisApiClientSecret;
+      const aerisRefresh = parseInt(formElements.aerisRefreshInterval.value, 10);
+      if (!Number.isNaN(aerisRefresh) && aerisRefresh > 0) {
+        device.aeris_refresh_interval = aerisRefresh;
+      }
     }
     
     // Weather Underground
@@ -494,6 +502,10 @@ const ManagementWeatherStations = (function() {
       device.wu_enabled = true;
       device.wu_station_id = wuStationId;
       device.wu_password = wuApiKey;
+      const wuInterval = parseInt(formElements.wuUploadInterval.value, 10);
+      if (!Number.isNaN(wuInterval) && wuInterval > 0) {
+        device.wu_upload_interval = wuInterval;
+      }
     }
     
     // PWS Weather
@@ -508,6 +520,10 @@ const ManagementWeatherStations = (function() {
       device.pws_enabled = true;
       device.pws_station_id = pwsStationId;
       device.pws_password = pwsApiKey;
+      const pwsInterval = parseInt(formElements.pwsUploadInterval.value, 10);
+      if (!Number.isNaN(pwsInterval) && pwsInterval > 0) {
+        device.pws_upload_interval = pwsInterval;
+      }
     }
     
     // APRS configuration
@@ -524,6 +540,11 @@ const ManagementWeatherStations = (function() {
       device.aprs_enabled = true;
       device.aprs_callsign = aprsCallsign;
       device.aprs_transport = aprsTransport;
+
+      const aprsInterval = parseInt(formElements.aprsUploadInterval.value, 10);
+      if (!Number.isNaN(aprsInterval) && aprsInterval > 0) {
+        device.aprs_upload_interval = aprsInterval;
+      }
 
       if (aprsTransport === 'kiss') {
         const kissConnection = formElements.aprsKISSConnection.value;
@@ -801,6 +822,7 @@ const ManagementWeatherStations = (function() {
     formElements.aerisEnabled.checked = device.aeris_enabled || false;
     formElements.aerisApiClientId.value = device.aeris_api_client_id || '';
     formElements.aerisApiClientSecret.value = device.aeris_api_client_secret || '';
+    formElements.aerisRefreshInterval.value = device.aeris_refresh_interval || '';
     ManagementUtils.setElementVisibility(
       formElements.aerisFields,
       device.aeris_enabled
@@ -811,6 +833,7 @@ const ManagementWeatherStations = (function() {
     formElements.wuEnabled.checked = device.wu_enabled || false;
     formElements.wuStationId.value = device.wu_station_id || '';
     formElements.wuApiKey.value = device.wu_password || '';
+    formElements.wuUploadInterval.value = device.wu_upload_interval || '';
     ManagementUtils.setElementVisibility(
       formElements.wuFields,
       device.wu_enabled
@@ -821,6 +844,7 @@ const ManagementWeatherStations = (function() {
     formElements.pwsEnabled.checked = device.pws_enabled || false;
     formElements.pwsStationId.value = device.pws_station_id || '';
     formElements.pwsApiKey.value = device.pws_password || '';
+    formElements.pwsUploadInterval.value = device.pws_upload_interval || '';
     ManagementUtils.setElementVisibility(
       formElements.pwsFields,
       device.pws_enabled
@@ -835,6 +859,7 @@ const ManagementWeatherStations = (function() {
   function populateAPRSFields(device) {
     formElements.aprsEnabled.checked = device.aprs_enabled || false;
     formElements.aprsCallsign.value = device.aprs_callsign || '';
+    formElements.aprsUploadInterval.value = device.aprs_upload_interval || '';
 
     // Set server dropdown value
     if (device.aprs_server) {
