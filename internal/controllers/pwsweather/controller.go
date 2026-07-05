@@ -68,11 +68,10 @@ func (p *PWSWeatherController) sendPeriodicReports() {
 		if device.PWSEnabled && device.PWSStationID != "" && device.PWSPassword != "" {
 			log.Infof("Starting PWS Weather monitoring for device: %s (Station ID: %s)", device.Name, device.PWSStationID)
 			
-			// Use device-specific upload interval or default
-			uploadInterval := "60"
-			if device.PWSUploadInterval > 0 {
-				uploadInterval = strconv.Itoa(device.PWSUploadInterval)
-			}
+			// Use device-specific upload interval or default (60s), guarded by
+			// the minimum-interval floor.
+			uploadInterval := strconv.Itoa(controllers.ResolveUploadInterval(
+				device.PWSUploadInterval, 60, controllers.MinPWSUploadInterval, "PWS Weather"))
 
 			// Create a copy of device for closure
 			deviceCopy := device

@@ -30,11 +30,15 @@ const (
 	// aprsInitialDelay is how long a per-device worker waits before sending its
 	// first report after starting.
 	aprsInitialDelay = 15 * time.Second
-	// aprsSendInterval is how often each device transmits a weather report.
+	// aprsSendInterval is the default report cadence used when a device has no
+	// per-device interval configured.
 	aprsSendInterval = 5 * time.Minute
 	// aprsReconcileInterval is how often the supervisor re-reads the device list
 	// to start/stop workers as devices are enabled or disabled in the UI.
 	aprsReconcileInterval = 1 * time.Minute
+	// minAPRSInterval is the fastest report cadence allowed for a per-device
+	// override; APRS-IS and CWOP ask for no more than one report every 5 min.
+	minAPRSInterval = 5 * time.Minute
 )
 
 // aprsDeviceReady reports whether a device is fully configured for APRS
@@ -262,7 +266,11 @@ func (a *Controller) reconcileWorkers(ctx context.Context, wg *sync.WaitGroup, w
 func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, name string) {
 	defer wg.Done()
 
-	ticker := time.NewTicker(aprsSendInterval)
+	// Use the device-specific report interval, or the default when unset. The
+	// interval is re-read each cycle so UI edits take effect without a restart,
+	// consistent with the per-cycle config re-read in sendReportForDevice.
+	interval := a.reportInterval(name)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	// Send initial report after a short delay.
@@ -280,11 +288,31 @@ func (a *Controller) sendDeviceReports(ctx context.Context, wg *sync.WaitGroup, 
 		select {
 		case <-ticker.C:
 			a.sendReportForDevice(ctx, wg, name)
+			if next := a.reportInterval(name); next != interval {
+				interval = next
+				ticker.Reset(interval)
+			}
 		case <-ctx.Done():
 			log.Infof("Stopping APRS reports for %s", name)
 			return
 		}
 	}
+}
+
+// reportInterval returns the device's configured APRS report interval, guarded
+// by the APRS-IS/CWOP minimum, falling back to the default when the interval is
+// unset or the device can't be read.
+func (a *Controller) reportInterval(name string) time.Duration {
+	device, err := a.configProvider.GetDevice(name)
+	if err != nil || device == nil {
+		return aprsSendInterval
+	}
+	seconds := controllers.ResolveUploadInterval(
+		device.APRSUploadInterval,
+		int(aprsSendInterval/time.Second),
+		int(minAPRSInterval/time.Second),
+		"APRS ("+name+")")
+	return time.Duration(seconds) * time.Second
 }
 
 // sendReportForDevice re-reads the device's current configuration and, if it is

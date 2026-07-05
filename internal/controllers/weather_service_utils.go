@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/chrissnell/remoteweather/internal/database"
+	"github.com/chrissnell/remoteweather/internal/log"
 	"github.com/chrissnell/remoteweather/pkg/config"
 	"go.uber.org/zap"
 )
@@ -73,6 +74,29 @@ func SetWeatherServiceDefaults(wsc *WeatherServiceConfig) {
 	if wsc.UploadInterval == "" {
 		wsc.UploadInterval = "60"
 	}
+}
+
+// Minimum upload intervals (seconds) guard against abusive rates that would
+// violate third-party service terms. PWSWeather and Weather Underground both
+// expect no more than one standard update per minute.
+const (
+	MinPWSUploadInterval = 60
+	MinWUUploadInterval  = 60
+)
+
+// ResolveUploadInterval returns the configured interval (seconds) or the given
+// default when unset (<=0), clamped up to the minimum. It logs a warning when a
+// configured value is raised to the minimum.
+func ResolveUploadInterval(configured, def, min int, service string) int {
+	interval := def
+	if configured > 0 {
+		interval = configured
+	}
+	if interval < min {
+		log.Warnf("%s upload interval %ds is below the minimum of %ds; using %ds", service, interval, min, min)
+		interval = min
+	}
+	return interval
 }
 
 // StartPeriodicReports starts periodic weather reports using the provided send function
