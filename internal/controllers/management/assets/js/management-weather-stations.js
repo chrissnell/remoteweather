@@ -85,6 +85,17 @@ const ManagementWeatherStations = (function() {
       aprsCallsign: document.getElementById('aprs-callsign'),
       aprsServer: document.getElementById('aprs-server'),
       aprsConfigFields: document.getElementById('aprs-config-fields'),
+      aprsTransport: document.getElementById('aprs-transport'),
+      aprsISFields: document.getElementById('aprs-is-fields'),
+      aprsKISSFields: document.getElementById('aprs-kiss-fields'),
+      aprsKISSConnection: document.getElementById('aprs-kiss-connection'),
+      aprsKISSSerialFields: document.getElementById('aprs-kiss-serial-fields'),
+      aprsKISSSerialDevice: document.getElementById('aprs-kiss-serial-device'),
+      aprsKISSSerialBaud: document.getElementById('aprs-kiss-serial-baud'),
+      aprsKISSTCPFields: document.getElementById('aprs-kiss-tcp-fields'),
+      aprsKISSTCPAddress: document.getElementById('aprs-kiss-tcp-address'),
+      aprsKISSPath: document.getElementById('aprs-kiss-path'),
+      aprsKISSDestination: document.getElementById('aprs-kiss-destination'),
       
       // TLS fields
       tlsFieldset: document.getElementById('tls-fieldset'),
@@ -385,6 +396,11 @@ const ManagementWeatherStations = (function() {
     formElements.wllDiscoveryResults.classList.add('hidden');
     formElements.connectionType.value = 'serial';
     formElements.connectionType.disabled = false;
+    if (formElements.aprsTransport) {
+      formElements.aprsTransport.value = 'aprs-is';
+      formElements.aprsKISSConnection.value = 'serial';
+      updateAPRSTransportVisibility();
+    }
     // Don't call updateConnectionVisibility here - let the caller handle it
   }
 
@@ -498,7 +514,8 @@ const ManagementWeatherStations = (function() {
     const aprsEnabled = formElements.aprsEnabled.checked;
     const aprsCallsign = formElements.aprsCallsign.value.trim();
     const aprsServer = formElements.aprsServer.value;
-    
+    const aprsTransport = formElements.aprsTransport ? formElements.aprsTransport.value : 'aprs-is';
+
     if (aprsEnabled) {
       if (!aprsCallsign) {
         alert('APRS callsign is required when APRS is enabled');
@@ -506,7 +523,34 @@ const ManagementWeatherStations = (function() {
       }
       device.aprs_enabled = true;
       device.aprs_callsign = aprsCallsign;
-      device.aprs_server = aprsServer || 'noam.aprs2.net:14580';
+      device.aprs_transport = aprsTransport;
+
+      if (aprsTransport === 'kiss') {
+        const kissConnection = formElements.aprsKISSConnection.value;
+        device.aprs_kiss_connection = kissConnection;
+        device.aprs_kiss_path = formElements.aprsKISSPath.value.trim() || 'WIDE1-1,WIDE2-1';
+        device.aprs_kiss_destination = formElements.aprsKISSDestination.value.trim() || 'APRS';
+
+        if (kissConnection === 'serial') {
+          const serialDevice = formElements.aprsKISSSerialDevice.value.trim();
+          if (!serialDevice) {
+            alert('Serial device is required for KISS serial connection');
+            return null;
+          }
+          device.aprs_kiss_serial_device = serialDevice;
+          const baud = parseInt(formElements.aprsKISSSerialBaud.value, 10);
+          device.aprs_kiss_serial_baud = Number.isNaN(baud) ? 9600 : baud;
+        } else {
+          const tcpAddress = formElements.aprsKISSTCPAddress.value.trim();
+          if (!tcpAddress) {
+            alert('TNC address (host:port) is required for KISS network connection');
+            return null;
+          }
+          device.aprs_kiss_tcp_address = tcpAddress;
+        }
+      } else {
+        device.aprs_server = aprsServer || 'noam.aprs2.net:14580';
+      }
     }
     
     // TLS configuration for grpcreceiver
@@ -791,7 +835,7 @@ const ManagementWeatherStations = (function() {
   function populateAPRSFields(device) {
     formElements.aprsEnabled.checked = device.aprs_enabled || false;
     formElements.aprsCallsign.value = device.aprs_callsign || '';
-    
+
     // Set server dropdown value
     if (device.aprs_server) {
       formElements.aprsServer.value = device.aprs_server;
@@ -799,15 +843,40 @@ const ManagementWeatherStations = (function() {
       // Default to North America
       formElements.aprsServer.value = 'noam.aprs2.net:14580';
     }
-    
+
+    // Transport + KISS fields
+    if (formElements.aprsTransport) {
+      formElements.aprsTransport.value = device.aprs_transport || 'aprs-is';
+      formElements.aprsKISSConnection.value = device.aprs_kiss_connection || 'serial';
+      formElements.aprsKISSSerialDevice.value = device.aprs_kiss_serial_device || '';
+      formElements.aprsKISSSerialBaud.value = device.aprs_kiss_serial_baud || '';
+      formElements.aprsKISSTCPAddress.value = device.aprs_kiss_tcp_address || '';
+      formElements.aprsKISSPath.value = device.aprs_kiss_path || '';
+      formElements.aprsKISSDestination.value = device.aprs_kiss_destination || '';
+      updateAPRSTransportVisibility();
+    }
+
     // Show/hide APRS fields based on enabled status
     ManagementUtils.setElementVisibility(
       formElements.aprsConfigFields,
       device.aprs_enabled
     );
-    
+
     // Toggle service group styling
     toggleServiceGroup('aprs-group', device.aprs_enabled);
+  }
+
+  // updateAPRSTransportVisibility toggles the APRS-IS vs KISS subsections and,
+  // within KISS, the serial vs network fields, based on the current selections.
+  function updateAPRSTransportVisibility() {
+    if (!formElements.aprsTransport) return;
+    const isKISS = formElements.aprsTransport.value === 'kiss';
+    ManagementUtils.setElementVisibility(formElements.aprsISFields, !isKISS);
+    ManagementUtils.setElementVisibility(formElements.aprsKISSFields, isKISS);
+
+    const isSerial = formElements.aprsKISSConnection.value === 'serial';
+    ManagementUtils.setElementVisibility(formElements.aprsKISSSerialFields, isSerial);
+    ManagementUtils.setElementVisibility(formElements.aprsKISSTCPFields, !isSerial);
   }
 
   /* ---------------------------------------------------
@@ -911,6 +980,14 @@ const ManagementWeatherStations = (function() {
         );
         toggleServiceGroup('aprs-group', e.target.checked);
       });
+    }
+
+    // APRS transport / KISS connection toggles
+    if (formElements.aprsTransport) {
+      formElements.aprsTransport.addEventListener('change', updateAPRSTransportVisibility);
+    }
+    if (formElements.aprsKISSConnection) {
+      formElements.aprsKISSConnection.addEventListener('change', updateAPRSTransportVisibility);
     }
     
     // Service toggles

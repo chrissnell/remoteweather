@@ -136,6 +136,14 @@ CREATE TABLE devices (
     aprs_symbol_code CHAR(1) DEFAULT '_',
     aprs_comment TEXT,
     aprs_server TEXT,
+    -- APRS KISS transport fields
+    aprs_transport TEXT DEFAULT 'aprs-is',
+    aprs_kiss_connection TEXT,
+    aprs_kiss_serial_device TEXT,
+    aprs_kiss_serial_baud INTEGER DEFAULT 9600,
+    aprs_kiss_tcp_address TEXT,
+    aprs_kiss_path TEXT DEFAULT 'WIDE1-1,WIDE2-1',
+    aprs_kiss_destination TEXT DEFAULT 'APRS',
     -- Aeris Weather fields
     aeris_enabled BOOLEAN DEFAULT FALSE,
     aeris_api_client_id TEXT,
@@ -396,6 +404,8 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		       pws_enabled, pws_station_id, pws_password, pws_upload_interval, pws_api_endpoint,
 		       wu_enabled, wu_station_id, wu_password, wu_upload_interval, wu_api_endpoint,
 		       aprs_passcode, aprs_symbol_table, aprs_symbol_code, aprs_comment, aprs_server,
+		       aprs_transport, aprs_kiss_connection, aprs_kiss_serial_device, aprs_kiss_serial_baud,
+		       aprs_kiss_tcp_address, aprs_kiss_path, aprs_kiss_destination,
 		       aeris_enabled, aeris_api_client_id, aeris_api_client_secret, aeris_api_endpoint
 		FROM devices
 		WHERE config_id = (SELECT id FROM configs WHERE name = 'default')
@@ -432,6 +442,11 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		// APRS additional fields
 		var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment, aprsServer sql.NullString
 
+		// APRS KISS transport fields
+		var aprsTransport, aprsKISSConnection, aprsKISSSerialDevice sql.NullString
+		var aprsKISSSerialBaud sql.NullInt64
+		var aprsKISSTCPAddress, aprsKISSPath, aprsKISSDestination sql.NullString
+
 		// Aeris Weather fields
 		var aerisEnabled sql.NullBool
 		var aerisAPIClientID, aerisAPIClientSecret, aerisAPIEndpoint sql.NullString
@@ -444,6 +459,8 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 			&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval, &pwsAPIEndpoint,
 			&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval, &wuAPIEndpoint,
 			&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment, &aprsServer,
+			&aprsTransport, &aprsKISSConnection, &aprsKISSSerialDevice, &aprsKISSSerialBaud,
+			&aprsKISSTCPAddress, &aprsKISSPath, &aprsKISSDestination,
 			&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret, &aerisAPIEndpoint,
 		)
 		if err != nil {
@@ -557,6 +574,29 @@ func (s *SQLiteProvider) GetDevices() ([]DeviceData, error) {
 		}
 		if aprsServer.Valid {
 			device.APRSServer = aprsServer.String
+		}
+
+		// Set APRS KISS transport fields
+		if aprsTransport.Valid {
+			device.APRSTransport = aprsTransport.String
+		}
+		if aprsKISSConnection.Valid {
+			device.APRSKISSConnection = aprsKISSConnection.String
+		}
+		if aprsKISSSerialDevice.Valid {
+			device.APRSKISSSerialDevice = aprsKISSSerialDevice.String
+		}
+		if aprsKISSSerialBaud.Valid {
+			device.APRSKISSSerialBaud = int(aprsKISSSerialBaud.Int64)
+		}
+		if aprsKISSTCPAddress.Valid {
+			device.APRSKISSTCPAddress = aprsKISSTCPAddress.String
+		}
+		if aprsKISSPath.Valid {
+			device.APRSKISSPath = aprsKISSPath.String
+		}
+		if aprsKISSDestination.Valid {
+			device.APRSKISSDestination = aprsKISSDestination.String
 		}
 
 		// Set Aeris Weather fields
@@ -1059,7 +1099,9 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		       d.tls_cert_file, d.tls_key_file, d.path,
 		       d.pws_enabled, d.pws_station_id, d.pws_password, d.pws_upload_interval,
 		       d.wu_enabled, d.wu_station_id, d.wu_password, d.wu_upload_interval,
-		       d.aprs_passcode, d.aprs_symbol_table, d.aprs_symbol_code, d.aprs_comment,
+		       d.aprs_passcode, d.aprs_symbol_table, d.aprs_symbol_code, d.aprs_comment, d.aprs_server,
+		       d.aprs_transport, d.aprs_kiss_connection, d.aprs_kiss_serial_device, d.aprs_kiss_serial_baud,
+		       d.aprs_kiss_tcp_address, d.aprs_kiss_path, d.aprs_kiss_destination,
 		       d.aeris_enabled, d.aeris_api_client_id, d.aeris_api_client_secret
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
@@ -1085,7 +1127,12 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	var wuUploadInterval sql.NullInt64
 
 	// APRS additional fields
-	var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment sql.NullString
+	var aprsPasscode, aprsSymbolTable, aprsSymbolCode, aprsComment, aprsServer sql.NullString
+
+	// APRS KISS transport fields
+	var aprsTransport, aprsKISSConnection, aprsKISSSerialDevice sql.NullString
+	var aprsKISSSerialBaud sql.NullInt64
+	var aprsKISSTCPAddress, aprsKISSPath, aprsKISSDestination sql.NullString
 
 	// Aeris Weather fields
 	var aerisEnabled sql.NullBool
@@ -1098,7 +1145,9 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
 		&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
 		&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
-		&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment,
+		&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment, &aprsServer,
+		&aprsTransport, &aprsKISSConnection, &aprsKISSSerialDevice, &aprsKISSSerialBaud,
+		&aprsKISSTCPAddress, &aprsKISSPath, &aprsKISSDestination,
 		&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret,
 	)
 
@@ -1203,6 +1252,32 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	if aprsComment.Valid {
 		device.APRSComment = aprsComment.String
 	}
+	if aprsServer.Valid {
+		device.APRSServer = aprsServer.String
+	}
+
+	// Set APRS KISS transport fields
+	if aprsTransport.Valid {
+		device.APRSTransport = aprsTransport.String
+	}
+	if aprsKISSConnection.Valid {
+		device.APRSKISSConnection = aprsKISSConnection.String
+	}
+	if aprsKISSSerialDevice.Valid {
+		device.APRSKISSSerialDevice = aprsKISSSerialDevice.String
+	}
+	if aprsKISSSerialBaud.Valid {
+		device.APRSKISSSerialBaud = int(aprsKISSSerialBaud.Int64)
+	}
+	if aprsKISSTCPAddress.Valid {
+		device.APRSKISSTCPAddress = aprsKISSTCPAddress.String
+	}
+	if aprsKISSPath.Valid {
+		device.APRSKISSPath = aprsKISSPath.String
+	}
+	if aprsKISSDestination.Valid {
+		device.APRSKISSDestination = aprsKISSDestination.String
+	}
 
 	// Set Aeris Weather fields
 	device.AerisEnabled = aerisEnabled.Bool
@@ -1241,8 +1316,10 @@ func (s *SQLiteProvider) AddDevice(device *DeviceData) error {
 			config_id, name, type, enabled, hostname, port, serial_device,
 			baud, wind_dir_correction, base_snow_distance, website_id,
 			latitude, longitude, altitude, timezone, aprs_enabled, aprs_callsign,
-			tls_cert_file, tls_key_file, path
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			tls_cert_file, tls_key_file, path,
+			aprs_transport, aprs_kiss_connection, aprs_kiss_serial_device, aprs_kiss_serial_baud,
+			aprs_kiss_tcp_address, aprs_kiss_path, aprs_kiss_destination
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var websiteID sql.NullInt64
@@ -1256,6 +1333,10 @@ func (s *SQLiteProvider) AddDevice(device *DeviceData) error {
 		websiteID, device.Latitude, device.Longitude, device.Altitude, nullString(device.Timezone),
 		device.APRSEnabled, device.APRSCallsign,
 		nullString(device.TLSCertPath), nullString(device.TLSKeyPath), nullString(device.Path),
+		nullString(aprsTransportOrDefault(device.APRSTransport)), nullString(device.APRSKISSConnection),
+		nullString(device.APRSKISSSerialDevice), device.APRSKISSSerialBaud,
+		nullString(device.APRSKISSTCPAddress), nullString(device.APRSKISSPath),
+		nullString(device.APRSKISSDestination),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert device: %w", err)
@@ -1290,7 +1371,9 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 			name = ?, type = ?, enabled = ?, hostname = ?, port = ?, serial_device = ?,
 			baud = ?, wind_dir_correction = ?, base_snow_distance = ?, website_id = ?,
 			latitude = ?, longitude = ?, altitude = ?, timezone = ?, aprs_enabled = ?, aprs_callsign = ?,
-			tls_cert_file = ?, tls_key_file = ?, path = ?
+			tls_cert_file = ?, tls_key_file = ?, path = ?,
+			aprs_transport = ?, aprs_kiss_connection = ?, aprs_kiss_serial_device = ?, aprs_kiss_serial_baud = ?,
+			aprs_kiss_tcp_address = ?, aprs_kiss_path = ?, aprs_kiss_destination = ?
 		WHERE name = ?
 	`
 
@@ -1305,6 +1388,10 @@ func (s *SQLiteProvider) UpdateDevice(name string, device *DeviceData) error {
 		websiteID, device.Latitude, device.Longitude, device.Altitude, nullString(device.Timezone),
 		device.APRSEnabled, device.APRSCallsign,
 		nullString(device.TLSCertPath), nullString(device.TLSKeyPath), nullString(device.Path),
+		nullString(aprsTransportOrDefault(device.APRSTransport)), nullString(device.APRSKISSConnection),
+		nullString(device.APRSKISSSerialDevice), device.APRSKISSSerialBaud,
+		nullString(device.APRSKISSTCPAddress), nullString(device.APRSKISSPath),
+		nullString(device.APRSKISSDestination),
 		name,
 	)
 
@@ -2120,6 +2207,15 @@ func nullString(s string) sql.NullString {
 		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: s, Valid: true}
+}
+
+// aprsTransportOrDefault normalizes an empty APRS transport to the default so
+// stored devices always carry a concrete transport value.
+func aprsTransportOrDefault(t string) string {
+	if t == "" {
+		return "aprs-is"
+	}
+	return t
 }
 
 // Sun times methods
