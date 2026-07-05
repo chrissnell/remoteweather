@@ -218,6 +218,16 @@ type DeviceData struct {
 	APRSComment     string `json:"aprs_comment,omitempty"`
 	APRSServer      string `json:"aprs_server,omitempty"`
 
+	// APRS KISS transport fields. When APRSTransport is "kiss", weather packets
+	// are sent over KISS to a TNC (serial or network) instead of APRS-IS.
+	APRSTransport        string `json:"aprs_transport,omitempty"`       // "aprs-is" (default) or "kiss"
+	APRSKISSConnection   string `json:"aprs_kiss_connection,omitempty"` // "serial" or "tcp"
+	APRSKISSSerialDevice string `json:"aprs_kiss_serial_device,omitempty"`
+	APRSKISSSerialBaud   int    `json:"aprs_kiss_serial_baud,omitempty"`
+	APRSKISSTCPAddress   string `json:"aprs_kiss_tcp_address,omitempty"` // host:port of the TNC
+	APRSKISSPath         string `json:"aprs_kiss_path,omitempty"`        // AX.25 digipeater path, comma-separated
+	APRSKISSDestination  string `json:"aprs_kiss_destination,omitempty"` // AX.25 destination tocall
+
 	// Aeris Weather fields
 	AerisEnabled         bool   `json:"aeris_enabled,omitempty"`
 	AerisAPIClientID     string `json:"aeris_api_client_id,omitempty"`
