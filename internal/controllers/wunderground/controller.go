@@ -68,11 +68,10 @@ func (p *WeatherUndergroundController) sendPeriodicReports() {
 		if device.WUEnabled && device.WUStationID != "" && device.WUPassword != "" {
 			log.Infof("Starting Weather Underground monitoring for device: %s (Station ID: %s)", device.Name, device.WUStationID)
 			
-			// Use device-specific upload interval or default
-			uploadInterval := "60"
-			if device.WUUploadInterval > 0 {
-				uploadInterval = strconv.Itoa(device.WUUploadInterval)
-			}
+			// Use device-specific upload interval or default (300s, matching the
+			// schema default), guarded by the minimum-interval floor.
+			uploadInterval := strconv.Itoa(controllers.ResolveUploadInterval(
+				device.WUUploadInterval, 300, controllers.MinWUUploadInterval, "Weather Underground"))
 
 			// Create a copy of device for closure
 			deviceCopy := device

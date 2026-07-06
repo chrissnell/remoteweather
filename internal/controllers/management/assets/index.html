@@ -215,9 +215,14 @@
                       API Client Secret
                       <input type="password" id="aeris-api-client-secret" placeholder="your-client-secret" />
                     </label>
+                    <label>
+                      Forecast Refresh Interval (seconds, optional)
+                      <input type="number" id="aeris-refresh-interval" min="3600" placeholder="auto (derived from forecast period)" />
+                    </label>
+                    <p class="help-text">Leave blank to refresh automatically (four times per forecast period). Minimum 3600 seconds (1 hour) when set.</p>
                   </div>
                 </div>
-                
+
                 <!-- Weather Underground -->
                 <div class="service-group" id="wu-group">
                   <div class="service-header">
@@ -234,9 +239,14 @@
                       API Key
                       <input type="password" id="wu-api-key" placeholder="your-api-key" />
                     </label>
+                    <label>
+                      Upload Interval (seconds)
+                      <input type="number" id="wu-upload-interval" min="60" placeholder="300" />
+                    </label>
+                    <p class="help-text">Default 300 seconds. Minimum 60 seconds.</p>
                   </div>
                 </div>
-                
+
                 <!-- PWS Weather -->
                 <div class="service-group" id="pws-group">
                   <div class="service-header">
@@ -253,9 +263,14 @@
                       API Key
                       <input type="password" id="pws-api-key" placeholder="your-api-key" />
                     </label>
+                    <label>
+                      Upload Interval (seconds)
+                      <input type="number" id="pws-upload-interval" min="60" placeholder="60" />
+                    </label>
+                    <p class="help-text">Default 60 seconds. Minimum 60 seconds.</p>
                   </div>
                 </div>
-                
+
                 <!-- APRS -->
                 <div class="service-group" id="aprs-group">
                   <div class="service-header">
@@ -267,6 +282,10 @@
                     <label>
                       Callsign
                       <input type="text" id="aprs-callsign" placeholder="N0CALL" />
+                    </label>
+                    <label>
+                      Report Interval (seconds)
+                      <input type="number" id="aprs-upload-interval" min="300" placeholder="300" />
                     </label>
                     <label>
                       Transport
