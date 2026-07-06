@@ -84,19 +84,34 @@ const (
 	MinWUUploadInterval  = 60
 )
 
-// ResolveUploadInterval returns the configured interval (seconds) or the given
-// default when unset (<=0), clamped up to the minimum. It logs a warning when a
-// configured value is raised to the minimum.
+// ResolveUploadInterval returns the configured interval (seconds) when set
+// (>0), otherwise the given default. A configured value below the minimum is
+// raised to the minimum with a warning. The default is used as-is and never
+// clamped, so it can be a derived value that legitimately falls below the guard.
 func ResolveUploadInterval(configured, def, min int, service string) int {
-	interval := def
-	if configured > 0 {
-		interval = configured
+	if configured <= 0 {
+		return def
 	}
-	if interval < min {
-		log.Warnf("%s upload interval %ds is below the minimum of %ds; using %ds", service, interval, min, min)
-		interval = min
+	if configured < min {
+		log.Warnf("%s upload interval %ds is below the minimum of %ds; using %ds", service, configured, min, min)
+		return min
 	}
-	return interval
+	return configured
+}
+
+// ResolveInterval is the time.Duration form of ResolveUploadInterval, for
+// services that work in durations or whose default is derived at runtime (e.g.
+// Aeris' per-period forecast refresh). Same semantics: only a configured
+// override is clamped to the minimum; the default is returned untouched.
+func ResolveInterval(configured, def, min time.Duration, service string) time.Duration {
+	if configured <= 0 {
+		return def
+	}
+	if configured < min {
+		log.Warnf("%s interval %v is below the minimum of %v; using %v", service, configured, min, min)
+		return min
+	}
+	return configured
 }
 
 // StartPeriodicReports starts periodic weather reports using the provided send function

@@ -16,13 +16,16 @@ func TestDeviceServiceConfigRoundTrip(t *testing.T) {
 		PWSStationID:         "PWS123",
 		PWSPassword:          "pws-secret",
 		PWSUploadInterval:    120,
+		PWSAPIEndpoint:       "https://pws.example.com/submit",
 		WUEnabled:            true,
 		WUStationID:          "WU456",
 		WUPassword:           "wu-secret",
 		WUUploadInterval:     600,
+		WUAPIEndpoint:        "https://wu.example.com/submit",
 		AerisEnabled:         true,
 		AerisAPIClientID:     "aeris-id",
 		AerisAPIClientSecret: "aeris-secret",
+		AerisAPIEndpoint:     "https://aeris.example.com/",
 		AerisRefreshInterval: 7200,
 		APRSEnabled:          true,
 		APRSCallsign:         "N0CALL",
@@ -56,6 +59,13 @@ func TestDeviceServiceConfigRoundTrip(t *testing.T) {
 	}
 	if got.PWSStationID != "PWS123" || got.WUStationID != "WU456" || got.AerisAPIClientID != "aeris-id" {
 		t.Errorf("service credentials not persisted: %q %q %q", got.PWSStationID, got.WUStationID, got.AerisAPIClientID)
+	}
+	// GetDevice must return the *_api_endpoint columns, matching GetDevices.
+	if got.PWSAPIEndpoint != "https://pws.example.com/submit" ||
+		got.WUAPIEndpoint != "https://wu.example.com/submit" ||
+		got.AerisAPIEndpoint != "https://aeris.example.com/" {
+		t.Errorf("service API endpoints not returned by GetDevice: pws=%q wu=%q aeris=%q",
+			got.PWSAPIEndpoint, got.WUAPIEndpoint, got.AerisAPIEndpoint)
 	}
 
 	// Updating the intervals must persist too.

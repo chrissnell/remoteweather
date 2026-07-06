@@ -342,20 +342,14 @@ func (a *AerisWeatherController) refreshForecastPeriodically(device config.Devic
 	}
 
 	// We will refresh our forecasts four times in every period.
-	// For example: for a daily forecast, we refresh every 6 hours.
-	refreshInterval := spanInterval / 4
-
-	// An optional per-device override replaces the derived interval, but never
-	// refreshes more often than once per hour to stay within API limits.
-	if device.AerisRefreshInterval > 0 {
-		override := time.Duration(device.AerisRefreshInterval) * time.Second
-		if override < minAerisRefreshInterval {
-			log.Warnf("Aeris refresh interval %ds for device %s is below the minimum of %v; using the minimum",
-				device.AerisRefreshInterval, device.Name, minAerisRefreshInterval)
-			override = minAerisRefreshInterval
-		}
-		refreshInterval = override
-	}
+	// For example: for a daily forecast, we refresh every 6 hours. An optional
+	// per-device override replaces this derived interval, but never refreshes
+	// more often than once per hour to stay within API limits.
+	refreshInterval := controllers.ResolveInterval(
+		time.Duration(device.AerisRefreshInterval)*time.Second,
+		spanInterval/4,
+		minAerisRefreshInterval,
+		"Aeris ("+device.Name+")")
 
 	log.Infof("Starting Aeris Weather fetcher for device %s: %v hours, every %v minutes",
 		device.Name, numPeriods*periodHours, refreshInterval.Minutes())
