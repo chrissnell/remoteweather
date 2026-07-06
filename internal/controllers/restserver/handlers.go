@@ -1138,6 +1138,13 @@ func (h *Handlers) GetStationInfo(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	// Expose radar tile access so native clients can render the same
+	// maps.nw5w.com imagery as the website. Only send the token when radar is on.
+	if website.RadarEnabled && website.RadarToken != "" {
+		response.RadarEnabled = true
+		response.RadarToken = website.RadarToken
+	}
+
 	// Set snow device if enabled
 	if website.SnowEnabled && website.SnowDeviceName != "" {
 		response.SnowDevice = &website.SnowDeviceName

@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-
 // AerisWeatherForecastRecord represents forecast data from Aeris Weather
 type AerisWeatherForecastRecord struct {
 	gorm.Model
@@ -123,24 +122,24 @@ type WeatherReading struct {
 	ExtraFloat8           float32 `json:"extrafloat8"`
 	ExtraFloat9           float32 `json:"extrafloat9"`
 	ExtraFloat10          float32 `json:"extrafloat10"`
-	ExtraText1            string      `json:"extratext1,omitempty"`
-	ExtraText2            string      `json:"extratext2,omitempty"`
-	ExtraText3            string      `json:"extratext3,omitempty"`
-	ExtraText4            string      `json:"extratext4,omitempty"`
-	ExtraText5            string      `json:"extratext5,omitempty"`
-	ExtraText6            string      `json:"extratext6,omitempty"`
-	ExtraText7            string      `json:"extratext7,omitempty"`
-	ExtraText8            string      `json:"extratext8,omitempty"`
-	ExtraText9            string      `json:"extratext9,omitempty"`
-	ExtraText10           string      `json:"extratext10,omitempty"`
+	ExtraText1            string  `json:"extratext1,omitempty"`
+	ExtraText2            string  `json:"extratext2,omitempty"`
+	ExtraText3            string  `json:"extratext3,omitempty"`
+	ExtraText4            string  `json:"extratext4,omitempty"`
+	ExtraText5            string  `json:"extratext5,omitempty"`
+	ExtraText6            string  `json:"extratext6,omitempty"`
+	ExtraText7            string  `json:"extratext7,omitempty"`
+	ExtraText8            string  `json:"extratext8,omitempty"`
+	ExtraText9            string  `json:"extratext9,omitempty"`
+	ExtraText10           string  `json:"extratext10,omitempty"`
 	// Sun times (formatted for display, e.g., "6:42 AM")
-	Sunrise               string      `json:"sunrise,omitempty"`
-	Sunset                string      `json:"sunset,omitempty"`
+	Sunrise string `json:"sunrise,omitempty"`
+	Sunset  string `json:"sunset,omitempty"`
 	// Moon phase (calculated, not from sensor)
-	MoonPhaseName         string      `json:"moonPhaseName,omitempty"`
-	MoonIllumination      float32     `json:"moonIllumination,omitempty"`
-	MoonAge               float32     `json:"moonAge,omitempty"`
-	MoonCrescentAngle     float32     `json:"moonCrescentAngle,omitempty"`
+	MoonPhaseName     string  `json:"moonPhaseName,omitempty"`
+	MoonIllumination  float32 `json:"moonIllumination,omitempty"`
+	MoonAge           float32 `json:"moonAge,omitempty"`
+	MoonCrescentAngle float32 `json:"moonCrescentAngle,omitempty"`
 }
 
 // SnowReading represents snow data for JSON output
@@ -177,13 +176,13 @@ type SnowAllCalculationsResult struct {
 
 // SnowCacheResult represents cached snow totals from snow_totals_cache table
 type SnowCacheResult struct {
-	StationName   string    `gorm:"column:stationname"`
-	SnowMidnight  float32   `gorm:"column:snow_midnight"`
-	Snow24h       float32   `gorm:"column:snow_24h"`
-	Snow72h       float32   `gorm:"column:snow_72h"`
-	SnowSeason    float32   `gorm:"column:snow_season"`
-	BaseDistance  float32   `gorm:"column:base_distance"`
-	ComputedAt    time.Time `gorm:"column:computed_at"`
+	StationName  string    `gorm:"column:stationname"`
+	SnowMidnight float32   `gorm:"column:snow_midnight"`
+	Snow24h      float32   `gorm:"column:snow_24h"`
+	Snow72h      float32   `gorm:"column:snow_72h"`
+	SnowSeason   float32   `gorm:"column:snow_season"`
+	BaseDistance float32   `gorm:"column:base_distance"`
+	ComputedAt   time.Time `gorm:"column:computed_at"`
 }
 
 // Utility functions
@@ -200,12 +199,12 @@ func mmToInches(mm float32) float32 {
 func mmToInchesWithThreshold(mm float32) float32 {
 	inches := mm / 25.4
 	const threshold = 0.1
-	
+
 	// Filter out noise below threshold
 	if inches < threshold {
 		return 0.0
 	}
-	
+
 	// Round to tenths place
 	return float32(math.Round(float64(inches)*10) / 10)
 }
@@ -250,16 +249,22 @@ type StationInfoItem struct {
 
 // StationInfoResponse represents the response for the /stationinfo endpoint
 type StationInfoResponse struct {
-	WebsiteName        string            `json:"website_name"`
-	AboutText          string            `json:"about_text,omitempty"`
-	Stations           []StationInfoItem `json:"stations"`
-	WeatherDevice      *int              `json:"weather_device,omitempty"`
-	SnowDevice         *string           `json:"snow_device,omitempty"`
-	AirQualityDevice   *string           `json:"air_quality_device,omitempty"`
+	WebsiteName      string            `json:"website_name"`
+	AboutText        string            `json:"about_text,omitempty"`
+	Stations         []StationInfoItem `json:"stations"`
+	WeatherDevice    *int              `json:"weather_device,omitempty"`
+	SnowDevice       *string           `json:"snow_device,omitempty"`
+	AirQualityDevice *string           `json:"air_quality_device,omitempty"`
 	// Latitude/Longitude of the primary weather device, used by clients to
 	// center a radar map on the station. Omitted when the device has no location.
 	Latitude  float64 `json:"latitude,omitempty"`
 	Longitude float64 `json:"longitude,omitempty"`
+	// Radar tile access for native clients that render the same maps.nw5w.com
+	// imagery as the website. RadarToken is the per-website tile token (already
+	// exposed publicly in the website's page markup) and is only sent when radar
+	// is enabled. Both are omitted when radar is off.
+	RadarEnabled bool   `json:"radar_enabled,omitempty"`
+	RadarToken   string `json:"radar_token,omitempty"`
 }
 
 // Alert represents a weather alert for JSON output
