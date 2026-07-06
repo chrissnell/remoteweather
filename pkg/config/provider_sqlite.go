@@ -1116,12 +1116,12 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		       d.wind_dir_correction, d.base_snow_distance, d.website_id,
 		       d.latitude, d.longitude, d.altitude, d.timezone, d.aprs_enabled, d.aprs_callsign,
 		       d.tls_cert_file, d.tls_key_file, d.path,
-		       d.pws_enabled, d.pws_station_id, d.pws_password, d.pws_upload_interval,
-		       d.wu_enabled, d.wu_station_id, d.wu_password, d.wu_upload_interval,
+		       d.pws_enabled, d.pws_station_id, d.pws_password, d.pws_upload_interval, d.pws_api_endpoint,
+		       d.wu_enabled, d.wu_station_id, d.wu_password, d.wu_upload_interval, d.wu_api_endpoint,
 		       d.aprs_passcode, d.aprs_symbol_table, d.aprs_symbol_code, d.aprs_comment, d.aprs_server, d.aprs_upload_interval,
 		       d.aprs_transport, d.aprs_kiss_connection, d.aprs_kiss_serial_device, d.aprs_kiss_serial_baud,
 		       d.aprs_kiss_tcp_address, d.aprs_kiss_path, d.aprs_kiss_destination,
-		       d.aeris_enabled, d.aeris_api_client_id, d.aeris_api_client_secret, d.aeris_refresh_interval
+		       d.aeris_enabled, d.aeris_api_client_id, d.aeris_api_client_secret, d.aeris_api_endpoint, d.aeris_refresh_interval
 		FROM devices d
 		JOIN configs c ON d.config_id = c.id
 		WHERE d.name = ?
@@ -1137,12 +1137,12 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 
 	// PWS Weather fields
 	var pwsEnabled sql.NullBool
-	var pwsStationID, pwsPassword sql.NullString
+	var pwsStationID, pwsPassword, pwsAPIEndpoint sql.NullString
 	var pwsUploadInterval sql.NullInt64
 
 	// Weather Underground fields
 	var wuEnabled sql.NullBool
-	var wuStationID, wuPassword sql.NullString
+	var wuStationID, wuPassword, wuAPIEndpoint sql.NullString
 	var wuUploadInterval sql.NullInt64
 
 	// APRS additional fields
@@ -1156,7 +1156,7 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 
 	// Aeris Weather fields
 	var aerisEnabled sql.NullBool
-	var aerisAPIClientID, aerisAPIClientSecret sql.NullString
+	var aerisAPIClientID, aerisAPIClientSecret, aerisAPIEndpoint sql.NullString
 	var aerisRefreshInterval sql.NullInt64
 
 	err := s.db.QueryRow(query, name).Scan(
@@ -1164,12 +1164,12 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 		&serialDevice, &baud, &windDirCorrection,
 		&baseSnowDistance, &websiteID, &latitude, &longitude, &altitude, &timezone,
 		&aprsEnabled, &aprsCallsign, &tlsCertFile, &tlsKeyFile, &path,
-		&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval,
-		&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval,
+		&pwsEnabled, &pwsStationID, &pwsPassword, &pwsUploadInterval, &pwsAPIEndpoint,
+		&wuEnabled, &wuStationID, &wuPassword, &wuUploadInterval, &wuAPIEndpoint,
 		&aprsPasscode, &aprsSymbolTable, &aprsSymbolCode, &aprsComment, &aprsServer, &aprsUploadInterval,
 		&aprsTransport, &aprsKISSConnection, &aprsKISSSerialDevice, &aprsKISSSerialBaud,
 		&aprsKISSTCPAddress, &aprsKISSPath, &aprsKISSDestination,
-		&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret, &aerisRefreshInterval,
+		&aerisEnabled, &aerisAPIClientID, &aerisAPIClientSecret, &aerisAPIEndpoint, &aerisRefreshInterval,
 	)
 
 	if err != nil {
@@ -1247,6 +1247,9 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	if pwsUploadInterval.Valid {
 		device.PWSUploadInterval = int(pwsUploadInterval.Int64)
 	}
+	if pwsAPIEndpoint.Valid {
+		device.PWSAPIEndpoint = pwsAPIEndpoint.String
+	}
 
 	// Set Weather Underground fields
 	device.WUEnabled = wuEnabled.Bool
@@ -1258,6 +1261,9 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	}
 	if wuUploadInterval.Valid {
 		device.WUUploadInterval = int(wuUploadInterval.Int64)
+	}
+	if wuAPIEndpoint.Valid {
+		device.WUAPIEndpoint = wuAPIEndpoint.String
 	}
 
 	// Set APRS additional fields
@@ -1310,6 +1316,9 @@ func (s *SQLiteProvider) GetDevice(name string) (*DeviceData, error) {
 	}
 	if aerisAPIClientSecret.Valid {
 		device.AerisAPIClientSecret = aerisAPIClientSecret.String
+	}
+	if aerisAPIEndpoint.Valid {
+		device.AerisAPIEndpoint = aerisAPIEndpoint.String
 	}
 	if aerisRefreshInterval.Valid {
 		device.AerisRefreshInterval = int(aerisRefreshInterval.Int64)
