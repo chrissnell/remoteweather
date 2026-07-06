@@ -212,11 +212,12 @@ type DeviceData struct {
 	WUAPIEndpoint    string `json:"wu_api_endpoint,omitempty"`
 
 	// APRS additional fields
-	APRSPasscode    string `json:"aprs_passcode,omitempty"`
-	APRSSymbolTable string `json:"aprs_symbol_table,omitempty"`
-	APRSSymbolCode  string `json:"aprs_symbol_code,omitempty"`
-	APRSComment     string `json:"aprs_comment,omitempty"`
-	APRSServer      string `json:"aprs_server,omitempty"`
+	APRSPasscode       string `json:"aprs_passcode,omitempty"`
+	APRSSymbolTable    string `json:"aprs_symbol_table,omitempty"`
+	APRSSymbolCode     string `json:"aprs_symbol_code,omitempty"`
+	APRSComment        string `json:"aprs_comment,omitempty"`
+	APRSServer         string `json:"aprs_server,omitempty"`
+	APRSUploadInterval int    `json:"aprs_upload_interval,omitempty"` // seconds between reports; default 300
 
 	// APRS KISS transport fields. When APRSTransport is "kiss", weather packets
 	// are sent over KISS to a TNC (serial or network) instead of APRS-IS.
@@ -233,6 +234,7 @@ type DeviceData struct {
 	AerisAPIClientID     string `json:"aeris_api_client_id,omitempty"`
 	AerisAPIClientSecret string `json:"aeris_api_client_secret,omitempty"`
 	AerisAPIEndpoint     string `json:"aeris_api_endpoint,omitempty"`
+	AerisRefreshInterval int    `json:"aeris_refresh_interval,omitempty"` // seconds between forecast refreshes; 0 = derive from forecast period
 
 	// WeatherLink Live fields
 	WLLHost          string `json:"wll_host,omitempty"`

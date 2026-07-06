@@ -24,6 +24,11 @@ import (
 	"gorm.io/gorm"
 )
 
+// minAerisRefreshInterval is the shortest allowed forecast refresh period for a
+// per-device override. Forecasts change slowly, so hourly is plenty and keeps
+// us well within API rate limits.
+const minAerisRefreshInterval = time.Hour
+
 // AerisWeatherController holds our AerisWeather configuration
 type AerisWeatherController struct {
 	ctx            context.Context
@@ -337,10 +342,16 @@ func (a *AerisWeatherController) refreshForecastPeriodically(device config.Devic
 	}
 
 	// We will refresh our forecasts four times in every period.
-	// For example: for a daily forecast, we refresh every 6 hours.
-	refreshInterval := spanInterval / 4
+	// For example: for a daily forecast, we refresh every 6 hours. An optional
+	// per-device override replaces this derived interval, but never refreshes
+	// more often than once per hour to stay within API limits.
+	refreshInterval := controllers.ResolveInterval(
+		time.Duration(device.AerisRefreshInterval)*time.Second,
+		spanInterval/4,
+		minAerisRefreshInterval,
+		"Aeris ("+device.Name+")")
 
-	log.Infof("Starting Aeris Weather fetcher for device %s: %v hours, every %v minutes", 
+	log.Infof("Starting Aeris Weather fetcher for device %s: %v hours, every %v minutes",
 		device.Name, numPeriods*periodHours, refreshInterval.Minutes())
 
 	ticker := time.NewTicker(refreshInterval)

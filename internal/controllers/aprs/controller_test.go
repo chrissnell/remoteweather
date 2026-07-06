@@ -2,6 +2,7 @@ package aprs
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -16,7 +17,8 @@ func TestMain(m *testing.M) {
 }
 
 // fakeProvider is a minimal ConfigProvider that returns a settable device list.
-// Only the methods reconcileWorkers touches are implemented; the rest are
+// It implements the methods the worker touches (GetDevices for reconciliation,
+// GetDevice for per-cycle re-reads and report-interval lookups); the rest are
 // promoted from the (nil) embedded interface and must not be called.
 type fakeProvider struct {
 	config.ConfigProvider
@@ -36,6 +38,18 @@ func (f *fakeProvider) GetDevices() ([]config.DeviceData, error) {
 	out := make([]config.DeviceData, len(f.devices))
 	copy(out, f.devices)
 	return out, nil
+}
+
+func (f *fakeProvider) GetDevice(name string) (*config.DeviceData, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.devices {
+		if f.devices[i].Name == name {
+			d := f.devices[i]
+			return &d, nil
+		}
+	}
+	return nil, fmt.Errorf("device %s not found", name)
 }
 
 func readyDevice(name string) config.DeviceData {
