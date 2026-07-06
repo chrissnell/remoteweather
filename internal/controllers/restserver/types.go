@@ -256,6 +256,10 @@ type StationInfoResponse struct {
 	WeatherDevice      *int              `json:"weather_device,omitempty"`
 	SnowDevice         *string           `json:"snow_device,omitempty"`
 	AirQualityDevice   *string           `json:"air_quality_device,omitempty"`
+	// Latitude/Longitude of the primary weather device, used by clients to
+	// center a radar map on the station. Omitted when the device has no location.
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
 }
 
 // Alert represents a weather alert for JSON output

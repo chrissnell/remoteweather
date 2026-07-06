@@ -1125,9 +1125,17 @@ func (h *Handlers) GetStationInfo(w http.ResponseWriter, req *http.Request) {
 		Stations:    make([]StationInfoItem, 0),
 	}
 
-	// Set weather device (primary device for this website)
+	// Set weather device (primary device for this website) and its location
+	// so clients can center a radar map on the station.
 	if website.DeviceID != nil {
 		response.WeatherDevice = website.DeviceID
+		for _, device := range currentDevices {
+			if device.ID == *website.DeviceID {
+				response.Latitude = device.Latitude
+				response.Longitude = device.Longitude
+				break
+			}
+		}
 	}
 
 	// Set snow device if enabled
