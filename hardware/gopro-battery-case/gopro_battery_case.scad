@@ -58,6 +58,13 @@ knurl_size = 4;         // diamond cell size
 /* [Edges] */
 edge_chamfer = 3;       // 45 deg smooth (un-knurled) chamfer on base bottom & lid top
 
+/* [Logo] */
+logo_enable = true;         // inlay the GoPro logo flush into the lid top
+logo_file   = "GoPro_logo_light.svg";
+logo_svg_w  = 77.1;         // logo SVG viewBox width (do not change)
+logo_width  = 60;           // logo size across the lid top (mm)
+logo_depth  = 1.2;          // inlay depth; top sits flush with the lid (mm)
+
 /* [Quality] */
 $fa = 2;
 $fs = 0.6;
@@ -141,6 +148,18 @@ module base() {
     }
 }
 
+// GoPro logo as a 2D shape, scaled and centred on the lid top.
+module logo_2d() {
+    s = logo_width / logo_svg_w;
+    scale([s, s]) import(logo_file, center=true);
+}
+
+// The logo inlay solid: fills the top logo_depth of the roof, top face flush
+// with the lid top (z = lid_h). Print this in the second filament.
+module logo_inlay() {
+    up(lid_h - logo_depth) linear_extrude(logo_depth) logo_2d();
+}
+
 module lid() {
     thread_h = neck_h;                      // internal thread engagement
     cavity_h = neck_h + lid_relief;         // skirt depth: engagement + relief
@@ -154,10 +173,14 @@ module lid() {
         // Internal ACME thread at the opening.
         acme_threaded_rod(d=neck_major, l=thread_h + eps, pitch=thread_pitch,
                           internal=true, bevel2=false, $slop=slop, anchor=BOTTOM);
+        // Logo pocket in the top, flush with the surface.
+        if (logo_enable)
+            up(lid_h - logo_depth) linear_extrude(logo_depth + eps) logo_2d();
     }
     // Sanity: roof thickness must match.
     assert(lid_h - cavity_h >= lid_top - eps, "lid_h too short for cavity + roof");
     assert(lid_relief >= 16, "lid_relief must be >= 16 mm");
+    assert(!logo_enable || logo_depth < lid_top, "logo_depth must be < lid_top");
 }
 
 module assembly(closed=false) {
@@ -170,6 +193,11 @@ module assembly(closed=false) {
 
 if (part == "base") base();
 else if (part == "lid") lid();
+else if (part == "logo") logo_inlay();               // second-filament inlay
+else if (part == "cap_logo") {                        // preview: lid + logo
+    lid();
+    color("#00AEEF") logo_inlay();
+}
 else if (part == "assembly") assembly();
 else if (part == "closed")
     difference() { assembly(); translate([0,-200,-50]) cube([200,400,400]); }

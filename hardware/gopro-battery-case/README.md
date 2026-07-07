@@ -28,9 +28,12 @@ Top view of the base pockets:
 - **Knurling:** diamond knurl on the outer walls of both parts (not the base
   bottom face).
 - **Edges:** smooth 45° chamfer on the base bottom rim and the lid top rim.
+- **Logo:** the GoPro logo is inlaid flush into the lid top (a shallow pocket
+  plus a matching inlay), so it can be printed in a second filament and feels
+  smooth to the touch. Toggle with `logo_enable`.
 
 All dimensions are parameters at the top of the `.scad` file — battery/card
-sizes, counts, thread pitch, relief, knurl and chamfer are all adjustable.
+sizes, counts, thread pitch, relief, knurl, chamfer and logo are all adjustable.
 
 ## Dependencies
 
@@ -45,15 +48,34 @@ sizes, counts, thread pitch, relief, knurl and chamfer are all adjustable.
 
 ## Rendering / exporting
 
-The `part` parameter selects what to build: `base`, `lid`, `assembly`,
-`closed`, `cutaway`, or `slab` (cross-section).
+The `part` parameter selects what to build: `base`, `lid`, `logo`, `cap_logo`
+(lid + logo preview), `assembly`, `closed`, `cutaway`, or `slab`
+(cross-section).
 
 ```
-# Preview / STL for printing
+# STLs for printing
 openscad -o base.stl -D 'part="base"' gopro_battery_case.scad
 openscad -o lid.stl  -D 'part="lid"'  gopro_battery_case.scad
+openscad -o logo.stl -D 'part="logo"' gopro_battery_case.scad   # 2nd filament
 ```
 
 Both parts render as manifold solids and are print-ready. Print the lid
 open-side-down; no supports needed. The knurl adds a dense mesh, so a full CGAL
 render takes a few seconds.
+
+### Two-colour lid
+
+`lid.stl` already contains the logo pocket, and `logo.stl` is the matching inlay
+(top face flush with the lid). To print the logo in a second filament, load
+**both** `lid.stl` and `logo.stl` into your slicer at the same origin (import as
+a single object / "load as parts"), assign a different filament to `logo.stl`,
+and slice. On a single-nozzle printer use your slicer's multi-material or
+paint-by-object feature; on an MMU/AMS it just works. Set `logo_enable=false`
+for a plain lid.
+
+## Logo asset
+
+`GoPro_logo_light.svg` is the GoPro logo from
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:GoPro_logo.svg).
+"GoPro" and the logo are trademarks of GoPro, Inc.; included here for a
+personal-use replica case.
