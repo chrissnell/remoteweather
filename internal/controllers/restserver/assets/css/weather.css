@@ -593,8 +593,6 @@ html[data-theme="light"] .theme-toggle::before {
   font-family: 'Inconsolata', monospace;
   line-height: 1.2;
   display: inline;
-  position: relative;
-  top: -1px;
 }
 
 .metric-value.large {
@@ -607,8 +605,6 @@ html[data-theme="light"] .theme-toggle::before {
   color: var(--text-secondary);
   margin-left: 4px;
   display: inline;
-  position: relative;
-  top: -1px;
 }
 
 .metric-sub {
