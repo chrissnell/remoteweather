@@ -57,10 +57,13 @@
   <script>
     (function() {
       const scenes = ['desert', 'hills', 'city'];
-      let scene = localStorage.getItem('weather-scene');
-      if (!scenes.includes(scene)) {
-        scene = 'desert';
-      }
+      let scene = 'desert';
+      try {
+        const saved = localStorage.getItem('weather-scene');
+        if (scenes.includes(saved)) {
+          scene = saved;
+        }
+      } catch (e) { /* storage disabled: fall back to default */ }
       document.documentElement.setAttribute('data-scene', scene);
     })();
   </script>
@@ -1338,7 +1341,9 @@
           scene = 'desert';
         }
         document.documentElement.setAttribute('data-scene', scene);
-        localStorage.setItem('weather-scene', scene);
+        try {
+          localStorage.setItem('weather-scene', scene);
+        } catch (e) { /* storage disabled: selection still applies for this session */ }
         updateActive(scene);
       }
 

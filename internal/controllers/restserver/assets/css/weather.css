@@ -233,41 +233,63 @@ html[data-theme="light"] .theme-toggle::before {
 
 /* ===== Scene Backgrounds (desert / hills / city) ===== */
 
-/* Frosted "glass" surface color used for the current-conditions cards and the
-   sticky header only when a scene background is active, so the scene shows
-   through. Values track the light/dark theme card colors. */
+/* Frosted "glass" surface colors used for the sticky header and the
+   current-conditions cards/tiles only when a scene background is active, so the
+   scene shows through. Values track the light/dark theme card colors.
+
+   These are the *fallback* alphas — high enough to stay readable on browsers
+   without backdrop-filter (the ESP32 kiosk case). The @supports block below
+   lowers them where real blur is available, for a lighter frosted look. */
 :root {
-  --scene-glass-bg: rgba(26, 26, 26, 0.68);
-  --scene-header-bg: rgba(26, 26, 26, 0.72);
+  --scene-header-bg: rgba(26, 26, 26, 0.86);
+  --scene-card-bg: rgba(26, 26, 26, 0.55);
 }
 html[data-theme="light"] {
-  --scene-glass-bg: rgba(255, 255, 255, 0.74);
-  --scene-header-bg: rgba(248, 248, 248, 0.80);
+  --scene-header-bg: rgba(248, 248, 248, 0.90);
+  --scene-card-bg: rgba(255, 255, 255, 0.62);
 }
 
-/* Full-viewport scene sits behind all content and stays fixed while scrolling. */
+/* Full-viewport scene sits behind all content. Scrolling (not fixed)
+   attachment — fixed is janky/expensive on low-power kiosk browsers. */
 html[data-scene] .weather-body {
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
-  background-attachment: fixed;
 }
 html[data-scene="desert"] .weather-body { background-image: url('../images/scene-desert.svg'); }
 html[data-scene="hills"]  .weather-body { background-image: url('../images/scene-hills.svg'); }
 html[data-scene="city"]   .weather-body { background-image: url('../images/scene-city.svg'); }
 
-/* Let the scene glow through the current-conditions cards and the sticky
-   header. backdrop-filter is progressive enhancement; the semi-opaque
-   background keeps text readable on browsers without blur support. */
+/* Let the scene glow through the header and the current-conditions cards.
+   The tiles (.metric-item) hold the readings, so they get the glass too —
+   otherwise their opaque background would mask the scene entirely. Tiles stack
+   over the group, doubling the tint under the values for extra contrast while
+   the group's padding/title strip stays lighter and shows more scene. */
 html[data-scene] .weather-header {
   background: var(--scene-header-bg);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
 }
-html[data-scene] .metric-group {
-  background: var(--scene-glass-bg);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+html[data-scene] .metric-group,
+html[data-scene] .metric-item {
+  background: var(--scene-card-bg);
+}
+
+/* Where backdrop-filter is supported, lighten the surfaces and blur the
+   scene behind them for a true frosted-glass effect. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root {
+    --scene-header-bg: rgba(26, 26, 26, 0.62);
+    --scene-card-bg: rgba(26, 26, 26, 0.40);
+  }
+  html[data-theme="light"] {
+    --scene-header-bg: rgba(248, 248, 248, 0.68);
+    --scene-card-bg: rgba(255, 255, 255, 0.46);
+  }
+  html[data-scene] .weather-header,
+  html[data-scene] .metric-group,
+  html[data-scene] .metric-item {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
 }
 
 /* Scene picker: segmented control next to the theme toggle. */
