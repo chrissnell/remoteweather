@@ -52,7 +52,19 @@
       }
     })();
   </script>
-  
+
+  <!-- Scene initialization script (runs before render to prevent flashing) -->
+  <script>
+    (function() {
+      const scenes = ['desert', 'hills', 'city'];
+      let scene = localStorage.getItem('weather-scene');
+      if (!scenes.includes(scene)) {
+        scene = 'desert';
+      }
+      document.documentElement.setAttribute('data-scene', scene);
+    })();
+  </script>
+
   <!-- Refactored Weather JavaScript Modules -->
   <script src="js/weather-utils.js"></script>
   <script src="js/weather-charts.js"></script>
@@ -77,6 +89,11 @@
               <div class="text-block-23">LIVE</div>
             </div>
             <div class="last-update" id="last-update">Updated just now</div>
+            <div class="scene-picker" id="scene-picker" role="group" aria-label="Background scene">
+              <button class="scene-option" type="button" data-scene-value="desert" title="Desert scene" aria-label="Desert scene">🏜️</button>
+              <button class="scene-option" type="button" data-scene-value="hills" title="Hills scene" aria-label="Hills scene">⛰️</button>
+              <button class="scene-option" type="button" data-scene-value="city" title="City scene" aria-label="City scene">🏙️</button>
+            </div>
             <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark theme">
               <span>Theme</span>
             </button>
@@ -1305,7 +1322,45 @@
       });
     })();
   </script>
-  
+
+  <!-- Scene Picker Script -->
+  <script>
+    (function() {
+      const scenes = ['desert', 'hills', 'city'];
+
+      function currentScene() {
+        const scene = document.documentElement.getAttribute('data-scene');
+        return scenes.includes(scene) ? scene : 'desert';
+      }
+
+      function setScene(scene) {
+        if (!scenes.includes(scene)) {
+          scene = 'desert';
+        }
+        document.documentElement.setAttribute('data-scene', scene);
+        localStorage.setItem('weather-scene', scene);
+        updateActive(scene);
+      }
+
+      function updateActive(scene) {
+        document.querySelectorAll('.scene-option').forEach(function(btn) {
+          const isActive = btn.getAttribute('data-scene-value') === scene;
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        updateActive(currentScene());
+        document.querySelectorAll('.scene-option').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            setScene(btn.getAttribute('data-scene-value'));
+          });
+        });
+      });
+    })();
+  </script>
+
   <!-- Footer -->
   <div class="footer">
     <div class="footer-content">

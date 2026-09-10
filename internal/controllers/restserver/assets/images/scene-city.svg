@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" preserveAspectRatio="xMidYMid slice" role="img" aria-label="City skyline at dusk">
+  <defs>
+    <linearGradient id="city-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3a6b"/>
+      <stop offset="0.5" stop-color="#6b4a7a"/>
+      <stop offset="0.8" stop-color="#c46a6a"/>
+      <stop offset="1" stop-color="#f0a06a"/>
+    </linearGradient>
+    <radialGradient id="city-moon" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fdf6e3"/>
+      <stop offset="0.5" stop-color="#fdf6e3"/>
+      <stop offset="1" stop-color="#fdf6e3" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#city-sky)"/>
+  <circle cx="250" cy="150" r="95" fill="url(#city-moon)"/>
+  <circle cx="250" cy="150" r="52" fill="#fdf6e3"/>
+  <circle cx="278" cy="138" r="52" fill="#7a5a86" opacity="0.55"/>
+  <g fill="#3b3350" opacity="0.85">
+    <rect x="60" y="360" width="120" height="315"/>
+    <rect x="230" y="300" width="140" height="375"/>
+    <rect x="470" y="340" width="120" height="335"/>
+    <rect x="700" y="290" width="150" height="385"/>
+    <rect x="930" y="350" width="130" height="325"/>
+  </g>
+  <g fill="#241f33">
+    <rect x="150" y="420" width="110" height="255"/>
+    <rect x="330" y="370" width="130" height="305"/>
+    <rect x="540" y="300" width="120" height="375"/>
+    <rect x="660" y="410" width="90" height="265"/>
+    <rect x="820" y="350" width="140" height="325"/>
+    <rect x="1010" y="400" width="150" height="275"/>
+    <rect x="0" y="440" width="120" height="235"/>
+  </g>
+  <g fill="#ffd27a">
+    <rect x="360" y="392" width="14" height="20"/><rect x="392" y="392" width="14" height="20"/><rect x="424" y="392" width="14" height="20"/>
+    <rect x="360" y="430" width="14" height="20"/><rect x="424" y="430" width="14" height="20"/>
+    <rect x="360" y="468" width="14" height="20"/><rect x="392" y="468" width="14" height="20"/>
+    <rect x="566" y="322" width="14" height="20"/><rect x="598" y="322" width="14" height="20"/><rect x="630" y="322" width="14" height="20"/>
+    <rect x="566" y="360" width="14" height="20"/><rect x="630" y="360" width="14" height="20"/>
+    <rect x="598" y="398" width="14" height="20"/><rect x="630" y="398" width="14" height="20"/>
+    <rect x="846" y="372" width="14" height="20"/><rect x="878" y="372" width="14" height="20"/><rect x="910" y="372" width="14" height="20"/>
+    <rect x="846" y="410" width="14" height="20"/><rect x="910" y="410" width="14" height="20"/>
+    <rect x="878" y="448" width="14" height="20"/>
+    <rect x="1036" y="422" width="14" height="20"/><rect x="1068" y="422" width="14" height="20"/><rect x="1100" y="422" width="14" height="20"/>
+    <rect x="1036" y="460" width="14" height="20"/><rect x="1100" y="460" width="14" height="20"/>
+    <rect x="176" y="442" width="14" height="20"/><rect x="208" y="442" width="14" height="20"/>
+    <rect x="176" y="480" width="14" height="20"/><rect x="208" y="480" width="14" height="20"/>
+  </g>
+</svg>

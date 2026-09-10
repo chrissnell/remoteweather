@@ -231,6 +231,90 @@ html[data-theme="light"] .theme-toggle::before {
   }
 }
 
+/* ===== Scene Backgrounds (desert / hills / city) ===== */
+
+/* Frosted "glass" surface color used for the current-conditions cards and the
+   sticky header only when a scene background is active, so the scene shows
+   through. Values track the light/dark theme card colors. */
+:root {
+  --scene-glass-bg: rgba(26, 26, 26, 0.68);
+  --scene-header-bg: rgba(26, 26, 26, 0.72);
+}
+html[data-theme="light"] {
+  --scene-glass-bg: rgba(255, 255, 255, 0.74);
+  --scene-header-bg: rgba(248, 248, 248, 0.80);
+}
+
+/* Full-viewport scene sits behind all content and stays fixed while scrolling. */
+html[data-scene] .weather-body {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-attachment: fixed;
+}
+html[data-scene="desert"] .weather-body { background-image: url('../images/scene-desert.svg'); }
+html[data-scene="hills"]  .weather-body { background-image: url('../images/scene-hills.svg'); }
+html[data-scene="city"]   .weather-body { background-image: url('../images/scene-city.svg'); }
+
+/* Let the scene glow through the current-conditions cards and the sticky
+   header. backdrop-filter is progressive enhancement; the semi-opaque
+   background keeps text readable on browsers without blur support. */
+html[data-scene] .weather-header {
+  background: var(--scene-header-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+html[data-scene] .metric-group {
+  background: var(--scene-glass-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Scene picker: segmented control next to the theme toggle. */
+.scene-picker {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 10px;
+  padding: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.scene-option {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.scene-option:hover {
+  opacity: 0.85;
+}
+
+.scene-option.active {
+  background: var(--bg-tertiary);
+  opacity: 1;
+  box-shadow: inset 0 0 0 1px var(--text-accent);
+}
+
+@media (max-width: 768px) {
+  .scene-picker {
+    margin-left: 8px;
+  }
+  .scene-option {
+    padding: 4px 6px;
+    font-size: 0.95rem;
+  }
+}
+
 .div-block-11 {
   background-color: var(--live-indicator);
   border: 1px solid var(--live-border);

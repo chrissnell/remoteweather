@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Desert landscape">
+  <defs>
+    <linearGradient id="desert-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe6b8"/>
+      <stop offset="0.55" stop-color="#ffca8b"/>
+      <stop offset="1" stop-color="#f2a468"/>
+    </linearGradient>
+    <radialGradient id="desert-sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff4d8"/>
+      <stop offset="0.45" stop-color="#ffdd99"/>
+      <stop offset="1" stop-color="#ffdd99" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#desert-sky)"/>
+  <circle cx="820" cy="185" r="160" fill="url(#desert-sun)"/>
+  <circle cx="820" cy="185" r="72" fill="#fff1c6"/>
+  <path d="M0 430 Q300 380 600 420 T1200 400 V675 H0 Z" fill="#ecba75"/>
+  <path d="M0 500 Q350 440 700 492 T1200 470 V675 H0 Z" fill="#d99a52"/>
+  <path d="M0 560 Q300 522 650 560 T1200 548 V675 H0 Z" fill="#c47c3a"/>
+  <g fill="none" stroke="#5f7d4a" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M372 600 V452"/>
+    <path d="M372 528 H344 V492"/>
+    <path d="M372 500 H402 V462"/>
+  </g>
+</svg>

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Rolling green hills">
+  <defs>
+    <linearGradient id="hills-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fc7ec"/>
+      <stop offset="0.6" stop-color="#bfe3f5"/>
+      <stop offset="1" stop-color="#e9f7fb"/>
+    </linearGradient>
+    <radialGradient id="hills-sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fffdf0"/>
+      <stop offset="0.5" stop-color="#fff2b8"/>
+      <stop offset="1" stop-color="#fff2b8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#hills-sky)"/>
+  <circle cx="270" cy="160" r="150" fill="url(#hills-sun)"/>
+  <circle cx="270" cy="160" r="60" fill="#fff6d0"/>
+  <g fill="#ffffff" opacity="0.85">
+    <ellipse cx="760" cy="170" rx="90" ry="34"/>
+    <ellipse cx="820" cy="150" rx="70" ry="30"/>
+    <ellipse cx="700" cy="152" rx="58" ry="26"/>
+    <ellipse cx="980" cy="230" rx="70" ry="26"/>
+    <ellipse cx="1030" cy="215" rx="52" ry="22"/>
+  </g>
+  <path d="M0 440 Q300 360 620 430 T1200 410 V675 H0 Z" fill="#a7d07c"/>
+  <path d="M0 510 Q340 440 700 500 T1200 480 V675 H0 Z" fill="#7fbe5e"/>
+  <path d="M0 575 Q320 520 660 572 T1200 556 V675 H0 Z" fill="#5ea347"/>
+  <g>
+    <rect x="905" y="520" width="16" height="60" rx="6" fill="#5a3d27"/>
+    <circle cx="913" cy="512" r="42" fill="#4f8e3e"/>
+    <rect x="978" y="536" width="13" height="46" rx="5" fill="#5a3d27"/>
+    <circle cx="984" cy="530" r="32" fill="#579646"/>
+  </g>
+</svg>
