@@ -37,6 +37,7 @@ const ManagementWeatherStations = (function() {
       // Basic fields
       stationName: document.getElementById('station-name'),
       stationType: document.getElementById('station-type'),
+      stationEnabled: document.getElementById('station-enabled'),
       connectionType: document.getElementById('connection-type'),
       
       // Serial fields
@@ -148,7 +149,11 @@ const ManagementWeatherStations = (function() {
       devices.forEach(dev => {
         const card = createWeatherStationCard(dev);
         container.appendChild(card);
-        
+
+        // A disabled device isn't running, so probing its liveness would be
+        // misleading — the card already reads "Disabled" from createWeatherStationCard.
+        if (dev.enabled === false) return;
+
         // Load status in background
         const statusEl = card.querySelector('.status-badge');
         loadDeviceStatus(dev.name, statusEl);
@@ -169,10 +174,16 @@ const ManagementWeatherStations = (function() {
     h3.textContent = dev.name || '';
     card.appendChild(h3);
 
-    // Placeholder for status
+    // Placeholder for status; a disabled device shows a settled "Disabled" badge
+    // instead so the card doesn't hang on "Checking…" for a collector that isn't running.
     const statusEl = document.createElement('span');
     statusEl.className = 'status-badge';
-    statusEl.textContent = 'Checking…';
+    if (dev.enabled === false) {
+      statusEl.textContent = 'Disabled';
+      statusEl.classList.add('status-disabled');
+    } else {
+      statusEl.textContent = 'Checking…';
+    }
     h3.appendChild(document.createTextNode(' '));
     h3.appendChild(statusEl);
 
@@ -312,6 +323,9 @@ const ManagementWeatherStations = (function() {
     formElements.stationName.value = dev.name || '';
     formElements.stationType.value = dev.type || '';
     formElements.stationType.disabled = true; // Can't change type on edit
+    // A device landing here without an explicit `enabled` (older DB row) reads as
+    // enabled — matches how the manager treats a missing flag as the default-on case.
+    formElements.stationEnabled.checked = dev.enabled !== false;
 
     // Determine connection type (snowgauge and airgradient always use network)
     if (dev.type === 'snowgauge' || dev.type === 'airgradient') {
@@ -434,7 +448,7 @@ const ManagementWeatherStations = (function() {
     const device = {
       name,
       type,
-      enabled: true,
+      enabled: formElements.stationEnabled.checked,
     };
 
     if (connType === 'serial') {
