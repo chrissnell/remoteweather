@@ -323,8 +323,9 @@ const ManagementWeatherStations = (function() {
     formElements.stationName.value = dev.name || '';
     formElements.stationType.value = dev.type || '';
     formElements.stationType.disabled = true; // Can't change type on edit
-    // A device landing here without an explicit `enabled` (older DB row) reads as
-    // enabled — matches how the manager treats a missing flag as the default-on case.
+    // The API always emits `enabled` (DeviceData.Enabled has no omitempty), so in
+    // practice this is just `!!dev.enabled`; the `!== false` guards a hypothetical
+    // future shape change so a missing field never silently disables the station.
     formElements.stationEnabled.checked = dev.enabled !== false;
 
     // Determine connection type (snowgauge and airgradient always use network)
