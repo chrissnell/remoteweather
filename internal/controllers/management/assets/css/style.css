@@ -448,6 +448,10 @@ input:checked + .slider:before {
   background: #dc3545;
 }
 
+.status-disabled {
+  background: #6c757d;
+}
+
 
 
 /* Age / staleness badges */
