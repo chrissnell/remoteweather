@@ -28,3 +28,7 @@ release-assets/
 .playwright-mcp
 .context/
 scratch/remoteweather
+
+# Config database snapshots (may contain credentials)
+*.db.sav
+*.db.bak
