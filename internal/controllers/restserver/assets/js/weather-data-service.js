@@ -4,6 +4,10 @@
 const WeatherDataService = (function() {
     'use strict';
     
+    // Precip glyphs from the Weathericons font, matching the condition-icon map
+    // the server applies in internal/controllers/aerisweather/controller.go.
+    const WEATHER_ICON = { rain: '\uf019', snow: '\uf01b' };
+    
     // API endpoints
     const endpoints = {
         latest: '/latest',
@@ -240,13 +244,19 @@ const WeatherDataService = (function() {
                 
                 return {
                     dayName: dayName,
+                    // The fallback when a narrow column can't fit the full name.
+                    weekday: WeatherUtils.getDayName(date.getDay()).slice(0, 3).toUpperCase(),
+                    dateLabel: WeatherUtils.formatShortDate(date),
                     highTemp: interval.maxTempF,
                     lowTemp: interval.minTempF,
                     icon: interval.weatherIcon,
                     weather: interval.compactWeather,
+                    pop: interval.pop,
                     precipType: isSnow ? 'snow' : (isRain ? 'rain' : 'none'),
-                    precipIcon: isSnow ? '❄' : (isRain ? '⛆' : ''),
-                    precipAmount: isSnow ? interval.snowIN + '"' : 
+                    // Both glyphs come from the Weathericons font the condition
+                    // icons use, so neither depends on an OS emoji fallback.
+                    precipIcon: isSnow ? WEATHER_ICON.snow : (isRain ? WEATHER_ICON.rain : ''),
+                    precipAmount: isSnow ? interval.snowIN + '"' :
                                  (isRain ? interval.precipIN + '"' : '')
                 };
             });
@@ -257,14 +267,18 @@ const WeatherDataService = (function() {
                 const isRain = WeatherUtils.isRainWeather(interval.weatherPrimaryCoded);
                 
                 return {
-                    time: (date.hour() === 0 || i === 0) 
-                        ? date.format("h A") + '<br>' + date.format("ddd") 
+                    time: (date.hour() === 0 || i === 0)
+                        ? date.format("h A") + '<br>' + date.format("ddd")
                         : date.format("h A"),
+                    shortTime: date.format("hA").toLowerCase(),
+                    minuteOfDay: date.hour() * 60 + date.minute(),
                     temp: interval.avgTempF,
                     icon: interval.weatherIcon,
+                    weather: interval.compactWeather,
+                    pop: interval.pop,
                     precipType: isSnow ? 'snow' : (isRain ? 'rain' : 'none'),
-                    precipIcon: isSnow ? '❄' : (isRain ? '⛆' : ''),
-                    precipAmount: isSnow ? interval.snowIN + '"' : 
+                    precipIcon: isSnow ? WEATHER_ICON.snow : (isRain ? WEATHER_ICON.rain : ''),
+                    precipAmount: isSnow ? interval.snowIN + '"' :
                                  (isRain ? interval.precipIN + '"' : interval.pop + '%')
                 };
             });

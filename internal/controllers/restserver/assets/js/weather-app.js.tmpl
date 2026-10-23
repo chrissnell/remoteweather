@@ -420,20 +420,7 @@ const WeatherApp = (function() {
             const processed = WeatherDataService.processForecastData(data, 'day');
             const lastUpdated = WeatherUtils.formatLastUpdated(data.lastUpdated);
             
-            // Calculate temperature scaling for vertical positioning
-            const temps = processed.map(h => h.temp);
-            const minTemp = Math.min(...temps);
-            const maxTemp = Math.max(...temps);
-            const tempSpread = maxTemp - minTemp;
-            const isMobile = window.innerWidth <= 700;
-            const tempSpreadPixels = isMobile ? 25 : 80;
-            
-            const temperatureScaling = tempSpread > 0 ? {
-                pixelsPerDegree: tempSpreadPixels / tempSpread,
-                highTemp: maxTemp
-            } : null;
-            
-            WeatherDOM.updateDayForecast(processed, lastUpdated, temperatureScaling);
+            WeatherDOM.updateDayForecast(processed, lastUpdated);
             
             // Schedule next refresh
             setTimeout(refreshDayForecast, INTERVALS.FORECAST_REFRESH);
