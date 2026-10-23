@@ -100,6 +100,14 @@ const WeatherUtils = (function() {
         return dayNames[dayIndex] || "";
     };
     
+    // "Oct 25" — the date under a forecast column's day name.
+    const formatShortDate = (date) => {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        if (!(date instanceof Date) || isNaN(date.getTime())) return "";
+        return `${months[date.getMonth()]} ${date.getDate()}`;
+    };
+    
     // Weather code parsing utilities
     const isSnowWeather = (weatherCode) => {
         const snowRegex = /.*:.*:(S|SW|SI|RS|WM|BS)$/;
@@ -295,6 +303,7 @@ const WeatherUtils = (function() {
         // Date/time
         formatLastUpdated,
         getDayName,
+        formatShortDate,
         
         // Weather codes
         isSnowWeather,
