@@ -32,3 +32,6 @@ scratch/remoteweather
 # Config database snapshots (may contain credentials)
 *.db.sav
 *.db.bak
+
+# Compiled migrate binary at repo root
+/migrate
