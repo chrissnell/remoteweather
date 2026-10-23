@@ -55,6 +55,9 @@ const WeatherDOM = (function() {
                 ? `<span class="wi wi-sunrise"></span>${weatherData.sunrise}<br><span class="wi wi-sunset"></span>${weatherData.sunset}`
                 : '--'
         });
+        
+        // The 24-hour forecast shades its night hours from these.
+        WeatherForecastBand.setSunTimes(weatherData.sunrise, weatherData.sunset);
 
         // Swap solar/moon cards based on sky conditions
         const isNight = weatherData.skyConditions === 'Night';
@@ -286,17 +289,7 @@ const WeatherDOM = (function() {
     const updateWeekForecast = (forecastData, lastUpdated) => {
         if (!forecastData) return;
         
-        forecastData.forEach((day, i) => {
-            updateElements({
-                [`week-forecast-interval-${i}-title`]: day.dayName,
-                [`week-forecast-interval-${i}-high-temp`]: day.highTemp,
-                [`week-forecast-interval-${i}-low-temp`]: day.lowTemp,
-                [`week-forecast-interval-${i}-icon`]: day.icon,
-                [`week-forecast-interval-${i}-weather`]: day.weather,
-                [`week-forecast-interval-${i}-precip-icon`]: day.precipIcon,
-                [`week-forecast-interval-${i}-precip`]: day.precipAmount
-            });
-        });
+        WeatherForecastBand.renderWeek(forecastData);
         
         if (lastUpdated) {
             updateElement('forecast-week-last-updated', `Last Updated: ${lastUpdated}`);
@@ -304,28 +297,10 @@ const WeatherDOM = (function() {
     };
     
     // Update day forecast display
-    const updateDayForecast = (forecastData, lastUpdated, temperatureScaling) => {
+    const updateDayForecast = (forecastData, lastUpdated) => {
         if (!forecastData) return;
         
-        forecastData.forEach((hour, i) => {
-            updateElements({
-                [`day-forecast-interval-${i}-title`]: hour.time,
-                [`day-forecast-interval-${i}-avg-temp`]: `${hour.temp}°`,
-                [`day-forecast-interval-${i}-icon`]: hour.icon,
-                [`day-forecast-interval-${i}-precip-icon`]: hour.precipIcon,
-                [`day-forecast-interval-${i}-precip`]: hour.precipAmount
-            });
-            
-            // Apply temperature-based positioning if scaling provided
-            if (temperatureScaling) {
-                const adjustableDiv = getCachedElement(`day-forecast-interval-${i}-adjustable-div`);
-                if (adjustableDiv) {
-                    const { pixelsPerDegree, highTemp } = temperatureScaling;
-                    const paddingValue = pixelsPerDegree * (highTemp - hour.temp);
-                    adjustableDiv.style.paddingTop = `${paddingValue}px`;
-                }
-            }
-        });
+        WeatherForecastBand.renderDay(forecastData);
         
         if (lastUpdated) {
             updateElement('forecast-day-last-updated', `Last Updated: ${lastUpdated}`);
@@ -376,6 +351,10 @@ const WeatherDOM = (function() {
         if (targetContainer) {
             targetContainer.style.display = 'block';
         }
+        
+        // A hidden plot has no width to lay out against, so draw it now that
+        // its tab is showing.
+        WeatherForecastBand.refresh();
     };
     
     // Initialize tooltips for air quality metrics
