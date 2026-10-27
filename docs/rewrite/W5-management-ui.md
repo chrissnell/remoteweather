@@ -18,6 +18,67 @@ cautionary tale.
 
 ---
 
+## 0. Vocabulary — the user-facing language is a deliverable
+
+The owner's feedback, verbatim: *"it's not obvious what a 'controller' is, or a 'storage backend'."*
+That is correct, and fixing it is a design task, not a copy-editing pass.
+
+**There is a specific hazard to avoid here, created by the new architecture.** W2a retires the word
+"controller" internally and replaces it with `Component`, `Capability`, `Trigger`, `Source` and
+`Sink`. Those names are *better for the code and worse for the user.* "Component APRS is Waiting on
+Capability ReadingStore" is less comprehensible than what exists today, not more. So:
+
+> **The internal model's vocabulary must not reach the screen.** Produce an explicit translation
+> table between internal names and user-facing language, and treat any internal term appearing in the
+> UI as a bug.
+
+Starting point — refine it, but the direction is non-negotiable:
+
+| Internal / current | On screen |
+|---|---|
+| Controller | *never shown* — split by what it actually does, below |
+| `restserver` controller | **Website & API** |
+| `management` controller | **Admin** (it is the thing you are looking at) |
+| `pwsweather`, `wunderground`, `aerisweather`, `aprs` controllers | **Weather Services** — "share my data" |
+| Storage backend | **Data storage** — "where your readings are kept" |
+| `timescaledb` storage | **Weather database** |
+| `grpcstream` storage | **Send my readings to another RemoteWeather** |
+| `grpcreceiver` device | **Receive readings from another RemoteWeather** |
+| Device | **Weather station** — used consistently; today it alternates with "device" |
+| Component / Capability / Trigger / Sink / Source | *never shown* |
+| Snow cache | **Snow calculations** |
+| Aeris | **Forecasts & alerts** (vendor named as a detail, not as the feature) |
+
+**Organise the navigation by user intent, not by internal architecture.** A new user does not think
+"I need to configure a controller," they think "I want my data on Weather Underground." Proposed
+top level, to be refined:
+
+- **My weather stations** — the hardware
+- **Share my data** — Weather Underground, PWS, APRS/CWOP, forecasts
+- **My website** — the public site and its settings
+- **Data storage** — the weather database, and forwarding to another RemoteWeather
+- **System** — logs, diagnostics, updates, admin account
+
+**Status and error text is where jargon does the most damage**, because that is exactly when a
+confused user is reading. Specify the user-facing rendering of every lifecycle state from W2a §3:
+
+| Internal | On screen |
+|---|---|
+| `Waiting { on: ReadingStore }` | "Can't start yet — waiting for the weather database to connect." |
+| `Failed(e)` | "Stopped because of an error: *<plain description>*." plus the detail behind a disclosure |
+| `Backoff { until }` | "Retrying in 30 seconds." |
+| `Trigger::Every(600s)` | "Uploads every 10 minutes." |
+
+**Every label needs a one-line explanation available in place.** Not a separate manual — inline help
+text or a hover, written for someone who has just bought a weather station, not for someone who has
+read this design document.
+
+**First-run is the most important screen in the application.** A new user with no configuration
+currently meets a blank UI with tabs labelled "Controllers" and "Storage," which explains nothing.
+Design a guided path: connect a weather station → confirm readings are arriving → optionally set up a
+website → optionally share to weather services. This subsumes the "no stations configured" empty
+state in §8 and should be treated as the primary onboarding flow rather than an edge case.
+
 ## 1. Functional inventory
 
 Derive it from the 46 existing routes and organise **by operator task, not by endpoint**. Ground to
@@ -66,9 +127,13 @@ blocking — "APRS is waiting on ReadingStore" is actionable; "APRS is not runni
   several components in `Waiting` at once and the operator should see one root cause, not five
   unexplained outages
 
-## 3. Authentication
+## 3. Authentication — username and password
 
-Specify a replacement for the current scheme, which is:
+**Owner decision:** a username and password. **No RBAC, and no multiple accounts for now** — design
+for exactly one administrator, and do not build a user table, roles or permissions. It must also have
+a defined process for setting the password on initial startup.
+
+### What is being replaced
 
 - a UUID used as a bearer token
 - compared with `==`, i.e. not constant-time
@@ -79,12 +144,65 @@ Specify a replacement for the current scheme, which is:
 - `Access-Control-Allow-Origin: *` on the admin API
 - default bind `0.0.0.0`
 
-Decide the token/session model, the rotation flow, transport requirements, and what the UI shows
-about active sessions.
+### Requirements
 
-Keep it **proportionate** — single operator, trusted network, not a multi-tenant SaaS. But no worse
-than: a correctly-compared secret, sessions distinct from API credentials, and nothing secret in
-logs.
+**Credential storage.** Password hashed with **Argon2id**, storing the full PHC string so the
+parameters travel with the hash and can be upgraded later — verify, and if the stored parameters are
+below current policy, re-hash transparently on successful login. Never store the password, never log
+it, never return it from any endpoint.
+
+**Sessions are not credentials.** Login exchanges username and password for a **session**: a fresh
+random token, stored server-side as a hash, delivered as an `HttpOnly` `SameSite=Strict` cookie with
+`Secure` when served over TLS, with an expiry. Sessions are individually revocable, plus a "sign out
+everywhere." This is the specific thing that is broken today, where the cookie *is* the long-lived API
+credential and a browser session cannot be revoked without rotating it.
+
+**Decide whether API tokens are needed at all.** The iOS app uses the *public* API, which is
+unauthenticated, so nothing currently requires a programmatic credential for the admin API. Recommend
+either omitting API tokens from v1 or providing exactly one explicitly-created, shown-once, revocable
+token for scripting. Do not reintroduce "the session cookie is the API token."
+
+### Initial password setup
+
+Design this properly; it is the flow most likely to be got wrong.
+
+**Primary path — one-time setup claim.** On first start with no password configured, generate a
+single-use setup token, print it **once** to stderr/console clearly marked as one-time, and have the
+UI present a "create your administrator account" screen that requires it. The token is invalidated the
+moment an account exists.
+
+**The hazard to design against explicitly:** an unclaimed instance bound to `0.0.0.0` means *whoever
+reaches the setup page first owns the install.* That is a real vulnerability in naive first-run flows.
+Requiring the setup token closes it, because only someone with console or log access has the token.
+State this reasoning in the design so it is not "simplified away" later. Consider also binding to
+loopback until claimed, and say whether that is worth the friction for remote installs.
+
+**Recovery path — a CLI subcommand.** Something like `remoteweather reset-password`, runnable on the
+host. The trust boundary is local filesystem access, which is the right one: if you can read the
+config database you can already read everything. This is the locked-out answer, and it means the
+system never needs a default or backdoor credential.
+
+**Automation path — optional.** An environment variable or config entry for the initial password, for
+Docker and provisioning. If offered, note the tradeoff plainly: it ends up in shell history, compose
+files and the process environment.
+
+**Never ship a default password**, and never allow an empty one.
+
+### Proportionate hardening
+
+Single operator on a trusted network, so keep it modest, but include:
+
+- rate limiting or progressive delay on failed logins — trivial to add, and the only protection
+  against a brute force
+- minimum password length (12 is reasonable) and **no composition rules**, per current NIST guidance,
+  which deprecates mandatory character-class requirements
+- changing the password requires the current password
+- constant-time comparison anywhere a secret is compared
+- nothing secret in logs — the one-time setup token is the single exception, printed once by design
+- replace wildcard CORS with an allowlist, and reconsider the default bind address
+
+Note for the record that none of this touches the **public** API, which is unauthenticated and frozen
+by W1 — so there is no contract risk here.
 
 ## 4. API contract
 
@@ -161,6 +279,13 @@ These are most of the real screen time for an admin UI, and the usual place desi
 
 - All 46 existing routes are mapped, consciously dropped with a reason, or marked not-UI-facing.
 - The configured-versus-running model is specified, including the API it requires.
-- The auth model is specified.
+- A user-facing vocabulary is specified with an internal→on-screen translation table, and no internal
+  term from W2a (`Component`, `Capability`, `Trigger`, `Source`, `Sink`) appears in any proposed
+  screen, label or status message.
+- Navigation is organised by user intent, and every one of W2a's lifecycle states has a plain-language
+  rendering.
+- The first-run guided setup flow is designed.
+- The auth model is specified: Argon2id storage, sessions distinct from credentials, the one-time
+  setup-claim flow with its "first to the page wins" hazard addressed, and a CLI recovery path.
 - The technology recommendation names a bundle budget and a build tool.
 - Every error and empty state in section 8 has a specified behaviour.

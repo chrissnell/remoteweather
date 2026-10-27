@@ -266,7 +266,7 @@ not yet owned by any prompt.
 | Serial-port enumeration | W5 §1 |
 | WeatherLink discovery / template suggest / validate | W5 §1 |
 | `/test/*` connectivity checks (device, serial, DB, storage, API, reading) | W5 §1 |
-| Auth and token rotation | W5 §3 |
+| Admin authentication — username + password, first-run setup, recovery | W5 §3 |
 | Application log buffer **and** separate HTTP access log buffer | W3 §5 |
 | Component dependency / `Waiting` visibility | W2a §3, W5 §2 |
 

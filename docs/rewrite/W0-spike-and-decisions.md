@@ -165,7 +165,7 @@ each choosing: `tokio` + `tokio-util` (`CancellationToken`, `codec`), `tower` fo
 rate limiting, `axum` + `tonic` sharing one listener, `sqlx` for both databases, `prost` + `pbjson`
 so REST-JSON and gRPC-protobuf are generated from **one** schema (replacing the ~591 hand-written
 mapping lines in `grpcstream/conversion.go` and `restserver/weatherapps_grpc.go`), `thiserror` +
-`anyhow` for errors, `secrecy` for secret wrapper types, `subtle` for constant-time comparison,
+`anyhow` for errors, `secrecy` for secret wrapper types, `subtle` for constant-time comparison, `argon2` for password hashing,
 `zerocopy` for fixed-layout binary packet decode (Davis LOOP is a fixed little-endian struct currently
 decoded via reflection-based `binary.Read`), and `arc-swap` or `tokio::sync::watch` for published
 snapshots. Any substitution is fine but must be recorded as an amendment, because divergence here is
@@ -188,6 +188,21 @@ procedure; do not build a tool.
 provisioner stays in Go and needs updating for the new schema; `migrate` retires with the Go daemon;
 the four emulators/simulators stay in Go deliberately, as independent-implementation test
 infrastructure for the Rust drivers; the rest are unused and belong in `scratch/`.
+
+**Admin authentication is a username and password.** Owner decision: one administrator, no RBAC and
+no multiple accounts; Argon2id password storage; sessions distinct from credentials; a defined
+first-start password-setup process plus a local CLI recovery path; no default password ever. W5 §3
+owns the design. Rationale for replacing what exists: the current scheme is a UUID bearer token
+compared with `==`, printed in cleartext at startup *and* on every failed attempt, with the session
+cookie set to the token itself so a browser session cannot be revoked without rotating the API
+credential. Note this touches only the management API — the public API is unauthenticated and frozen
+by W1, so there is no contract risk.
+
+**Internal vocabulary is not user-facing vocabulary.** The component model's names are chosen for the
+code. The management UI maintains its own plain-language vocabulary with an explicit translation
+table (W5 §0), and an internal term appearing on screen is treated as a bug. Rationale: the owner
+reports that "controller" and "storage backend" are already not obvious to new users, and the new
+internal names would be worse on screen, not better.
 
 **Frozen external contract.** The iOS app and the existing weather website must keep working
 unchanged; new endpoints are additive only. The public website is carried forward as-is rather than

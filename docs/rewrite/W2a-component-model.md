@@ -53,6 +53,13 @@ arguments and startup ordering:
 
 Design the model that replaces "controller." Retire the word.
 
+**One constraint on naming.** The vocabulary chosen here (`Component`, `Capability`, `Trigger`,
+`Source`, `Sink`) is **internal only**. It is better for the code and worse for the user —
+"Component APRS is Waiting on Capability ReadingStore" is less comprehensible than what exists
+today. W5 §0 owns the user-facing translation and forbids these terms from reaching the screen. Do
+not optimise these names for display; optimise them for the code, and make sure every lifecycle
+state and trigger carries enough structure for W5 to render it in plain language.
+
 ### 1. The component abstraction
 
 One trait, no kind taxonomy. The things that vary are **when a component runs** and **what it
