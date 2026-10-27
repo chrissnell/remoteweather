@@ -185,14 +185,43 @@ not yet owned by any prompt.
 | Application log buffer **and** separate HTTP access log buffer | W3 §5 |
 | Component dependency / `Waiting` visibility | W2a §3, W5 §2 |
 
-### Auxiliary binaries — decision needed: port, keep in Go, or drop
+### Auxiliary binaries — DECIDED: stay in Go, not ported
 
-| Binary | Status |
-|---|---|
-| `weather-backup` / `weather-restore` | **GAP** — note: currently covers only the raw table, not the CAGGs |
-| `remoteweather-timescaledb-provisioner` (+ `pghba`, password, check) | **GAP** |
-| `davis-instruments-forwarder` | **GAP** |
-| `snow-calibrate` | **GAP** |
-| `moon-phase` | **GAP** |
-| `davis-emulator`, `campbell-emulator`, `weather-station-simulator`, `live-data-simulator` | test infrastructure — W3 §8 |
-| `migrate` | superseded by `sqlx::migrate!()` |
+Owner decision: the ancillary tools stay in Go. Several are no longer used and should have lived in
+`scratch/` rather than `cmd/`.
+
+Supporting evidence — only **3 of 12** `cmd/` binaries are built by `.goreleaser.yml`, so nine were
+never shipped at all:
+
+| Binary | Shipped | Doc refs | Decision |
+|---|---|---|---|
+| `remoteweather` | yes | — | replaced by the Rust daemon |
+| `remoteweather-timescaledb-provisioner` | **yes** | 6 | **stays in Go, needs updating** — part of the install story, and must provision the new schema's requirements rather than the old tables |
+| `migrate` | yes | — | **retire** with the Go daemon; superseded by `sqlx::migrate!()` |
+| `davis-emulator` | no | 6 | stays in Go — **and that is better than porting**, see below |
+| `campbell-emulator` | no | 6 | stays in Go, same reasoning |
+| `weather-station-simulator` | no | 1 | stays in Go, same reasoning |
+| `live-data-simulator` | no | 1 | stays in Go, same reasoning |
+| `weather-backup` / `weather-restore` | no | 1 each | **retire** — will not work against the new schema, see below |
+| `davis-instruments-forwarder` | no | 3 | unused → `scratch/` or delete |
+| `snow-calibrate` | no | 1 | unused → `scratch/` or delete |
+| `moon-phase` | no | 1 | unused → `scratch/` or delete |
+
+**Keeping the emulators in Go is actively good, not merely acceptable.** They speak the *wire
+protocol* — serial frames, TCP, UDP — not the internal schema, so a Go Davis emulator exercises a
+Rust Davis driver perfectly well. Because it is an independent implementation it is a *stronger*
+test oracle than an emulator written by whoever wrote the driver: cross-implementation validation
+for free. W3 §8 should treat them as fixed external test infrastructure rather than something to
+reimplement.
+
+**`weather-backup` / `weather-restore` need a different answer than "leave in Go."** They are
+hard-coded to the old schema (`SELECT * FROM weather`, `INSERT INTO weather`), so leaving them in Go
+means they simply do not function against `observations`. They also only ever covered the raw
+hypertable, never the continuous aggregates, so they were already an incomplete backup.
+
+The resolution falls out of a decision already made: **once raw data is retained indefinitely and
+the aggregates are disposable derived data, `pg_dump` of the hypertable plus "rebuild the
+aggregates" *is* the backup and restore procedure.** A bespoke CSV exporter adds nothing over that,
+and the aggregates need no backup because they can always be recomputed. Both tools retire rather
+than being ported. **Record this in `DESIGN.md`** so nobody re-invents a backup tool, and document
+the `pg_dump` + refresh procedure as the supported path.

@@ -160,6 +160,18 @@ printed at startup and on every failed auth attempt, with the session cookie set
 itself. Errors use `thiserror` per module with `anyhow` at the binary boundary, and `#[from]` so
 chains survive — the Go version uses `%v` in 767 of 1,174 `fmt.Errorf` sites, destroying them.
 
+**Backup and restore is `pg_dump`, not a bespoke tool.** Because raw data is retained indefinitely
+and the aggregates are disposable derived data, the supported procedure is a `pg_dump` of the
+hypertable plus an aggregate refresh on restore. The Go `weather-backup`/`weather-restore` pair is
+retired rather than ported: it was hard-coded to `SELECT * FROM weather`, and it never covered the
+continuous aggregates, so it was an incomplete backup even for the old schema. Document the
+procedure; do not build a tool.
+
+**Ancillary Go tools are not ported.** Only three of twelve `cmd/` binaries were ever shipped. The
+provisioner stays in Go and needs updating for the new schema; `migrate` retires with the Go daemon;
+the four emulators/simulators stay in Go deliberately, as independent-implementation test
+infrastructure for the Rust drivers; the rest are unused and belong in `scratch/`.
+
 **Frozen external contract.** The iOS app and the existing weather website must keep working
 unchanged; new endpoints are additive only. The public website is carried forward as-is rather than
 redesigned. W1 captures the exact surface; do not attempt to enumerate it here.
