@@ -155,7 +155,7 @@ endpoint whose latency materially matters.
 | Endpoint | Requests | Share | Payload changes when |
 |---|---|---|---|
 | `/latest` | 17,740 | **~93%** | a new reading arrives (~2 s) |
-| `/snow` | 499 | 2.6% | snow cache refresh |
+| `/snow` | 499 | 2.6% — **biased low, see below** | snow cache refresh |
 | `/forecast/240` | 320 | 1.7% | Aeris forecast refresh (hourly) |
 | `/` | 217 | 1.1% | configuration change |
 | `/forecast/24` | 136 | 0.7% | Aeris forecast refresh (hourly) |
@@ -165,11 +165,24 @@ endpoint whose latency materially matters.
 Every one of these serves a payload that is **identical for all callers** and changes on a known
 schedule. None of them is a per-user query. See W3 §2a.
 
+**The `/snow` figure is not steady state.** The snow gauge was uninstalled during the measurement
+window. The owner expects `/snow` to be hit at a rate comparable to `/latest` once it is reinstalled,
+because the same clients poll both. **Do not treat `/snow` as negligible** — it is a second hot path,
+and per request it is the *more* expensive of the two.
+
 `/latest` currently costs **7 TimescaleDB round trips plus 1 SQLite query per request** inside a
 202-line handler: latest reading, daily rain, monthly rain, yearly rain,
 `get_rainfall_with_recent()` (with a fallback query if it errors), `calculate_storm_rainfall()`,
 `calculate_wind_gust()`, and `GetSunTimes()`. At the measured volume that is roughly **124,000
 TimescaleDB queries** recomputing answers that change at most every two seconds.
+
+`/snow` costs **7 round trips** in a 211-line handler: a snow-cache lookup, then
+`get_new_snow_midnight()`, `get_new_snow_24h()`, `get_new_snow_72h()`,
+`calculate_total_season_snowfall()`, storm snowfall and snowfall rate. Several are window-scanning
+PL/pgSQL; the season total scans months. Note the shape: the handler reads the snow cache **and then
+computes six more values live anyway**, and `handlers.go:1418` carries a
+`// TODO: Move snow calculations to almanac_cache refresh job`. The existing code already reached the
+precompute conclusion and stopped halfway.
 
 ## Capability inventory
 

@@ -132,7 +132,29 @@ Specify:
 - **Graceful degradation.** With `/latest` served from memory, a database outage no longer fails 93%
   of traffic; serve the last snapshot with a staleness indicator. Today a blip breaks the dominant
   endpoint outright.
-- **The rest of the mix.** `/snow` from the `SnowCache` capability; `/forecast/*` from
+- **`/snow` is a second hot path, not part of "the rest."** Its measured 2.6% share reflects an
+  uninstalled snow gauge; the owner expects a rate comparable to `/latest` once it is back, from the
+  same polling clients. Per request it is more expensive than `/latest`: 7 round trips in a 211-line
+  handler, several of them window-scanning PL/pgSQL, with `calculate_total_season_snowfall()` scanning
+  months. It therefore needs the snapshot treatment at least as much as `/latest`.
+
+  It also needs a **two-tier** snapshot, which is why `SnowCache` is a separate capability from
+  `LatestSnapshot` rather than a special case of it:
+
+  | Tier | Values | Trigger |
+  |---|---|---|
+  | cheap / fast-changing | current depth, snow distance | `OnReading` |
+  | expensive / slow-changing | midnight, 24 h, 72 h, season total, storm total, snowfall rate | `Every(n minutes)` |
+
+  Snow accumulates over hours, so recomputing a season total per reading — let alone per request — is
+  pure waste. Specify the refresh interval and say what the UI shows for snapshot staleness.
+
+  Supporting evidence that this is the right shape: the Go tree already has a `snowcache` controller
+  *because* these are expensive, the handler queries it, and then computes six more values live
+  anyway. `handlers.go:1418` says `// TODO: Move snow calculations to almanac_cache refresh job`. The
+  design was already heading here.
+
+- **The rest of the mix.** `/snow` aside, `/forecast/*` from
   `ForecastStore` (hourly refresh, so a snapshot); `/` as a rendered-page cache invalidated by the
   config watch; `/stationinfo` from `ConfigStore`. `/span/24h` is the only genuinely query-shaped
   endpoint and is under 1% of traffic — a 60-second TTL is lossless, because the 1 m aggregate only
