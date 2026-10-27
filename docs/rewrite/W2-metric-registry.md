@@ -42,3 +42,9 @@ Write this prompt after reading `docs/spike-findings.md`.
 The registry's authoring format: TOML, RON, or Rust consts compiled directly. TOML reads best and is
 editable by non-Rust tooling; Rust consts get compile-time validation for free. Worth deciding
 before the prompt is written.
+
+## Output contract
+
+This document must end with the four required sections from `docs/rewrite/README.md`: **Decisions**
+(numbered one-liners), **Open questions** (with recommendations), **Assumptions about other work
+items**, and **Proposed amendments to `DESIGN.md`**. W6 consumes these.

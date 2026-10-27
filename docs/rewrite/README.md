@@ -18,6 +18,11 @@ W0  spike → decisions              (serial; everything depends on it)
                         │              └── W4  database schema  (needs W2)
                         └── W5  management UI design  (needs W3 + W2)
 
+     ├── W7   collector            (needs W2a + W3 + W2)
+     └── W8   CI + release          (parallel with everything; start early)
+                │
+                └── W9  data migration  (needs W4)
+
 W6  reconciliation + implementation plan   (needs ALL of the above)
 ```
 
@@ -30,6 +35,9 @@ W6  reconciliation + implementation plan   (needs ALL of the above)
 | W3 | `W3-service-architecture.md` | `docs/service-architecture.md` | W0, **W2a** |
 | W4 | `W4-database-schema.md` | migrations, CAGG generation | W2, W0 |
 | W5 | `W5-management-ui.md` | `docs/management-ui-design.md` | W3, W2 |
+| W7 | `W7-collector.md` | `docs/collector.md`, wire protocol, spool schema | W2a, W3, W2 |
+| W8 | `W8-ci-and-release.md` | CI workflows, `docs/release.md` | W0 |
+| W9 | `W9-data-migration.md` | `docs/data-migration.md`, migration scripts | W4, W0 |
 | W6 | `W6-reconciliation.md` | `docs/reconciliation.md`, decision ledger, `docs/implementation-plan.md` | all |
 
 Implementation work items follow once these land. The design/implement split is **deliberate** for
@@ -179,17 +187,17 @@ not yet owned by any prompt.
 | AirGradient | HTTP poller | W2a §4a |
 | Ambient "customized" — vendor webhook into our HTTP listener | inbound listener | W2a §4a |
 | Snow gauge | gRPC client | W2a §4a |
-| gRPC receiver — inbound readings from other RW nodes | inbound listener | W2a, collector item |
+| gRPC receiver — inbound readings from other RW nodes | inbound listener | W2a §4a, W7 |
 
 ### Storage and collector
 
 | Capability | Owned by |
 |---|---|
 | TimescaleDB writer | W3, W4 |
-| gRPC stream uplink to a collector | W3, collector item |
-| Remote-station registry and registration | collector item |
-| Provenance / loop prevention across multi-hop topologies | W3 §2, collector item |
-| Acked, resumable ingest with a durable spool | collector item |
+| gRPC stream uplink to a collector | W7 |
+| Remote-station registry and registration | W7 |
+| Provenance / loop prevention across multi-hop topologies | W7 §2 |
+| Acked, resumable ingest with a durable spool | W7 §3 |
 
 ### Periodic and output components
 

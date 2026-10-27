@@ -280,6 +280,47 @@ The window summaries come from rolling up 1-minute aggregate buckets using each 
 ten-minute mean is arithmetic. The same `agg` field that generates the CAGG SQL tells the encoder what
 to send.
 
+### The APRS structural cleanup
+
+APRS is the worst-shaped output and needs explicit instruction, because it is 991 lines across
+`controller.go` (859) and `kiss.go` (132) while `pkg/aprs` — the library that should hold the
+protocol — contains **two functions, 68 lines**, only passcode calculation.
+
+- **Transport dispatch is a stringly-typed if/else with a silent fallback, and this is a live bug:**
+
+  ```go
+  if strings.ToLower(device.APRSTransport) == transportKISS {
+      a.sendReadingViaKISS(...); return
+  }
+  a.sendReadingToAPRSIS(...)
+  ```
+
+  Two branches for three transports — KISS-serial versus KISS-TCP is decided much deeper, inside
+  `openKISSConnection`. And an unrecognised transport string **silently transmits over APRS-IS**, so a
+  typo of `"kis"` puts the weather report on the internet instead of the radio with no error. Replace
+  with an exhaustive enum over `AprsIs`/`KissSerial`/`KissTcp` behind a `FrameSink` trait, so an
+  unknown transport is a **config parse error**. The two KISS variants collapse into one
+  implementation over a byte stream — the Go code half-discovered this already, since
+  `openKISSConnection` returns an `io.ReadWriteCloser`.
+- **Move the protocol encoding into `pkg/aprs`.** Twelve pure functions currently sit in the
+  controller: `CreateCompleteWeatherReport`, `buildWeatherReportInfo`, lat/lon conversion,
+  `AltitudeCompress`, `CourseCompress`, `SpeedCompress`, `LatPrecompress`, `LonPrecompress`,
+  `EncodeBase91Position`, `EncodeBase91Telemetry`, and a hand-rolled `round()`. Pure, so they become
+  golden-testable against captured packets — impossible today because the encoder is tangled with
+  database access and transport.
+- **One component instance per device**, not one controller managing N workers. This deletes
+  `reconcileWorkers`, its `map[string]context.CancelFunc`, the private `sync.WaitGroup`, and the
+  five-level `sendReports → reconcileWorkers → sendDeviceReports → sendReportForDevice →
+  sendStationReading` chain. Per-device interval becomes that instance's trigger.
+- **Delete the bespoke lifecycle and health monitor.** APRS invented `Start`, `Stop`, `IsRunning` and
+  `GetHealth` because it needed them, but the `Controller` interface only declares
+  `StartController()`, so `Stop()` is dead code. Component state is the health surface. The one useful
+  part — can we authenticate to APRS-IS — becomes a `/test/*` check in the management UI alongside the
+  other six.
+- **No SQL in the radio component.** `sendStationReading` currently runs
+  `SELECT calculate_wind_gust(?)` directly, with a comment saying *"same as website"* — one concept,
+  two call sites, no owner. Wind gust is a derived value resolved by W3 §2a's rule.
+
 Also specify:
 
 - **Minimum intervals enforced at config parse time**, not per send. The floors exist

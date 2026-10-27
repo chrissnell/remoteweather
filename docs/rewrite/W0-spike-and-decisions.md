@@ -53,13 +53,19 @@ everything checks out, say so explicitly there.
 
 ---
 
-## Part 2 — repository decision
+## Part 2 — repository setup
 
-Recommend **either** a new repository **or** a long-lived branch, and justify it. Constraints: the Go
-version must stay deployable and receive bug fixes throughout the rewrite; the iOS app is a separate
-repo already; the new system will carry generated code that must be committed.
+**The owner has indicated a new Multica project and a new repository**, rather than a branch of the Go
+tree. Treat that as the direction and do not re-argue it. The remaining questions are narrower:
 
-State the recommendation. **Do not create anything.**
+- how the Go repository is referenced for behavioural comparison — submodule, sibling checkout, or
+  just a documented URL (prefer the simplest; the prompts only need read access)
+- where generated code lives and how it is committed so `xtask codegen --check` can gate it (W8)
+- whether the frozen-contract fixtures from W1 live in the new repo, the old one, or both — they must
+  be runnable against *both* binaries
+- the crate/workspace layout question is W3 §1's, not yours
+
+State these as recommendations. **Do not create any repository.**
 
 ---
 
@@ -153,6 +159,17 @@ Rationale: the Go version does both, and because it uses `CREATE TABLE IF NOT EX
 - Transport is orthogonal to role. gRPC and REST are codecs, not kinds of component. Rationale: in
   the Go version egress-to-a-peer is implemented as a *storage engine* and ingress-from-a-peer as a
   *weather station*, so the collector role has no name anywhere in the codebase.
+
+**Named crates for the idioms below.** Record these so six agents reach for the same ones rather than
+each choosing: `tokio` + `tokio-util` (`CancellationToken`, `codec`), `tower` for sink composition and
+rate limiting, `axum` + `tonic` sharing one listener, `sqlx` for both databases, `prost` + `pbjson`
+so REST-JSON and gRPC-protobuf are generated from **one** schema (replacing the ~591 hand-written
+mapping lines in `grpcstream/conversion.go` and `restserver/weatherapps_grpc.go`), `thiserror` +
+`anyhow` for errors, `secrecy` for secret wrapper types, `subtle` for constant-time comparison,
+`zerocopy` for fixed-layout binary packet decode (Davis LOOP is a fixed little-endian struct currently
+decoded via reflection-based `binary.Read`), and `arc-swap` or `tokio::sync::watch` for published
+snapshots. Any substitution is fine but must be recorded as an amendment, because divergence here is
+exactly what W6 has to reconcile.
 
 **Secrets and errors.** Secrets use a wrapper type whose `Debug`/`Display` redact; credential
 comparison is constant-time. Rationale: the current management token is a UUID compared with `==`,

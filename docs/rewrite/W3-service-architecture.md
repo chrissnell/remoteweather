@@ -99,6 +99,20 @@ handler — latest reading, daily/monthly/yearly rain, `get_rainfall_with_recent
 query on error), `calculate_storm_rainfall()`, `calculate_wind_gust()`, and `GetSunTimes()`. At the
 measured volume that is ~124,000 queries recomputing answers that change at most every two seconds.
 
+**Serving is not sinking — three distinct shapes.** Storage-as-a-sink is right for the *write* path,
+but the read path is a different concern and must not be modelled as a sink:
+
+```
+write:  Sources ──mpsc──▶ pipeline ──broadcast──▶ Sinks     (TimescaleDB writer, uplink, uploaders)
+read:   REST/gRPC ──────▶ ReadingStore                      (spans, almanac, aggregates)
+live:   REST/gRPC stream ──▶ a tap on the broadcast         (GetLiveWeather, SSE)
+```
+
+So `TimescaleSink` (write) and `ReadingStore` (read) are two traits over one connection pool, because
+the read path's concerns — aggregate selection, pagination, caching — have nothing to do with delivery
+policy. And `GetLiveWeather` is neither: it is a subscriber to the same broadcast the sinks use. Name
+the three separately so nobody later tries to make the website a sink.
+
 **Design requirement: nothing in the hot path touches the database.** Specify a `LatestSnapshot`
 capability — a component with `Trigger::OnReading` that rebuilds the response payload when a reading
 arrives and publishes it behind an `ArcSwap`/`watch`. The handler's entire job becomes: resolve the
@@ -212,6 +226,11 @@ process. Specify:
   pick a certificate per hostname at handshake time. Specify how certificates are loaded, keyed,
   reloaded when config changes, and what happens on SNI miss. Certificate paths come from the config
   store, so a reload must be able to swap a certificate without dropping the listener.
+- **one schema, two encodings.** REST-JSON and gRPC-protobuf must be generated from a single
+  definition — `prost` plus `pbjson` — so they cannot drift. This replaces ~591 lines of
+  hand-maintained mapping in the Go tree (`grpcstream/conversion.go` at 276 and
+  `restserver/weatherapps_grpc.go` at 315). Keep the wire type distinct from the domain type with one
+  `TryFrom` at the boundary, shared by every transport; that is where units and `Option` live.
 - how gRPC coexists on the same socket (ALPN), given that gRPC must remain available for
   machine-to-machine peers while browsers use REST and SSE
 

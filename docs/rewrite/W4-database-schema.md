@@ -34,3 +34,9 @@ import raw (366 days, 19 GB), and decide whether to carry the ~294 days of `weat
 rollup that has no raw behind it — that portion cannot be recomputed and arrives as pre-seeded
 rollup rows if it's wanted at all. Reconciliation by row count and spot values before the old
 database is decommissioned.
+
+## Output contract
+
+This document must end with the four required sections from `docs/rewrite/README.md`: **Decisions**
+(numbered one-liners), **Open questions** (with recommendations), **Assumptions about other work
+items**, and **Proposed amendments to `DESIGN.md`**. W6 consumes these.
