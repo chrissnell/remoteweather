@@ -93,6 +93,17 @@ becomes inspectable state rather than something buried in a goroutine.
 **local midnight** — devices carry a `timezone` field. Specify how `Calendar` handles timezones,
 DST transitions, and a missed window (process down across midnight).
 
+Two further things `Every` must define, both load-bearing for the rate-limited outputs:
+
+- **Overlap policy.** What happens when a tick fires while the previous one is still running (slow
+  network, hung TCP session). For rate-limited outputs the answer is **skip and count the skip**, not
+  queue — queuing builds a backlog that later fires as a burst, which is exactly what the rate limit
+  exists to prevent. Surface the skip count, because repeated skips mean the configured interval is
+  shorter than the round-trip.
+- **Jitter.** Because the supervisor owns all timers, per-instance jitter is applied centrally. Today
+  every uploader does "initial upload in 15 seconds" and then fires on aligned intervals, so they
+  stampede together against both the local database and the upstream services.
+
 ### 2. Capabilities and the dependency graph
 
 Define the capability set and the resolution rules. Starting point:
@@ -145,9 +156,139 @@ Pay particular attention to:
 - **APRS**, which needs both `ReadingStore` and `StationRegistry`, and which also has two output
   transports (APRS-IS network, and KISS TNC over serial or TCP). Decide whether transport is a
   component concern or a sink concern.
-- **The station drivers**, which are `Service`-triggered for listeners (Ambient's HTTP endpoint,
-  WeatherLink UDP, gRPC receiver) but `Every`-triggered for pollers (AirGradient, WeatherLink HTTP)
-  and `Service` for serial loops (Davis, Campbell). The same "driver" label covers three triggers.
+- **The station drivers.** "Driver" is doing three jobs at once and must be decomposed — see §4a.
+
+### 4a. Decompose "driver" into transport, codec and identity
+
+A driver is not one thing. Measured across the seven existing drivers:
+
+| Driver | Who initiates | Transport | Stations per endpoint |
+|---|---|---|---|
+| Davis | **we do** | serial *or* TCP | 1 |
+| Campbell | **we do** | serial *or* TCP | 1 |
+| Snow gauge | **we do** | gRPC client | 1 |
+| AirGradient | **we do** | HTTP poll | 1 |
+| Ambient | **they do** | HTTP server | 1 — *should be N* |
+| WeatherLink Live | **both** | UDP listener **+** HTTP poll | 1 |
+| gRPC receiver | **they do** | gRPC server | **N**, via a registry |
+
+Two observations drive the design. **Connection direction and station cardinality are linked**: a
+transport we initiate is inherently 1:1 (a serial port *is* one station), while one they initiate is
+inherently 1:N, so station identity must come from the *data* rather than the config. And **Ambient
+is paying for that not being modelled** — each device gets its own `http.Server` on its own port
+(`Addr: listenAddr:s.config.Port`), with the station identified positionally as `s.config.Name`,
+i.e. whichever server received the request. Two Ambient stations means two HTTP servers. The gRPC
+receiver hit the same wall and solved it differently, by bolting a `RemoteStationRegistry` onto a
+single device config — two mechanisms for one problem, neither of them the model.
+
+Design the three-part split:
+
+```
+Transport ──frames──▶ Codec ──(StationKey, Reading)──▶ Identity ──▶ Envelope ──▶ stream
+```
+
+```rust
+enum Transport {
+    // we initiate — inherently one station
+    Serial   { dev: PathBuf, baud: u32 },      // Trigger::Service
+    TcpOut   { host: String, port: u16 },      // Trigger::Service
+    HttpPoll { url: Url, every: Duration },    // Trigger::Every
+    GrpcOut  { endpoint: Url },                // Trigger::Service
+
+    // they initiate — inherently many stations, shared endpoint
+    HttpIn   { mount: RoutePath },             // Trigger::Service, provides HttpRoutes
+    UdpIn    { port: u16 },                    // Trigger::Service
+    GrpcIn   { mount: RoutePath },             // Trigger::Service, provides HttpRoutes
+}
+
+enum StationIdentity {
+    Fixed(StationId),               // serial / TCP / poll — config says which station
+    FromPath,                       // /ingest/ambient/{station_key}
+    FromQuery(&'static str),        // Ambient sends PASSKEY — identity and secret in one
+    FromPayload(fn(&Frame) -> Key), // WeatherLink Live broadcasts its DSN in the packet
+    FromRegistration,               // gRPC peers register and are issued an id
+}
+```
+
+Codecs are **pure**: bytes or an HTTP request in, readings out. No I/O, so they are tested against
+captured frames with no hardware.
+
+Requirements for this section:
+
+- Map all seven existing drivers onto `(Transport, Codec, StationIdentity)`. Any that doesn't fit
+  means the model is wrong — say so rather than bending the driver.
+- Show that Ambient becomes **N stations on one endpoint**, and that adding a second Ambient station
+  is a config row rather than a second HTTP server.
+- Show that WeatherLink Live is simply *two transports feeding one codec family*, rather than an
+  anomaly.
+- Show that `FromRegistration` is one identity strategy among five, so the remote-station registry
+  generalises instead of being special-cased.
+- **Identity resolution is the authentication point.** Today there effectively isn't one: Ambient
+  trusts any request arriving on its port as being that station, and the gRPC receiver pushes a
+  reading into the distributor *before* consulting the registry, only debug-logging an unknown
+  sender. Specify where a shared secret or mTLS check belongs so it is one code path, not per-driver.
+- Decide whether `HttpPoll` is genuinely a transport or just `Trigger::Every` wrapped around
+  `TcpOut`. Either answer is defensible — make the call rather than leaving it implicit.
+- Provide a convenience constructor for the common `Serial + Fixed` case. The abstraction should earn
+  its keep on Ambient and WeatherLink Live without taxing Davis.
+
+**Demonstrate the flexibility** by showing how each of these would be added, without new
+infrastructure: an MQTT-subscribe station; a vendor cloud API poll (Tempest/WeatherFlow); a Modbus
+sensor; and APRS-IS as an *input* — ingesting other stations' weather reports, which would be
+`TcpOut` + an APRS weather codec + `FromPayload(callsign)`. The current architecture cannot express
+that last one at all.
+
+### 4b. Rate-limited outputs: the window is the hard part
+
+APRS, Weather Underground, PWS Weather and Aeris can only transmit occasionally, while readings
+arrive every few seconds. Rate limiting itself is **structural and needs no queue or buffer** — a
+component with `Trigger::Every(interval)` simply does not wake more often than allowed. The real
+problem is *what value to send*, because a point sample is usually the wrong number and the protocols
+say so: CWOP wants wind direction and speed **averaged** with gust as a **peak over ~5–10 minutes**,
+and Weather Underground's field names encode windows explicitly (`windspdmph_avg2m`,
+`windgustmph_10m`).
+
+The current code half-knows this and is inconsistent. One APRS packet draws from three sources: gust
+from a dedicated `calculate_wind_gust()` SQL function (the right idea), wind direction and speed
+straight off the reading (**wrong per CWOP — an instantaneous value where an average is required**),
+and day-rain from `CalculateDailyRainfall` called inside the packet builder. The "latest reading" is
+itself `weather_1m ... WHERE bucket > NOW() - INTERVAL '2 minutes' LIMIT 1` with **no `ORDER BY`**,
+so it is an arbitrary bucket that may be two minutes stale — accidentally a 1-minute average.
+
+Specify instead that an output encoder **declares the windowed values it needs**:
+
+```rust
+trait OutputEncoder {
+    fn required(&self) -> &[(Metric, Window, Agg)];
+    fn encode(&self, v: &WindowedView) -> Result<Vec<u8>>;
+}
+```
+
+APRS then declares a table — `(WindDir, 5min, CircularMean)`, `(WindSpeed, 5min, Mean)`,
+`(WindGust, 10min, Max)`, `(OutTemp, Instant, Last)`, `(RainDay, Day, Sum)` — reviewable line by line
+against the CWOP specification instead of being smeared across a string builder.
+
+The window summaries come from rolling up 1-minute aggregate buckets using each metric's declared
+`agg` from the registry. This is the second payoff of storing composable aggregate state: because the
+1m level holds `sum`/`count` rather than a finished `avg`, rolling ten buckets into a correct
+ten-minute mean is arithmetic. The same `agg` field that generates the CAGG SQL tells the encoder what
+to send.
+
+Also specify:
+
+- **Minimum intervals enforced at config parse time**, not per send. The floors exist
+  (`MinPWSUploadInterval`, `MinWUUploadInterval` = 60s) but `ResolveUploadInterval` clamps and logs a
+  warning on *every* call.
+- **Retry must consume rate budget.** With `tower`, `ServiceBuilder` applies layers outside-in, so
+  `Retry` goes **outside** `RateLimit` and each attempt takes its own permit. Reversed, every retry
+  happens inside a single permit and blows through the limit on the first failure. State the ordering
+  and why.
+- **Adaptive pushback.** WU and PWS can return 429 with `Retry-After`; the limiter should honour that
+  rather than running on a purely fixed schedule.
+- **The radio asymmetry.** HTTP services can tell you to slow down. A radio cannot — APRS over KISS
+  has no 429, and flooding a shared band has no feedback mechanism. So for the KISS transports the
+  local floor is the only protection: make it a hard constraint in the type, not a config value with
+  a warning. For APRS-IS and HTTP services, clamped-and-logged config is proportionate.
 
 ### 5. Interaction with the reading pipeline
 
@@ -172,4 +313,9 @@ internals; this document owns the boundary.
 - Capability resolution, startup ordering and cycle handling are specified.
 - The lifecycle state machine is specified, including what `Failed` does to dependents.
 - The `AppReloader` cycle is explicitly shown to be gone.
-- `Calendar` handling of timezones, DST and missed windows is specified.
+- `Calendar` handling of timezones, DST and missed windows is specified, and `Every` has a stated
+  overlap policy and jitter story.
+- §4a maps all seven drivers onto `(Transport, Codec, StationIdentity)`, shows Ambient as N-on-one-
+  endpoint, and demonstrates the four new collection types.
+- §4b specifies the `(Metric, Window, Agg)` declaration, the `Retry`-outside-`RateLimit` ordering,
+  and the radio floor as a type-level constraint.

@@ -109,12 +109,12 @@ not yet owned by any prompt.
 
 | Capability | Shape | Owned by |
 |---|---|---|
-| Davis VantagePro/Vue — LOOP packets, CRC16, wake handshake, serial + TCP | serial/TCP loop | W2a, drivers item |
-| Campbell Scientific datalogger | serial/TCP loop | W2a, drivers item |
-| WeatherLink Live — UDP broadcast **and** HTTP poll, discovery, templates | listener + poller | W2a, drivers item |
-| AirGradient | HTTP poller | W2a, drivers item |
-| Ambient "customized" — vendor webhook into our HTTP listener | inbound listener | W2a, drivers item |
-| Snow gauge | gRPC client | W2a, drivers item |
+| Davis VantagePro/Vue — LOOP packets, CRC16, wake handshake, serial + TCP | serial/TCP loop | W2a §4a |
+| Campbell Scientific datalogger | serial/TCP loop | W2a §4a |
+| WeatherLink Live — UDP broadcast **and** HTTP poll, discovery, templates | listener + poller | W2a §4a |
+| AirGradient | HTTP poller | W2a §4a |
+| Ambient "customized" — vendor webhook into our HTTP listener | inbound listener | W2a §4a |
+| Snow gauge | gRPC client | W2a §4a |
 | gRPC receiver — inbound readings from other RW nodes | inbound listener | W2a, collector item |
 
 ### Storage and collector
@@ -131,11 +131,11 @@ not yet owned by any prompt.
 
 | Capability | Owned by |
 |---|---|
-| APRS/CWOP over APRS-IS | W2a |
-| APRS/CWOP over **KISS TNC — serial** (AX.25) | W2a |
-| APRS/CWOP over **KISS TNC — TCP** | W2a |
-| PWS Weather upload | W2a |
-| Weather Underground upload | W2a |
+| APRS/CWOP over APRS-IS | W2a §4b |
+| APRS/CWOP over **KISS TNC — serial** (AX.25) | W2a §4b |
+| APRS/CWOP over **KISS TNC — TCP** | W2a §4b |
+| PWS Weather upload | W2a §4b |
+| Weather Underground upload | W2a §4b |
 | Aeris — **forecast** fetch | W2a |
 | Aeris — **alerts** fetch (separate timer) | W2a |
 | Snow cache refresh | W2a |
@@ -202,7 +202,7 @@ never shipped at all:
 | `campbell-emulator` | no | 6 | stays in Go, same reasoning |
 | `weather-station-simulator` | no | 1 | stays in Go, same reasoning |
 | `live-data-simulator` | no | 1 | stays in Go, same reasoning |
-| `weather-backup` / `weather-restore` | no | 1 each | **retire** — will not work against the new schema, see below |
+| `weather-backup` / `weather-restore` | no | 1 each | **retire** — one-time tools written for a past schema migration and rollup rebuild (owner confirmed); also hard-coded to the old schema |
 | `davis-instruments-forwarder` | no | 3 | unused → `scratch/` or delete |
 | `snow-calibrate` | no | 1 | unused → `scratch/` or delete |
 | `moon-phase` | no | 1 | unused → `scratch/` or delete |
@@ -214,7 +214,9 @@ test oracle than an emulator written by whoever wrote the driver: cross-implemen
 for free. W3 §8 should treat them as fixed external test infrastructure rather than something to
 reimplement.
 
-**`weather-backup` / `weather-restore` need a different answer than "leave in Go."** They are
+**`weather-backup` / `weather-restore` are retired, not ported.** The owner confirms these were
+one-time tools written to get through an earlier schema migration and the subsequent rebuild of the
+roll-up tables — not an ongoing backup facility. They are also
 hard-coded to the old schema (`SELECT * FROM weather`, `INSERT INTO weather`), so leaving them in Go
 means they simply do not function against `observations`. They also only ever covered the raw
 hypertable, never the continuous aggregates, so they were already an incomplete backup.
