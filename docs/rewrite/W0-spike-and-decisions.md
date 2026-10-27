@@ -193,6 +193,11 @@ is why 45 files fail `gofmt` and the two data races above went unnoticed.
 
 ## Done when
 
+- The document ends with the four required sections from the output contract in
+  `docs/rewrite/README.md`: **Decisions** (numbered one-liners), **Open questions** (with
+  recommendations), **Assumptions about other work items**, and **Proposed amendments to
+  `DESIGN.md`**. W6 consumes these; a document without them cannot be reconciled.
+
 - Every spike question has a measured answer with the command that produced it.
 - The "findings that contradict planned decisions" section is filled in, even if only to say nothing
   contradicted.

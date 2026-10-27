@@ -122,6 +122,11 @@ get served from Rust is W3's problem, not yours — just capture what they curre
 
 ## Done when
 
+- The document ends with the four required sections from the output contract in
+  `docs/rewrite/README.md`: **Decisions** (numbered one-liners), **Open questions** (with
+  recommendations), **Assumptions about other work items**, and **Proposed amendments to
+  `DESIGN.md`**. W6 consumes these; a document without them cannot be reconciled.
+
 - The conformance test passes green against the current Go server.
 - The hazard table is complete and explicitly lists every affected field.
 - Every endpoint in the table above is covered, plus any you discover.

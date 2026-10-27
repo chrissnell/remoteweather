@@ -307,6 +307,11 @@ internals; this document owns the boundary.
 
 ## Done when
 
+- The document ends with the four required sections from the output contract in
+  `docs/rewrite/README.md`: **Decisions** (numbered one-liners), **Open questions** (with
+  recommendations), **Assumptions about other work items**, and **Proposed amendments to
+  `DESIGN.md`**. W6 consumes these; a document without them cannot be reconciled.
+
 - The trait and both enums are specified, with the single-`tick` question resolved either way.
 - All eleven existing components plus the station drivers and storage writers are mapped onto the
   model in a table, with any misfit called out.

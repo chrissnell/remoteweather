@@ -17,6 +17,8 @@ W0  spike → decisions              (serial; everything depends on it)
                         │              │
                         │              └── W4  database schema  (needs W2)
                         └── W5  management UI design  (needs W3 + W2)
+
+W6  reconciliation + implementation plan   (needs ALL of the above)
 ```
 
 | Item | File | Produces | After |
@@ -28,6 +30,7 @@ W0  spike → decisions              (serial; everything depends on it)
 | W3 | `W3-service-architecture.md` | `docs/service-architecture.md` | W0, **W2a** |
 | W4 | `W4-database-schema.md` | migrations, CAGG generation | W2, W0 |
 | W5 | `W5-management-ui.md` | `docs/management-ui-design.md` | W3, W2 |
+| W6 | `W6-reconciliation.md` | `docs/reconciliation.md`, decision ledger, `docs/implementation-plan.md` | all |
 
 Implementation work items follow once these land. The design/implement split is **deliberate** for
 the pipeline (W3 → runtime spine) and the UI (W5 → UI build); it is not an oversight.
@@ -52,6 +55,43 @@ The most likely way this set degrades is two prompts claiming the same ground. T
 - Any work item that finds a decision wrong adds an entry to the `## Amendments` section:
   date, which decision, what was found, what replaces it.
 - The original decision stays, marked superseded. Future readers need to know what was tried.
+
+## Output contract — how results come back
+
+Design work items do **not** report in chat. Each one commits its output to the repository, because
+the prompts instruct every agent to read its predecessors' documents from the tree — which only
+works if they are in the tree.
+
+- One branch and one PR per work item: `design/<item>`, e.g. `design/w2a-component-model`.
+- Output lands under `docs/` at the path named in the prompt.
+- **Merge a work item before starting anything that depends on it.** Do not run W3 against an
+  unmerged W2a.
+
+### Every design document must end with these four sections
+
+This is what makes the outputs mechanically comparable instead of six essays that have to be held in
+one head at once.
+
+1. **Decisions** — numbered one-liners, each independently quotable. This is the section the owner
+   reviews; it should be reviewable in ten minutes, with the prose read only where a decision looks
+   wrong.
+2. **Open questions** — anything the agent could not resolve, stated as a decision for the owner with
+   options and a recommendation. Not a list of worries.
+3. **Assumptions about other work items** — every assumption made about a document the agent did not
+   write. **This is the drift detector.** If W3 assumed `Component::tick` is a single method and W2a
+   decided otherwise, that contradiction is findable with two greps instead of discovered during
+   implementation.
+4. **Proposed amendments to `DESIGN.md`** — using the protocol below. An agent never edits a decision
+   in place.
+
+W6 consumes exactly these four sections from every document. The prose is background.
+
+### When an agent disagrees with `DESIGN.md`
+
+**Stop and surface it. Do not resolve it.** A single agent silently overriding a shared decision is
+the specific failure mode that produces six documents which each make sense alone and do not cohere.
+Write the proposed amendment, flag it at the top of the output, and carry on under the existing
+decision so the document stays internally consistent.
 
 ## Prompt conventions
 

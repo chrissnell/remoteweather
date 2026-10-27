@@ -154,6 +154,11 @@ These are most of the real screen time for an admin UI, and the usual place desi
 
 ## Done when
 
+- The document ends with the four required sections from the output contract in
+  `docs/rewrite/README.md`: **Decisions** (numbered one-liners), **Open questions** (with
+  recommendations), **Assumptions about other work items**, and **Proposed amendments to
+  `DESIGN.md`**. W6 consumes these; a document without them cannot be reconciled.
+
 - All 46 existing routes are mapped, consciously dropped with a reason, or marked not-UI-facing.
 - The configured-versus-running model is specified, including the API it requires.
 - The auth model is specified.
