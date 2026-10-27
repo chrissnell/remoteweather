@@ -272,8 +272,8 @@ not yet owned by any prompt.
 
 ### Auxiliary binaries — DECIDED: stay in Go, not ported
 
-Owner decision: the ancillary tools stay in Go. Several are no longer used and should have lived in
-`scratch/` rather than `cmd/`.
+Owner decision: the ancillary tools stay in Go, and the dead ones are **not carried over to the new
+repository at all**. Several were never used and should have lived in `scratch/` rather than `cmd/`.
 
 Supporting evidence — only **3 of 12** `cmd/` binaries are built by `.goreleaser.yml`, so nine were
 never shipped at all:
@@ -288,9 +288,9 @@ never shipped at all:
 | `weather-station-simulator` | no | 1 | stays in Go, same reasoning |
 | `live-data-simulator` | no | 1 | stays in Go, same reasoning |
 | `weather-backup` / `weather-restore` | no | 1 each | **retire** — one-time tools written for a past schema migration and rollup rebuild (owner confirmed); also hard-coded to the old schema |
-| `davis-instruments-forwarder` | no | 3 | unused → `scratch/` or delete |
-| `snow-calibrate` | no | 1 | unused → `scratch/` or delete |
-| `moon-phase` | no | 1 | unused → `scratch/` or delete |
+| `davis-instruments-forwarder` | no | 3 | **not carried over** (owner decision) |
+| `snow-calibrate` | no | 1 | **not carried over** (owner decision) |
+| `moon-phase` | no | 1 | **not carried over** (owner decision) |
 
 **Keeping the emulators in Go is actively good, not merely acceptable.** They speak the *wire
 protocol* — serial frames, TCP, UDP — not the internal schema, so a Go Davis emulator exercises a

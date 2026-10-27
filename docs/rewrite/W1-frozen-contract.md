@@ -90,12 +90,12 @@ Captured real JSON responses, with the request that produced each recorded along
 - a station reporting a full sensor complement
 - a station reporting a minimal one
 - snow enabled, and snow disabled
-- **snow device configured but physically absent or offline.** This is time-sensitive: the snow gauge
-  is currently uninstalled, so this state is capturable *now* and hard to reproduce once the hardware
-  is reinstalled. Capture it for `/snow` **and** for `/latest`, since the snow-related fields appear
-  in both. It matters for the contract because the iOS client decodes most fields as non-optional, so
-  whatever shape the absent-sensor case produces today is the shape the new implementation must
-  reproduce.
+- **snow device configured but physically absent or offline.** Capture it for `/snow` **and** for
+  `/latest`, since snow-related fields appear in both. It matters because the iOS client decodes most
+  fields as non-optional, so whatever shape the absent-sensor case produces is what the new
+  implementation must reproduce. The owner confirms the snow hardware is currently down and **can be
+  shut down on demand**, so this state is reproducible whenever you need it — no need to treat it as
+  a one-time capture.
 - a `/span/` response covering a gap in the data
 - at least one empty/no-data case per endpoint
 - for the website-only endpoints, at least one representative response each

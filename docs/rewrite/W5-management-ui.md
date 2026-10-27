@@ -226,18 +226,31 @@ filtering by level/module/station, and what the operator sees when the buffer ov
 Note that W3 specifies runtime-adjustable log levels via `tracing_subscriber::reload` — so
 "raise `weatherstations::davis` to DEBUG for ten minutes" is a UI feature worth designing.
 
-## 6. Technology choice, with an explicit budget
+## 6. Technology — decided: Svelte, with the owner's `chonky` toolkit
 
-Recommend a stack and justify it against the alternatives, **including** the option of
-Rust-in-the-browser (Leptos/Dioxus) versus TypeScript with types generated from the same registry.
+**This is settled; do not re-evaluate it.** Owner decision: **Svelte**, which they use elsewhere, and
+**their own UI toolkit `chonky`** — <https://github.com/chrissnell/chonky>.
 
-Weigh honestly: this is a low-traffic, single-operator, form-heavy, correctness-critical UI, and the
-person maintaining it values clarity over novelty. Rust end-to-end buys type sharing for unit
-conversion and validation; the ecosystem for forms and tables is thinner, and this UI is mostly
-forms and tables.
+Your job is not to choose a stack, it is to use this one well:
 
-Commit to a **bundle-size budget** and a **build step**. The current UI has neither, ships
-unminified, and vendors a deprecated copy of moment.js.
+- **Read `chonky` first** and inventory what it actually provides — components, layout primitives,
+  theming, form handling, conventions. Build the design on top of it rather than alongside it. If a
+  screen needs something `chonky` does not have, say so explicitly and propose either an addition to
+  `chonky` or a local component, with a reason; do not silently introduce a second component
+  vocabulary.
+- **Map every screen to `chonky` components** where they exist. Where the toolkit's conventions
+  conflict with something proposed in this document, the toolkit generally wins — it is the thing the
+  owner maintains and reuses across projects.
+- **Note its gaps as findings**, since they are useful to the owner beyond this project.
+- The generated OpenAPI client from §4 still applies: typed client, drift as a build failure.
+
+Commit to a **bundle-size budget** and a **build step**. The current UI has neither, ships unminified,
+and vendors a deprecated copy of moment.js. Svelte compiles away most of the framework, so the budget
+should be genuinely small — state a number and what counts toward it.
+
+The earlier open question about Rust-in-the-browser (Leptos/Dioxus) is **closed**. Record it as
+considered and rejected in favour of an existing, maintained, owner-authored toolkit; that is a
+stronger reason than any type-sharing argument.
 
 ## 7. Information architecture
 
@@ -287,5 +300,5 @@ These are most of the real screen time for an admin UI, and the usual place desi
 - The first-run guided setup flow is designed.
 - The auth model is specified: Argon2id storage, sessions distinct from credentials, the one-time
   setup-claim flow with its "first to the page wins" hazard addressed, and a CLI recovery path.
-- The technology recommendation names a bundle budget and a build tool.
+- The design is built on `chonky` components, its gaps are listed as findings, and a bundle budget and build tool are named.
 - Every error and empty state in section 8 has a specified behaviour.

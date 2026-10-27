@@ -37,11 +37,19 @@ It is deliberately downstream of W0's spike. Two findings would change it materi
 
 Write this prompt after reading `docs/spike-findings.md`.
 
-## Open question for the owner
+## Decided: the registry is authored in TOML
 
-The registry's authoring format: TOML, RON, or Rust consts compiled directly. TOML reads best and is
-editable by non-Rust tooling; Rust consts get compile-time validation for free. Worth deciding
-before the prompt is written.
+Owner decision — "whatever is cleanest and easiest" — resolved to **TOML**, for these reasons:
+
+- it is human-editable declarative data, which is what a metric list is
+- parsing is trivial with `serde`, and the file is readable by non-Rust tooling
+- no recompile is needed to inspect or diff the registry
+- the compile-time-validation argument for Rust consts does not actually buy the safety that matters
+  here: the critical invariants are **append-only identifiers and no reuse of column names or
+  protobuf field numbers**, and those must be enforced by the generator against the committed schema
+  snapshot regardless of authoring format. A `const` cannot catch a reused field number either.
+
+So: TOML as the source of truth, and the generator owns invariant enforcement.
 
 ## Output contract
 
