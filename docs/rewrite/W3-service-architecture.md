@@ -1,6 +1,6 @@
 # W3 — Service architecture design
 
-**Depends on:** W0. Runs in parallel with W1 and W2.
+**Depends on:** W0 and **W2a (the component and capability model)**. Runs in parallel with W1 and W2.
 **Produces:** `docs/service-architecture.md`.
 **Writes no implementation code.** Trait signatures and type sketches only — enough to prove the
 design coheres, not a working crate.
@@ -10,8 +10,12 @@ design coheres, not a working crate.
 Read `docs/DESIGN.md` first. It records decisions already made; do not re-litigate them. If you find
 one wrong, append an amendment entry per the protocol in that document.
 
-`DESIGN.md` owns the *what*. **This document owns the *how*** — signatures, module boundaries,
-buffer sizes, policies.
+Read `docs/component-model.md` (W2a) second. It defines the `Component` trait, the `Trigger` enum
+and the `Capability` set that everything here plugs into. **Do not redesign it.** If it is wrong,
+raise that against W2a rather than working around it.
+
+`DESIGN.md` owns the *what*. W2a owns **what a component is**. **This document owns the *how*** —
+signatures, module boundaries, buffer sizes, policies.
 
 The Go implementation at `git@github.com:chrissnell/remoteweather.git` is a read-only reference for
 *behaviour*. Assume its *structure* is what we are replacing; where it is cited below, it is a
@@ -39,9 +43,13 @@ owning an HTTP server, an HTTPS server, a gRPC server, the gRPC service implemen
 certificate management, middleware, database queries and config reload. Nothing in the new design
 should be able to accrete like that. Say specifically how your boundaries prevent it.
 
-## 2. The source → transform → sink pipeline
+## 2. The reading pipeline — the `OnReading` path
 
-The core of this document.
+Scope note, because this is easy to get wrong: the pipeline is **one trigger among six**, not the
+organising principle of the system. Per W2a, only the storage writer and the collector uplink are
+driven by reading arrival; APRS, PWS, Weather Underground, Aeris and the snow cache are periodic,
+and the servers are long-running services. Design this section as the implementation of the
+`ReadingStream` capability and the `OnReading` trigger — not as the shape of the whole service.
 
 **Traits.** Exact definitions for `Source` and `Sink`, including how cancellation, backpressure and
 failure propagate.
@@ -79,10 +87,12 @@ reading** and comparing the reading's station name against the names of local `g
 devices. Since received readings preserve the *origin's* name, the guard only fires on a naming
 coincidence — so cycles are not reliably stopped, and multi-hop relay is not expressible at all.
 
-## 3. Lifecycle and supervision
+## 3. Supervisor implementation
 
-How tasks are spawned, cancelled and awaited. What happens when a source or sink returns `Err`.
-Restart-with-backoff policy and where that decision lives.
+W2a specifies the lifecycle *states* (`Waiting`/`Running`/`Failed`/`Backoff`/`Stopped`), capability
+resolution and startup ordering. This section specifies the **mechanics**: how tasks are spawned,
+cancelled and awaited; how the supervisor owns and fires every timer for `Every`, `Calendar` and
+`OnStartup` triggers; and how a component's `tick` returning `Err` maps onto the state machine.
 
 State the invariant that makes a leaked task or an un-awaited handle **impossible to express**.
 
@@ -110,6 +120,9 @@ A first-class deliverable, not a footnote. Requirements:
   carries station/origin so an operator can isolate one device's entire story.
 - **Runtime-adjustable levels** via `tracing_subscriber::reload`, so the management UI can raise one
   module's level without a restart. Specify the mechanism and its concurrency story.
+- **Two buffers, not one.** The current system keeps the application log and the HTTP access log in
+  *separate* buffers, surfaced at `/logs` and `/http-logs`. Decide whether to keep them separate or
+  unify with a filterable field, and say why.
 - **A ring-buffer layer for the management UI.** A custom `Layer` writing structured events into a
   bounded in-memory buffer, consumed over SSE. Contrast with the Go approach, which serialises zap
   output to JSON and then **re-parses it back into structs** to feed the UI.
@@ -122,7 +135,35 @@ A first-class deliverable, not a footnote. Requirements:
   of numbers that matter — readings ingested per station, sink lag and spool depth, dropped-reading
   count by reason, aggregate refresh duration.
 
-## 6. Serving the frozen public website
+## 6. The HTTP layer
+
+One listener, not seven. Per W2a, components that serve HTTP **provide route tables** via the
+`HttpRoutes` capability and a single server component mounts them — the website, the management API,
+the REST ingest endpoint and the legacy compatibility routes all land on one socket. Specify that
+mounting mechanism: how a route table is declared, how conflicts are detected, and whether detection
+happens at startup or at build time.
+
+Today listener construction is spread across seven files, each with its own TLS setup and shutdown
+path: `restserver/controller.go` (5), `storage/grpcstream/grpc.go` (3),
+`weatherstations/grpcreceiver/station.go` (2), `controllers/management/controller.go` (2),
+`weatherlinklive/udp_receiver_{unix,windows}.go` and `ambientcustomized/station.go`.
+
+**Multi-website hosting is a real capability and must survive.** The current REST server routes by
+`Host` header to a per-website configuration, and serves a different site per hostname from one
+process. Specify:
+
+- how the hostname → website lookup works, and how it reads reload-able config without the data race
+  the Go version has (`WeatherWebsites` is a plain map replaced wholesale while requests read it)
+- what happens for an unmatched `Host`, and the default-website fallback
+- **per-website TLS via SNI.** `getCertificate` currently looks up `tlsConfigs[hello.ServerName]` to
+  pick a certificate per hostname at handshake time. Specify how certificates are loaded, keyed,
+  reloaded when config changes, and what happens on SNI miss. Certificate paths come from the config
+  store, so a reload must be able to swap a certificate without dropping the listener.
+- how gRPC coexists on the same socket (ALPN), given that gRPC must remain available for
+  machine-to-machine peers while browsers use REST and SSE
+
+
+## 7. Serving the frozen public website
 
 The existing weather website is carried forward **as-is**, and this document owns how. W1 captures
 what it currently emits; you decide the mechanism.
@@ -141,7 +182,7 @@ Three Go templates exist: `portal.html.tmpl`, `weather-station.html.tmpl`, and
   that is handled, and what the trust boundary is.
 - the module boundary that keeps all of the above from leaking into the new API or domain types
 
-## 7. Testing strategy
+## 8. Testing strategy
 
 Per layer: what is a unit test, what needs a real TimescaleDB container, what needs captured
 hardware frames. State how a driver is tested without the physical device — the Go repo ships four
@@ -150,19 +191,23 @@ emulators in `cmd/`, which is evidence this matters.
 Specify the concurrency tests that would have caught the Go version's actual bugs: config reload
 racing live readers, and shutdown with a stalled sink.
 
-## 8. Extensibility walkthroughs
+## 9. Extensibility walkthroughs
 
 Prove the design by tracing three changes end to end, naming every file touched:
 
-1. add a new weather station driver
-2. add a new sink (e.g. an MQTT publisher)
-3. add a new metric
+1. add a new weather station driver (cover all three trigger shapes it might take — serial loop,
+   HTTP poller, inbound listener)
+2. add a new stream sink (e.g. an MQTT publisher)
+3. add a new **periodic** component (e.g. another upload service like PWS/WU). This is the case the
+   owner cares about most, and the one the Go version handles worst — pwsweather and wunderground
+   are line-for-line identical because there was no shared shape for it.
+4. add a new metric
 
 If any of these touches more than a handful of files, the design is not finished. For calibration,
 adding a metric in the Go version touches roughly eight places. For walkthrough 3, the generation
 half belongs to W2 — reference it rather than designing it.
 
-## 9. Efficiency boundaries
+## 10. Efficiency boundaries
 
 State explicitly what is **not** worth optimising. This system handles a few readings per second.
 The only things that matter are website query latency, on-disk compression ratio, and not stalling
@@ -187,5 +232,6 @@ don't.
   is stated.
 - All three extensibility walkthroughs name their touched files.
 - Logging requirements are concrete enough to implement without further decisions.
-- Section 6 makes a recommendation on each of the website-serving questions.
+- Section 6 specifies hostname routing and the SNI certificate story.
+- Section 7 makes a recommendation on each of the website-serving questions.
 - Any conflict with `DESIGN.md` is recorded as an amendment rather than silently resolved.

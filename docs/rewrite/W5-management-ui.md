@@ -54,6 +54,18 @@ every reload because it's omitted from the should-be-active set.
 **Design so that class of lie is impossible.** Every config change must surface whether it actually
 took effect. Specify the API shape this needs — it will be new, additive endpoints.
 
+**Show the dependency graph, not just per-component status.** Per W2a each component declares the
+capabilities it requires and provides, and a component blocked on an unavailable dependency sits in
+`Waiting { on: Capability }` rather than failing. The operator needs to see *which* capability is
+blocking — "APRS is waiting on ReadingStore" is actionable; "APRS is not running" is not. Design for:
+
+- per-component state: `Waiting` (on what), `Running`, `Failed` (with the error), `Backoff` (until when)
+- for scheduled components, last run, last outcome, and next scheduled run — the supervisor owns the
+  timers, so this is real state rather than a guess
+- a view of what a failing capability is blocking downstream, since one unhealthy database puts
+  several components in `Waiting` at once and the operator should see one root cause, not five
+  unexplained outages
+
 ## 3. Authentication
 
 Specify a replacement for the current scheme, which is:

@@ -118,11 +118,27 @@ Rationale: the Go version does both, and because it uses `CREATE TABLE IF NOT EX
 `CREATE MATERIALIZED VIEW IF NOT EXISTS`, its schema has been frozen at first-run shape ever since —
 58 weather migrations exist and not one of them alters the hypertable or an aggregate.
 
-**Runtime shape** (as constraints — W3 specifies the mechanics):
+**Runtime shape** (as constraints — **W2a** defines the component model, W3 the mechanics):
 - Components are cancellable tasks owning their own resources, supervised as a set. There is no
   `Stop()` method; cancellation plus ownership is how something stops. Rationale: the Go
   `Controller` interface has only `StartController()`, so `RemoveController` can only delete a map
   entry and log "will stop on next app restart" — listeners and goroutines leak.
+- **The word "controller" is retired.** It names a layer rather than a behaviour, which is how three
+  unrelated shapes accumulated behind one interface. Replaced by a single `Component` abstraction in
+  which *when it runs* and *what it needs* are declarative. See W2a.
+- **A component declares a trigger, not its own timer.** Of eleven existing long-running components
+  only two are driven by reading arrival; the rest are periodic or long-running services, and none
+  of them subscribe to readings — they poll the database on hand-rolled tickers. The supervisor owns
+  all scheduling, which makes "when did this last run" inspectable state.
+- **Dependencies between components are declared, not implicit.** Components state the capabilities
+  they require and provide, and the supervisor resolves a startup order. Rationale: today
+  `/forecast` and `/alerts` silently depend on the Aeris component, sunrise/sunset depends on a
+  precompute buried in the REST controller's constructor, APRS depends on the station registry, and
+  the management API depends on the application object itself — a genuine cycle.
+- **A missing dependency means waiting, not refusing.** Four Go controllers call
+  `ValidateTimescaleDBConfig` and refuse to construct without it, so a transient database problem at
+  boot disables the uploaders until the process restarts. Components must instead sit in a `Waiting`
+  state and start when the capability becomes healthy.
 - Configuration is distributed to components by a watch/broadcast mechanism, not shared mutable
   state. Rationale: the Go REST controller holds `WeatherWebsites`, `Devices`, `DeviceNames`,
   `DevicesByWebsite` and `tlsConfigs` as plain fields with **no mutex**, replaced wholesale by the

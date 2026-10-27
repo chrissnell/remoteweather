@@ -7,14 +7,16 @@ anything runs.
 ## How these fit together
 
 ```
-W0  spike → decisions          (serial; everything depends on it)
+W0  spike → decisions              (serial; everything depends on it)
      │
-     ├── W1  frozen contract    (iOS + website)      ─┐
-     ├── W2  metric registry + codegen               ─┤ parallel
-     └── W3  service architecture design             ─┘
-              │                    │
-              │                    └── W4  database schema  (needs W2)
-              └── W5  management UI design  (needs W3 + W2)
+     ├── W1   frozen contract       (iOS + website)   ─┐
+     ├── W2   metric registry + codegen               ─┤ parallel
+     └── W2a  component + capability model            ─┘
+                │
+                └── W3  service architecture  (needs W2a)
+                        │              │
+                        │              └── W4  database schema  (needs W2)
+                        └── W5  management UI design  (needs W3 + W2)
 ```
 
 | Item | File | Produces | After |
@@ -22,7 +24,8 @@ W0  spike → decisions          (serial; everything depends on it)
 | W0 | `W0-spike-and-decisions.md` | `docs/spike-findings.md`, `docs/DESIGN.md` | — |
 | W1 | `W1-frozen-contract.md` | `docs/legacy-api-contract.md`, `contract/` fixtures + conformance test | W0 |
 | W2 | `W2-metric-registry.md` | registry format + `xtask codegen` | W0 |
-| W3 | `W3-service-architecture.md` | `docs/service-architecture.md` | W0 |
+| W2a | `W2a-component-model.md` | `docs/component-model.md` | W0 |
+| W3 | `W3-service-architecture.md` | `docs/service-architecture.md` | W0, **W2a** |
 | W4 | `W4-database-schema.md` | migrations, CAGG generation | W2, W0 |
 | W5 | `W5-management-ui.md` | `docs/management-ui-design.md` | W3, W2 |
 
@@ -37,6 +40,7 @@ The most likely way this set degrades is two prompts claiming the same ground. T
 |---|---|---|
 | `DESIGN.md` (W0) | **What** — decisions and constraints, with rationale | Trait definitions, signatures, buffer sizes, module layout |
 | `service-architecture.md` (W3) | **How** — signatures, module boundaries, policies, buffer sizes | New decisions that contradict `DESIGN.md` without an amendment |
+| `component-model.md` (W2a) | What a component **is** — trait, triggers, capabilities, lifecycle states | Pipeline internals, buffer sizes, module layout |
 | `legacy-api-contract.md` (W1) | The frozen external surface, as it actually behaves today | Any proposed improvement to that surface |
 | `management-ui-design.md` (W5) | Operator UI only | Anything about the public weather website |
 
@@ -94,3 +98,101 @@ Numbers from the existing system, so prompts don't have to re-derive them.
 | Frontend | ~16.5k lines JS/CSS, no build step; `management.js` alone 2,819 lines |
 | Test coverage | 13 test files; 0% on managers, storage, timescaledb, database, types, and 6 of 7 drivers |
 | CI | release-on-tag only; no test, vet, fmt, or lint on PR |
+
+## Capability inventory
+
+Every capability of the current system, so "did we cover everything?" is auditable rather than
+remembered. Tick the right-hand column as work items claim them. Anything still marked **GAP** is
+not yet owned by any prompt.
+
+### Station drivers — note that one label covers three trigger shapes
+
+| Capability | Shape | Owned by |
+|---|---|---|
+| Davis VantagePro/Vue — LOOP packets, CRC16, wake handshake, serial + TCP | serial/TCP loop | W2a, drivers item |
+| Campbell Scientific datalogger | serial/TCP loop | W2a, drivers item |
+| WeatherLink Live — UDP broadcast **and** HTTP poll, discovery, templates | listener + poller | W2a, drivers item |
+| AirGradient | HTTP poller | W2a, drivers item |
+| Ambient "customized" — vendor webhook into our HTTP listener | inbound listener | W2a, drivers item |
+| Snow gauge | gRPC client | W2a, drivers item |
+| gRPC receiver — inbound readings from other RW nodes | inbound listener | W2a, collector item |
+
+### Storage and collector
+
+| Capability | Owned by |
+|---|---|
+| TimescaleDB writer | W3, W4 |
+| gRPC stream uplink to a collector | W3, collector item |
+| Remote-station registry and registration | collector item |
+| Provenance / loop prevention across multi-hop topologies | W3 §2, collector item |
+| Acked, resumable ingest with a durable spool | collector item |
+
+### Periodic and output components
+
+| Capability | Owned by |
+|---|---|
+| APRS/CWOP over APRS-IS | W2a |
+| APRS/CWOP over **KISS TNC — serial** (AX.25) | W2a |
+| APRS/CWOP over **KISS TNC — TCP** | W2a |
+| PWS Weather upload | W2a |
+| Weather Underground upload | W2a |
+| Aeris — **forecast** fetch | W2a |
+| Aeris — **alerts** fetch (separate timer) | W2a |
+| Snow cache refresh | W2a |
+| Rainfall summary refresh (DB job) | W4 |
+| Sun-times precompute | W2a §4 |
+
+### Services
+
+| Capability | Owned by |
+|---|---|
+| Legacy REST API (frozen contract) | W1, compat item |
+| gRPC `WeatherV1` service | W3 §6 |
+| gRPC `WeatherAppsV1` service | W3 §6 |
+| Management API | W5 |
+| Public website — **multi-hostname routing** | W3 §6 |
+| Public website — **per-website TLS via SNI** | W3 §6 |
+| `/portal` multi-station map page | W3 §7 |
+| Live updates to the browser (currently polling; SSE in the new design) | W3 §5, W5 §5 |
+
+### Derived values — W3 §2 must decide ingest-time vs read-time for each
+
+| Capability | Currently computed in |
+|---|---|
+| wind chill, heat index | `cmd/davis-instruments-forwarder` |
+| AQI | `pkg/aqi` |
+| rainfall day/month/year | `internal/controllers/rainfall_calc.go` |
+| rainfall 24/48/72h, storm totals | PL/pgSQL |
+| snow depth, new snow (PELT, RBF, median filter, dual threshold) | `internal/snow` + PL/pgSQL |
+| season snowfall total | PL/pgSQL |
+| circular wind-direction averaging | `circular_avg` custom aggregate |
+| solar potential watts / joules | `pkg/solar` |
+| lunar phase, illumination, age, crescent angle | `pkg/lunar` |
+| sunrise/sunset (Meeus) | `pkg/solar` + config store |
+
+### Configuration and operations
+
+| Capability | Owned by |
+|---|---|
+| Device CRUD, enable/disable | W5 §1 |
+| Storage config and per-backend health checks | W5 §1 |
+| Website config, multi-site | W5 §1 |
+| Radar tile token registration | W5 §1 |
+| Serial-port enumeration | W5 §1 |
+| WeatherLink discovery / template suggest / validate | W5 §1 |
+| `/test/*` connectivity checks (device, serial, DB, storage, API, reading) | W5 §1 |
+| Auth and token rotation | W5 §3 |
+| Application log buffer **and** separate HTTP access log buffer | W3 §5 |
+| Component dependency / `Waiting` visibility | W2a §3, W5 §2 |
+
+### Auxiliary binaries — decision needed: port, keep in Go, or drop
+
+| Binary | Status |
+|---|---|
+| `weather-backup` / `weather-restore` | **GAP** — note: currently covers only the raw table, not the CAGGs |
+| `remoteweather-timescaledb-provisioner` (+ `pghba`, password, check) | **GAP** |
+| `davis-instruments-forwarder` | **GAP** |
+| `snow-calibrate` | **GAP** |
+| `moon-phase` | **GAP** |
+| `davis-emulator`, `campbell-emulator`, `weather-station-simulator`, `live-data-simulator` | test infrastructure — W3 §8 |
+| `migrate` | superseded by `sqlx::migrate!()` |
