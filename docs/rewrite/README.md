@@ -139,6 +139,30 @@ Numbers from the existing system, so prompts don't have to re-derive them.
 | Test coverage | 13 test files; 0% on managers, storage, timescaledb, database, types, and 6 of 7 drivers |
 | CI | release-on-tag only; no test, vet, fmt, or lint on PR |
 
+### Measured request mix
+
+Owner-supplied production traffic. **`/latest` is ~93% of all requests**, which makes it the only
+endpoint whose latency materially matters.
+
+| Endpoint | Requests | Share | Payload changes when |
+|---|---|---|---|
+| `/latest` | 17,740 | **~93%** | a new reading arrives (~2 s) |
+| `/snow` | 499 | 2.6% | snow cache refresh |
+| `/forecast/240` | 320 | 1.7% | Aeris forecast refresh (hourly) |
+| `/` | 217 | 1.1% | configuration change |
+| `/forecast/24` | 136 | 0.7% | Aeris forecast refresh (hourly) |
+| `/stationinfo` | 127 | 0.7% | configuration change |
+| `/span/24h` | — | <1% | 1 m aggregate tick (60 s) |
+
+Every one of these serves a payload that is **identical for all callers** and changes on a known
+schedule. None of them is a per-user query. See W3 §2a.
+
+`/latest` currently costs **7 TimescaleDB round trips plus 1 SQLite query per request** inside a
+202-line handler: latest reading, daily rain, monthly rain, yearly rain,
+`get_rainfall_with_recent()` (with a fallback query if it errors), `calculate_storm_rainfall()`,
+`calculate_wind_gust()`, and `GetSunTimes()`. At the measured volume that is roughly **124,000
+TimescaleDB queries** recomputing answers that change at most every two seconds.
+
 ## Capability inventory
 
 Every capability of the current system, so "did we cover everything?" is auditable rather than

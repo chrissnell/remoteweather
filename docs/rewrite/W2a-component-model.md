@@ -112,6 +112,7 @@ Define the capability set and the resolution rules. Starting point:
 enum Capability {
     ReadingStream, ReadingStore, StationRegistry, ConfigStore,
     ForecastStore, AlertStore, SnowCache, SunTimes, HttpRoutes,
+    LatestSnapshot,   // the hot path -- see W3 §2a
 }
 ```
 
@@ -122,6 +123,11 @@ Specify:
 - how a capability is handed to a component — typed handle, registry lookup, something else
 - **how the `AppReloader` cycle is eliminated.** Reconfiguration should be a capability backed by
   the config watch channel, not a back-reference to the application object.
+- `LatestSnapshot` as a capability. `/latest` is ~93% of production traffic and currently costs 7
+  TimescaleDB round trips per request. A component with `Trigger::OnReading` must provide a
+  pre-serialised snapshot so the handler performs no queries at all. W3 §2a owns the mechanics; this
+  document owns the capability's place in the graph and the fact that the HTTP server component
+  *requires* it.
 - `HttpRoutes` as a capability: components that serve HTTP **provide route tables** and one server
   component mounts them. This is how the website, management API and REST ingest end up on one
   listener instead of the current seven, with the relationship stated rather than incidental.

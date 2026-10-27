@@ -87,6 +87,59 @@ reading** and comparing the reading's station name against the names of local `g
 devices. Since received readings preserve the *origin's* name, the guard only fires on a naming
 coincidence — so cycles are not reliably stopped, and multi-hop relay is not expressible at all.
 
+## 2a. The read path and the hot-path snapshot
+
+Owner-supplied production traffic (recorded in `docs/rewrite/README.md`) shows **`/latest` is ~93% of
+all requests**. It is the only endpoint whose latency materially matters, and the measured mix has a
+property that determines the whole read-path design: **every top endpoint serves a payload that is
+identical for all callers and changes on a known schedule.** None is a per-user query.
+
+Today `/latest` costs **7 TimescaleDB round trips plus 1 SQLite query per request** in a 202-line
+handler — latest reading, daily/monthly/yearly rain, `get_rainfall_with_recent()` (plus a fallback
+query on error), `calculate_storm_rainfall()`, `calculate_wind_gust()`, and `GetSunTimes()`. At the
+measured volume that is ~124,000 queries recomputing answers that change at most every two seconds.
+
+**Design requirement: nothing in the hot path touches the database.** Specify a `LatestSnapshot`
+capability — a component with `Trigger::OnReading` that rebuilds the response payload when a reading
+arrives and publishes it behind an `ArcSwap`/`watch`. The handler's entire job becomes: resolve the
+website, select the station, clone an `Arc`, write bytes.
+
+Specify:
+
+- **Pre-serialise, don't just cache the struct.** The payload is byte-identical for all callers, so
+  serialise once per *reading* rather than once per *request*. The legacy response has 133 fields, so
+  this is not free work to repeat 17,000 times.
+- **Snapshot cardinality and keying** — per `(website, station)`. A handful of each, a few KB apiece,
+  so memory is a non-issue; say so explicitly rather than leaving it as a worry.
+- **Conditional GET.** The payload changes only when a reading arrives, so an ETag derived from the
+  reading timestamp lets the iOS app's polling receive 304s. This must stay backward compatible: a
+  client that sends no `If-None-Match` gets a normal 200 with the full body. Additive only — the
+  contract in W1 is frozen.
+- **Graceful degradation.** With `/latest` served from memory, a database outage no longer fails 93%
+  of traffic; serve the last snapshot with a staleness indicator. Today a blip breaks the dominant
+  endpoint outright.
+- **The rest of the mix.** `/snow` from the `SnowCache` capability; `/forecast/*` from
+  `ForecastStore` (hourly refresh, so a snapshot); `/` as a rendered-page cache invalidated by the
+  config watch; `/stationinfo` from `ConfigStore`. `/span/24h` is the only genuinely query-shaped
+  endpoint and is under 1% of traffic — a 60-second TTL is lossless, because the 1 m aggregate only
+  advances once a minute.
+
+**This supplies the rule §2 asks for.** The seven queries exist because day/month/year rain,
+24/48/72 h rain, storm totals and wind gust are all computed at read time. The traffic mix resolves
+the ingest-versus-read question non-arbitrarily:
+
+> Anything on the `/latest` payload is computed at ingest and lives in the snapshot. Nothing on the
+> `/latest` payload is computed per request.
+
+Use that as the stated rule, and apply it to the derived-values table in §2.
+
+**What not to do**, since "optimise the hot path" invites gold-plating. At 17,740 requests the
+absolute rate is low — this is about tail latency and about not generating 124,000 redundant queries,
+**not** about throughput headroom. So: no Redis or memcached (the data is tiny and single-process; an
+`Arc` *is* the cache), no CDN (the payload changes every two seconds, so TTLs buy nothing and it adds
+an operational dependency), no hard optimisation of `/span/24h`, and no hand-tuning the JSON encoder
+once serialisation is off the per-request path.
+
 ## 3. Supervisor implementation
 
 W2a specifies the lifecycle *states* (`Waiting`/`Running`/`Failed`/`Backoff`/`Stopped`), capability
@@ -209,9 +262,10 @@ half belongs to W2 — reference it rather than designing it.
 
 ## 10. Efficiency boundaries
 
-State explicitly what is **not** worth optimising. This system handles a few readings per second.
-The only things that matter are website query latency, on-disk compression ratio, and not stalling
-ingest on a slow sink. Name the places where someone might be tempted to micro-optimise, and say
+State explicitly what is **not** worth optimising. This system handles a few readings per second,
+and the measured request mix (README) is ~19,000 requests dominated by one endpoint — so the absolute
+rate is low. The only things that matter are `/latest` tail latency (§2a), on-disk compression ratio,
+and not stalling ingest on a slow sink. Name the places where someone might be tempted to micro-optimise, and say
 don't.
 
 ---
@@ -237,6 +291,8 @@ don't.
   is stated.
 - All three extensibility walkthroughs name their touched files.
 - Logging requirements are concrete enough to implement without further decisions.
+- §2a specifies the `LatestSnapshot` capability, pre-serialisation, ETag behaviour and the
+  ingest-versus-read rule, and applies that rule to the §2 derived-values table.
 - Section 6 specifies hostname routing and the SNI certificate story.
 - Section 7 makes a recommendation on each of the website-serving questions.
 - Any conflict with `DESIGN.md` is recorded as an amendment rather than silently resolved.
