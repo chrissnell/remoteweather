@@ -60,10 +60,12 @@ nothing else owns replacing it:
 | deb / rpm / arch packages | plus systemd unit, sysusers, install script |
 
 **The armv6/armv7 cross-compilation question is load-bearing and must be answered empirically.** The
-Go build is painless specifically because `modernc.org/sqlite` is pure Go with no cgo. If the Rust
-config store uses `rusqlite`, that pulls in bundled C and ARM cross-compilation gets meaningfully
-harder. Test this early — a cross-compile spike for armv6 — because the answer may feed back into
-W2/W4's choice of SQLite driver. If it is bad, say so loudly rather than working around it.
+Go build is painless specifically because `modernc.org/sqlite` is pure Go with no cgo. The question
+is not hypothetical: `DESIGN.md`'s named-crates list already picks `sqlx` for both databases, and
+sqlx's SQLite backend links `libsqlite3-sys` with bundled C exactly as `rusqlite` does — so the
+chosen stack already has C in the armv6 path. Test this early — a cross-compile spike for armv6 —
+because the answer may feed back into W2/W4's choice of SQLite driver (or into whether the config
+store is SQLite at all). If it is bad, say so loudly rather than working around it.
 
 Evaluate `cargo-dist` versus `cross` versus hand-rolled, and commit to one.
 

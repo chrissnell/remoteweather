@@ -22,6 +22,12 @@ asserts, so **run the spike first** and write the decisions informed by its resu
 Work against a throwaway TimescaleDB instance (a container is ideal). For each question report the
 command used and the measured number. Opinions are not findings.
 
+**Pin the version deliberately.** The two load-bearing answers — `ADD COLUMN` on compressed chunks,
+and hierarchical CAGGs — have changed across TimescaleDB releases, so a finding on an arbitrary
+container tag does not transfer. Run the spike on the version you would actually deploy, record what
+production currently runs (same `extversion` query there) and, if they differ, say which answers are
+version-sensitive.
+
 1. **Version.** `SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';`
 
 2. **The highest-risk unknown.** Does `ALTER TABLE ... ADD COLUMN <nullable>` succeed on a hypertable

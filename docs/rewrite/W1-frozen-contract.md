@@ -12,8 +12,10 @@ Read `docs/DESIGN.md` first.
 
 Two independent clients must keep working after the rewrite, and **both** are frozen:
 
-1. **The iOS app** — `git@github.com:chrissnell/RemoteWeather.app.git`. Note the URL registered in
-   Multica project resources is malformed (doubled); the one above is correct. Client code lives in
+1. **The iOS app** — `git@github.com:chrissnell/RemoteWeather.app.git`. **This repo is currently not
+   registered as a Multica project resource at all** (checked 2026-10-28), and platform agents can
+   only check out registered repos — so it must be added before this work item runs, or the Swift
+   side of deliverables 2 and 3 is impossible. Client code lives in
    `RemoteWeather/Sources/RemoteWeather/Data/REST/`.
 2. **The existing public weather website**, which is being carried forward as-is rather than
    redesigned. Its JS lives in `internal/controllers/restserver/assets/js/`.

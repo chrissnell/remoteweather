@@ -24,6 +24,16 @@ The retention policy on raw is 365 days and **is active** (confirmed via
 reaches back to 2025-01-01, which means roughly **294 days of daily and hourly rollup cannot be
 recomputed from anything** — the raw rows behind it were deleted long ago.
 
+**⚠️ The loss window is still growing.** This work item runs at stage 5, but retention keeps firing
+through every earlier stage: each day between the writing of this prompt and the final cutover
+converts one more day of raw data into unrecoverable rollup-only history (and the 1m/5m aggregates,
+on 1-month/6-month retention, lose their tails even faster). Pausing raw retention
+(`SELECT remove_retention_policy('weather');` — roughly 1.6 GB/month of uncompressed growth) and
+taking the §1 archive copies are therefore **pre-flight actions in the master issue, to be done
+now**, not steps that wait for this work item. When this runs: confirm whether retention was paused,
+re-measure every number in the table above (they are a 2026-10-27 snapshot), and account for the
+longer raw window in the reconciliation counts.
+
 `weather-backup`/`weather-restore` do not help: they are `SELECT * FROM weather` and
 `INSERT INTO weather`, covering only the raw hypertable, never the aggregates. They were also one-time
 tools for a previous migration and are retired (see the capability inventory).

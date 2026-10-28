@@ -165,7 +165,10 @@ Pay particular attention to:
 
 - **Aeris**, which is two independent producers (forecasts, alerts) on separate schedules. Decide
   whether that's one component with two triggers or two components, and justify it.
-- **Sun-times precompute**, which is `OnStartup` and must stop living inside the REST server.
+- **Sun-times precompute**, which must stop living inside the REST server. It is nominally
+  `OnStartup`, but a precompute has a finite horizon and a process that runs for months outlives it —
+  decide the real trigger (`Calendar` daily extension, or `OnStartup` plus a scheduled top-up) rather
+  than carrying the startup-only shape forward.
 - **APRS**, which needs both `ReadingStore` and `StationRegistry`, and which also has two output
   transports (APRS-IS network, and KISS TNC over serial or TCP). Decide whether transport is a
   component concern or a sink concern.
