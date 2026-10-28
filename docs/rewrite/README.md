@@ -43,6 +43,34 @@ W6  reconciliation + implementation plan   (needs ALL of the above)
 Implementation work items follow once these land. The design/implement split is **deliberate** for
 the pipeline (W3 → runtime spine) and the UI (W5 → UI build); it is not an oversight.
 
+## Pre-flight — owner actions before stage 2 starts
+
+These cost minutes and gate correctness; none of them belongs to a work item, so they are listed
+here rather than assumed.
+
+1. **Stop the ongoing raw-data loss now.** The production database's 365-day raw retention policy is
+   active and fires daily, so every day of this multi-stage program permanently converts one more day
+   of raw readings into rollup-only history (the ~294-day problem, still growing — and the 1m/5m
+   aggregates on 1-month/6-month retention lose their tails faster). Pause it
+   (`SELECT remove_retention_policy('weather');` — roughly 1.6 GB/month of uncompressed growth) or
+   take a verified `pg_dump` snapshot, and take W9 §1's cheap `weather_1d`/`weather_1h` archive
+   copies at the same time. W9 formalises the migration later; this step just stops the bleeding.
+2. **Register the iOS repo as a project resource.** `git@github.com:chrissnell/RemoteWeather.app.git`
+   is not currently in the Multica project resources, and platform agents can only check out
+   registered repos — W1's Swift-side deliverables (the hazard table in particular) are impossible
+   without it.
+3. **W2 and W4 are OUTLINE prompts and must be finished before their stages fire.** Both say "write
+   this prompt after reading `docs/spike-findings.md`" — so between W0 merging and stage 2 being
+   promoted, someone must turn W2's outline into a full prompt (and likewise W4 before stage 4).
+   Promoting a stage with an outline prompt runs an agent on half instructions.
+4. **Stage promotion waits for merges, not just issue completion.** "Merge a work item before
+   starting anything that depends on it" only holds if the next stage is promoted after the previous
+   stage's PRs are actually merged.
+5. **The new v2 API is post-design scope.** W1 and W3 both defer it to "a later work item" that does
+   not exist in this set. That is deliberate — the legacy contract is frozen, new endpoints in these
+   designs are additive — but W6 must record it as a named future work item rather than a dangling
+   reference.
+
 ## Document ownership — read this before editing any prompt
 
 The most likely way this set degrades is two prompts claiming the same ground. The boundaries:

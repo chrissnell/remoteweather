@@ -1,12 +1,12 @@
 # W6 — Reconciliation and implementation plan
 
-**Depends on:** every design work item having landed (W0–W5).
+**Depends on:** every design work item having landed (W0, W1, W2, W2a, W3, W4, W5, W7, W8, W9).
 **Produces:** `docs/reconciliation.md`, an updated `docs/DESIGN.md`, and `docs/implementation-plan.md`.
 **Writes no implementation code.**
 
 ## Why this exists
 
-Six design documents were written by six agents that never spoke to each other. Each was explicitly
+The design documents were written by separate agents that never spoke to each other. Each was explicitly
 told to stay in its lane and not redesign its neighbours' work. That is the right instruction for
 producing the documents, and it guarantees two problems:
 
@@ -31,6 +31,9 @@ Read all of these, and read them *together* rather than in sequence:
 - `docs/service-architecture.md` (W3)
 - the database schema and migration design (W4)
 - `docs/management-ui-design.md` (W5)
+- `docs/collector.md` (W7)
+- the CI workflows and `docs/release.md` (W8)
+- `docs/data-migration.md` and the migration scripts (W9)
 
 Every one of those documents ends with the four required sections from the output contract in
 `docs/rewrite/README.md`: **Decisions**, **Open questions**, **Assumptions about other work items**,
@@ -61,25 +64,32 @@ Known likely fault lines, as starting points rather than an exhaustive list:
 
 ## 2. Gap audit
 
-Collect every "do not" line from all seven prompts and check whether anything in the union is
+Collect every "do not" line from all ten prompts and check whether anything in the union is
 unowned. For each gap: state it, say which document should own it, and either resolve it inline if
 it is small or raise it as a new work item if it is not.
 
 Specific ones to check, since the prompts deliberately deferred them:
 
-- the public website's three Go templates — W3 §7 was asked for a recommendation, but the call on
-  `weather-app.js.tmpl` was explicitly left to the owner
-- migration of the existing `weather_v2_0_0` data — scoped out of W4 and never given its own item
-- the release and packaging story: cross-compilation to armv6/armv7/arm64, deb/rpm/arch, systemd,
-  Docker. Noted in the capability inventory, never given a work item
-- CI itself — the prompts assume a PR gate exists from the first commit, but nothing designs it
+- the public website's three Go templates — W3 §7 owns the serving mechanism; verify the decided
+  `weather-app.js.tmpl` replacement (static JS + JSON config endpoint) was actually specified
+- migration of the existing `weather_v2_0_0` data — owned by W9; verify it landed and that the
+  history decision was presented to the owner rather than assumed
+- the release and packaging story — owned by W8; verify every target in its matrix was produced or
+  consciously dropped, and that the armv6 answer fed back into the SQLite-driver choice if needed
+- CI — owned by W8; verify the PR gate actually exists and is green, not just designed
+- **the new v2 API surface** — W1 and W3 both defer to "a later work item," but no design work item
+  owns it. Confirm it is deliberately post-design scope, or raise it as a named work item
+- **the config store and config migration** — W9 covers weather data only. The new config schema is
+  W3/W4 territory, but migrating (or deliberately hand-recreating) the owner's existing SQLite
+  config database is unowned. Resolve it or raise it; "re-enter by hand" is acceptable only as a
+  recorded decision
 - the four dead Go tools pending the owner's delete confirmation
 
 ## 3. Decision ledger
 
 Merge the `Decisions` sections of all documents into one numbered ledger in `DESIGN.md`, each entry
 carrying its source document. This becomes the single place to answer "why is it like this," and the
-thing an implementation agent reads instead of six design documents.
+thing an implementation agent reads instead of ten design documents.
 
 Apply the accumulated `Proposed amendments` using the protocol: append to `Amendments`, mark the
 superseded decision, never edit a decision in place.
@@ -87,9 +97,10 @@ superseded decision, never edit a decision in place.
 ## 4. Open questions for the owner
 
 One consolidated list, deduplicated, each with: the question, why it matters, the options, and your
-recommendation. Known entries at the time of writing: the registry authoring format (TOML versus
-Rust consts), whether `weather-app.js.tmpl` is carried forward verbatim, and the management UI
-technology choice.
+recommendation. The four questions that were open when this prompt set was first drafted (registry
+format, `weather-app.js.tmpl`, UI technology, dead Go tools) are **all settled** — see the master
+issue's "Decisions resolved" table — so do not re-open them; this list is for whatever the design
+documents surfaced since.
 
 Keep this list short and decision-shaped. If it exceeds a dozen items, the design documents left too
 much open and that is itself a finding worth stating.
